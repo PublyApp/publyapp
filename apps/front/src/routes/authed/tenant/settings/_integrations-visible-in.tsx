@@ -1,4 +1,9 @@
 import { useTranslation } from 'react-i18next';
+import QueryDisplay from '~/components/query-display';
+import {
+	toTenantProjectItems,
+	type useTenantProjectsQuery,
+} from '~/lib/query/tenant-projects';
 
 export type VisibleInProject = { id: string; label: string };
 
@@ -7,10 +12,10 @@ export type VisibleInProject = { id: string; label: string };
  * rather than silently disappearing. */
 export const IntegrationsVisibleIn = ({
 	projectIds,
-	projects,
+	query,
 }: {
 	projectIds: string[];
-	projects: VisibleInProject[];
+	query: ReturnType<typeof useTenantProjectsQuery>;
 }) => {
 	const { t } = useTranslation(['settings']);
 
@@ -18,9 +23,22 @@ export const IntegrationsVisibleIn = ({
 		return <span>{t('visible-in-all-projects')}</span>;
 	}
 
-	const names = projectIds
-		.map((id) => projects.find((project) => project.id === id)?.label ?? id)
-		.join(', ');
+	const renderNames = (projects: VisibleInProject[]) =>
+		projectIds
+			.map((id) => projects.find((project) => project.id === id)?.label ?? id)
+			.join(', ');
+	const projects = toTenantProjectItems(query.data).map((project) => ({
+		id: project.id,
+		label: project.name,
+	}));
 
-	return <span>{t('visible-in-projects', { names })}</span>;
+	return (
+		<QueryDisplay
+			query={query}
+			variant="discreet"
+			LoadingSlot={<span>{renderNames([])}</span>}
+		>
+			<span>{t('visible-in-projects', { names: renderNames(projects) })}</span>
+		</QueryDisplay>
+	);
 };

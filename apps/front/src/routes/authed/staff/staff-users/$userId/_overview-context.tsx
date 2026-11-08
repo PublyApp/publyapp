@@ -1,16 +1,15 @@
 import { createContext, useContext } from 'react';
-import type {
-	AssignedStaffRole,
-	StaffUserDetails,
-} from '~/lib/query/staff-users';
+import type { QueryDisplayQuery } from '~/components/query-display';
+import type { StaffUserDetails } from '~/lib/query/staff-users';
+
+import type { GetStaffUserRolesResult } from '@org/client-ts/models/index';
 
 export type StaffUserOverviewContextValue = {
 	user: StaffUserDetails;
 	locale: string;
-	roles: AssignedStaffRole[];
-	rolesIsPending: boolean;
-	rolesHasError: boolean;
-	onRetryRoles: () => void;
+	/** The assigned-roles query; the overview tab renders it through
+	 * `QueryDisplay`. */
+	query: QueryDisplayQuery<GetStaffUserRolesResult>;
 	maxRolesPerUser: number;
 	canSuspend: boolean;
 	canReactivate: boolean;

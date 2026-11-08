@@ -4,6 +4,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import QueryDisplay from '~/components/query-display';
 import { DataTable } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
@@ -112,12 +113,22 @@ const CompanyCountLabel = ({ userId }: { userId: string }) => {
 		sortOrder: DEFAULT_SORT.order,
 		size: 1,
 	});
-	const rows = toGlobalTenantUserCompanyRows(query.data?.data);
 
 	return (
-		<p className="text-sm text-muted-foreground" data-testid="company-count">
-			{t('company-count', { count: rows.length })}
-		</p>
+		<QueryDisplay query={query} variant="discreet">
+			{({ data }) => {
+				const companyRows = toGlobalTenantUserCompanyRows(data?.data);
+
+				return (
+					<p
+						className="text-sm text-muted-foreground"
+						data-testid="company-count"
+					>
+						{t('company-count', { count: companyRows.length })}
+					</p>
+				);
+			}}
+		</QueryDisplay>
 	);
 };
 

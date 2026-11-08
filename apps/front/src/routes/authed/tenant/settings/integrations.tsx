@@ -30,10 +30,7 @@ import {
 	useSocialAccountsQuery,
 	type SocialAccountRow,
 } from '~/lib/query/social-accounts';
-import {
-	toTenantProjectItems,
-	useTenantProjectsQuery,
-} from '~/lib/query/tenant-projects';
+import { useTenantProjectsQuery } from '~/lib/query/tenant-projects';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 import { formatDateTime } from '~/utils/format-time';
 
@@ -73,7 +70,7 @@ type IntegrationsColumnContext = {
 	t: (key: string, options?: Record<string, unknown>) => string;
 	locale: string;
 	canManage: boolean;
-	projects: Array<{ id: string; label: string }>;
+	query: ReturnType<typeof useTenantProjectsQuery>;
 	onReconnect: (account: SocialAccountRow) => void;
 	onDisconnect: (account: SocialAccountRow) => void;
 };
@@ -81,7 +78,7 @@ type IntegrationsColumnContext = {
 const buildColumns = (
 	context: IntegrationsColumnContext,
 ): ColumnDef<SocialAccountRow>[] => {
-	const { t, locale, canManage, projects, onReconnect, onDisconnect } = context;
+	const { t, locale, canManage, query, onReconnect, onDisconnect } = context;
 
 	const columns: ColumnDef<SocialAccountRow>[] = [
 		{
@@ -133,7 +130,7 @@ const buildColumns = (
 			cell: ({ row }) => (
 				<IntegrationsVisibleIn
 					projectIds={row.original.projectIds}
-					projects={projects}
+					query={query}
 				/>
 			),
 		},
@@ -244,23 +241,19 @@ const TenantSettingsIntegrationsPage = () => {
 	);
 
 	const rows = toSocialAccountRows(socialAccountsQuery.data);
-	const projects = toTenantProjectItems(projectsQuery.data).map((project) => ({
-		id: project.id,
-		label: project.name,
-	}));
 	const columns = useMemo(
 		() =>
 			buildColumns({
 				t,
 				locale: i18n.resolvedLanguage ?? 'en',
 				canManage,
-				projects,
+				query: projectsQuery,
 				onReconnect: (account) =>
 					setDrawerUi({ ...IDLE_DRAWER_UI, reconnectAccount: account }),
 				onDisconnect: (account) =>
 					setDrawerUi({ ...IDLE_DRAWER_UI, disconnectAccount: account }),
 			}),
-		[t, i18n.resolvedLanguage, canManage, projects],
+		[t, i18n.resolvedLanguage, canManage, projectsQuery],
 	);
 
 	const isListLoadedAndEmpty =

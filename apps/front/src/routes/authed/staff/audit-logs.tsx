@@ -11,7 +11,9 @@ import type {
 } from '~/components/history/history-types';
 import type { ListPanelGroup } from '~/components/list/filter-panel';
 import type { ListFiltersValue } from '~/components/list/list-types';
-import type { QueryDisplayQuery } from '~/components/query-display';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import { DataTableCursorFooter } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
@@ -352,24 +354,28 @@ const StaffAuditLogsPage = () => {
 				onExport={() => setIsExportOpen(true)}
 				exportTestId="staff-audit-logs-export-trigger"
 				banner={
-					catalogQuery.isError ? (
-						<div
-							role="alert"
-							className="flex items-center justify-between gap-2 rounded-[var(--publy-radius-medium-control)] border border-(--publy-alert-danger-border) bg-(--publy-alert-danger-bg) px-3 py-2.5"
-						>
-							<p className="text-sm text-(--publy-alert-danger-text)">
-								{t('actions-filter-error')}
-							</p>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() => void catalogQuery.refetch()}
+					<QueryDisplay
+						query={catalogQuery}
+						variant="discreet"
+						ErrorSlot={
+							<div
+								role="alert"
+								className="flex items-center justify-between gap-2 rounded-[var(--publy-radius-medium-control)] border border-(--publy-alert-danger-border) bg-(--publy-alert-danger-bg) px-3 py-2.5"
 							>
-								{t('common:retry')}
-							</Button>
-						</div>
-					) : null
+								<p className="text-sm text-(--publy-alert-danger-text)">
+									{t('actions-filter-error')}
+								</p>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => void catalogQuery.refetch()}
+								>
+									{t('common:retry')}
+								</Button>
+							</div>
+						}
+					/>
 				}
 				events={events}
 				locale={locale}

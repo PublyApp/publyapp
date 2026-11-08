@@ -20,11 +20,11 @@ import type { StaffTenantDetails } from '~/lib/query/staff-tenants';
  * i18n keys are unchanged. */
 export const TenantDetailsStatRow = ({
 	tenant,
-	ownersQuery,
+	query,
 	t,
 }: {
 	tenant: StaffTenantDetails;
-	ownersQuery: ReturnType<typeof useStaffTenantUsersQuery>;
+	query: ReturnType<typeof useStaffTenantUsersQuery>;
 	t: (key: string, options?: Record<string, unknown>) => string;
 }) => {
 	const seatsLeft = Math.max(tenant.maxUsers - tenant.usersCount, 0);
@@ -32,7 +32,7 @@ export const TenantDetailsStatRow = ({
 		tenant.maxUsers > 0
 			? Math.min((tenant.usersCount / tenant.maxUsers) * 100, 100)
 			: 0;
-	const ownerPeople = toStaffTenantUserRows(ownersQuery.data?.data)
+	const ownerPeople = toStaffTenantUserRows(query.data?.data)
 		.slice(0, 5)
 		.map((row) => ({
 			id: row.id,

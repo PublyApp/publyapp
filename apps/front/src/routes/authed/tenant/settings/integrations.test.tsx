@@ -79,7 +79,15 @@ vi.mock('~/lib/query/needs-reconnect-accounts', async () => {
 });
 
 vi.mock('~/lib/query/tenant-projects', () => ({
-	useTenantProjectsQuery: () => ({ data: undefined }),
+	useTenantProjectsQuery: () => ({
+		data: {},
+		isPending: false,
+		isLoading: false,
+		isFetching: false,
+		isError: false,
+		error: null,
+		refetch: vi.fn(),
+	}),
 	toTenantProjectItems: () => [{ id: 'p1', name: 'Acme' }],
 }));
 

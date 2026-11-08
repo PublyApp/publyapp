@@ -26,17 +26,16 @@ const memberDisplayName = (user: MemberRow): string =>
 // ladder lives in `QueryDisplay`; the slots are the card's existing bodies.
 export const renderStaffRoleMembersCard = ({
 	t,
-	usersQuery,
+	query,
 	userRows,
 }: {
 	t: (key: string, options?: Record<string, unknown>) => string;
-	usersQuery: StaffRoleUsersQuery;
+	query: StaffRoleUsersQuery;
 	userRows: MemberRow[];
 }) => {
-	const failure =
-		usersQuery.error === null ? null : toApiFailure(usersQuery.error);
+	const failure = query.error === null ? null : toApiFailure(query.error);
 	const failureStatus = failure?.kind === 'problem' ? failure.status : null;
-	const onRetry = () => void usersQuery.refetch();
+	const onRetry = () => void query.refetch();
 
 	// `QueryDisplay` reads emptiness from `data`; the API returns a page object,
 	// so hand it the row list — the same predicate the hand-written ladder used.
@@ -44,9 +43,9 @@ export const renderStaffRoleMembersCard = ({
 	// fails (QueryDisplay renders children when `isError && data !== undefined`).
 	// `data` is the row list whenever the cache holds a page, and undefined on a
 	// first load so that a failure there still shows the error + retry slot.
-	const hasCachedUsers = usersQuery.data !== undefined;
+	const hasCachedUsers = query.data !== undefined;
 	const stateQuery: QueryDisplayQuery = {
-		...usersQuery,
+		...query,
 		data: hasCachedUsers ? userRows : undefined,
 	};
 

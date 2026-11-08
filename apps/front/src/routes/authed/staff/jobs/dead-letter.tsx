@@ -114,7 +114,6 @@ const StaffJobsDeadLetterPage = () => {
 	};
 
 	const detailQuery = useStaffDeadLetterDetailQuery(inspected?.id);
-	const detail = detailQuery.data;
 	const requeueMutation = useStaffRequeueDeadLetterMutation();
 
 	const filtersValue: ListFiltersValue = {
@@ -307,7 +306,7 @@ const StaffJobsDeadLetterPage = () => {
 					/>
 					<DeadLetterDrawer
 						row={inspected}
-						detail={detail}
+						query={detailQuery}
 						locale={locale}
 						onClose={() => setInspected(null)}
 						t={t}

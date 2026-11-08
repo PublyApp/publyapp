@@ -23,9 +23,9 @@
  *    files under `components/table/` (the boundary #1323 tightened from the
  *    old broad directory prefix).
  *
- * Shrinking: when QueryDisplay PR 3 lands (DataTable delegating to
- * `resolveTableBodyState` via the `no-match` slot), the DataTable exemption
- * list must SHRINK and this pin updates in the same PR (#1323).
+ * Shrinking: DataTable left the exemption in #2341 (it now renders its states
+ * through QueryDisplay and takes a `query` prop); the pin shrank in that same
+ * PR. Any further shrink updates this pin too (#1323).
  */
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
@@ -58,9 +58,8 @@ interface OxlintRootConfig {
 
 const ROOT_CONFIG = JSON.parse(readFileSync(OXLINTRC_PATH, 'utf8'));
 
-/** The DataTable exemption set this pin defends (#1323). */
+/** The DataTable exemption set this pin defends (#1323, shrunk by #2341). */
 const EXPECTED_DATATABLE_EXEMPTIONS: readonly string[] = [
-	'components/table/data-table.tsx',
 	'components/table/floating-selection-bar.tsx',
 	'components/table/row-actions.tsx',
 ];
@@ -207,6 +206,9 @@ const ENFORCED_PATHS: readonly string[] = [
 	// The tightened boundary: NEW files under components/table/ are NOT exempt.
 	'apps/front/src/components/table/new-screen.tsx',
 	'apps/front/src/components/table/nested/screen.tsx',
+	// #2341: DataTable left the exemption list (it now delegates to
+	// QueryDisplay and takes a `query` prop), so it is enforced like any file.
+	'apps/front/src/components/table/data-table.tsx',
 	// Ordinary route files report too.
 	'apps/front/src/routes/authed/tenant/settings/general.tsx',
 ];

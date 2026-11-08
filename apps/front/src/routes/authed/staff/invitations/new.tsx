@@ -83,20 +83,20 @@ const getZodForI18n = (instance: I18nInstance) => {
 const InvitationRoleField = ({
 	index,
 	roleLoadError,
-	rolesQuery,
+	query,
 	roleOptions,
 	isPending,
 }: {
 	index: number;
 	roleLoadError: string;
-	rolesQuery: ReturnType<typeof useStaffRolesQuery>;
+	query: ReturnType<typeof useStaffRolesQuery>;
 	roleOptions: ReturnType<typeof buildStaffRoleOptions>;
 	isPending: boolean;
 }) => {
 	const { t } = useTranslation(['staff-invitations', 'common']);
 	// `QueryDisplay` reads emptiness from `data`; hand it the built options —
 	// the same predicate the hand-written ladder used.
-	const stateQuery: QueryDisplayQuery = { ...rolesQuery, data: roleOptions };
+	const stateQuery: QueryDisplayQuery = { ...query, data: roleOptions };
 
 	return (
 		<QueryDisplay
@@ -118,7 +118,7 @@ const InvitationRoleField = ({
 					label={t('common:select-roles')}
 					helperText={t('select-at-least-one-role')}
 					options={roleOptions}
-					isDisabled={isPending || rolesQuery.isPending}
+					isDisabled={isPending || query.isPending}
 				/>
 			)}
 		</QueryDisplay>
@@ -367,7 +367,7 @@ const NewStaffInvitationsRoute = () => {
 								<InvitationRoleField
 									index={index}
 									roleLoadError={roleLoadError}
-									rolesQuery={rolesQuery}
+									query={rolesQuery}
 									roleOptions={roleOptions}
 									isPending={isPending}
 								/>

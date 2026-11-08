@@ -78,12 +78,12 @@ const getZodForI18n = (instance: I18nInstance) => {
 };
 
 const NewStaffRoleForm = ({
-	permissionsQuery,
+	query,
 	methods,
 	onSubmit,
 	permissionOptions,
 }: {
-	permissionsQuery: ReturnType<typeof useStaffPermissionCatalogQuery>;
+	query: ReturnType<typeof useStaffPermissionCatalogQuery>;
 	methods: ReturnType<typeof useForm<NewStaffRoleValues>>;
 	onSubmit: (event?: React.BaseSyntheticEvent) => void;
 	permissionOptions: StaffPermissionOption[];
@@ -96,7 +96,7 @@ const NewStaffRoleForm = ({
 
 	return (
 		<QueryDisplay
-			query={permissionsQuery}
+			query={query}
 			LoadingSlot={
 				<div className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
 					<LoadingSpinner />
@@ -106,14 +106,14 @@ const NewStaffRoleForm = ({
 			ErrorSlot={
 				<div className="space-y-3">
 					<p className="text-sm text-destructive">
-						{getFailureMessage(toApiFailure(permissionsQuery.error), {
+						{getFailureMessage(toApiFailure(query.error), {
 							fallback: t('unable-to-load-staff-permissions'),
 						})}
 					</p>
 					<Button
 						type="button"
 						variant="secondary"
-						onClick={() => void permissionsQuery.refetch()}
+						onClick={() => void query.refetch()}
 					>
 						{t('retry')}
 					</Button>
@@ -168,7 +168,7 @@ const NewStaffRoleForm = ({
 						<Button
 							type="submit"
 							variant="default"
-							disabled={createRole.isPending || permissionsQuery.isPending}
+							disabled={createRole.isPending || query.isPending}
 						>
 							{t('create-role')}
 						</Button>
@@ -310,7 +310,7 @@ const NewStaffRoleRoute = () => {
 
 			<Card className="space-y-4 p-4">
 				<NewStaffRoleForm
-					permissionsQuery={permissionsQuery}
+					query={permissionsQuery}
 					methods={methods}
 					onSubmit={onSubmit}
 					permissionOptions={permissionOptions}

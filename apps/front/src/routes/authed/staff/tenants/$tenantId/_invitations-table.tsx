@@ -14,7 +14,7 @@ import type { InvitationsFilterState } from './_invitations-filter-state';
 type InvitationsTableProps = {
 	columns: ColumnDef<StaffTenantInvitationRow>[];
 	rows: StaffTenantInvitationRow[];
-	invitationsQuery: ReturnType<typeof useStaffTenantInvitationsQuery>;
+	query: ReturnType<typeof useStaffTenantInvitationsQuery>;
 	controller: ReturnType<typeof useTableController>;
 	hasActiveSearch: boolean;
 	filters: InvitationsFilterState;
@@ -28,7 +28,7 @@ type InvitationsTableProps = {
 export const InvitationsTable = ({
 	columns,
 	rows,
-	invitationsQuery,
+	query,
 	controller,
 	hasActiveSearch,
 	filters,
@@ -40,17 +40,15 @@ export const InvitationsTable = ({
 		ariaLabel={t('tenant-invitations-table-aria-label')}
 		columns={columns}
 		rows={rows}
-		query={invitationsQuery}
+		query={query}
 		hasActiveSearch={hasActiveSearch}
 		pagination={{
 			pageIndex: controller.cursor.pageIndex,
 			hasPreviousPage: controller.cursor.hasPreviousPage,
-			hasNextPage: invitationsQuery.data?.nextCursor != null,
-			isPaginationPending: invitationsQuery.isFetching,
+			hasNextPage: query.data?.nextCursor != null,
+			isPaginationPending: query.isFetching,
 			onNextPage: () =>
-				controller.cursor.onNextPage(
-					invitationsQuery.data?.nextCursor ?? undefined,
-				),
+				controller.cursor.onNextPage(query.data?.nextCursor ?? undefined),
 			onPreviousPage: controller.cursor.onPreviousPage,
 		}}
 		getRowLabel={(row) => row.email}

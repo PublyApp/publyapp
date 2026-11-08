@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import {
 	Drawer,
 	DrawerBody,
@@ -38,16 +41,46 @@ const PayloadSection = ({
 	);
 };
 
+/** The detail rows: the fetched detail when it exists, the row's own summary
+ * values as the fallback (the same fallback the drawer always showed). */
+const DeadLetterDetailRows = ({
+	row,
+	detail,
+	locale,
+	t,
+}: {
+	row: StaffDeadLetterRow;
+	detail: DeadLetterDetail | undefined;
+	locale: string;
+	t: Translate;
+}) => (
+	<>
+		<PayloadSection payload={detail?.payload ?? undefined} t={t} />
+		<DetailRow
+			label={t('common:column-attempts')}
+			value={detail?.attempts ?? row.attempts}
+		/>
+		<DetailRow
+			label={t('staff-jobs:detail-last-error')}
+			value={formatFailureCause(detail?.lastError ?? row.lastError, t)}
+		/>
+		<DetailRow
+			label={t('common:column-failed-at')}
+			value={formatDateTime(detail?.failedAt ?? row.failedAt, locale)}
+		/>
+	</>
+);
+
 /** The dead-letter detail drawer: payload, attempts, cause and failure date. */
 export const DeadLetterDrawer = ({
 	row,
-	detail,
+	query,
 	locale,
 	onClose,
 	t,
 }: {
 	row: StaffDeadLetterRow | null;
-	detail: DeadLetterDetail | undefined;
+	query: QueryDisplayQuery<DeadLetterDetail>;
 	locale: string;
 	onClose: () => void;
 	t: Translate;
@@ -67,21 +100,43 @@ export const DeadLetterDrawer = ({
 			</DrawerHeader>
 			<DrawerBody>
 				{row ? (
-					<>
-						<PayloadSection payload={detail?.payload ?? undefined} t={t} />
-						<DetailRow
-							label={t('common:column-attempts')}
-							value={detail?.attempts ?? row.attempts}
-						/>
-						<DetailRow
-							label={t('staff-jobs:detail-last-error')}
-							value={formatFailureCause(detail?.lastError ?? row.lastError, t)}
-						/>
-						<DetailRow
-							label={t('common:column-failed-at')}
-							value={formatDateTime(detail?.failedAt ?? row.failedAt, locale)}
-						/>
-					</>
+					<QueryDisplay
+						query={query}
+						variant="discreet"
+						LoadingSlot={
+							<DeadLetterDetailRows
+								row={row}
+								detail={undefined}
+								locale={locale}
+								t={t}
+							/>
+						}
+						EmptySlot={
+							<DeadLetterDetailRows
+								row={row}
+								detail={undefined}
+								locale={locale}
+								t={t}
+							/>
+						}
+						ErrorSlot={
+							<DeadLetterDetailRows
+								row={row}
+								detail={undefined}
+								locale={locale}
+								t={t}
+							/>
+						}
+					>
+						{({ data }) => (
+							<DeadLetterDetailRows
+								row={row}
+								detail={data}
+								locale={locale}
+								t={t}
+							/>
+						)}
+					</QueryDisplay>
 				) : null}
 			</DrawerBody>
 		</DrawerContent>

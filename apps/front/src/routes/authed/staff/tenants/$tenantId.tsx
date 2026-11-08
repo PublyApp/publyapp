@@ -190,11 +190,7 @@ const StaffTenantDetailsPage = () => {
 						activeSection="basics"
 						testId="staff-tenant-details-page"
 					>
-						<TenantDetailsStatRow
-							tenant={tenant}
-							ownersQuery={ownersQuery}
-							t={t}
-						/>
+						<TenantDetailsStatRow tenant={tenant} query={ownersQuery} t={t} />
 
 						<DetailGrid>
 							<DetailMain>
@@ -206,7 +202,7 @@ const StaffTenantDetailsPage = () => {
 								<UsersPreviewCard tenant={tenant} t={t} />
 							</DetailMain>
 							<DetailAside>
-								<OwnersCard tenant={tenant} ownersQuery={ownersQuery} t={t} />
+								<OwnersCard tenant={tenant} query={ownersQuery} t={t} />
 								<TenantDangerZone
 									lifecycleTitle={lifecycleTitle}
 									lifecycleDescription={lifecycleDescription}

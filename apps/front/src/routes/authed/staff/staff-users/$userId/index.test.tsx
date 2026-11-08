@@ -131,18 +131,35 @@ const baseUser = {
 	displayName: 'Owner User',
 };
 
+const baseRolesQuery: StaffUserOverviewContextValue['query'] = {
+	isPending: false,
+	isLoading: false,
+	isFetching: false,
+	isError: false,
+	error: null,
+	data: {
+		assignedRoles: [
+			{ id: 'role-1', name: 'Platform admin', description: 'Full access' },
+			{ id: 'role-2', name: 'Support staff', description: null },
+		],
+		maxRolesPerUser: 5,
+	},
+	refetch: mocks.onRetryRoles,
+};
+
+const rolesQuery = (
+	overrides: Partial<StaffUserOverviewContextValue['query']> = {},
+): StaffUserOverviewContextValue['query'] => ({
+	...baseRolesQuery,
+	...overrides,
+});
+
 const buildContextValue = (
 	overrides: Partial<StaffUserOverviewContextValue> = {},
 ): StaffUserOverviewContextValue => ({
 	user: baseUser,
 	locale: 'en',
-	roles: [
-		{ id: 'role-1', name: 'Platform admin', description: 'Full access' },
-		{ id: 'role-2', name: 'Support staff', description: null },
-	],
-	rolesIsPending: false,
-	rolesHasError: false,
-	onRetryRoles: mocks.onRetryRoles,
+	query: baseRolesQuery,
 	maxRolesPerUser: 5,
 	canSuspend: true,
 	canReactivate: false,
@@ -204,21 +221,43 @@ describe('staff user overview tab', () => {
 	});
 
 	test('renders the assigned roles empty state when none are assigned', () => {
-		renderTab(buildContextValue({ roles: [] }));
+		renderTab(
+			buildContextValue({
+				query: rolesQuery({
+					data: { assignedRoles: [], maxRolesPerUser: 5 },
+				}),
+			}),
+		);
 
 		expect(screen.getByText('0 assigned')).toBeTruthy();
 		expect(screen.getByText('No roles are currently assigned.')).toBeTruthy();
 	});
 
 	test('renders a local assigned roles error instead of the list', () => {
-		renderTab(buildContextValue({ rolesHasError: true }));
+		renderTab(
+			buildContextValue({
+				query: rolesQuery({
+					isError: true,
+					error: new Error('boom'),
+					data: undefined,
+				}),
+			}),
+		);
 
 		expect(screen.getByTestId('staff-user-roles-error')).toBeTruthy();
 		expect(screen.queryByText('Assigned roles & roles')).toBeNull();
 	});
 
 	test('clicking "Try again" on the roles error retries the query (r5-F6)', () => {
-		renderTab(buildContextValue({ rolesHasError: true }));
+		renderTab(
+			buildContextValue({
+				query: rolesQuery({
+					isError: true,
+					error: new Error('boom'),
+					data: undefined,
+				}),
+			}),
+		);
 
 		fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
@@ -226,7 +265,11 @@ describe('staff user overview tab', () => {
 	});
 
 	test('renders a roles loading state instead of "no roles assigned" while the roles query is still pending (r5-F6)', () => {
-		renderTab(buildContextValue({ rolesIsPending: true, roles: [] }));
+		renderTab(
+			buildContextValue({
+				query: rolesQuery({ isPending: true, data: undefined }),
+			}),
+		);
 
 		expect(screen.getByTestId('staff-user-roles-loading')).toBeTruthy();
 		expect(screen.queryByText('No roles are currently assigned.')).toBeNull();
@@ -236,9 +279,12 @@ describe('staff user overview tab', () => {
 	test('pending wins over both the error and empty-collection renders', () => {
 		renderTab(
 			buildContextValue({
-				rolesIsPending: true,
-				rolesHasError: true,
-				roles: [],
+				query: rolesQuery({
+					isPending: true,
+					isError: true,
+					error: new Error('boom'),
+					data: undefined,
+				}),
 			}),
 		);
 

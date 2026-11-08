@@ -184,7 +184,7 @@ const StaffRoleDetailsPage = () => {
 	const userCount = details?.userAccountCount ?? null;
 	const membersCardContent = renderStaffRoleMembersCard({
 		t,
-		usersQuery,
+		query: usersQuery,
 		userRows,
 	});
 

@@ -440,19 +440,37 @@ Render TanStack Query loading / error / empty / data ladders through the shared
 loading, error, and empty states visually consistent (it composes `StateView` /
 `StateSurface` / `Skeleton`), and it is the single place to evolve those states.
 
-The `publy/prefer-query-display` oxlint rule flags component files that bind a `use*Query` result
-and then branch on a query flag (`isPending` / `isLoading` / `isError` / `isSuccess` / `status` /
-`error`) inside a conditional render. It is **dormant** (`"off"`) in this repo today — it ships so
-the offender list is measurable and the follow-up that flips it to `"error"` is mechanical. While
-dormant, keep new code on `QueryDisplay`; do not wait for enforcement to land.
+The `publy/prefer-query-display` oxlint rule is **enforced at `"error"`** and covers every query
+render in `apps/front/src`, not only hand-rolled ladders:
+
+- **Message `preferQueryDisplay`:** flags a component file that binds a `use*Query` result and then
+  branches on a query flag (`isPending` / `isLoading` / `isError` / `isSuccess` / `status` /
+  `error`) inside a conditional render.
+- **Message `queryNotRenderedThroughQueryDisplay` (#2341):** flags any `use*Query` binding in a
+  JSX-returning function that never reaches a `query` slot — a `query` JSX attribute
+  (`<QueryDisplay query={q}>`, `<ListPage query={q}>`, `<HistoryPage query={q}>`,
+  `<DataTable query={q}>`, or a wrapper forwarding the same prop) or a `query` property of a
+  props/context object. Destructuring the hook's own result (`const { data } = useFooQuery()`) is a
+  violation: keep the whole result. A custom hook that returns no JSX is not checked.
+
+`QueryDisplay` has three presets, so small widgets cost no extra code:
+
+| `variant`        | Loading                                 | Error                                      | Use for                   |
+| ---------------- | --------------------------------------- | ------------------------------------------ | ------------------------- |
+| `page` (default) | spinner / caller `LoadingSlot`          | full error state                           | pages, drawers, cards     |
+| `inline`         | spinner + visible « Chargement… » label | one-line cause + « Réessayer »             | menus, selects, form rows |
+| `discreet`       | nothing                                 | nothing (a failed refetch keeps held data) | banners, badges, counts   |
+
+An explicit `LoadingSlot` / `ErrorSlot` / `EmptySlot` always wins over the preset. The escape is a
+named disable comment with a written reason, `// oxlint-disable-next-line publy/prefer-query-display
+-- <reason>`; expected count is zero.
 
 `useMutation` results are explicitly out of scope for the rule — mutation feedback ownership is a
 separate policy (see above). The rule also excludes the `QueryDisplay` implementation itself, the
-table layer, the `lib/query` helpers, and the three root/layout entrypoints that legitimately wire
-query state into shell-level error boundaries. `DataTable` screens own their own list-state
-mechanism (`components/table/table-body-state.ts` + the `no-match` state `QueryDisplay` lacks), so
-they are intentionally excluded — PR 3 of #1250 folds that mechanism into `QueryDisplay` and lets
-`DataTable` delegate.
+`lib/query` helpers, and the three root/layout entrypoints that legitimately wire query state into
+shell-level error boundaries. `DataTable` delegates to `QueryDisplay` and takes a `query` prop
+(#2341); the remaining table screens (`floating-selection-bar`, `row-actions`) keep their pinned
+exemption.
 
 ## Mutation Invalidation Coherence (#359)
 
