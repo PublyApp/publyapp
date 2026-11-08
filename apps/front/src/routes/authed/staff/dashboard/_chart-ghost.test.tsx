@@ -155,8 +155,9 @@ describe('ghost charts', () => {
 		const { container } = render(<GhostSpark />);
 		const svg = container.querySelector('svg');
 
-		// The 28 px height comes from `.kpi-spark` (app.css), not an attribute.
+		// Inline style, so the KPI footer's `[&_svg]:size-3.5` cannot win.
 		expect(svg?.getAttribute('viewBox')).toBe('0 0 86 28');
-		expect(svg?.getAttribute('class')).toContain('kpi-spark');
+		expect(svg?.style.width).toBe('62px');
+		expect(svg?.style.height).toBe('28px');
 	});
 });

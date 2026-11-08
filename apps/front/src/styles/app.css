@@ -3596,13 +3596,6 @@ html[data-theme-changing] * {
 		color: var(--publy-foreground);
 	}
 
-	/* Narrower than the real 86 px sparkline: room for the words. */
-	.ghost-svg.kpi-spark {
-		width: 62px;
-		height: 28px;
-		flex-shrink: 0;
-	}
-
 	/* The chart's corner pill: real DOM text, no room taken, not interactive.
 	   Its colour is a mix rather than the usual muted grey: that grey measures
 	   4.4:1 in dark mode, under WCAG AA; this mix gives 7.8:1 light, 8.8:1

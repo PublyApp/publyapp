@@ -753,6 +753,9 @@ export const GhostSpark = () => {
 	return (
 		<svg
 			className="ghost-svg kpi-spark"
+			// Inline, narrower than the real 86 px sparkline (room for the
+			// words): StatCard's footer `[&_svg]:size-3.5` beats any class rule.
+			style={{ width: 62, height: 28, flexShrink: 0 }}
 			viewBox="0 0 86 28"
 			aria-hidden="true"
 			focusable="false"
