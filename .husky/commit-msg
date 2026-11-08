@@ -8,6 +8,9 @@
 #
 # The matching logic lives in a .ts script. If pnpm/node are not on PATH (an
 # IDE or GUI launched without fnm), fall back to grep so the rule still holds.
+# The script's exits: 0 = clean, 3 = trailer found (its own code), 2 = broken
+# check; a too-old Node or a failing pnpm also exit 1. Only 3 may refuse a
+# commit — anything else warns and falls through to the grep fallback.
 
 message_file=$1
 script_path="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/../packages/scripts-ts/src/check-no-coauthor-trailer.ts"
@@ -39,12 +42,13 @@ if [ -n "$pnpm_bin" ] && command -v node >/dev/null 2>&1; then
         if [ $script_exit -eq 0 ]; then
             exit 0
         fi
-        if [ $script_exit -ne 1 ]; then
-            echo "⚠ the trailer check could not run; falling back to a simple grep" >&2
-        else
+        if [ $script_exit -eq 3 ]; then
             echo "❌ commit rejected: remove the Co-Authored-By line above, then commit again." >&2
             exit 1
         fi
+        # 1 (old Node / pnpm failure), 2 (broken check) or any other surprise:
+        # never refuse the commit on a run that may not have checked anything.
+        echo "⚠ the trailer check could not run; falling back to a simple grep" >&2
     fi
 fi
 

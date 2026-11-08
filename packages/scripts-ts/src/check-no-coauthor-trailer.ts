@@ -148,9 +148,15 @@ const readText = (path: string, label: string): string => {
 /** The base of a `base..head` range, used in the rebase fix command. */
 const rangeBase = (range: string): string => range.split('..')[0] ?? range;
 
+/**
+ * Trailer found → exit 3, its own code (exit 1 is what a too-old Node or a
+ * failing pnpm also produce; exit 2 is every internal/usage error here).
+ * `.husky/commit-msg` rejects only on 3 and falls back to grep on anything
+ * else, so a broken run can never refuse a clean commit.
+ */
 const fail = (lines: string[]): never => {
 	console.error(`\n${lines.join('\n')}\n`);
-	process.exit(1);
+	process.exit(3);
 };
 
 const runMessageFile = (path: string): void => {

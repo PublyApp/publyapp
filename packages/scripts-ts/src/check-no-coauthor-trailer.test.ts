@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,12 +13,12 @@ import { findCoAuthorTrailers } from './check-no-coauthor-trailer.ts';
 // of leading whitespace, so prose mentions and `Signed-off-by:` trailers pass
 // while a real `Co-Authored-By:` trailer cannot hide. The CLI tests execute
 // the REAL script (never a copy) and assert exit codes: a green run is
-// evidence, not a claim.
+// evidence, not a claim. One test also executes the REAL commit-msg hook, so
+// the hook's exit-code mapping (Finding 1) cannot silently regress.
 
-const scriptPath = path.join(
-	path.dirname(fileURLToPath(import.meta.url)),
-	'check-no-coauthor-trailer.ts',
-);
+const here = path.dirname(fileURLToPath(import.meta.url));
+const scriptPath = path.join(here, 'check-no-coauthor-trailer.ts');
+const hookPath = path.join(here, '../../../.husky/commit-msg');
 
 type RunResult = { code: number; stdout: string; stderr: string };
 
@@ -138,7 +138,9 @@ test('--message-file rejects a trailer and names the file, line and fix', () => 
 
 	const result = runScript(['--message-file', messageFile]);
 
-	assert.equal(result.code, 1);
+	// Trailer found is exit 3 — its own code, never 1 (a too-old Node or a
+	// failing pnpm exit 1; the commit-msg hook rejects only on 3).
+	assert.equal(result.code, 3);
 	assert.match(result.stderr, /Co-Authored-By trailer rejected/);
 	assert.match(result.stderr, /COMMIT_EDITMSG:3:/);
 	assert.match(result.stderr, /git commit --amend/);
@@ -199,7 +201,7 @@ test('a range names each offending commit and the rebase fix', () => {
 
 	const result = runScript(['--range', `${clean}..${offending}`], repo);
 
-	assert.equal(result.code, 1);
+	assert.equal(result.code, 3);
 	assert.match(result.stderr, new RegExp(`commit ${offending.slice(0, 7)}`));
 	assert.match(result.stderr, /git rebase -i/);
 });
@@ -213,7 +215,7 @@ test('a PR title with a trailer is rejected', () => {
 		repo,
 	);
 
-	assert.equal(result.code, 1);
+	assert.equal(result.code, 3);
 	assert.match(result.stderr, /PR title/);
 });
 
@@ -228,6 +230,65 @@ test('a PR body with a trailer is rejected', () => {
 		repo,
 	);
 
-	assert.equal(result.code, 1);
+	assert.equal(result.code, 3);
 	assert.match(result.stderr, /PR body line 3/);
+});
+
+// ---------------------------------------------------------------------------
+// The real .husky/commit-msg hook: its exit-code mapping (Finding 1/5).
+// ---------------------------------------------------------------------------
+
+test('the commit-msg hook rejects only on exit 3 and warns on a broken run', () => {
+	const directory = mkdtempSync(path.join(os.tmpdir(), 'no-coauthor-hook-'));
+	const messageFile = path.join(directory, 'COMMIT_EDITMSG');
+	// find_pnpm checks $HOME/.local/share/pnpm/pnpm first: a fake HOME pins
+	// the hook to THIS stub pnpm, so the test drives every script exit code
+	// itself while the hook and the real check script stay untouched.
+	const home = path.join(directory, 'home');
+	mkdirSync(path.join(home, '.local/share/pnpm'), { recursive: true });
+	writeFileSync(
+		path.join(home, '.local/share/pnpm/pnpm'),
+		'#!/bin/sh\n' +
+			'if [ -n "$HOOK_STUB_EXIT" ]; then echo \'node: Unknown file extension ".ts"\' >&2; exit "$HOOK_STUB_EXIT"; fi\n' +
+			'shift\n' + // drop the `exec` pnpm subcommand; "$@" starts with `node`
+			'exec "$@"\n',
+		{ mode: 0o755 },
+	);
+	const runHook = (message: string, stubExit?: string): RunResult => {
+		writeFileSync(messageFile, message);
+		const env: NodeJS.ProcessEnv = { ...process.env, HOME: home };
+
+		if (stubExit !== undefined) {
+			env.HOOK_STUB_EXIT = stubExit;
+		}
+
+		const result = spawnSync('sh', [hookPath, messageFile], {
+			encoding: 'utf8',
+			env,
+		});
+
+		return {
+			code: result.status ?? 1,
+			stdout: result.stdout ?? '',
+			stderr: result.stderr ?? '',
+		};
+	};
+
+	// Clean message, script exits 0 → accepted.
+	assert.equal(runHook('fix: subject\n').code, 0);
+
+	// Trailer: the real script exits 3 → the hook refuses, naming the fix
+	// (the grep fallback's message differs, so this pins the exit-3 branch).
+	const rejected = runHook('fix: subject\n\nCo-Authored-By: A <a@b>\n');
+
+	assert.notEqual(rejected.code, 0);
+	assert.match(rejected.stderr, /Co-Authored-By trailer rejected/);
+	assert.match(rejected.stderr, /remove the Co-Authored-By line above/);
+
+	// Too-old Node: the script invocation exits 1 on a CLEAN message → the
+	// hook must not refuse: warn and fall through to the grep fallback.
+	const unrunnable = runHook('fix: subject\n', '1');
+
+	assert.equal(unrunnable.code, 0, unrunnable.stderr);
+	assert.match(unrunnable.stderr, /falling back to a simple grep/);
 });
