@@ -25,7 +25,16 @@ interface TrailerOffense {
 	text: string;
 }
 
-/** Offending lines of a message, in order. `#` comment lines are ignored. */
+/** Git's scissors separator (`commit.verbose` / `--verbose`). */
+const SCISSORS = /^#\s*-+\s*>8\s*-+/;
+
+/**
+ * Offending lines of a message, in order. `#` comment lines are ignored.
+ * Scanning stops at the scissors line: with `-v` / `commit.verbose=true`
+ * git appends the diff below it and discards it at cleanup, so the hook
+ * must too — a unified-diff context line ` Co-Authored-By:` would
+ * otherwise false-positive.
+ */
 const findOffenses = (message: string): TrailerOffense[] => {
 	const offenses: TrailerOffense[] = [];
 	const lines = message.split(/\r?\n/);
@@ -34,6 +43,9 @@ const findOffenses = (message: string): TrailerOffense[] => {
 		const trimmed = line.trimStart();
 
 		if (trimmed.startsWith('#')) {
+			if (SCISSORS.test(trimmed)) {
+				break;
+			}
 			continue;
 		}
 

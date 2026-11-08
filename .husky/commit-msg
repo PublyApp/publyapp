@@ -53,7 +53,10 @@ if [ -n "$pnpm_bin" ] && command -v node >/dev/null 2>&1; then
 fi
 
 # No pnpm/node on PATH: grep the non-comment lines, as git ignores them too.
-if grep -v '^[[:space:]]*#' "$message_file" | grep -iqE '^[[:space:]]*co-authored-by:'; then
+# Stop at the scissors line (`commit -v` / `commit.verbose=true`): git discards
+# everything below it at cleanup, so must we — a unified-diff context line
+# ` Co-Authored-By:` would otherwise false-positive.
+if awk '/^# -+ >8 -+/{exit} {print}' "$message_file" | grep -v '^[[:space:]]*#' | grep -iqE '^[[:space:]]*co-authored-by:'; then
     echo "❌ commit rejected: this message contains a Co-Authored-By: trailer." >&2
     echo "   Remove that line, then run: git commit --amend" >&2
     exit 1

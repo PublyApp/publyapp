@@ -115,6 +115,27 @@ test('comment lines are ignored', () => {
 	);
 });
 
+test('content after the git scissors line is ignored (verbose diff)', () => {
+	// `git commit -v` appends the diff below a scissors line; git discards it
+	// at cleanup, so the hook must too. A unified-diff context line
+	// ` Co-Authored-By: A <a@b>` would otherwise false-positive.
+	assert.deepEqual(
+		findCoAuthorTrailers(
+			'fix: edit intro\n' +
+				'# ------------------------ >8 ------------------------\n' +
+				'diff --git a/file b/file\n' +
+				'index abc..def 100644\n' +
+				'--- a/file\n' +
+				'+++ b/file\n' +
+				'@@ -1,3 +1,3 @@\n' +
+				' old line\n' +
+				'-removed\n' +
+				' Co-Authored-By: A <a@b>\n',
+		),
+		[],
+	);
+});
+
 test('only offending lines are returned, with their text intact', () => {
 	assert.deepEqual(
 		findCoAuthorTrailers(
@@ -291,4 +312,19 @@ test('the commit-msg hook rejects only on exit 3 and warns on a broken run', () 
 
 	assert.equal(unrunnable.code, 0, unrunnable.stderr);
 	assert.match(unrunnable.stderr, /falling back to a simple grep/);
+
+	// Grep fallback with a trailer: the script stub exits 1 (simulating a
+	// broken run), the message HAS a trailer → the fallback must refuse it
+	// with its own message. This pins the shell path that runs on machines
+	// without pnpm/Node (the IDE/GUI case this hook exists for).
+	const fallbackRejects = runHook(
+		'fix: subject\n\nCo-Authored-By: A <a@b>\n',
+		'1',
+	);
+
+	assert.notEqual(fallbackRejects.code, 0);
+	assert.match(
+		fallbackRejects.stderr,
+		/this message contains a Co-Authored-By: trailer/,
+	);
 });
