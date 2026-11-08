@@ -90,8 +90,13 @@ export const apiRequest = async <T>(
 			headers,
 			body:
 				options.body === undefined ? undefined : JSON.stringify(options.body),
+			signal: AbortSignal.timeout(15_000),
 		});
-	} catch {
+	} catch (error) {
+		// Name only: DOMException is not a guaranteed global in React Native.
+		if ((error as { name?: unknown } | null)?.name === 'TimeoutError') {
+			throw new ApiError(0, 'Le serveur ne répond pas. Réessayez.');
+		}
 		throw new ApiError(
 			0,
 			'Serveur injoignable. Vérifiez EXPO_PUBLIC_API_URL et le réseau.',

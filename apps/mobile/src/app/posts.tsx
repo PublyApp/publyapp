@@ -1,6 +1,12 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+	ActivityIndicator,
+	FlatList,
+	Pressable,
+	Text,
+	View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EmptyState, ErrorState, LoadingState, Screen } from '@/components/ui';
@@ -33,17 +39,34 @@ const formatDate = (isoDate: string): string => {
 	return `${day}/${month}/${date.getFullYear()}`;
 };
 
+const PAGE_SIZE = 20;
+
 const PostsScreen = () => {
 	const { request } = useAuth();
 	const router = useRouter();
 	const [posts, setPosts] = useState<PostSummary[] | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [nextCursor, setNextCursor] = useState<string | null>(null);
+	const [isLoadingMore, setIsLoadingMore] = useState(false);
+	const [loadMoreError, setLoadMoreError] = useState(false);
+	const loadingMoreRef = useRef(false);
+
+	const buildUrl = useCallback((cursor: string | null): string => {
+		const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
+		if (cursor !== null) {
+			params.set('cursor', cursor);
+		}
+		return `/posts?${params.toString()}`;
+	}, []);
 
 	const load = useCallback(async () => {
 		setErrorMessage(null);
+		setNextCursor(null);
+		setLoadMoreError(false);
 		try {
-			const result = await request<PostsResponse>('/posts?limit=20');
+			const result = await request<PostsResponse>(buildUrl(null));
 			setPosts(result.data);
+			setNextCursor(result.nextCursor);
 		} catch (error) {
 			setPosts([]);
 			setErrorMessage(
@@ -52,11 +75,37 @@ const PostsScreen = () => {
 					: 'Impossible de charger les publications.',
 			);
 		}
-	}, [request]);
+	}, [request, buildUrl]);
 
 	useEffect(() => {
 		void load();
 	}, [load]);
+
+	const loadMore = useCallback(async () => {
+		if (
+			loadingMoreRef.current ||
+			nextCursor === null ||
+			posts === null ||
+			posts.length === 0
+		) {
+			return;
+		}
+		loadingMoreRef.current = true;
+		setIsLoadingMore(true);
+		setLoadMoreError(false);
+		try {
+			const result = await request<PostsResponse>(buildUrl(nextCursor));
+			setPosts((prev) =>
+				prev === null ? result.data : [...prev, ...result.data],
+			);
+			setNextCursor(result.nextCursor);
+		} catch {
+			setLoadMoreError(true);
+		} finally {
+			setIsLoadingMore(false);
+			loadingMoreRef.current = false;
+		}
+	}, [nextCursor, posts, request, buildUrl]);
 
 	if (posts === null) {
 		return <LoadingState label="Chargement des publications…" />;
@@ -74,6 +123,31 @@ const PostsScreen = () => {
 		);
 	}
 
+	let listFooter: React.JSX.Element | undefined;
+	if (isLoadingMore) {
+		listFooter = (
+			<View className="py-4">
+				<ActivityIndicator />
+			</View>
+		);
+	} else if (loadMoreError) {
+		listFooter = (
+			<View className="py-4">
+				<Pressable
+					accessibilityRole="button"
+					className="rounded-chip border border-border bg-card px-4 py-2"
+					onPress={() => {
+						void loadMore();
+					}}
+				>
+					<Text className="text-center text-sm text-foreground">
+						Impossible de charger la suite. Appuyer pour réessayer.
+					</Text>
+				</Pressable>
+			</View>
+		);
+	}
+
 	return (
 		<SafeAreaView className="flex-1 bg-background">
 			<Screen>
@@ -85,7 +159,7 @@ const PostsScreen = () => {
 						<Text className="mt-1 text-sm text-foreground-muted">
 							{posts.length === 0
 								? 'Aucune publication'
-								: `${posts.length} publication${posts.length > 1 ? 's' : ''}`}
+								: 'Publications récentes'}
 						</Text>
 					</View>
 					<Pressable
@@ -109,6 +183,10 @@ const PostsScreen = () => {
 						contentContainerClassName="gap-3 pb-8"
 						data={posts}
 						keyExtractor={(post) => post.id}
+						onEndReached={() => {
+							void loadMore();
+						}}
+						onEndReachedThreshold={0.5}
 						renderItem={({ item }) => {
 							const status = STATUS_CLASS[item.status] ?? STATUS_CLASS.draft;
 							return (
@@ -132,6 +210,7 @@ const PostsScreen = () => {
 								</View>
 							);
 						}}
+						ListFooterComponent={listFooter}
 					/>
 				)}
 			</Screen>
