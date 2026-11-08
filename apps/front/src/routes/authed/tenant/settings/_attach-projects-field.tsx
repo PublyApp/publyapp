@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { FieldCheckboxGroup } from '~/components/field/field-checkbox-group';
+import QueryDisplay from '~/components/query-display';
 import {
 	toTenantProjectItems,
 	useTenantProjectsQuery,
@@ -18,10 +19,16 @@ export const AttachProjectsField = ({
 }) => {
 	const { t } = useTranslation(['settings']);
 	const projectsQuery = useTenantProjectsQuery({ tenantId });
-	const options = toTenantProjectItems(projectsQuery.data).map((project) => ({
-		value: project.id,
-		label: project.name,
-	}));
+
+	// Today the field renders with no option until the projects resolve, so
+	// every non-data state is that same empty field (no visible change).
+	const renderField = (options: { value: string; label: string }[]) => (
+		<FieldCheckboxGroup
+			name={name}
+			label={t('attach-projects-title')}
+			options={options}
+		/>
+	);
 
 	return (
 		<div data-testid="attach-projects-field">
@@ -29,11 +36,22 @@ export const AttachProjectsField = ({
 			<p className="text-muted-foreground text-xs">
 				{t('attach-projects-none-hint')}
 			</p>
-			<FieldCheckboxGroup
-				name={name}
-				label={t('attach-projects-title')}
-				options={options}
-			/>
+			<QueryDisplay
+				query={projectsQuery}
+				variant="inline"
+				LoadingSlot={renderField([])}
+				ErrorSlot={renderField([])}
+				EmptySlot={renderField([])}
+			>
+				{({ data }) =>
+					renderField(
+						toTenantProjectItems(data).map((project) => ({
+							value: project.id,
+							label: project.name,
+						})),
+					)
+				}
+			</QueryDisplay>
 		</div>
 	);
 };

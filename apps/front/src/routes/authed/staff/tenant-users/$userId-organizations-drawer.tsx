@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import {
@@ -69,18 +70,6 @@ export const LinkCompaniesDrawerHost = ({
 		{ q: search || undefined, size: PICKER_PAGE_SIZE },
 		{ enabled: isOpen },
 	);
-	const options = useMemo(
-		() => toTenantPickerOptions(pickerQuery.data),
-		[pickerQuery.data],
-	);
-	// Hoisted so the picker's loading/error ladder reads plain locals.
-	const pickerIsPending = pickerQuery.isPending;
-	const pickerIsError = pickerQuery.isError;
-	const pickerError = pickerQuery.error;
-	// `isSuccess` is a query flag too: fold it here so the JSX below never
-	// branches on the raw query object.
-	const pickerIsEmptySuccess =
-		pickerQuery.data !== undefined && options.length === 0;
 	// Rows already linked cannot be linked twice — hidden from the picker.
 	const linkedIds = useMemo(() => new Set<string>(), []);
 
@@ -182,83 +171,89 @@ export const LinkCompaniesDrawerHost = ({
 							/>
 						</div>
 
-						{pickerIsPending ? (
-							<p
-								className="py-6 text-center text-sm text-muted-foreground"
-								data-testid="link-companies-loading"
-							>
-								{t('loading')}
-							</p>
-						) : null}
-
-						{pickerIsError ? (
-							<p
-								className="py-6 text-center text-sm text-destructive"
-								role="alert"
-								data-testid="link-companies-error"
-							>
-								{getFailureMessage(toApiFailure(pickerError), {
-									fallback: t('an-error-occurred'),
-								})}
-								<Button
-									variant="outline"
-									size="sm"
-									type="button"
-									className="ml-2"
-									onClick={() => void pickerQuery.refetch()}
+						<QueryDisplay
+							query={pickerQuery}
+							LoadingSlot={
+								<p
+									className="py-6 text-center text-sm text-muted-foreground"
+									data-testid="link-companies-loading"
 								>
-									{t('try-again')}
-								</Button>
-							</p>
-						) : null}
+									{t('loading')}
+								</p>
+							}
+							ErrorSlot={
+								<p
+									className="py-6 text-center text-sm text-destructive"
+									role="alert"
+									data-testid="link-companies-error"
+								>
+									{getFailureMessage(toApiFailure(pickerQuery.error), {
+										fallback: t('an-error-occurred'),
+									})}
+									<Button
+										variant="outline"
+										size="sm"
+										type="button"
+										className="ml-2"
+										onClick={() => void pickerQuery.refetch()}
+									>
+										{t('try-again')}
+									</Button>
+								</p>
+							}
+							EmptySlot={
+								<p
+									className="py-6 text-center text-sm text-muted-foreground"
+									data-testid="link-companies-empty"
+								>
+									{search ? t('no-matching-companies') : t('no-items-found')}
+								</p>
+							}
+						>
+							{({ data }) => (
+								<ul className="space-y-2" data-testid="link-companies-options">
+									{toTenantPickerOptions(data).map((option) => {
+										const isChecked = selectedTenantIds.has(option.id);
+										const isLinked = linkedIds.has(option.id);
 
-						{pickerIsEmptySuccess ? (
-							<p
-								className="py-6 text-center text-sm text-muted-foreground"
-								data-testid="link-companies-empty"
-							>
-								{search ? t('no-matching-companies') : t('no-items-found')}
-							</p>
-						) : null}
-
-						<ul className="space-y-2" data-testid="link-companies-options">
-							{options.map((option) => {
-								const isChecked = selectedTenantIds.has(option.id);
-								const isLinked = linkedIds.has(option.id);
-
-								return (
-									<li key={option.id}>
-										<label className="flex cursor-pointer items-center gap-3 rounded-[var(--publy-radius-sm)] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-3 hover:bg-[var(--publy-surface-hover)]">
-											<Checkbox
-												checked={isChecked}
-												disabled={isLinked}
-												onCheckedChange={(checked) => {
-													setSelectedTenantIds((previous) => {
-														const next = new Set(previous);
-														if (checked) {
-															next.add(option.id);
-														} else {
-															next.delete(option.id);
-														}
-														return next;
-													});
-												}}
-												aria-label={option.name}
-											/>
-											<BrandTile name={option.name} logoUrl={option.logoUrl} />
-											<span className="min-w-0 flex-1 truncate text-sm font-medium">
-												{option.name}
-											</span>
-											{option.status ? (
-												<span className="text-xs text-muted-foreground">
-													{formatTenantStatusLabel(option.status ?? '', t)}
-												</span>
-											) : null}
-										</label>
-									</li>
-								);
-							})}
-						</ul>
+										return (
+											<li key={option.id}>
+												<label className="flex cursor-pointer items-center gap-3 rounded-[var(--publy-radius-sm)] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-3 hover:bg-[var(--publy-surface-hover)]">
+													<Checkbox
+														checked={isChecked}
+														disabled={isLinked}
+														onCheckedChange={(checked) => {
+															setSelectedTenantIds((previous) => {
+																const next = new Set(previous);
+																if (checked) {
+																	next.add(option.id);
+																} else {
+																	next.delete(option.id);
+																}
+																return next;
+															});
+														}}
+														aria-label={option.name}
+													/>
+													<BrandTile
+														name={option.name}
+														logoUrl={option.logoUrl}
+													/>
+													<span className="min-w-0 flex-1 truncate text-sm font-medium">
+														{option.name}
+													</span>
+													{option.status ? (
+														<span className="text-xs text-muted-foreground">
+															{formatTenantStatusLabel(option.status ?? '', t)}
+														</span>
+													) : null}
+												</label>
+											</li>
+										);
+									})}
+								</ul>
+							)}
+						</QueryDisplay>
 					</DrawerBody>
 					<DrawerFooter>
 						<Button

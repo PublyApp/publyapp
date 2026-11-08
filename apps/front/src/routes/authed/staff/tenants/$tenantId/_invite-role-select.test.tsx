@@ -247,6 +247,32 @@ describe('InviteRoleSelect', () => {
 		expect(screen.queryByRole('button', { name: 'Roles' })).toBeNull();
 	});
 
+	test('shows the loading label on the trigger while the roles query is pending', () => {
+		mocks.useStaffTenantRolesQuery.mockReturnValue({
+			data: undefined,
+			isPending: true,
+			isError: false,
+		});
+
+		render(<TestForm />);
+
+		expect(screen.getByRole('button', { name: 'Roles' }).textContent).toContain(
+			'Loading roles…',
+		);
+	});
+
+	test('renders the inline empty label inside the popup when the query errors non-fatally (403)', () => {
+		mocks.useStaffTenantRolesQuery.mockReturnValue(
+			errorPage({ status: 403, title: 'Forbidden', detail: 'Forbidden' }),
+		);
+		mocks.shouldLogoutForFailure.mockReturnValue(false);
+
+		render(<TestForm />);
+		fireEvent.click(screen.getByRole('button', { name: 'Roles' }));
+
+		expect(screen.getByText('No roles are available.')).toBeTruthy();
+	});
+
 	test('still renders the dropdown when the query errors non-fatally (403)', () => {
 		mocks.useStaffTenantRolesQuery.mockReturnValue(
 			errorPage({ status: 403, title: 'Forbidden', detail: 'Forbidden' }),

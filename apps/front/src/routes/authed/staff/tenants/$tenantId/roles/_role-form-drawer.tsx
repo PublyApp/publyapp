@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Controller, useWatch, type UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Field } from '~/components/field';
+import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
@@ -74,14 +75,7 @@ export const RoleFormDrawer = ({
 	});
 
 	// Hoisted locals keep raw query flags out of render-flow conditionals.
-	const catalogIsPending = catalogQuery.isPending;
-	const catalogIsError = catalogQuery.isError;
-	const catalogError = catalogQuery.error;
 	const createRole = useCreateStaffTenantRoleMutation();
-
-	const groups = buildStaffTenantPermissionCatalogGroups(
-		catalogQuery.data?.additionalData,
-	);
 
 	const {
 		formState: { isDirty, isSubmitting },
@@ -234,43 +228,58 @@ export const RoleFormDrawer = ({
 							isDisabled={isFormLocked}
 						/>
 
-						{catalogIsPending ? (
-							<p className="text-sm text-muted-foreground">
-								{t('loading-permissions')}
-							</p>
-						) : null}
+						<QueryDisplay
+							query={catalogQuery}
+							LoadingSlot={
+								<p className="text-sm text-muted-foreground">
+									{t('loading-permissions')}
+								</p>
+							}
+							ErrorSlot={
+								<p className="text-sm text-destructive">
+									{getFailureMessage(toApiFailure(catalogQuery.error), {
+										fallback: t('tenant-permission-catalog-load-failed'),
+									})}
+								</p>
+							}
+							EmptySlot={
+								<p className="text-sm text-muted-foreground">
+									{t('no-permissions-available')}
+								</p>
+							}
+						>
+							{({ data }) => {
+								const groups = buildStaffTenantPermissionCatalogGroups(
+									data?.additionalData,
+								);
 
-						{catalogIsError ? (
-							<p className="text-sm text-destructive">
-								{getFailureMessage(toApiFailure(catalogError), {
-									fallback: t('tenant-permission-catalog-load-failed'),
-								})}
-							</p>
-						) : null}
+								if (groups.length === 0) {
+									return (
+										<p className="text-sm text-muted-foreground">
+											{t('no-permissions-available')}
+										</p>
+									);
+								}
 
-						{!catalogIsPending && !catalogIsError && groups.length > 0 ? (
-							<Controller
-								name="permissionKeys"
-								control={methods.control}
-								render={({ field }) => (
-									<div data-testid="role-permissions-checklist">
-										<PermissionMatrix
-											groups={groups}
-											value={toStringArray(field.value)}
-											onChange={field.onChange}
-											baselineValue={[]}
-											disabled={isFormLocked}
-										/>
-									</div>
-								)}
-							/>
-						) : null}
-
-						{!catalogIsPending && !catalogIsError && groups.length === 0 ? (
-							<p className="text-sm text-muted-foreground">
-								{t('no-permissions-available')}
-							</p>
-						) : null}
+								return (
+									<Controller
+										name="permissionKeys"
+										control={methods.control}
+										render={({ field }) => (
+											<div data-testid="role-permissions-checklist">
+												<PermissionMatrix
+													groups={groups}
+													value={toStringArray(field.value)}
+													onChange={field.onChange}
+													baselineValue={[]}
+													disabled={isFormLocked}
+												/>
+											</div>
+										)}
+									/>
+								);
+							}}
+						</QueryDisplay>
 
 						{methods.formState.errors.root?.server?.message ? (
 							<p className="text-sm text-destructive" role="alert">

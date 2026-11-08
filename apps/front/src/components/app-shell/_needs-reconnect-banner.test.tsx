@@ -23,13 +23,20 @@ vi.mock('@tanstack/react-router', () => ({
 
 let socialAccountsWire: Array<Record<string, unknown>> = [];
 let permissionKeys: string[] = ['*'];
+let socialAccountsState: 'success' | 'pending' | 'error' = 'success';
 
 vi.mock('~/lib/query/social-accounts', async (importOriginal) => ({
 	...(await importOriginal<object>()),
 	useSocialAccountsQuery: () => ({
-		data: { data: socialAccountsWire, nextCursor: null },
-		isPending: false,
-		isError: false,
+		data:
+			socialAccountsState === 'success'
+				? { data: socialAccountsWire, nextCursor: null }
+				: undefined,
+		isPending: socialAccountsState === 'pending',
+		isLoading: socialAccountsState === 'pending',
+		isFetching: false,
+		isError: socialAccountsState === 'error',
+		error: socialAccountsState === 'error' ? new Error('boom') : null,
 		refetch: () => Promise.resolve(),
 	}),
 }));
@@ -78,6 +85,7 @@ afterEach(() => {
 	cleanup();
 	socialAccountsWire = [];
 	permissionKeys = ['*'];
+	socialAccountsState = 'success';
 });
 
 describe('needs-reconnect banner', () => {
@@ -104,6 +112,28 @@ describe('needs-reconnect banner', () => {
 		expect(
 			container.querySelector('[data-testid="needs-reconnect-banner"]'),
 		).toBeNull();
+	});
+
+	test('ItShouldRenderNothingWhileTheAccountsQueryIsPending', () => {
+		socialAccountsState = 'pending';
+
+		const { container } = render(<NeedsReconnectBanner tenantId="t1" />);
+
+		expect(
+			container.querySelector('[data-testid="needs-reconnect-banner"]'),
+		).toBeNull();
+		expect(container.textContent).toBe('');
+	});
+
+	test('ItShouldRenderNothingWhenTheAccountsQueryFails', () => {
+		socialAccountsState = 'error';
+
+		const { container } = render(<NeedsReconnectBanner tenantId="t1" />);
+
+		expect(
+			container.querySelector('[data-testid="needs-reconnect-banner"]'),
+		).toBeNull();
+		expect(container.textContent).toBe('');
 	});
 
 	test('ItShouldHideTheReconnectButtonFromHoldersWithoutManage', () => {

@@ -387,6 +387,45 @@ describe('RoleFormDrawer', () => {
 		});
 	});
 
+	test('renders the pending label while the permission catalog loads', () => {
+		mocks.useStaffTenantPermissionCatalogQuery.mockReturnValue({
+			data: undefined,
+			isPending: true,
+			isError: false,
+		});
+
+		renderDrawer({
+			tenantId: 'tenant-1',
+			isOpen: true,
+			onOpenChange: vi.fn(),
+			onSaved: vi.fn(),
+			onSessionExpired: vi.fn(),
+		});
+
+		expect(screen.getByText('Loading permissions…')).toBeTruthy();
+		expect(screen.queryByTestId('role-permissions-checklist')).toBeNull();
+	});
+
+	test('renders the error label when the permission catalog fails', () => {
+		mocks.useStaffTenantPermissionCatalogQuery.mockReturnValue({
+			data: undefined,
+			isPending: false,
+			isError: true,
+			error: new Error('catalog down'),
+		});
+
+		renderDrawer({
+			tenantId: 'tenant-1',
+			isOpen: true,
+			onOpenChange: vi.fn(),
+			onSaved: vi.fn(),
+			onSessionExpired: vi.fn(),
+		});
+
+		expect(screen.getByText('catalog down')).toBeTruthy();
+		expect(screen.queryByTestId('role-permissions-checklist')).toBeNull();
+	});
+
 	// tenants-r6-F3: Cancel is a "close" path just like Escape/backdrop —
 	// dirty edits must not be discarded silently.
 	test('Cancel closes immediately when the form is pristine', () => {

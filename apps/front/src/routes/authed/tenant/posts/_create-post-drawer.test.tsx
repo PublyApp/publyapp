@@ -33,6 +33,7 @@ const mocks = vi.hoisted(() => ({
 	invalidatePostImageCaches: vi.fn(),
 	savePost: vi.fn(),
 	invalidateTenantPosts: vi.fn(),
+	projectsState: 'success' as 'success' | 'pending' | 'error',
 }));
 
 /** Shared react-hook-form state so tests can reset between renders. */
@@ -382,6 +383,7 @@ const fillBodyAndPickImage = async (body: string) => {
 
 beforeEach(() => {
 	rhf.resetAll();
+	mocks.projectsState = 'success';
 	mocks.savePost.mockResolvedValue({ id: 'post-1' });
 	mocks.attachMutateAsync.mockResolvedValue({ id: 'asset-1' });
 	mocks.altMutateAsync.mockResolvedValue(undefined);
@@ -391,6 +393,24 @@ beforeEach(() => {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+});
+
+describe('CreatePostDrawer project picker query states (#2341)', () => {
+	test('keeps the empty project select and hint while the projects query is pending', () => {
+		mocks.projectsState = 'pending';
+		renderDrawer(vi.fn());
+
+		expect(document.querySelector('select[name="projectId"]')).toBeTruthy();
+		expect(screen.getByText('posts:no-projects-yet')).toBeTruthy();
+	});
+
+	test('keeps the empty project select and hint when the projects query fails', () => {
+		mocks.projectsState = 'error';
+		renderDrawer(vi.fn());
+
+		expect(document.querySelector('select[name="projectId"]')).toBeTruthy();
+		expect(screen.getByText('posts:no-projects-yet')).toBeTruthy();
+	});
 });
 
 describe('CreatePostDrawer provider limit counter (#2169)', () => {

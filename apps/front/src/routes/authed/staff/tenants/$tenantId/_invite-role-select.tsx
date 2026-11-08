@@ -9,6 +9,7 @@ import { Controller, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { renderFieldHelper } from '~/components/field/field-helper-text';
+import QueryDisplay from '~/components/query-display';
 import { useCursorPagination } from '~/components/table/use-cursor-pagination';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
@@ -216,39 +217,53 @@ export const InviteRoleSelect = ({
 										<LoadingSpinner />
 									) : null}
 								</div>
-								{roles.length > 0 ? (
-									roles.map((role) => {
-										const roleName = displayRoleName(role, t);
+								<QueryDisplay
+									query={rolesQuery}
+									variant="inline"
+									LoadingSlot={
+										<p className="px-3 py-2 text-[13px] text-muted-foreground">
+											{t('loading-roles')}
+										</p>
+									}
+									ErrorSlot={
+										<p className="px-3 py-2 text-[13px] text-muted-foreground">
+											{t('no-roles-available')}
+										</p>
+									}
+									EmptySlot={
+										<p className="px-3 py-2 text-[13px] text-muted-foreground">
+											{t('no-roles-available')}
+										</p>
+									}
+								>
+									{({ data }) =>
+										toStaffTenantRoleRows(data?.data).map((role) => {
+											const roleName = displayRoleName(role, t);
 
-										return (
-											<DropdownMenuCheckboxItem
-												key={role.id}
-												checked={selectedIdSet.has(role.id)}
-												closeOnClick={false}
-												showCheckbox
-												onCheckedChange={(checked) => {
-													toggleRole(role.id, Boolean(checked));
-												}}
-											>
-												<span
-													className="min-w-0 flex-1 truncate"
-													title={roleName}
+											return (
+												<DropdownMenuCheckboxItem
+													key={role.id}
+													checked={selectedIdSet.has(role.id)}
+													closeOnClick={false}
+													showCheckbox
+													onCheckedChange={(checked) => {
+														toggleRole(role.id, Boolean(checked));
+													}}
 												>
-													{roleName}
-												</span>
-												{role.isDefault ? (
-													<Badge variant="secondary">{t('default')}</Badge>
-												) : null}
-											</DropdownMenuCheckboxItem>
-										);
-									})
-								) : (
-									<p className="px-3 py-2 text-[13px] text-muted-foreground">
-										{rolesIsPending
-											? t('loading-roles')
-											: t('no-roles-available')}
-									</p>
-								)}
+													<span
+														className="min-w-0 flex-1 truncate"
+														title={roleName}
+													>
+														{roleName}
+													</span>
+													{role.isDefault ? (
+														<Badge variant="secondary">{t('default')}</Badge>
+													) : null}
+												</DropdownMenuCheckboxItem>
+											);
+										})
+									}
+								</QueryDisplay>
 								<div className="flex items-center justify-between border-t px-1 py-1">
 									<Button
 										type="button"

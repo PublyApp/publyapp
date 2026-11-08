@@ -6,6 +6,7 @@ import {
 	IconSun,
 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import QueryDisplay from '~/components/query-display';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -25,6 +26,7 @@ import { PersonAvatar } from '~/components/ui/person-avatar';
 import { useLogout } from '~/lib/hooks/use-logout';
 import { useSwitchLocale } from '~/lib/hooks/use-switch-locale';
 import { toCurrentUser, useCurrentUserQuery } from '~/lib/query/auth';
+import type { CurrentUser } from '~/lib/query/auth';
 import {
 	useUiStore,
 	withThemeTransitionSuppressed,
@@ -38,8 +40,8 @@ import {
 
 export const AppShellUserMenu = () => {
 	const { t, i18n } = useTranslation('common');
-	const { data } = useCurrentUserQuery();
-	const currentUser = toCurrentUser(data);
+	const userQuery = useCurrentUserQuery();
+	const currentUser = toCurrentUser(userQuery.data);
 	const { logout, isLoggingOut } = useLogout();
 	const { switchLocale, isSwitching } = useSwitchLocale();
 	const colorScheme = useUiStore((state) => state.colorScheme);
@@ -52,10 +54,25 @@ export const AppShellUserMenu = () => {
 	const accountMenuLabel = currentUser?.displayName
 		? t('account-menu-with-name', { name: displayName })
 		: t('account-menu');
-	const avatarSeed = currentUser?.displayName || currentUser?.email || '?';
 	const currentLocale = isSupportedLanguage(i18n.resolvedLanguage)
 		? i18n.resolvedLanguage
 		: SUPPORTED_LANGUAGES[0];
+
+	// Today's chip renders the same placeholder before the current user
+	// resolves, so the pending state is that exact chip (no visible change).
+	const renderChip = (user: CurrentUser | null) => (
+		<>
+			<PersonAvatar
+				name={user?.displayName || user?.email || '?'}
+				avatarUrl={user?.avatarUrl}
+				size="sm"
+				className="size-7"
+			/>
+			<span className="app-shell-user-name">
+				{user?.displayName || t('un-named')}
+			</span>
+		</>
+	);
 
 	return (
 		<DropdownMenu>
@@ -64,13 +81,15 @@ export const AppShellUserMenu = () => {
 				aria-label={accountMenuLabel}
 				data-testid="app-shell-user-menu-trigger"
 			>
-				<PersonAvatar
-					name={avatarSeed}
-					avatarUrl={currentUser?.avatarUrl}
-					size="sm"
-					className="size-7"
-				/>
-				<span className="app-shell-user-name">{displayName}</span>
+				<QueryDisplay
+					query={userQuery}
+					variant="discreet"
+					LoadingSlot={renderChip(currentUser)}
+					ErrorSlot={renderChip(currentUser)}
+					EmptySlot={renderChip(currentUser)}
+				>
+					{({ data }) => renderChip(toCurrentUser(data))}
+				</QueryDisplay>
 				<IconChevronDown aria-hidden="true" className="size-4" />
 			</DropdownMenuTrigger>
 			<DropdownMenuContent

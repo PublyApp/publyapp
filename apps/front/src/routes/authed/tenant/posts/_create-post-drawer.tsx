@@ -4,6 +4,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Field } from '~/components/field';
+import QueryDisplay from '~/components/query-display';
 import {
 	Drawer,
 	DrawerContent,
@@ -66,7 +67,6 @@ export const CreatePostDrawer = ({
 	const translateResponseMessage = useResponseMessageTranslator();
 	const qc = useQueryClient();
 	const projectsQuery = useTenantProjectsQuery({ tenantId });
-	const projectItems = toTenantProjectItems(projectsQuery.data);
 	// Language-keyed resolver: schema + resolver built once per language, not
 	// once per render.
 	const resolver = useLanguageKeyedZodResolver<FormValues>(getSchema, [
@@ -254,6 +254,29 @@ export const CreatePostDrawer = ({
 
 	const isHandoffPending = createdPostId !== null;
 
+	// Today the select renders with no option until the projects resolve, so
+	// every non-data state is that same select plus the empty hint.
+	const renderProjectField = (
+		items: ReturnType<typeof toTenantProjectItems>,
+	) => (
+		<>
+			<Field.Select
+				name="projectId"
+				label={t('posts:project-label')}
+				placeholder={t('posts:project-placeholder')}
+				options={items.map((project) => ({
+					value: project.id,
+					label: project.name,
+				}))}
+			/>
+			{items.length === 0 ? (
+				<p className="text-muted-foreground text-xs">
+					{t('posts:no-projects-yet')}
+				</p>
+			) : null}
+		</>
+	);
+
 	return (
 		<Drawer open={open} onOpenChange={handleOpenChange}>
 			<DrawerContent width={736} data-testid="tenant-posts-create-drawer">
@@ -285,20 +308,14 @@ export const CreatePostDrawer = ({
 								{methods.formState.errors.root.message}
 							</p>
 						) : null}
-						<Field.Select
-							name="projectId"
-							label={t('posts:project-label')}
-							placeholder={t('posts:project-placeholder')}
-							options={projectItems.map((p) => ({
-								value: p.id,
-								label: p.name,
-							}))}
-						/>
-						{projectItems.length === 0 ? (
-							<p className="text-muted-foreground text-xs">
-								{t('posts:no-projects-yet')}
-							</p>
-						) : null}
+						<QueryDisplay
+							query={projectsQuery}
+							LoadingSlot={renderProjectField([])}
+							ErrorSlot={renderProjectField([])}
+							EmptySlot={renderProjectField([])}
+						>
+							{({ data }) => renderProjectField(toTenantProjectItems(data))}
+						</QueryDisplay>
 						{isHandoffPending ? (
 							<HandoffPanel
 								cause={handoffCause}
