@@ -23,3 +23,20 @@ export const formatShare = (
 				style: 'percent',
 				maximumFractionDigits: 1,
 			}).format(value / total);
+
+/** « 22 sept. – 21 oct. 2026 » — the report period's resolved range, the way
+ * the prototype's select shows it (day-month for the start, with the shared
+ * year at the end). Pure functions, locale-driven; no hardcoded copy. */
+const dayMonth = (locale: string): Intl.DateTimeFormat =>
+	new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' });
+const dayMonthYear = (locale: string): Intl.DateTimeFormat =>
+	new Intl.DateTimeFormat(locale, {
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric',
+	});
+export const formatPeriodRange = (
+	start: Date | string,
+	locale: string,
+): string =>
+	`${dayMonth(locale).format(new Date(start))} – ${dayMonthYear(locale).format(new Date())}`;

@@ -121,23 +121,27 @@ export const OverviewLists = ({
 						/>
 					}
 				>
-					<ChartNote>{t('dashboard-note-latest-tenants')}</ChartNote>
-					<div className="px-4 pb-3">
-						<DashboardCardQuery
-							query={latestTenantsQuery}
-							testId="staff-dashboard-latest-tenants"
-							isEmpty={isEmptyList}
-							emptySlot={
-								<StateSurface
-									title={t('overview-empty-tenants')}
-									testId="staff-dashboard-latest-tenants-empty"
-								/>
-							}
-						>
-							{({ data }) => (
-								<TenantRows tenants={toStaffTenantRows(data.data)} t={t} />
-							)}
-						</DashboardCardQuery>
+					{/* The prototype keeps the note and the rows inside one
+					   `.pa-shell-desc` wrapper (2px gap, 14px top — #2339). */}
+					<div className="flex flex-col gap-[2px] px-4 pt-3.5 text-[13px] leading-[1.45]">
+						<ChartNote>{t('dashboard-note-latest-tenants')}</ChartNote>
+						<div className="pb-3">
+							<DashboardCardQuery
+								query={latestTenantsQuery}
+								testId="staff-dashboard-latest-tenants"
+								isEmpty={isEmptyList}
+								emptySlot={
+									<StateSurface
+										title={t('overview-empty-tenants')}
+										testId="staff-dashboard-latest-tenants-empty"
+									/>
+								}
+							>
+								{({ data }) => (
+									<TenantRows tenants={toStaffTenantRows(data.data)} t={t} />
+								)}
+							</DashboardCardQuery>
+						</div>
 					</div>
 				</DashboardCard>
 			</div>
@@ -154,27 +158,29 @@ export const OverviewLists = ({
 					/>
 				}
 			>
-				<ChartNote>{t('dashboard-note-pending-invitations')}</ChartNote>
-				<div className="px-4 pb-3">
-					<DashboardCardQuery
-						query={pendingInvitationsQuery}
-						testId="staff-dashboard-pending-invitations"
-						isEmpty={isEmptyList}
-						emptySlot={
-							<StateSurface
-								title={t('overview-empty-invitations')}
-								testId="staff-dashboard-pending-invitations-empty"
-							/>
-						}
-					>
-						{({ data }) => (
-							<PendingInvitationsTable
-								invitations={data.data ?? []}
-								locale={locale}
-								t={t}
-							/>
-						)}
-					</DashboardCardQuery>
+				<div className="flex flex-col gap-[2px] px-4 pt-3.5 text-[13px] leading-[1.45]">
+					<ChartNote>{t('dashboard-note-pending-invitations')}</ChartNote>
+					<div className="pb-3">
+						<DashboardCardQuery
+							query={pendingInvitationsQuery}
+							testId="staff-dashboard-pending-invitations"
+							isEmpty={isEmptyList}
+							emptySlot={
+								<StateSurface
+									title={t('overview-empty-invitations')}
+									testId="staff-dashboard-pending-invitations-empty"
+								/>
+							}
+						>
+							{({ data }) => (
+								<PendingInvitationsTable
+									invitations={data.data ?? []}
+									locale={locale}
+									t={t}
+								/>
+							)}
+						</DashboardCardQuery>
+					</div>
 				</div>
 			</DashboardCard>
 		</>

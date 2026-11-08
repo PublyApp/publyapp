@@ -195,7 +195,7 @@ describe('ChartCard series', () => {
 				series={{ status: 'ready', chart: <span />, table: <span /> }}
 			/>,
 		);
-		const readyNote = ready.container.querySelector('p.pt-3\\.5');
+		const readyNote = ready.container.querySelector('.pt-3\\.5');
 		expect(readyNote?.textContent).toBe('The real description');
 		cleanup();
 
@@ -210,7 +210,7 @@ describe('ChartCard series', () => {
 				}}
 			/>,
 		);
-		const ghostNote = ghost.container.querySelector('p.pt-3\\.5');
+		const ghostNote = ghost.container.querySelector('.pt-3\\.5');
 		expect(ghostNote?.textContent).toBe('The curve will be drawn here.');
 		// Same slot, same size: only the colour mix differs (the AA-safe
 		// `.ghost-sentence`).

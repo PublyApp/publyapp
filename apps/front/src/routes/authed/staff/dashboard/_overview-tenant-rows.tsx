@@ -74,17 +74,17 @@ export const TenantRows = ({
 	tenants: readonly StaffTenantRow[];
 	t: Translate;
 }) => (
-	<div className="flex flex-col">
+	<div className="flex flex-col divide-y divide-(--publy-border)">
 		{tenants.map((tenant) => (
 			<div
 				key={tenant.id}
-				className="flex items-center gap-3 border-t border-(--publy-row-border) py-[9px] first:border-t-0"
+				className="flex items-center gap-3 border-0 border-(--publy-border) py-[9px]"
 				data-testid="staff-dashboard-tenant-row"
 			>
 				<PersonAvatar name={tenant.name} size="sm" />
 				<div className="min-w-0 flex-1">
 					<p className="truncate text-[13px] font-medium">{tenant.name}</p>
-					<p className="truncate text-xs text-muted-foreground">
+					<p className="truncate text-muted-foreground">
 						{t('tenant-member-count', { count: tenant.usersCount })}
 					</p>
 				</div>

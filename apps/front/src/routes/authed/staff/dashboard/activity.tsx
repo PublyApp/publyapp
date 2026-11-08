@@ -33,7 +33,6 @@ import {
 	serializeAuditLogsListSearchParams,
 	type AuditLogsListSearchParamInput,
 } from '../audit-logs/_list-search-params';
-import { ViewAllLink } from './_dashboard-ui';
 
 /** The dashboard feed is a glance, not the full log: one page of the same
  * query the audit-logs page pages through. */
@@ -176,15 +175,10 @@ const Activity = () => {
 		<HistoryPage
 			testId={TEST_ID}
 			title={t('common:activity')}
-			header={
-				<div className="flex items-center justify-end">
-					<ViewAllLink
-						to="/staff/audit-logs"
-						label={tCommon('view-all')}
-						testId="staff-dashboard-activity-view-all"
-					/>
-				</div>
-			}
+			// No header row: the prototype's activity tab starts directly with
+			// its toolbar (§5.1); a « Tout voir » row above it pushed every
+			// following block ~60px down.
+			header={<></>}
 			totalCount={totalCount}
 			searchPlaceholder={tCommon('history-search-placeholder')}
 			q={search.q ?? ''}

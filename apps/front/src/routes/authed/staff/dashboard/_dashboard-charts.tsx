@@ -210,7 +210,7 @@ export const ChartBody = ({
 );
 
 export const ChartNote = ({ children }: { children: ReactNode }) => (
-	<p className="px-4 pt-3.5 text-[13px] leading-[1.45] text-foreground">
+	<p className="px-4 text-[12px] leading-[1.45] text-(--publy-foreground-muted)">
 		{children}
 	</p>
 );

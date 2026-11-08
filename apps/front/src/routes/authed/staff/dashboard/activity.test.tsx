@@ -215,16 +215,14 @@ describe('staff dashboard activity', () => {
 		).toBe(false);
 	});
 
-	test('keeps the « Tout voir » link to the full audit log (B5)', () => {
+	test('starts directly with its toolbar: no header row above it (#2339)', () => {
 		mocks.query.data = { data: [auditRow()], nextCursor: null, totalCount: 1 };
 
 		render(<Activity />);
 
 		expect(
-			screen
-				.getByTestId('staff-dashboard-activity-view-all')
-				.getAttribute('href'),
-		).toBe('/staff/audit-logs');
+			screen.queryByTestId('staff-dashboard-activity-view-all'),
+		).toBeNull();
 	});
 
 	test('the filters live in the URL and reach the query (N4)', () => {

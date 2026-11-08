@@ -77,6 +77,7 @@ const Reports = () => {
 							void navigate({ search: { period: next }, replace: true })
 						}
 						ariaLabel={t('dashboard-filter-report-period')}
+						range
 					/>
 				</div>
 				<SampleDataChip />
@@ -121,7 +122,7 @@ const Reports = () => {
 				/>
 			</div>
 
-			<div className="grid gap-4 xl:grid-cols-[minmax(0,1.85fr)_minmax(0,1fr)]">
+			<div className="grid gap-4 md:grid-cols-2">
 				<ChartCard
 					testId="staff-dashboard-events-per-day"
 					label={t('dashboard-card-audit-events-per-day')}

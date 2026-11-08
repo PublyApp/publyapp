@@ -285,7 +285,7 @@ describe('staff dashboard reports', () => {
 			'staff-dashboard-signins-per-day',
 		]) {
 			const card = screen.getByTestId(testId);
-			const hero = card.querySelector('p.pt-3');
+			const hero = card.querySelector('.pt-3\\.5 p');
 			expect(hero?.textContent).toBe('—');
 			expect(hero?.querySelector('.text-muted-foreground')).toBeTruthy();
 		}

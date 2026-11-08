@@ -1596,6 +1596,23 @@ html.dark {
 		--page-pad-top: 20px;
 	}
 
+	/* The prototype renders the dashboard page's base text at 13px/1.45; the
+	   app's own base scale is 14px/1.5 (#2339 fidelity, measured at 1440px).
+	   Scoped to the dashboard: explicit text-* classes on the page (triggers,
+	   KPI figures, section labels…) still win over this inherited base. */
+	[data-dashboard-page] {
+		font-size: 13px;
+		line-height: 1.45;
+	}
+
+	/* The prototype's dashboard activity tab runs its toolbar and feed at an
+	   8px rhythm, while the shared history keeps its list-page 24px gap
+	   (#2339 fidelity, measured at 1440px). Other pages using the same
+	   component keep the list-page rhythm. */
+	[data-dashboard-page] [data-history-page] {
+		gap: 8px;
+	}
+
 	/* The pages built from Shopkart's list page (the generic ListPage) use its
 	   32px frame on every side, as the prototype does — its pinned toolbar and
 	   table header offsets are calibrated on that padding through

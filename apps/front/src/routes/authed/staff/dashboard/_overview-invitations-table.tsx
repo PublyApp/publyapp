@@ -94,7 +94,7 @@ export const PendingInvitationsTable = ({
 						{invitations.map((invitation) => (
 							<tr
 								key={invitation.id}
-								className="border-t border-(--publy-row-border)"
+								className="border-(--publy-border)"
 								data-testid="staff-dashboard-invitation-row"
 							>
 								<td className="py-3.5">{invitation.email}</td>

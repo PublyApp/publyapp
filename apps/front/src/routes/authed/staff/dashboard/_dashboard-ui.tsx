@@ -21,10 +21,15 @@ import {
 	ORGANISATION_SCOPES,
 	organisationScopeLabelKey,
 	periodLabelKey,
+	periodStart,
 	type DashboardPeriod,
 	type OrganisationScope,
 } from './_dashboard-filters';
-import { UNKNOWN_VALUE, formatCount } from './_dashboard-format';
+import {
+	UNKNOWN_VALUE,
+	formatCount,
+	formatPeriodRange,
+} from './_dashboard-format';
 
 type ChartView = 'chart' | 'table';
 const CHART_VIEWS: readonly ChartView[] = ['chart', 'table'];
@@ -36,21 +41,35 @@ export const PeriodSelect = ({
 	value,
 	onChange,
 	ariaLabel,
+	range = false,
 }: {
 	id: string;
 	value: DashboardPeriod;
 	onChange: (period: DashboardPeriod) => void;
 	ariaLabel: string;
+	/** Show the resolved date range instead of the period's name (the
+	 * prototype's report filter). */
+	range?: boolean;
 }) => {
-	const { t } = useTranslation('common');
+	const { t, i18n } = useTranslation('common');
+	// The prototype's select trigger: 12px radius, its own hairline and muted
+	// fill, 14px/21px text (#2339 fidelity). The shared SelectTrigger keeps its
+	// site-wide 13px/10px scale; `cn` gives these classes the lead.
+	const triggerClass =
+		'min-w-48 rounded-[12px] border-(--publy-input-border) bg-(--publy-muted) text-[14px] leading-[21px]';
 	return (
 		<CodeSelect
 			id={id}
 			value={value}
 			options={DASHBOARD_PERIODS}
-			label={(period) => t(periodLabelKey(period))}
+			label={(period) =>
+				range
+					? formatPeriodRange(periodStart(period), i18n.language)
+					: t(periodLabelKey(period))
+			}
 			onChange={onChange}
 			ariaLabel={ariaLabel}
+			className={triggerClass}
 		/>
 	);
 };
@@ -74,6 +93,7 @@ export const OrganisationScopeSelect = ({
 			label={(scope) => t(organisationScopeLabelKey(scope))}
 			onChange={onChange}
 			ariaLabel={t('dashboard-filter-organisations')}
+			className="min-w-48 rounded-[12px] border-(--publy-input-border) bg-(--publy-muted) text-[14px] leading-[21px]"
 		/>
 	);
 };
@@ -93,7 +113,7 @@ export const SampleDataChip = ({ className }: { className?: string }) => {
 			<svg
 				aria-hidden="true"
 				viewBox="0 0 12 12"
-				className="size-[9px] shrink-0"
+				className="size-[13px] shrink-0"
 			>
 				<circle
 					cx="6"
@@ -295,18 +315,22 @@ export const ChartCard = ({
 	} else if (note) {
 		noteSlot = <ChartNote>{note}</ChartNote>;
 	}
+	// The prototype keeps the figure and the note inside one `.pa-shell-desc`
+	// wrapper (2px gap, 14px top padding, 13px/1.45 base — #2339 fidelity).
 	const body = (
 		<>
-			{hero ? (
-				<p className="px-4 pt-3 text-[26px] leading-tight font-semibold tracking-[-0.02em]">
-					{unavailable ? (
-						<span className="text-muted-foreground">{UNKNOWN_VALUE}</span>
-					) : (
-						hero
-					)}
-				</p>
-			) : null}
-			{noteSlot}
+			<div className="flex flex-col gap-[2px] px-4 pt-3.5 text-[13px] leading-[1.45]">
+				{hero ? (
+					<p className="text-[26px] leading-[1.1] font-semibold tracking-[-0.02em]">
+						{unavailable ? (
+							<span className="text-muted-foreground">{UNKNOWN_VALUE}</span>
+						) : (
+							hero
+						)}
+					</p>
+				) : null}
+				{noteSlot}
+			</div>
 			<ChartBody>{chartBodyOf(series, view)}</ChartBody>
 		</>
 	);
