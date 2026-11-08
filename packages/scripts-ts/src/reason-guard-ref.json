@@ -223,6 +223,7 @@
 		"ci.yml::gate::Install pnpm",
 		"ci.yml::gate::Install workspace dependencies",
 		"ci.yml::gate::Read live PR snapshot",
+		"ci.yml::gate::Reject Co-Authored-By trailers",
 		"ci.yml::gate::Run central structural self-check",
 		"ci.yml::gate::Setup Node",
 		"ci.yml::gate::Upload live PR snapshot",
@@ -1011,6 +1012,10 @@
 		"ci.yml::gate::Upload live PR snapshot": {
 			"reason_hash": "2f4b7808ebcc9050",
 			"reason": "Hosted-only action step \"Upload live PR snapshot\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"github.event_name == 'pull_request'\",\"with\":{\"name\":\"ci-pr-snapshot-${{ github.run_id }}-${{ github.run_attempt }}\",\"path\":\"ci-results/ci-pr-snapshot.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
+		},
+		"ci.yml::gate::Reject Co-Authored-By trailers": {
+			"reason_hash": "6c827c41c8de26f6",
+			"reason": "No exact local command match for run step \"Reject Co-Authored-By trailers\"; normalized workflow command(s): [\"base=$(git merge-base \\\"origin/$PR_BASE_REF\\\" \\\"$PR_HEAD_SHA\\\")\",\"printf '%s' \\\"$PR_BODY\\\" > \\\"$RUNNER_TEMP/pr-body.txt\\\"\",\"node packages/scripts-ts/src/check-no-coauthor-trailer.ts --range \\\"$base..$PR_HEAD_SHA\\\" --title \\\"$PR_TITLE\\\" --body-file \\\"$RUNNER_TEMP/pr-body.txt\\\"\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::gate::Verify linked issue relationship": {
 			"reason_hash": "9bf4747a958cbe01",

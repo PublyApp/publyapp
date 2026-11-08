@@ -1,0 +1,65 @@
+#!/usr/bin/env sh
+# Rejects `Co-Authored-By:` trailers (owner rule, issue #2347).
+#
+# This file is TRACKED and runs from the versioned .husky/ directory wired by
+# packages/scripts-ts/src/install-git-hooks.ts. Git runs commit-msg only for a
+# new commit — never on rebase or cherry-pick — so old history can never block
+# a push. CI's pull_request check is the net for `git commit --no-verify`.
+#
+# The matching logic lives in a .ts script. If pnpm/node are not on PATH (an
+# IDE or GUI launched without fnm), fall back to grep so the rule still holds.
+# The script's exits: 0 = clean, 3 = trailer found (its own code), 2 = broken
+# check; a too-old Node or a failing pnpm also exit 1. Only 3 may refuse a
+# commit — anything else warns and falls through to the grep fallback.
+
+message_file=$1
+script_path="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/../packages/scripts-ts/src/check-no-coauthor-trailer.ts"
+
+# Same lookup chain as .husky/pre-commit: git runs hooks from IDEs and GUIs
+# where pnpm may not be on PATH.
+find_pnpm() {
+    if [ -x "$HOME/.local/share/pnpm/pnpm" ]; then
+        printf '%s' "$HOME/.local/share/pnpm/pnpm"
+    elif [ -x "/usr/local/bin/pnpm" ]; then
+        printf '%s' "/usr/local/bin/pnpm"
+    elif [ -x "/opt/homebrew/bin/pnpm" ]; then
+        printf '%s' "/opt/homebrew/bin/pnpm"
+    elif command -v pnpm >/dev/null 2>&1; then
+        command -v pnpm
+    elif command -v bun >/dev/null 2>&1; then
+        command -v bun
+    fi
+}
+
+pnpm_bin=$(find_pnpm)
+
+if [ -n "$pnpm_bin" ] && command -v node >/dev/null 2>&1; then
+    if [ ! -f "$script_path" ]; then
+        echo "⚠ the trailer check could not run; falling back to a simple grep" >&2
+    else
+        "$pnpm_bin" exec node "$script_path" --message-file "$message_file"
+        script_exit=$?
+        if [ $script_exit -eq 0 ]; then
+            exit 0
+        fi
+        if [ $script_exit -eq 3 ]; then
+            echo "❌ commit rejected: remove the Co-Authored-By line above, then commit again." >&2
+            exit 1
+        fi
+        # 1 (old Node / pnpm failure), 2 (broken check) or any other surprise:
+        # never refuse the commit on a run that may not have checked anything.
+        echo "⚠ the trailer check could not run; falling back to a simple grep" >&2
+    fi
+fi
+
+# No pnpm/node on PATH: grep the non-comment lines, as git ignores them too.
+# Stop at the scissors line (`commit -v` / `commit.verbose=true`): git discards
+# everything below it at cleanup, so must we — a unified-diff context line
+# ` Co-Authored-By:` would otherwise false-positive.
+if awk '/^# -+ >8 -+/{exit} {print}' "$message_file" | grep -v '^[[:space:]]*#' | grep -iqE '^[[:space:]]*co-authored-by:'; then
+    echo "❌ commit rejected: this message contains a Co-Authored-By: trailer." >&2
+    echo "   Remove that line, then run: git commit --amend" >&2
+    exit 1
+fi
+
+exit 0

@@ -43,8 +43,9 @@ Owner, 2026-11-07: a few programs stay shell scripts, logic included, because th
 Node is available, or where it never is. Rewriting them in TypeScript would make them fail exactly
 where they are needed.
 
-- `.husky/pre-commit`, `.husky/pre-push`: git runs them from IDEs and GUIs where Node and pnpm may
-  be missing from `PATH` (fnm, Homebrew), so the hook looks for pnpm itself.
+- `.husky/pre-commit`, `.husky/pre-push`, `.husky/commit-msg`: git runs them from IDEs and GUIs
+  where Node and pnpm may be missing from `PATH` (fnm, Homebrew), so the hook looks for pnpm
+  itself; `commit-msg` falls back to `grep` when neither is available.
 - `.claude/hooks/session-start.sh`: prepares a fresh Claude Code cloud session, before the
   toolchain is installed.
 - Dockerfile `RUN` steps in images without Node (the .NET API images: the `apt-get` retry loop).
