@@ -84,8 +84,8 @@ export const DonutChart = ({
 	});
 
 	return (
-		<div className="flex flex-col gap-3" data-testid={testId}>
-			<div className="flex justify-center py-1">
+		<div className="flex flex-col" data-testid={testId}>
+			<div className="flex justify-center pt-0.5 pb-1">
 				<svg
 					className="h-auto w-full max-w-[172px]"
 					viewBox="0 0 172 172"
@@ -129,11 +129,11 @@ export const DonutChart = ({
 					</text>
 				</svg>
 			</div>
-			<div className="flex flex-col">
+			<div className="flex flex-col pt-1.5">
 				{segments.map((segment) => (
 					<div
 						key={segment.label}
-						className="flex w-full items-center gap-2 border-t border-(--publy-row-border) py-2 text-xs text-(--publy-foreground-secondary) first:border-t-0"
+						className="flex w-full items-center gap-2 border-t border-(--publy-row-border) py-2 text-xs leading-[1.45] text-(--publy-foreground-secondary) first:border-t-0"
 					>
 						<span
 							className="size-2.5 shrink-0 rounded-[3px]"
@@ -167,7 +167,7 @@ export const HorizontalBars = ({
 	const max = Math.max(...rows.map((row) => row.value), 1);
 
 	return (
-		<div className="flex flex-col gap-4" data-testid={testId}>
+		<div className="flex flex-col gap-[15px]" data-testid={testId}>
 			{rows.map((row) => (
 				<div key={row.label}>
 					<div className="mb-1.5 flex items-baseline justify-between gap-3">
@@ -209,8 +209,10 @@ export const ChartBody = ({
 	</div>
 );
 
+/** The card's note: the caller's desc wrapper already carries the prototype's
+ * 16px inline padding, so the note itself stays unpadded (#2339 fidelity). */
 export const ChartNote = ({ children }: { children: ReactNode }) => (
-	<p className="px-4 text-[12px] leading-[1.45] text-(--publy-foreground-muted)">
+	<p className="text-[12px] leading-[1.45] text-(--publy-foreground-muted)">
 		{children}
 	</p>
 );

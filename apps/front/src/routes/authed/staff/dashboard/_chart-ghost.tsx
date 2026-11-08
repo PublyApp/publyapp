@@ -235,8 +235,10 @@ export const GhostHBars = ({
 	falling?: boolean;
 }) => {
 	const random = seeded(seed);
-	const rowHeight = 35;
-	const gap = 16;
+	// The real horizontal-bars chart: 34.8px rows on a 15px gap, measured on
+	// the prototype's « Organisations les plus actives » card (#2339).
+	const rowHeight = 34.8;
+	const gap = 15;
 	const height = rows * rowHeight + Math.max(0, rows - 1) * gap;
 
 	return (

@@ -74,11 +74,18 @@ export const TenantRows = ({
 	tenants: readonly StaffTenantRow[];
 	t: Translate;
 }) => (
-	<div className="flex flex-col divide-y divide-(--publy-border)">
+	// The prototype draws its separators as `border-top` on every row but the
+	// first (`.row{border-top:1px}` + `:first-child{border-top:0}`), not as a
+	// `divide-y` bottom border — the first row must measure 0 border (#2339).
+	<div className="flex flex-col">
 		{tenants.map((tenant) => (
 			<div
 				key={tenant.id}
-				className="flex items-center gap-3 border-0 border-(--publy-border) py-[9px]"
+				// `first:border-t-current`: the prototype's first row resets its
+				// 0-width `border-top` (`border-top:0`), which also resets the
+				// colour to currentColor. No visual effect at 0px; matched so the
+				// measured value agrees (#2339 fidelity).
+				className="flex items-center gap-3 border-t border-(--publy-border) py-[9px] first:border-t-0 first:border-t-current"
 				data-testid="staff-dashboard-tenant-row"
 			>
 				<PersonAvatar name={tenant.name} size="sm" />

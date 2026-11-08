@@ -1903,6 +1903,8 @@
 	"dashboard-col-share": "Share",
 	"dashboard-card-latest-tenants": "Latest organisations",
 	"dashboard-note-latest-tenants": "The five most recently created organisations.",
+	"dashboard-foot-latest-tenants": "Latest 5 organisations",
+	"dashboard-foot-pending-invitations": "All pending invitations",
 	"dashboard-note-pending-invitations": "Staff invitations sent but not accepted yet.",
 	"dashboard-col-invited-email": "Invited email",
 	"dashboard-col-profile": "Profile",

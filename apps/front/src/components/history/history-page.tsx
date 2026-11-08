@@ -1,6 +1,7 @@
 import { createElement, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Collapse } from '~/components/ui/collapse';
+import { cn } from '~/lib/utils';
 
 import {
 	FilterChips,
@@ -23,6 +24,8 @@ const EMPTY_FILTERS_VALUE: ListFiltersValue = {};
 
 type HistoryPageProps = {
 	testId: string;
+	/** Extra root classes, e.g. the dashboard's tighter toolbar→feed gap. */
+	className?: string;
 	/** The page title row (28px) or, inside a detail tab, the section heading
 	 * through `inset`. */
 	title: string;
@@ -93,6 +96,7 @@ const toFilterCounts = (filters: readonly HistoryFilter[]): FilterCounts => {
  */
 export const HistoryPage = ({
 	testId,
+	className,
 	title,
 	inset,
 	header,
@@ -192,7 +196,7 @@ export const HistoryPage = ({
 
 	return (
 		<div
-			className="flex min-h-full flex-col gap-4 md:gap-6"
+			className={cn('flex min-h-full flex-col gap-4 md:gap-6', className)}
 			data-testid={testId}
 			data-history-page=""
 		>

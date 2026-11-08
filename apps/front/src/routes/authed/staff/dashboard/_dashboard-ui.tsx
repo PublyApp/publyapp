@@ -144,6 +144,10 @@ const ChartViewToggle = ({
 			options={CHART_VIEWS}
 			ariaLabel={t('dashboard-view-toggle')}
 			onChange={onChange}
+			// The prototype's `.pa-seg`: a translucent border-coloured track and
+			// 10px/12px items (#2339 fidelity). Its buttons are 500-weight.
+			className="bg-[color-mix(in_srgb,var(--publy-border)_60%,transparent)]"
+			itemClassName="px-2.5 leading-[1.45] font-medium"
 			label={(view) =>
 				view === 'chart' ? t('dashboard-view-chart') : t('dashboard-view-table')
 			}
@@ -164,7 +168,7 @@ export const ViewAllLink = ({
 	<Link
 		to={to}
 		data-testid={testId}
-		className="group/link inline-flex h-7 shrink-0 items-center gap-1 rounded-[var(--publy-radius-small-control)] px-1.5 text-[13px] font-medium text-(--publy-foreground-secondary) hover:text-foreground hover:underline hover:underline-offset-4"
+		className="group/link inline-flex h-7 shrink-0 items-center gap-1 rounded-[var(--publy-radius-small-control)] px-1.5 text-[13px] leading-[1.45] font-medium text-(--publy-foreground-secondary) hover:text-foreground hover:underline hover:underline-offset-4"
 	>
 		{label}
 		<IconArrowRight
@@ -172,6 +176,15 @@ export const ViewAllLink = ({
 			className="size-3.5 transition-transform group-hover/link:translate-x-0.5"
 		/>
 	</Link>
+);
+
+/** The prototype's `.card-foot`: a quiet 12px line under a list card's rows
+ * (10px/16px padding, 38px tall — #2339 fidelity). The prototype also prints
+ * its data endpoint there; that is prototype metadata, not product copy. */
+export const CardFoot = ({ children }: { children: ReactNode }) => (
+	<div className="flex min-h-[38px] items-center justify-between gap-3 px-4 py-[10px] text-[12px] leading-[1.45] text-(--publy-foreground-muted)">
+		{children}
+	</div>
 );
 
 /** One section card with an optional header action cluster. */

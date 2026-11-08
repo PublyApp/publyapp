@@ -56,7 +56,12 @@ const StaffDashboardPage = () => {
 					</TabsTrigger>
 				</TabsList>
 
-				<TabsContent value={activeSection} className="mt-3">
+				{/* `TabsContent`'s own `text-sm` (14px/20px) overrode the page's
+				   13px/1.45 base for every card inside the tab (#2339 fidelity). */}
+				<TabsContent
+					value={activeSection}
+					className="mt-3 text-[13px] leading-[1.45]"
+				>
 					<Outlet />
 				</TabsContent>
 			</Tabs>

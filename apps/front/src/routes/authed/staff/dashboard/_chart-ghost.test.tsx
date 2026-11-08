@@ -93,10 +93,10 @@ describe('ghost charts', () => {
 		expect(156 + 24).toBe(180);
 	});
 
-	test('the horizontal bars keep the real rows (35 px rows, 16 px gaps)', () => {
+	test('the horizontal bars keep the real rows (34,8 px rows, 15 px gaps)', () => {
 		const { container } = render(<GhostHBars rows={4} />);
 		expect(Number(container.querySelector('svg')?.getAttribute('height'))).toBe(
-			4 * 35 + 3 * 16,
+			4 * 34.8 + 3 * 15,
 		);
 	});
 

@@ -13,6 +13,7 @@ import { GhostHBars } from './_chart-ghost';
 import { ChartNote, ChartTable, HorizontalBars } from './_dashboard-charts';
 import { formatCount, formatShare } from './_dashboard-format';
 import {
+	CardFoot,
 	ChartCard,
 	DashboardCard,
 	DashboardCardQuery,
@@ -121,28 +122,30 @@ export const OverviewLists = ({
 						/>
 					}
 				>
-					{/* The prototype keeps the note and the rows inside one
-					   `.pa-shell-desc` wrapper (2px gap, 14px top — #2339). */}
+					{/* The prototype's card is `.pa-shell-desc` (note only, 14px top /
+					   16px sides) + `.card-body` (12px/16px around the rows) +
+					   `.card-foot` (38px, 12px line) — #2339 fidelity. */}
 					<div className="flex flex-col gap-[2px] px-4 pt-3.5 text-[13px] leading-[1.45]">
 						<ChartNote>{t('dashboard-note-latest-tenants')}</ChartNote>
-						<div className="pb-3">
-							<DashboardCardQuery
-								query={latestTenantsQuery}
-								testId="staff-dashboard-latest-tenants"
-								isEmpty={isEmptyList}
-								emptySlot={
-									<StateSurface
-										title={t('overview-empty-tenants')}
-										testId="staff-dashboard-latest-tenants-empty"
-									/>
-								}
-							>
-								{({ data }) => (
-									<TenantRows tenants={toStaffTenantRows(data.data)} t={t} />
-								)}
-							</DashboardCardQuery>
-						</div>
 					</div>
+					<div className="px-4 py-3">
+						<DashboardCardQuery
+							query={latestTenantsQuery}
+							testId="staff-dashboard-latest-tenants"
+							isEmpty={isEmptyList}
+							emptySlot={
+								<StateSurface
+									title={t('overview-empty-tenants')}
+									testId="staff-dashboard-latest-tenants-empty"
+								/>
+							}
+						>
+							{({ data }) => (
+								<TenantRows tenants={toStaffTenantRows(data.data)} t={t} />
+							)}
+						</DashboardCardQuery>
+					</div>
+					<CardFoot>{t('dashboard-foot-latest-tenants')}</CardFoot>
 				</DashboardCard>
 			</div>
 
@@ -160,28 +163,29 @@ export const OverviewLists = ({
 			>
 				<div className="flex flex-col gap-[2px] px-4 pt-3.5 text-[13px] leading-[1.45]">
 					<ChartNote>{t('dashboard-note-pending-invitations')}</ChartNote>
-					<div className="pb-3">
-						<DashboardCardQuery
-							query={pendingInvitationsQuery}
-							testId="staff-dashboard-pending-invitations"
-							isEmpty={isEmptyList}
-							emptySlot={
-								<StateSurface
-									title={t('overview-empty-invitations')}
-									testId="staff-dashboard-pending-invitations-empty"
-								/>
-							}
-						>
-							{({ data }) => (
-								<PendingInvitationsTable
-									invitations={data.data ?? []}
-									locale={locale}
-									t={t}
-								/>
-							)}
-						</DashboardCardQuery>
-					</div>
 				</div>
+				<div className="px-4 py-3">
+					<DashboardCardQuery
+						query={pendingInvitationsQuery}
+						testId="staff-dashboard-pending-invitations"
+						isEmpty={isEmptyList}
+						emptySlot={
+							<StateSurface
+								title={t('overview-empty-invitations')}
+								testId="staff-dashboard-pending-invitations-empty"
+							/>
+						}
+					>
+						{({ data }) => (
+							<PendingInvitationsTable
+								invitations={data.data ?? []}
+								locale={locale}
+								t={t}
+							/>
+						)}
+					</DashboardCardQuery>
+				</div>
+				<CardFoot>{t('dashboard-foot-pending-invitations')}</CardFoot>
 			</DashboardCard>
 		</>
 	);

@@ -1,4 +1,5 @@
 import { ListCards } from '~/components/list/list-card';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 
 import type { InvitationListItem } from '@org/client-ts/models/index';
@@ -83,7 +84,7 @@ export const PendingInvitationsTable = ({
 								<th
 									key={key}
 									scope="col"
-									className="border-b border-(--publy-row-border) pb-1.5 text-left text-[11px] font-medium tracking-[0.04em] text-(--publy-foreground-subtle) uppercase"
+									className="h-[33px] border-b border-(--publy-row-border) px-3 py-2 text-left text-[11px] font-medium tracking-[0.04em] text-(--publy-foreground-subtle) uppercase"
 								>
 									{t(key)}
 								</th>
@@ -97,18 +98,29 @@ export const PendingInvitationsTable = ({
 								className="border-(--publy-border)"
 								data-testid="staff-dashboard-invitation-row"
 							>
-								<td className="py-3.5">{invitation.email}</td>
-								<td className="py-3.5">
+								<td className="border-t border-(--publy-border) px-3 py-2.5">
+									<div className="flex items-center gap-2.5">
+										<PersonAvatar
+											name={invitation.email ?? UNKNOWN_VALUE}
+											size="sm"
+											className="size-[26px] text-[10px]"
+										/>
+										<span className="truncate">
+											{invitation.email ?? UNKNOWN_VALUE}
+										</span>
+									</div>
+								</td>
+								<td className="border-t border-(--publy-border) px-3 py-2.5">
 									{invitation.roleName ? (
 										<StatusPill>{invitation.roleName}</StatusPill>
 									) : (
 										UNKNOWN_VALUE
 									)}
 								</td>
-								<td className="py-3.5 text-(--publy-foreground-secondary)">
+								<td className="border-t border-(--publy-border) px-3 py-2.5 text-(--publy-foreground-secondary)">
 									{invitation.invitedByName ?? UNKNOWN_VALUE}
 								</td>
-								<td className="py-3.5 font-mono text-xs text-muted-foreground">
+								<td className="border-t border-(--publy-border) px-3 py-2.5 font-mono text-xs text-muted-foreground">
 									<ExpiryCell
 										expiresAt={invitation.expiresAt}
 										locale={locale}

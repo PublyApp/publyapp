@@ -174,6 +174,9 @@ const Activity = () => {
 	return (
 		<HistoryPage
 			testId={TEST_ID}
+			// The prototype's toolbar→feed gap is 16px, not the list page's 24px
+			// (#2339 fidelity).
+			className="md:gap-4"
 			title={t('common:activity')}
 			// No header row: the prototype's activity tab starts directly with
 			// its toolbar (§5.1); a « Tout voir » row above it pushed every
