@@ -389,13 +389,16 @@ test.describe(
 			}
 		});
 
-		test('H5: the report format combobox has the explicit name « Format d\u2019export »', async ({
+		test('H5: the report export menu names its format group « Format d\u2019export »', async ({
 			page,
 		}) => {
 			await openFrench(page);
 			await page.goto('/staff/dashboard/reports');
+			// #2337 redesign: the format is picked in the « Exporter » menu, whose
+			// group carries the explicit name « Format d'export ».
+			await page.getByRole('button', { name: 'Exporter' }).click();
 			await expect(
-				page.getByRole('combobox', { name: "Format d'export" }),
+				page.getByRole('group', { name: "Format d'export" }),
 			).toBeVisible();
 		});
 
@@ -592,7 +595,7 @@ test.describe(
 			await expect(bar).not.toContainText('sélectionné(s)');
 		});
 
-		test('M4: the secondary heading names the page, and Reports is titled Rapports', async ({
+		test('M4: the secondary heading names the page, Rapports included', async ({
 			page,
 		}) => {
 			await openFrench(page);
@@ -611,10 +614,12 @@ test.describe(
 				);
 			}
 
+			// #2337 redesign: every dashboard tab keeps the « Tableau de bord » h1
+			// (prototype); « Rapports » is the secondary heading checked above.
 			await page.goto('/staff/dashboard/reports');
 			await expect(
 				page.getByTestId('staff-dashboard-heading').locator('h1'),
-			).toHaveText('Rapports');
+			).toHaveText('Tableau de bord');
 		});
 
 		test('M5: the invite drawer traps Tab and Escape returns focus to the Invite button', async ({
