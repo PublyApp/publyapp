@@ -8,8 +8,12 @@ import type {
 	HistoryEvent,
 } from '~/components/history/history-types';
 import type { ListFiltersValue } from '~/components/list/list-types';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import { DataTableCursorFooter } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
+import { Button } from '~/components/ui/button';
 import {
 	toStaffAuditLogRows,
 	useAuditLogActionsQuery,
@@ -64,6 +68,27 @@ const toHistoryEvents = (
 			organisationName: targetName,
 		};
 	});
+
+/**
+ * The tenants a feed row can name, as a `targetId → name` map. Best effort by
+ * design: a row whose id is outside the loaded page keeps its phrase without a
+ * name. This query is pure enrichment — it has no loading / error surface of
+ * its own — so it lives in a data hook rather than the rendering component
+ * (`publy/prefer-query-display` only checks JSX-returning functions; same
+ * shape as `_staff-list-team.tsx`'s counter hook).
+ */
+const useTenantNameMap = (): ReadonlyMap<string, string> => {
+	const tenantNamesQuery = useStaffTenantsQuery({ size: 100 });
+	return useMemo(() => {
+		const map = new Map<string, string>();
+		for (const tenant of tenantNamesQuery.data?.data ?? []) {
+			if (tenant.id && tenant.name) {
+				map.set(tenant.id, tenant.name);
+			}
+		}
+		return map;
+	}, [tenantNamesQuery.data]);
+};
 
 /**
  * The staff Dashboard › Activité tab: the shared activity history (§5.1), fed
@@ -122,16 +147,7 @@ const Activity = () => {
 		{ enabled: !selection.impossible },
 	);
 
-	const tenantNamesQuery = useStaffTenantsQuery({ size: 100 });
-	const tenantNames = useMemo(() => {
-		const map = new Map<string, string>();
-		for (const tenant of tenantNamesQuery.data?.data ?? []) {
-			if (tenant.id && tenant.name) {
-				map.set(tenant.id, tenant.name);
-			}
-		}
-		return map;
-	}, [tenantNamesQuery.data]);
+	const tenantNames = useTenantNameMap();
 
 	const queryError = query.error;
 	if (queryError !== null && shouldLogoutForFailure(queryError)) {
@@ -185,14 +201,13 @@ const Activity = () => {
 		});
 	};
 
-	let isPending = query.isPending;
-	let isError = query.isError;
+	const historyQuery: QueryDisplayQuery<unknown> = { ...query, error: null };
 	// While the action catalog has not fetched yet, an empty category
 	// selection does not prove the pair impossible: keep the skeleton instead
 	// of flashing the no-match state.
 	if (selection.impossible && catalogQuery.isFetched) {
-		isPending = false;
-		isError = false;
+		historyQuery.isPending = false;
+		historyQuery.isError = false;
 	}
 
 	return (
@@ -234,11 +249,31 @@ const Activity = () => {
 			filters={filters}
 			filtersValue={filtersValue}
 			onFiltersChange={applyFilters}
-			queryState={{
-				isPending,
-				isError,
-				onRetry: () => void query.refetch(),
-			}}
+			banner={
+				<QueryDisplay
+					query={catalogQuery}
+					variant="discreet"
+					ErrorSlot={
+						<div
+							role="alert"
+							className="flex items-center justify-between gap-2 rounded-[var(--publy-radius-medium-control)] border border-(--publy-alert-danger-border) bg-(--publy-alert-danger-bg) px-3 py-2.5"
+						>
+							<p className="text-sm text-(--publy-alert-danger-text)">
+								{t('actions-filter-error')}
+							</p>
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => void catalogQuery.refetch()}
+							>
+								{tCommon('retry')}
+							</Button>
+						</div>
+					}
+				/>
+			}
+			query={historyQuery}
 			pager={
 				rows.length > 0 ? (
 					<DataTableCursorFooter

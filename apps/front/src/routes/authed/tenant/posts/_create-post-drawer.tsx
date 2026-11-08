@@ -4,7 +4,6 @@ import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { Field } from '~/components/field';
-import QueryDisplay from '~/components/query-display';
 import {
 	Drawer,
 	DrawerContent,
@@ -17,10 +16,7 @@ import {
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import { savePost, invalidateTenantPosts } from '~/lib/query/tenant-posts';
-import {
-	useTenantProjectsQuery,
-	toTenantProjectItems,
-} from '~/lib/query/tenant-projects';
+import { useTenantProjectsQuery } from '~/lib/query/tenant-projects';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -30,6 +26,7 @@ import { CreatePostActions, HandoffPanel } from './_create-post-drawer-parts';
 import { PostBodyCounter } from './_post-body-counter';
 import type { DeferredImageSelection } from './_post-image-picker';
 import { PostImagePicker } from './_post-image-picker';
+import { PostProjectField } from './_post-project-field';
 import { PostSegmentsEditor } from './_post-segments-editor';
 import { PublishOnBlock } from './_publish-on-block';
 import { NO_SEGMENTS } from './_segment-draft';
@@ -254,29 +251,6 @@ export const CreatePostDrawer = ({
 
 	const isHandoffPending = createdPostId !== null;
 
-	// Today the select renders with no option until the projects resolve, so
-	// every non-data state is that same select plus the empty hint.
-	const renderProjectField = (
-		items: ReturnType<typeof toTenantProjectItems>,
-	) => (
-		<>
-			<Field.Select
-				name="projectId"
-				label={t('posts:project-label')}
-				placeholder={t('posts:project-placeholder')}
-				options={items.map((project) => ({
-					value: project.id,
-					label: project.name,
-				}))}
-			/>
-			{items.length === 0 ? (
-				<p className="text-muted-foreground text-xs">
-					{t('posts:no-projects-yet')}
-				</p>
-			) : null}
-		</>
-	);
-
 	return (
 		<Drawer open={open} onOpenChange={handleOpenChange}>
 			<DrawerContent width={736} data-testid="tenant-posts-create-drawer">
@@ -308,22 +282,7 @@ export const CreatePostDrawer = ({
 								{methods.formState.errors.root.message}
 							</p>
 						) : null}
-						<QueryDisplay
-							query={projectsQuery}
-							LoadingSlot={renderProjectField([])}
-							// A failed refetch keeps the last good data (TanStack v5 flips
-							// `status: 'error'` without clearing `data`): the parent kept
-							// rendering the loaded options, so the held envelope drives
-							// this slot too. On a first-load failure `data` is undefined
-							// → toTenantProjectItems(undefined) === [] → the same empty
-							// select + hint.
-							ErrorSlot={renderProjectField(
-								toTenantProjectItems(projectsQuery.data),
-							)}
-							EmptySlot={renderProjectField([])}
-						>
-							{({ data }) => renderProjectField(toTenantProjectItems(data))}
-						</QueryDisplay>
+						<PostProjectField projectsQuery={projectsQuery} />
 						{isHandoffPending ? (
 							<HandoffPanel
 								cause={handoffCause}

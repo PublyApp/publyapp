@@ -376,6 +376,7 @@ export const KpiCard = ({
 	locale,
 	query,
 	delta,
+	deltaQuery,
 	deltaPeriod,
 	sparkline,
 }: {
@@ -388,6 +389,10 @@ export const KpiCard = ({
 	/** The change against the previous window (« +8,4 % »), when a series the
 	 * API serves makes it computable. */
 	delta?: { label: string; direction: 'up' | 'down' };
+	/** The previous window's series: the delta footer renders through
+	 * `QueryDisplay` for it, `discreet` because a delta that cannot be
+	 * computed is not an error and must never hide the figure. */
+	deltaQuery?: UseQueryResult<unknown, Error>;
 	/** The comparison window's name (« vs 30 jours précédents »). */
 	deltaPeriod?: string;
 	sparkline?: readonly number[];
@@ -407,7 +412,7 @@ export const KpiCard = ({
 			</div>
 		);
 	} else if (delta) {
-		footer = (
+		const deltaFooter = (
 			<div className="flex min-h-10 min-w-0 items-center justify-between gap-3">
 				<div className="min-w-0">
 					<span
@@ -439,6 +444,13 @@ export const KpiCard = ({
 					<Sparkline values={sparkline} />
 				) : null}
 			</div>
+		);
+		footer = deltaQuery ? (
+			<QueryDisplay query={deltaQuery} variant="discreet">
+				{deltaFooter}
+			</QueryDisplay>
+		) : (
+			deltaFooter
 		);
 	} else {
 		// The ghost footer's 40 px, kept so the card does not jump once the

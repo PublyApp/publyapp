@@ -378,6 +378,29 @@ const runCases = (rule, label) => {
 					].join('\n'),
 					filename: COMPONENT_FILE,
 				},
+				// Any component receiving the WHOLE result is responsible for
+				// rendering it: a `query` prop on a dashboard compound.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useFooQuery();',
+						'  return <KpiCard query={q} figure={q.data?.total} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// The prop name is irrelevant: the dashboard passes the result
+				// under its own name (`countsQuery={q}`), and the receiving
+				// component renders `QueryDisplay` with it (#2341 T5b).
+				{
+					code: [
+						'const Foo = () => {',
+						'  const countsQuery = useFooQuery();',
+						'  return <OverviewKpis countsQuery={countsQuery} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
 			],
 			invalid: [
 				// Whole-binding ternaries on each flagged field.

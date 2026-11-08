@@ -447,11 +447,13 @@ render in `apps/front/src`, not only hand-rolled ladders:
   branches on a query flag (`isPending` / `isLoading` / `isError` / `isSuccess` / `status` /
   `error`) inside a conditional render.
 - **Message `queryNotRenderedThroughQueryDisplay` (#2341):** flags any `use*Query` binding in a
-  JSX-returning function that never reaches a `query` slot — a `query` JSX attribute
-  (`<QueryDisplay query={q}>`, `<ListPage query={q}>`, `<HistoryPage query={q}>`,
-  `<DataTable query={q}>`, or a wrapper forwarding the same prop) or a `query` property of a
-  props/context object. Destructuring the hook's own result (`const { data } = useFooQuery()`) is a
-  violation: keep the whole result. A custom hook that returns no JSX is not checked.
+  JSX-returning function that is not handed WHOLE to a component as a JSX attribute — the prop
+  name does not matter (`<QueryDisplay query={q}>`, `<ListPage query={q}>`, `<HistoryPage
+  query={q}>`, `<DataTable query={q}>`, `<KpiCard query={q}>`, `<OverviewKpis countsQuery={q}>`):
+  the receiving component is responsible for rendering it through `QueryDisplay`. A `query`
+  property of a props/context object also counts. Destructuring the hook's own result
+  (`const { data } = useFooQuery()`) is a violation: keep the whole result. A custom hook that
+  returns no JSX is not checked.
 
 `QueryDisplay` has three presets, so small widgets cost no extra code:
 

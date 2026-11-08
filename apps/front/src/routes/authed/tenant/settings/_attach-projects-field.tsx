@@ -6,6 +6,14 @@ import {
 	useTenantProjectsQuery,
 } from '~/lib/query/tenant-projects';
 
+/** The project list's checkbox options — module scope so it is not rebuilt on
+ * every render (react-doctor/prefer-module-scope-pure-function). */
+const toFieldOptions = (result: Parameters<typeof toTenantProjectItems>[0]) =>
+	toTenantProjectItems(result).map((project) => ({
+		value: project.id,
+		label: project.name,
+	}));
+
 /** Spec §3: checklist of the tenant's projects; none checked = visible
  * everywhere. FieldCheckboxGroup already binds to RHF through its own
  * Controller, so this wrapper only supplies the tenant project options and
@@ -29,11 +37,6 @@ export const AttachProjectsField = ({
 			options={options}
 		/>
 	);
-	const toFieldOptions = (result: Parameters<typeof toTenantProjectItems>[0]) =>
-		toTenantProjectItems(result).map((project) => ({
-			value: project.id,
-			label: project.name,
-		}));
 
 	return (
 		<div data-testid="attach-projects-field">

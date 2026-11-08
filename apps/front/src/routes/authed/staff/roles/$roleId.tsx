@@ -1,8 +1,7 @@
-import { IconArrowLeft, IconSearchOff } from '@tabler/icons-react';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay, {
 	type QueryDisplayQuery,
@@ -34,6 +33,7 @@ import { StaffRoleAboutCard } from './$roleId/_about-card';
 import { RoleDetailsError, RoleDetailsLoading } from './$roleId/_detail-views';
 import { StaffRoleIdentityHeader } from './$roleId/_identity-header';
 import { renderStaffRoleMembersCard } from './$roleId/_members-card-content';
+import { StaffRoleNotFound } from './$roleId/_not-found';
 import { StaffRolePermissionsCardBody } from './$roleId/_permissions-card-body';
 import { StaffRoleEditDetailsDrawer } from './$roleId/_role-edit-details-drawer';
 
@@ -206,15 +206,6 @@ const StaffRoleDetailsPage = () => {
 		});
 	}
 
-	const notFoundNode = (
-		<AppErrorView
-			icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-			code={t('error-404-code')}
-			title={t('staff-role-not-found')}
-			description={t('staff-role-payload-empty')}
-			testId="staff-role-details-empty"
-		/>
-	);
 	return (
 		<QueryDisplay
 			query={detailQuery}
@@ -225,7 +216,7 @@ const StaffRoleDetailsPage = () => {
 					onRetry={() => void detailQuery.refetch()}
 				/>
 			}
-			EmptySlot={notFoundNode}
+			EmptySlot={<StaffRoleNotFound />}
 		>
 			{() => (
 				<QueryDisplay
@@ -252,7 +243,7 @@ const StaffRoleDetailsPage = () => {
 								// A payload without its required role identity is not a
 								// renderable detail page: same 404 view as an empty body.
 								if (!details) {
-									return notFoundNode;
+									return <StaffRoleNotFound />;
 								}
 
 								return (
