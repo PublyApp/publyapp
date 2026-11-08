@@ -1,0 +1,32 @@
+{
+	"name": "mobile",
+	"version": "0.0.0",
+	"private": true,
+	"main": "expo-router/entry",
+	"scripts": {
+		"start": "expo start",
+		"android": "expo start --android",
+		"typecheck": "tsc --noEmit",
+		"export:android": "expo export --platform android"
+	},
+	"dependencies": {
+		"expo": "~58.0.23",
+		"expo-constants": "~58.0.15",
+		"expo-linking": "~58.0.16",
+		"expo-router": "~58.0.30",
+		"expo-secure-store": "~58.0.2",
+		"expo-status-bar": "~58.0.4",
+		"expo-system-ui": "~58.0.7",
+		"nativewind": "4.2.7",
+		"react": "19.3.0",
+		"react-native": "0.88.1",
+		"react-native-css-interop": "0.2.7",
+		"react-native-safe-area-context": "~5.11.1",
+		"react-native-screens": "~4.30.1"
+	},
+	"devDependencies": {
+		"@types/react": "~19.3.0",
+		"tailwindcss": "3.4.19",
+		"typescript": "catalog:"
+	}
+}
