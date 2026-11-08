@@ -121,10 +121,6 @@ const Overview = () => {
 
 	const currentTotal = seriesTotal(seriesQuery.data?.points);
 	const previousTotal = seriesTotal(previousSeriesQuery.data?.points);
-	// The KPI and the report's KPI read the same source, so the two screens
-	// can never print two different « Événements d'audit » for one period.
-	// A series with no point falls back to the audit list's exact total.
-	const auditEvents = currentTotal ?? auditQuery.data?.totalCount;
 	const auditDelta =
 		currentTotal !== undefined &&
 		previousTotal !== undefined &&
@@ -162,11 +158,13 @@ const Overview = () => {
 			<OverviewKpis
 				activeTenants={countsQuery.data?.counts?.active}
 				members={countsQuery.data?.counts?.members}
-				auditEvents={auditEvents}
+				seriesTotal={currentTotal}
 				pendingInvitations={pendingInvitationsQuery.data?.counts?.pending}
 				countsQuery={countsQuery}
 				seriesQuery={seriesQuery}
 				pendingInvitationsQuery={pendingInvitationsQuery}
+				auditQuery={auditQuery}
+				previousSeriesQuery={previousSeriesQuery}
 				auditDelta={auditDelta}
 				auditDeltaPeriod={t('dashboard-delta-vs-previous', {
 					period: t(previousPeriodLabelKey(period)),

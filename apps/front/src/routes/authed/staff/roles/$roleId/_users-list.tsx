@@ -11,7 +11,10 @@ import type {
 import { DataTableCursorFooter } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
-import type { StaffRoleUserRow } from '~/lib/query/staff-role-users';
+import type {
+	StaffRoleUserRow,
+	useStaffRoleUsersQuery,
+} from '~/lib/query/staff-role-users';
 
 import type { StaffTeamOverview } from '../../_staff-list-team';
 import { buildStaffTeamPanelGroups } from '../../_staff-list-team';
@@ -34,13 +37,8 @@ type StaffRoleUsersListProps = {
 	size: number;
 	hasPreviousPage: boolean;
 	hasNextPage: boolean;
-	/** The users query's loading flags, grouped like `DataTable`'s. */
-	queryState: {
-		isPending: boolean;
-		isError: boolean;
-		isFetching: boolean;
-		error?: unknown;
-	};
+	/** The users query; its loading/error state renders through `ListPage`. */
+	query: ReturnType<typeof useStaffRoleUsersQuery>;
 	/** Replaces the generic list error description (a 403 explanation). */
 	errorContent?: ReactNode;
 	q: string;
@@ -54,7 +52,6 @@ type StaffRoleUsersListProps = {
 	onClearSelection: () => void;
 	onSelectAllVisible: () => void;
 	onSessionExpired: () => void;
-	onRetry: () => void;
 	onPageSizeChange: (nextSize: number) => void;
 	onNextPage: () => void;
 	onPreviousPage: () => void;
@@ -79,7 +76,7 @@ export const StaffRoleUsersList = ({
 	size,
 	hasPreviousPage,
 	hasNextPage,
-	queryState,
+	query,
 	errorContent,
 	q,
 	sorting,
@@ -92,7 +89,6 @@ export const StaffRoleUsersList = ({
 	onClearSelection,
 	onSelectAllVisible,
 	onSessionExpired,
-	onRetry,
 	onPageSizeChange,
 	onNextPage,
 	onPreviousPage,
@@ -100,7 +96,7 @@ export const StaffRoleUsersList = ({
 	onTeamSelect,
 }: StaffRoleUsersListProps) => {
 	const { t } = useTranslation('common');
-	const { isPending, isError, isFetching } = queryState;
+	const { isFetching } = query;
 
 	return (
 		<div className="publy-page-fill">
@@ -148,7 +144,7 @@ export const StaffRoleUsersList = ({
 					sub: row.email,
 				})}
 				selection={selection}
-				queryState={{ isPending, isError, error: queryState.error, onRetry }}
+				query={query}
 				errorContent={errorContent}
 				footer={
 					rows.length > 0 ? (
@@ -161,7 +157,7 @@ export const StaffRoleUsersList = ({
 							totalCount={totalCount}
 							hasPreviousPage={hasPreviousPage}
 							hasNextPage={hasNextPage}
-							isPaginationPending={isFetching && !isPending}
+							isPaginationPending={isFetching && !query.isPending}
 							onNextPage={onNextPage}
 							onPreviousPage={onPreviousPage}
 							variant="flat"

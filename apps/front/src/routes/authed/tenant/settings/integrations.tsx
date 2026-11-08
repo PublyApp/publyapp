@@ -8,6 +8,9 @@ import {
 import { createFileRoute } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import { ReconnectBanner } from '~/components/social-accounts/reconnect-banner';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
@@ -27,10 +30,7 @@ import {
 	useSocialAccountsQuery,
 	type SocialAccountRow,
 } from '~/lib/query/social-accounts';
-import {
-	toTenantProjectItems,
-	useTenantProjectsQuery,
-} from '~/lib/query/tenant-projects';
+import { useTenantProjectsQuery } from '~/lib/query/tenant-projects';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
 import { formatDateTime } from '~/utils/format-time';
 
@@ -70,7 +70,7 @@ type IntegrationsColumnContext = {
 	t: (key: string, options?: Record<string, unknown>) => string;
 	locale: string;
 	canManage: boolean;
-	projects: Array<{ id: string; label: string }>;
+	query: ReturnType<typeof useTenantProjectsQuery>;
 	onReconnect: (account: SocialAccountRow) => void;
 	onDisconnect: (account: SocialAccountRow) => void;
 };
@@ -78,7 +78,7 @@ type IntegrationsColumnContext = {
 const buildColumns = (
 	context: IntegrationsColumnContext,
 ): ColumnDef<SocialAccountRow>[] => {
-	const { t, locale, canManage, projects, onReconnect, onDisconnect } = context;
+	const { t, locale, canManage, query, onReconnect, onDisconnect } = context;
 
 	const columns: ColumnDef<SocialAccountRow>[] = [
 		{
@@ -130,7 +130,7 @@ const buildColumns = (
 			cell: ({ row }) => (
 				<IntegrationsVisibleIn
 					projectIds={row.original.projectIds}
-					projects={projects}
+					query={query}
 				/>
 			),
 		},
@@ -241,27 +241,33 @@ const TenantSettingsIntegrationsPage = () => {
 	);
 
 	const rows = toSocialAccountRows(socialAccountsQuery.data);
-	const projects = toTenantProjectItems(projectsQuery.data).map((project) => ({
-		id: project.id,
-		label: project.name,
-	}));
 	const columns = useMemo(
 		() =>
 			buildColumns({
 				t,
 				locale: i18n.resolvedLanguage ?? 'en',
 				canManage,
-				projects,
+				query: projectsQuery,
 				onReconnect: (account) =>
 					setDrawerUi({ ...IDLE_DRAWER_UI, reconnectAccount: account }),
 				onDisconnect: (account) =>
 					setDrawerUi({ ...IDLE_DRAWER_UI, disconnectAccount: account }),
 			}),
-		[t, i18n.resolvedLanguage, canManage, projects],
+		[t, i18n.resolvedLanguage, canManage, projectsQuery],
 	);
 
 	const isListLoadedAndEmpty =
 		socialAccountsQuery.data !== undefined && rows.length === 0;
+
+	// The workspace tenant resolves before the accounts query can start; the
+	// table must stay on its skeleton until then (the old `queryState` did).
+	// Read the flag once: `QueryDisplay` owns the branch, so this is the only
+	// conditional read of it.
+	const accountsPending = socialAccountsQuery.isPending;
+	const socialAccountsTableQuery: QueryDisplayQuery = {
+		...socialAccountsQuery,
+		isPending: tenantId === null || accountsPending,
+	};
 
 	const [drawerUi, setDrawerUi] = useState<DrawerUiState>(IDLE_DRAWER_UI);
 	const closeDrawerUi = () => setDrawerUi(IDLE_DRAWER_UI);
@@ -341,16 +347,22 @@ const TenantSettingsIntegrationsPage = () => {
 				</p>
 			) : null}
 
-			<ReconnectBanner
-				accounts={needsReconnectAccounts}
-				hasManagePermission={canManage}
-				onReconnect={(accountId) => {
-					const account = rows.find((row) => row.id === accountId);
-					if (account) {
-						setDrawerUi({ ...IDLE_DRAWER_UI, reconnectAccount: account });
-					}
-				}}
-			/>
+			{/* `discreet`: the banner only matters when there is something to
+			reconnect — today it renders nothing while the query loads or fails. */}
+			<QueryDisplay query={needsReconnectQuery} variant="discreet">
+				{() => (
+					<ReconnectBanner
+						accounts={needsReconnectAccounts}
+						hasManagePermission={canManage}
+						onReconnect={(accountId) => {
+							const account = rows.find((row) => row.id === accountId);
+							if (account) {
+								setDrawerUi({ ...IDLE_DRAWER_UI, reconnectAccount: account });
+							}
+						}}
+					/>
+				)}
+			</QueryDisplay>
 
 			<Card>
 				<CardHeader>
@@ -370,13 +382,8 @@ const TenantSettingsIntegrationsPage = () => {
 							ariaLabel={t('integrations-list-title')}
 							columns={columns}
 							rows={rows}
-							queryState={{
-								isPending: tenantId === null || socialAccountsQuery.isPending,
-								isError: socialAccountsQuery.isError,
-								error: socialAccountsQuery.error,
-								onRetry: () => void socialAccountsQuery.refetch(),
-								hasActiveSearch: false,
-							}}
+							query={socialAccountsTableQuery}
+							hasActiveSearch={false}
 							pagination={{
 								pageIndex: 0,
 								hasPreviousPage: false,

@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
 	postBroadcast: vi.fn(),
 	queryClientClear: vi.fn(),
 	resolvedLanguage: 'en' as string,
+	currentUserState: 'success' as 'success' | 'pending' | 'error',
 	currentUser: undefined as
 		| {
 				id: string;
@@ -58,7 +59,15 @@ vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
 }));
 
 vi.mock('~/lib/query/auth', () => ({
-	useCurrentUserQuery: () => ({ data: mocks.currentUser }),
+	useCurrentUserQuery: () => ({
+		data: mocks.currentUserState === 'success' ? mocks.currentUser : undefined,
+		isPending: mocks.currentUserState === 'pending',
+		isLoading: mocks.currentUserState === 'pending',
+		isFetching: false,
+		isError: mocks.currentUserState === 'error',
+		error: mocks.currentUserState === 'error' ? new Error('boom') : null,
+		refetch: () => Promise.resolve(),
+	}),
 	toCurrentUser: (raw: unknown) => raw,
 }));
 
@@ -98,6 +107,7 @@ describe('AppShellUserMenu', () => {
 		mocks.setLocale.mockResolvedValue({ locale: 'fr' });
 		mocks.invalidate.mockResolvedValue(undefined);
 		mocks.resolvedLanguage = 'en';
+		mocks.currentUserState = 'success';
 		mocks.currentUser = {
 			id: 'user-1',
 			email: 'jane.doe@example.com',
@@ -145,6 +155,24 @@ describe('AppShellUserMenu', () => {
 				.getByTestId('app-shell-user-menu-trigger')
 				.getAttribute('aria-label'),
 		).toBe('Account menu');
+	});
+
+	test('keeps the un-named placeholder while the current user is pending', () => {
+		mocks.currentUserState = 'pending';
+		render(<AppShellUserMenu />);
+
+		expect(
+			screen.getByTestId('app-shell-user-menu-trigger').textContent,
+		).toContain('No name');
+	});
+
+	test('keeps the un-named placeholder when the current user query fails', () => {
+		mocks.currentUserState = 'error';
+		render(<AppShellUserMenu />);
+
+		expect(
+			screen.getByTestId('app-shell-user-menu-trigger').textContent,
+		).toContain('No name');
 	});
 
 	test('clicking Logout clears the query cache and server session, then navigates to /login without redirect_cause', async () => {

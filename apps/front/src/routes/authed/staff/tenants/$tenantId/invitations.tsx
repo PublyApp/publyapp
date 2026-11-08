@@ -233,7 +233,7 @@ const StaffTenantInvitationsPage = () => {
 						<InvitationsTable
 							columns={columns}
 							rows={rows}
-							invitationsQuery={invitationsQuery}
+							query={invitationsQuery}
 							controller={controller}
 							hasActiveSearch={Boolean(
 								controller.search.committed || search.status,

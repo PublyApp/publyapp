@@ -4,6 +4,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import QueryDisplay from '~/components/query-display';
 import { DataTable } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
@@ -112,12 +113,22 @@ const CompanyCountLabel = ({ userId }: { userId: string }) => {
 		sortOrder: DEFAULT_SORT.order,
 		size: 1,
 	});
-	const rows = toGlobalTenantUserCompanyRows(query.data?.data);
 
 	return (
-		<p className="text-sm text-muted-foreground" data-testid="company-count">
-			{t('company-count', { count: rows.length })}
-		</p>
+		<QueryDisplay query={query} variant="discreet">
+			{({ data }) => {
+				const companyRows = toGlobalTenantUserCompanyRows(data?.data);
+
+				return (
+					<p
+						className="text-sm text-muted-foreground"
+						data-testid="company-count"
+					>
+						{t('company-count', { count: companyRows.length })}
+					</p>
+				);
+			}}
+		</QueryDisplay>
 	);
 };
 
@@ -163,10 +174,8 @@ const OrganizationsTable = ({ userId }: { userId: string }) => {
 		}
 	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
-	// Hoisted so the fatal gate and the table props read plain locals.
+	// Hoisted so the fatal gate reads a plain local.
 	const companiesError = query.error;
-	const companiesIsPending = query.isPending;
-	const companiesIsError = query.isError;
 
 	if (companiesError !== null && shouldLogoutForFailure(companiesError)) {
 		return <LogoutRedirect />;
@@ -179,13 +188,8 @@ const OrganizationsTable = ({ userId }: { userId: string }) => {
 				ariaLabel={t('companies')}
 				columns={columns}
 				rows={rows}
-				queryState={{
-					isPending: companiesIsPending,
-					isError: companiesIsError,
-					error: query.error,
-					onRetry: () => void query.refetch(),
-					hasActiveSearch: Boolean(controller.search.committed),
-				}}
+				query={query}
+				hasActiveSearch={Boolean(controller.search.committed)}
 				pagination={{
 					pageIndex: controller.cursor.pageIndex,
 					hasPreviousPage: controller.cursor.hasPreviousPage,

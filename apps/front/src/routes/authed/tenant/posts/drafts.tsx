@@ -149,13 +149,8 @@ const TenantPostsDraftsPage = () => {
 				ariaLabel={t('posts:drafts')}
 				columns={columns}
 				rows={rows}
-				queryState={{
-					isPending: query.isPending,
-					isError: query.isError,
-					error: query.error,
-					onRetry: () => void query.refetch(),
-					hasActiveSearch: Boolean(controller.search.committed),
-				}}
+				query={query}
+				hasActiveSearch={Boolean(controller.search.committed)}
 				pagination={{
 					pageIndex: controller.cursor.pageIndex,
 					hasPreviousPage: controller.cursor.hasPreviousPage,

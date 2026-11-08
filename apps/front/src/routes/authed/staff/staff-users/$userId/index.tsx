@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import {
 	DangerZoneCard,
@@ -8,6 +9,7 @@ import {
 	DetailGrid,
 	DetailMain,
 } from '~/components/ui/detail-layout';
+import { toAssignedStaffRoles } from '~/lib/query/staff-users';
 
 import { AccountCard } from './_account-card';
 import { AssignedRolesCard } from './_assigned-roles-card';
@@ -21,10 +23,7 @@ const StaffUserOverviewTab = () => {
 	const {
 		user,
 		locale,
-		roles,
-		rolesIsPending,
-		rolesHasError,
-		onRetryRoles,
+		query,
 		maxRolesPerUser,
 		canSuspend,
 		canReactivate,
@@ -35,17 +34,11 @@ const StaffUserOverviewTab = () => {
 		onOpenDeleteDialog,
 	} = useStaffUserOverviewContext();
 
-	const renderRolesCard = () => {
-		// Order matters: pending must win over the empty-collection render even
-		// though `toAssignedStaffRoles` maps an unresolved query's `undefined`
-		// data to `[]` — otherwise "no roles assigned" renders as a definitive
-		// statement while the authorization query is still outstanding (r5-F6).
-		if (rolesIsPending) {
-			return <AssignedRolesLoadingCard />;
-		}
-
-		if (rolesHasError) {
-			return (
+	const renderRolesCard = () => (
+		<QueryDisplay
+			query={query}
+			LoadingSlot={<AssignedRolesLoadingCard />}
+			ErrorSlot={
 				<div
 					data-testid="staff-user-roles-error"
 					className="space-y-3 rounded-[var(--publy-radius-card)] bg-[var(--publy-surface)] p-4 shadow-[var(--publy-shadow-ring)] text-sm text-muted-foreground"
@@ -55,16 +48,21 @@ const StaffUserOverviewTab = () => {
 						type="button"
 						variant="outline"
 						size="sm"
-						onClick={onRetryRoles}
+						onClick={() => void query.refetch()}
 					>
 						{t('common:try-again')}
 					</Button>
 				</div>
-			);
-		}
-
-		return <AssignedRolesCard roles={roles} maxRoles={maxRolesPerUser} />;
-	};
+			}
+		>
+			{({ data }) => (
+				<AssignedRolesCard
+					roles={toAssignedStaffRoles(data)}
+					maxRoles={maxRolesPerUser}
+				/>
+			)}
+		</QueryDisplay>
+	);
 
 	return (
 		<DetailGrid>

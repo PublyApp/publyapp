@@ -181,6 +181,7 @@ const Reports = () => {
 			<ReportsKpis
 				auditEvents={auditEvents}
 				seriesQuery={seriesQuery}
+				previousSeriesQuery={previousSeriesQuery}
 				seriesPoints={seriesPoints}
 				impersonationsQuery={impersonationsQuery}
 				auditDelta={auditDelta}

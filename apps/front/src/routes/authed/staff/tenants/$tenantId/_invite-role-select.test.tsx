@@ -75,6 +75,27 @@ const errorPage = (error: {
 	isError: true,
 });
 
+const emptyEnvelopePage = () => ({
+	data: { data: [], nextCursor: undefined },
+	isPending: false,
+	isError: false,
+});
+
+// A failed *refetch* keeps the last good data (TanStack v5 flips
+// `status: 'error'` without clearing `data`); the widget must keep showing
+// the rows and the « no roles » message instead of blanking what was loaded.
+const staleErrorPage = (rows: unknown[]) => ({
+	data: { data: rows, nextCursor: undefined },
+	error: {
+		status: 503,
+		title: 'Service Unavailable',
+		detail: 'Service Unavailable',
+		responseStatusCode: 503,
+	},
+	isPending: false,
+	isError: true,
+});
+
 const TestForm = () => {
 	const methods = useForm({ defaultValues: { roleIds: [] as string[] } });
 	return (
@@ -247,6 +268,32 @@ describe('InviteRoleSelect', () => {
 		expect(screen.queryByRole('button', { name: 'Roles' })).toBeNull();
 	});
 
+	test('shows the loading label on the trigger while the roles query is pending', () => {
+		mocks.useStaffTenantRolesQuery.mockReturnValue({
+			data: undefined,
+			isPending: true,
+			isError: false,
+		});
+
+		render(<TestForm />);
+
+		expect(screen.getByRole('button', { name: 'Roles' }).textContent).toContain(
+			'Loading roles…',
+		);
+	});
+
+	test('renders the inline empty label inside the popup when the query errors non-fatally (403)', () => {
+		mocks.useStaffTenantRolesQuery.mockReturnValue(
+			errorPage({ status: 403, title: 'Forbidden', detail: 'Forbidden' }),
+		);
+		mocks.shouldLogoutForFailure.mockReturnValue(false);
+
+		render(<TestForm />);
+		fireEvent.click(screen.getByRole('button', { name: 'Roles' }));
+
+		expect(screen.getByText('No roles are available.')).toBeTruthy();
+	});
+
 	test('still renders the dropdown when the query errors non-fatally (403)', () => {
 		mocks.useStaffTenantRolesQuery.mockReturnValue(
 			errorPage({ status: 403, title: 'Forbidden', detail: 'Forbidden' }),
@@ -257,5 +304,30 @@ describe('InviteRoleSelect', () => {
 
 		expect(screen.queryByTestId('invite-role-logout-redirect')).toBeNull();
 		expect(screen.getByRole('button', { name: 'Roles' })).toBeTruthy();
+	});
+
+	test('keeps the loaded role rows when a background refetch fails', () => {
+		mocks.useStaffTenantRolesQuery.mockReturnValue(
+			staleErrorPage([
+				{ id: 'role-1', name: 'Default role', isDefault: true },
+				{ id: 'role-2', name: 'Reviewers', isDefault: false },
+			]),
+		);
+		mocks.shouldLogoutForFailure.mockReturnValue(false);
+
+		render(<TestForm />);
+		fireEvent.click(screen.getByRole('button', { name: 'Roles' }));
+
+		expect(screen.getByText('Reviewers')).toBeTruthy();
+		expect(screen.queryByText('No roles are available.')).toBeNull();
+	});
+
+	test('shows the no-roles message when the query resolves with zero roles', () => {
+		mocks.useStaffTenantRolesQuery.mockReturnValue(emptyEnvelopePage());
+
+		render(<TestForm />);
+		fireEvent.click(screen.getByRole('button', { name: 'Roles' }));
+
+		expect(screen.getByText('No roles are available.')).toBeTruthy();
 	});
 });

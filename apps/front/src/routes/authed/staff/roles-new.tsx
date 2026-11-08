@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
+import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
@@ -77,12 +78,12 @@ const getZodForI18n = (instance: I18nInstance) => {
 };
 
 const NewStaffRoleForm = ({
-	permissionsQuery,
+	query,
 	methods,
 	onSubmit,
 	permissionOptions,
 }: {
-	permissionsQuery: ReturnType<typeof useStaffPermissionCatalogQuery>;
+	query: ReturnType<typeof useStaffPermissionCatalogQuery>;
 	methods: ReturnType<typeof useForm<NewStaffRoleValues>>;
 	onSubmit: (event?: React.BaseSyntheticEvent) => void;
 	permissionOptions: StaffPermissionOption[];
@@ -93,88 +94,88 @@ const NewStaffRoleForm = ({
 	const icon = useWatch({ control: methods.control, name: 'icon' });
 	const tone = useWatch({ control: methods.control, name: 'tone' });
 
-	if (permissionsQuery.isPending) {
-		return (
-			<div className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
-				<LoadingSpinner />
-				<span>{t('loading-permissions')}</span>
-			</div>
-		);
-	}
-
-	if (permissionsQuery.isError) {
-		return (
-			<div className="space-y-3">
-				<p className="text-sm text-destructive">
-					{getFailureMessage(toApiFailure(permissionsQuery.error), {
-						fallback: t('unable-to-load-staff-permissions'),
-					})}
-				</p>
-				<Button
-					type="button"
-					variant="secondary"
-					onClick={() => void permissionsQuery.refetch()}
-				>
-					{t('retry')}
-				</Button>
-			</div>
-		);
-	}
-
 	return (
-		<Form methods={methods} onSubmit={onSubmit}>
-			<div className="space-y-1.5">
-				<div className="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
-					<IconColorPicker
-						value={{ icon, tone }}
-						disabled={createRole.isPending}
-						onChange={(next) => {
-							methods.setValue('icon', next.icon ?? icon, {
-								shouldDirty: true,
-							});
-							methods.setValue('tone', next.tone ?? tone, {
-								shouldDirty: true,
-							});
-						}}
-					/>
-					<Field.Text
-						name="name"
-						label={t('role-name')}
-						placeholder={t('role-name-placeholder')}
-						disabled={createRole.isPending}
-					/>
+		<QueryDisplay
+			query={query}
+			LoadingSlot={
+				<div className="flex items-center gap-3 py-8 text-sm text-muted-foreground">
+					<LoadingSpinner />
+					<span>{t('loading-permissions')}</span>
 				</div>
-				<p className="text-xs text-muted-foreground sm:pl-[68px]">
-					{tRoles('role-icon-picker-hint')}
-				</p>
-			</div>
-			<Field.Text
-				name="description"
-				label={t('description')}
-				placeholder={t('role-description-placeholder')}
-				disabled={createRole.isPending}
-			/>
-			<Field.CheckboxGroup
-				name="permissions"
-				label={t('permissions')}
-				options={permissionOptions}
-				isDisabled={createRole.isPending}
-			/>
-			{methods.formState.errors.root?.server?.message ? (
-				<p className="text-sm text-destructive" role="alert">
-					{methods.formState.errors.root.server.message}
-				</p>
-			) : null}
-			<div className="flex justify-end">
-				<Button
-					type="submit"
-					variant="default"
-					disabled={createRole.isPending || permissionsQuery.isPending}
-				>
-					{t('create-role')}
-				</Button>
-			</div>
-		</Form>
+			}
+			ErrorSlot={
+				<div className="space-y-3">
+					<p className="text-sm text-destructive">
+						{getFailureMessage(toApiFailure(query.error), {
+							fallback: t('unable-to-load-staff-permissions'),
+						})}
+					</p>
+					<Button
+						type="button"
+						variant="secondary"
+						onClick={() => void query.refetch()}
+					>
+						{t('retry')}
+					</Button>
+				</div>
+			}
+		>
+			{() => (
+				<Form methods={methods} onSubmit={onSubmit}>
+					<div className="space-y-1.5">
+						<div className="grid items-end gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
+							<IconColorPicker
+								value={{ icon, tone }}
+								disabled={createRole.isPending}
+								onChange={(next) => {
+									methods.setValue('icon', next.icon ?? icon, {
+										shouldDirty: true,
+									});
+									methods.setValue('tone', next.tone ?? tone, {
+										shouldDirty: true,
+									});
+								}}
+							/>
+							<Field.Text
+								name="name"
+								label={t('role-name')}
+								placeholder={t('role-name-placeholder')}
+								disabled={createRole.isPending}
+							/>
+						</div>
+						<p className="text-xs text-muted-foreground sm:pl-[68px]">
+							{tRoles('role-icon-picker-hint')}
+						</p>
+					</div>
+					<Field.Text
+						name="description"
+						label={t('description')}
+						placeholder={t('role-description-placeholder')}
+						disabled={createRole.isPending}
+					/>
+					<Field.CheckboxGroup
+						name="permissions"
+						label={t('permissions')}
+						options={permissionOptions}
+						isDisabled={createRole.isPending}
+					/>
+					{methods.formState.errors.root?.server?.message ? (
+						<p className="text-sm text-destructive" role="alert">
+							{methods.formState.errors.root.server.message}
+						</p>
+					) : null}
+					<div className="flex justify-end">
+						<Button
+							type="submit"
+							variant="default"
+							disabled={createRole.isPending || query.isPending}
+						>
+							{t('create-role')}
+						</Button>
+					</div>
+				</Form>
+			)}
+		</QueryDisplay>
 	);
 };
 
@@ -309,7 +310,7 @@ const NewStaffRoleRoute = () => {
 
 			<Card className="space-y-4 p-4">
 				<NewStaffRoleForm
-					permissionsQuery={permissionsQuery}
+					query={permissionsQuery}
 					methods={methods}
 					onSubmit={onSubmit}
 					permissionOptions={permissionOptions}

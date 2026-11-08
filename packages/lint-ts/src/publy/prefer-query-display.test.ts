@@ -22,6 +22,12 @@
  *   bodies. `useMutation` results are never flagged.
  */
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { after, test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import { RuleTester } from 'oxlint/plugins-dev';
 import { describe, it } from 'vitest';
@@ -112,7 +118,9 @@ const runCases = (rule, label) => {
 					].join('\n'),
 					filename: 'apps/front/src/routes/authed/layout.tsx',
 				},
-				// DataTable screens own their list-state mechanism.
+				// Remaining DataTable screens own their list-state mechanism.
+				// (`data-table.tsx` left this list in #2341: it delegates to
+				// QueryDisplay and takes a `query` prop — see the exemption pin.)
 				{
 					code: [
 						'const Foo = () => {',
@@ -120,7 +128,8 @@ const runCases = (rule, label) => {
 						'  return q.isError ? <Error /> : <div />;',
 						'};',
 					].join('\n'),
-					filename: 'apps/front/src/components/table/data-table.tsx',
+					filename:
+						'apps/front/src/components/table/floating-selection-bar.tsx',
 				},
 				// The implementation itself must never flag itself.
 				{
@@ -159,7 +168,7 @@ const runCases = (rule, label) => {
 						'const Foo = () => {',
 						'  const q = useThingQuery();',
 						'  useEffect(() => { if (q.isError) { report(); } }, [q.isError]);',
-						'  return <div>{q.data}</div>;',
+						'  return <QueryDisplay query={q}>{({ data }) => <div>{data}</div>}</QueryDisplay>;',
 						'};',
 					].join('\n'),
 					filename: COMPONENT_FILE,
@@ -170,7 +179,7 @@ const runCases = (rule, label) => {
 						'const Foo = () => {',
 						'  const q = useThingQuery();',
 						'  const onClick = () => { if (q.isError) { retry(); } };',
-						'  return <button onClick={onClick}>{q.data}</button>;',
+						'  return <QueryDisplay query={q}>{({ data }) => <button onClick={onClick}>{data}</button>}</QueryDisplay>;',
 						'};',
 					].join('\n'),
 					filename: COMPONENT_FILE,
@@ -224,7 +233,7 @@ const runCases = (rule, label) => {
 					code: [
 						'const Foo = () => {',
 						'  const q = useThingQuery();',
-						'  return <button onClick={(event) => { if (q.isError) event.preventDefault(); }}>go</button>;',
+						'  return <QueryDisplay query={q}>{() => <button onClick={(event) => { if (q.isError) event.preventDefault(); }}>go</button>}</QueryDisplay>;',
 						'};',
 					].join('\n'),
 					filename: COMPONENT_FILE,
@@ -236,7 +245,7 @@ const runCases = (rule, label) => {
 						'const Foo = () => {',
 						'  const q = useThingQuery();',
 						'  const extra = useMemo(() => (q.isError ? <Err /> : null), [q.isError]);',
-						'  return <div>{extra}</div>;',
+						'  return <QueryDisplay query={q}>{() => <div>{extra}</div>}</QueryDisplay>;',
 						'};',
 					].join('\n'),
 					filename: COMPONENT_FILE,
@@ -247,7 +256,7 @@ const runCases = (rule, label) => {
 					code: [
 						'const Foo = () => {',
 						'  const q = useThingQuery();',
-						'  return <Controller name="a" control={c} render={({ field }) => field.onChange(String(q.data))} />;',
+						'  return <QueryDisplay query={q}>{() => <Controller name="a" control={c} render={({ field }) => field.onChange(String(q.data))} />}</QueryDisplay>;',
 						'};',
 					].join('\n'),
 					filename: COMPONENT_FILE,
@@ -259,20 +268,9 @@ const runCases = (rule, label) => {
 					code: [
 						'const Foo = () => {',
 						'  const q = useThingQuery();',
-						'  return <DropdownMenuTrigger render={<Button disabled={q.isPending} title={q.isPending ? t("loading") : undefined} />}>',
+						'  return <QueryDisplay query={q}>{() => <DropdownMenuTrigger render={<Button disabled={q.isPending} title={q.isPending ? t("loading") : undefined} />}>',
 						'    go',
-						'  </DropdownMenuTrigger>;',
-						'};',
-					].join('\n'),
-					filename: COMPONENT_FILE,
-				},
-				// Delegating props (`isPending={q.isPending}`) hand the state to
-				// QueryDisplay/DataTable — not a hand-rolled ladder.
-				{
-					code: [
-						'const Foo = () => {',
-						'  const q = useThingQuery();',
-						'  return <DataTable rows={rows} isPending={q.isPending} isError={q.isError} />;',
+						'  </DropdownMenuTrigger>}</QueryDisplay>;',
 						'};',
 					].join('\n'),
 					filename: COMPONENT_FILE,
@@ -294,7 +292,7 @@ const runCases = (rule, label) => {
 						'const Foo = () => {',
 						'  const q = useThingQuery();',
 						'  const renderValue = ({ field }) => field.onChange(String(q.data));',
-						'  return <Controller name="a" control={c} render={renderValue} />;',
+						'  return <QueryDisplay query={q}>{() => <Controller name="a" control={c} render={renderValue} />}</QueryDisplay>;',
 						'};',
 					].join('\n'),
 					filename: COMPONENT_FILE,
@@ -319,6 +317,86 @@ const runCases = (rule, label) => {
 						'  const maybeRender = () => (q.isError ? <Error /> : <div>{q.data}</div>);',
 						'  console.log(maybeRender);',
 						'  return <QueryDisplay query={q}>{({ data }) => <div>{data}</div>}</QueryDisplay>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// A query bound from a hook reaches QueryDisplay's `query` prop.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useFooQuery();',
+						'  return <QueryDisplay query={q}>{({ data }) => <div>{data}</div>}</QueryDisplay>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// ListPage is a delegate too.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useFooQuery();',
+						'  return <ListPage query={q} rows={[]} columns={[]} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// A hook that returns data (no JSX) is not a render: the query
+				// binding is the hook's business, its consumer is checked instead.
+				{
+					code: [
+						'const useBar = () => {',
+						'  const q = useFooQuery();',
+						'  return q.data;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// A hook next to a component in the SAME file stays unchecked:
+				// the walk must not climb out of the hook through `parent` links
+				// into the sibling component's JSX.
+				{
+					code: [
+						'const useBar = () => {',
+						'  const q = useFooQuery();',
+						'  return q.data;',
+						'};',
+						'const Foo = () => <div>{useBar()}</div>;',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// The escape comment (with a reason) is proven at the real-CLI
+				// level below: RuleTester runs the rule object directly and does
+				// not process oxlint disable directives.
+				// DataTable is a delegate: its callers hand the query to `query`.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useFooQuery();',
+						'  return <DataTable query={q} rows={rows} columns={columns} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// Any component receiving the WHOLE result is responsible for
+				// rendering it: a `query` prop on a dashboard compound.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useFooQuery();',
+						'  return <KpiCard query={q} figure={q.data?.total} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+				},
+				// The prop name is irrelevant: the dashboard passes the result
+				// under its own name (`countsQuery={q}`), and the receiving
+				// component renders `QueryDisplay` with it (#2341 T5b).
+				{
+					code: [
+						'const Foo = () => {',
+						'  const countsQuery = useFooQuery();',
+						'  return <OverviewKpis countsQuery={countsQuery} />;',
 						'};',
 					].join('\n'),
 					filename: COMPONENT_FILE,
@@ -801,6 +879,43 @@ const runCases = (rule, label) => {
 					filename: COMPONENT_FILE,
 					errors: [{ messageId: 'preferQueryDisplay' }],
 				},
+				// RED fixture (#2341): a whole query binding read in render but
+				// never handed to a `query` prop.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const q = useFooQuery();',
+						'  return <p>{q.data?.name}</p>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'queryNotRenderedThroughQueryDisplay' }],
+				},
+				// RED fixture (#2341): a destructured query result read in render.
+				// Keep the whole result and pass it to QueryDisplay.
+				{
+					code: [
+						'const Foo = () => {',
+						'  const { data } = useFooQuery();',
+						'  return <p>{data}</p>;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'queryNotRenderedThroughQueryDisplay' }],
+				},
+				// RED fixture (review H finding 1): handing the whole result to
+				// an arbitrary prop does not prove the receiver renders it
+				// through QueryDisplay, so only `query` / `*Query` count.
+				{
+					code: [
+						'const List = () => {',
+						'  const q = useFooQuery();',
+						'  return <Foo people={q} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'queryNotRenderedThroughQueryDisplay' }],
+				},
 			],
 		});
 	});
@@ -808,3 +923,70 @@ const runCases = (rule, label) => {
 
 runCases(preferQueryDisplay, 'via direct import');
 runCases(plugin.rules[RULE_NAME], 'via plugin index export');
+
+// ---------------------------------------------------------------------------
+// Escape comment — real-CLI level (oxlint disable directives are a runner
+// feature; the RuleTester executes the rule object only).
+// ---------------------------------------------------------------------------
+
+const WORKSPACE_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
+const OXLINT_BIN = join(WORKSPACE_ROOT, 'node_modules/.bin/oxlint');
+const OXLINTRC = join(WORKSPACE_ROOT, '.oxlintrc.json');
+
+const tmpFixtures: string[] = [];
+
+after(() => {
+	for (const dir of tmpFixtures) {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+/** Runs the real oxlint CLI on a probe component, returning its stdout. */
+const runCliOnProbe = (source: string): string => {
+	const dir = mkdtempSync(join(tmpdir(), 'prefer-query-display-'));
+	tmpFixtures.push(dir);
+	const file = join(dir, 'apps/front/src/components/probe.tsx');
+	mkdirSync(dirname(file), { recursive: true });
+	writeFileSync(file, source);
+
+	try {
+		return execFileSync(
+			OXLINT_BIN,
+			['--config', OXLINTRC, '--format', 'json', file],
+			{
+				encoding: 'utf8',
+				cwd: WORKSPACE_ROOT,
+				stdio: ['ignore', 'pipe', 'pipe'],
+			},
+		);
+	} catch (error) {
+		if (typeof error === 'object' && error !== null && 'stdout' in error) {
+			return String((error as { stdout?: string | Buffer }).stdout ?? '');
+		}
+		throw error;
+	}
+};
+
+void test('CLI: a query rendered without QueryDisplay reports, and an escape comment with a reason silences it', () => {
+	const escape =
+		'  // oxlint-disable-next-line publy/prefer-query-display -- rendered by a portal outside this file';
+	const lines = [
+		'const Foo = () => {',
+		'  const q = useFooQuery();',
+		'  return <p>{q.data?.name}</p>;',
+		'};',
+	];
+	const unescaped = lines.join('\n');
+	const escaped = [lines[0], escape, ...lines.slice(1)].join('\n');
+
+	assert.match(
+		runCliOnProbe(unescaped),
+		/publy\(prefer-query-display\)/,
+		'expected the CLI to report the unescaped fixture',
+	);
+	assert.doesNotMatch(
+		runCliOnProbe(escaped),
+		/publy\(prefer-query-display\)/,
+		'expected zero diagnostics with the escape comment and its reason',
+	);
+});

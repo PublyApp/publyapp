@@ -2,6 +2,7 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { isValidElement, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorKindState } from '~/components/error-views/error-kind-state';
+import { Button } from '~/components/ui/button';
 import {
 	resolveQueryError,
 	type ResolvedQueryError,
@@ -24,13 +25,32 @@ type RenderSlot<TProps = object> =
 	| ReactNode
 	| React.JSXElementConstructor<TProps>;
 
+/** The subset of a TanStack Query result `QueryDisplay` reads. Both
+ * `UseQueryResult` and `UseInfiniteQueryResult` satisfy it, and so does a
+ * page's derived view of one (an empty list, a forced state). */
+export type QueryDisplayQuery<TData = unknown, TError = Error> = {
+	isPending: boolean;
+	isLoading: boolean;
+	isFetching: boolean;
+	isError: boolean;
+	error: TError | null;
+	data: TData | undefined;
+	refetch: UseQueryResult<TData, TError>['refetch'];
+};
+
 type Props<TData = unknown, TError = Error> = {
-	query: UseQueryResult<TData, TError>;
+	query: QueryDisplayQuery<TData, TError>;
 	loadingStrategy?: LoadingMode; // defaults to 'pending'
+	/** `page` (default): spinner + full error state. `inline`: spinner plus a visible
+	 * « Chargement… » label, and a one-line error with « Réessayer », for menus and
+	 * selects. `discreet`: nothing while loading and nothing on error unless it
+	 * renders data it already holds (a failed refetch keeps `children`), for
+	 * banners and badges that only matter when data exists. Explicit slots win. */
+	variant?: 'page' | 'inline' | 'discreet';
 	LoadingSlot?: RenderSlot;
 	ErrorSlot?: RenderSlot<{
 		error: unknown;
-		query: UseQueryResult<TData, TError>;
+		query: QueryDisplayQuery<TData, TError>;
 	}>;
 	EmptySlot?: RenderSlot;
 	// Render prop only (not ComponentType): an inline closure passed here must
@@ -47,19 +67,30 @@ type Props<TData = unknown, TError = Error> = {
 const renderLoading = (
 	LoadingSlot: Props['LoadingSlot'],
 	loadingLabel: string,
+	variant: NonNullable<Props['variant']>,
 ) => {
 	if (typeof LoadingSlot === 'function') {
 		const Slot = LoadingSlot;
 		return <Slot />;
 	}
-	if (isValidElement(LoadingSlot)) {
+	if (isValidElement(LoadingSlot) || LoadingSlot !== undefined) {
 		return LoadingSlot;
 	}
-	return (
-		LoadingSlot ?? (
-			<LoadingSpinner {...defaultLoadingProps} label={loadingLabel} />
-		)
-	);
+	if (variant === 'discreet') {
+		return null;
+	}
+	if (variant === 'inline') {
+		return (
+			<span
+				data-testid="query-display-inline-loading"
+				className="inline-flex items-center gap-2 text-sm text-muted-foreground"
+			>
+				<LoadingSpinner {...defaultLoadingProps} label={loadingLabel} />
+				<span aria-hidden="true">{loadingLabel}</span>
+			</span>
+		);
+	}
+	return <LoadingSpinner {...defaultLoadingProps} label={loadingLabel} />;
 };
 
 const LoadingSpinner = ({
@@ -95,11 +126,36 @@ const renderDefaultError = (
 	);
 };
 
+/** The `inline` preset's error: one line of cause + « Réessayer », no surface,
+ * no pictogram and no « Retour à l'accueil » inside a menu or a form row. */
+const renderInlineError = (
+	resolved: ResolvedQueryError,
+	onRetry: () => void,
+	retryLabel: string,
+) => {
+	if (resolved.silent) {
+		return null;
+	}
+
+	return (
+		<span
+			data-testid="query-display-inline-error"
+			className="inline-flex items-center gap-2 text-sm text-muted-foreground"
+		>
+			<span role="alert">{resolved.title}</span>
+			<Button size="xs" variant="outline" type="button" onClick={onRetry}>
+				{retryLabel}
+			</Button>
+		</span>
+	);
+};
+
 const renderError = <TData, TError>(
 	error: unknown,
-	query: UseQueryResult<TData, TError>,
+	query: QueryDisplayQuery<TData, TError>,
 	ErrorSlot: Props<TData, TError>['ErrorSlot'],
 	t: (key: string) => string,
+	variant: NonNullable<Props['variant']>,
 ) => {
 	if (typeof ErrorSlot === 'function') {
 		const Slot = ErrorSlot;
@@ -108,16 +164,22 @@ const renderError = <TData, TError>(
 	if (isValidElement(ErrorSlot)) {
 		return ErrorSlot;
 	}
+	if (variant === 'discreet') {
+		return null;
+	}
 	// Issue #2043: the default error branch used to discard the real error
 	// and show one generic sentence for every cause (server unreachable, 403,
 	// 404, a malformed payload, the browser offline). Resolve whatever the
 	// caller threw through the shared status→copy matcher; the fallback
 	// branch inside the resolver covers the bare-Error case explicitly.
-	return renderDefaultError(
-		resolveQueryError(error, t),
-		() => void query.refetch(),
-		error,
-	);
+	const resolved = resolveQueryError(error, t);
+	const retry = () => void query.refetch();
+
+	if (variant === 'inline') {
+		return renderInlineError(resolved, retry, t('retry'));
+	}
+
+	return renderDefaultError(resolved, retry, error);
 };
 
 const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
@@ -132,7 +194,7 @@ const renderEmpty = (EmptySlot?: Props['EmptySlot']) => {
 };
 
 const renderData = <TData, TError>(
-	query: UseQueryResult<TData, TError>,
+	query: QueryDisplayQuery<TData, TError>,
 	children?: Props<TData, TError>['children'],
 ) => {
 	if (typeof children === 'function') {
@@ -155,6 +217,7 @@ const defaultLoadingProps: LoadingSpinnerProps = {
 const QueryDisplay = <TData = unknown, TError = Error>({
 	query,
 	loadingStrategy = 'pending',
+	variant = 'page',
 	LoadingSlot,
 	ErrorSlot,
 	EmptySlot,
@@ -167,13 +230,14 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	if (forceRender) {
 		switch (forceRender) {
 			case 'loading':
-				return renderLoading(LoadingSlot, t('loading'));
+				return renderLoading(LoadingSlot, t('loading'), variant);
 			case 'error':
 				return renderError(
 					query.error ?? new Error('forced error'),
 					query,
 					ErrorSlot,
 					t,
+					variant,
 				);
 			case 'empty':
 				return renderEmpty(EmptySlot);
@@ -190,11 +254,25 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	}
 
 	if (showLoading) {
-		return renderLoading(LoadingSlot, t('loading'));
+		return renderLoading(LoadingSlot, t('loading'), variant);
 	}
 
 	if (query.isError) {
-		return renderError(query.error, query, ErrorSlot, t);
+		// A failed *refetch* keeps the last good data (TanStack v5 sets
+		// `status: 'error'` without clearing `data`); `discreet` banners must
+		// keep showing it instead of blanking what they already hold. With no
+		// children there is nothing to keep showing — an error-only banner
+		// (`<QueryDisplay query={q} variant="discreet" ErrorSlot={…} />`) must
+		// still surface its cause and retry on a failed refetch.
+		if (
+			variant === 'discreet' &&
+			query.data !== undefined &&
+			children !== undefined &&
+			children !== null
+		) {
+			return renderData(query, children);
+		}
+		return renderError(query.error, query, ErrorSlot, t, variant);
 	}
 
 	// `checkIfEmptyQueryData` short-circuits first, so a custom rule only ever

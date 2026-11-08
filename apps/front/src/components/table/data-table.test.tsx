@@ -119,12 +119,16 @@ const baseProps = {
 	ariaLabel: 'Test table',
 	columns,
 	rows: [],
-	queryState: {
+	query: {
 		isPending: false,
+		isLoading: false,
+		isFetching: false,
 		isError: true,
-		onRetry: noop,
-		hasActiveSearch: false,
+		error: null,
+		data: undefined,
+		refetch: vi.fn(),
 	},
+	hasActiveSearch: false,
 	sort: { id: 'name', order: 'asc' } as const,
 	onSortChange: noop,
 	size: 20,
@@ -227,14 +231,17 @@ describe('DataTable state rendering', () => {
 			<DataTable
 				{...baseProps}
 				rows={rows}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isPending: true,
 					isError: false,
 				}}
 			/>,
 		);
 		expect(screen.getByTestId('test-table-loading')).toBeTruthy();
+		expect(
+			screen.getByTestId('test-table-loading').getAttribute('class'),
+		).toContain('publy-table-card');
 		expect(screen.getByTestId('test-table-search').className).toContain(
 			'publy-data-table-search-input',
 		);
@@ -245,11 +252,10 @@ describe('DataTable state rendering', () => {
 		const { unmount } = render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isPending: false,
 					isError: false,
-					hasActiveSearch: false,
 				}}
 				rows={[]}
 			/>,
@@ -260,12 +266,12 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isPending: false,
 					isError: false,
-					hasActiveSearch: true,
 				}}
+				hasActiveSearch
 				rows={[]}
 			/>,
 		);
@@ -276,11 +282,10 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isPending: false,
 					isError: false,
-					hasActiveSearch: false,
 				}}
 				rows={[]}
 				emptyIcon={IconUsers}
@@ -304,12 +309,12 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isPending: false,
 					isError: false,
-					hasActiveSearch: true,
 				}}
+				hasActiveSearch
 				rows={[]}
 				noMatchIcon={IconUsers}
 				noMatchTitle="No members match your search"
@@ -331,7 +336,7 @@ describe('DataTable state rendering', () => {
 			<DataTable
 				{...baseProps}
 				rows={rows}
-				queryState={{ ...baseProps.queryState, isError: false }}
+				query={{ ...baseProps.query, isError: false }}
 				rowHeight={56}
 			/>,
 		);
@@ -345,7 +350,7 @@ describe('DataTable state rendering', () => {
 			<DataTable
 				{...baseProps}
 				rows={rows}
-				queryState={{ ...baseProps.queryState, isError: false }}
+				query={{ ...baseProps.query, isError: false }}
 				rowHeight={52}
 			/>,
 		);
@@ -358,8 +363,8 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isError: false,
 				}}
 				rows={rows}
@@ -375,10 +380,9 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isError: false,
-					hasActiveSearch: false,
 				}}
 				rows={rows}
 			/>,
@@ -395,13 +399,54 @@ describe('DataTable state rendering', () => {
 		expect(screen.getByText('Bob')).toBeTruthy();
 	});
 
+	// #2341: the state ladder now lives in `QueryDisplay`; these pin the DOM
+	// each branch must still produce, including the held-rows refetch failure.
+	test('keeps the rows already on screen when a background refetch fails', () => {
+		render(
+			<DataTable
+				{...baseProps}
+				query={{
+					...baseProps.query,
+					isError: true,
+					error: Object.assign(new Error('Service Unavailable'), {
+						status: 503,
+					}),
+				}}
+				rows={rows}
+			/>,
+		);
+
+		expect(screen.getByTestId('test-table-rows')).toBeTruthy();
+		expect(screen.getByText('Alice')).toBeTruthy();
+		expect(screen.queryByTestId('test-table-error')).toBeNull();
+		expect(screen.getByTestId('test-table-card')).toBeTruthy();
+	});
+
+	test('a first-load failure still shows the error body and its retry', () => {
+		render(
+			<DataTable
+				{...baseProps}
+				query={{
+					...baseProps.query,
+					isError: true,
+					error: Object.assign(new Error('Trace id: abc'), { status: 500 }),
+				}}
+				rows={[]}
+			/>,
+		);
+
+		expect(screen.getByTestId('test-table-error')).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+		expect(screen.queryByTestId('test-table-card')).toBeNull();
+	});
+
 	test('requests sort changes when clicking a sortable header', () => {
 		const onSortChange = vi.fn();
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isError: false,
 				}}
 				rows={rows}
@@ -437,8 +482,8 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isError: false,
 				}}
 				columns={widthColumns}
@@ -479,8 +524,8 @@ describe('DataTable state rendering', () => {
 		const { unmount } = render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isError: false,
 				}}
 				columns={widthlessColumns}
@@ -495,8 +540,8 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isError: false,
 				}}
 				columns={widthColumns}
@@ -545,8 +590,8 @@ describe('DataTable state rendering', () => {
 			render(
 				<DataTable
 					{...baseProps}
-					queryState={{
-						...baseProps.queryState,
+					query={{
+						...baseProps.query,
 						isError: false,
 					}}
 					columns={responsiveColumns}
@@ -602,8 +647,8 @@ describe('DataTable state rendering', () => {
 			render(
 				<DataTable
 					{...baseProps}
-					queryState={{
-						...baseProps.queryState,
+					query={{
+						...baseProps.query,
 						isError: false,
 					}}
 					columns={countingColumns}
@@ -664,8 +709,8 @@ describe('DataTable state rendering', () => {
 			render(
 				<DataTable
 					{...baseProps}
-					queryState={{
-						...baseProps.queryState,
+					query={{
+						...baseProps.query,
 						isError: false,
 					}}
 					columns={pinnedColumns}
@@ -759,8 +804,8 @@ describe('DataTable state rendering', () => {
 			render(
 				<DataTable
 					{...baseProps}
-					queryState={{
-						...baseProps.queryState,
+					query={{
+						...baseProps.query,
 						isError: false,
 					}}
 					columns={p3GridColumns}
@@ -791,8 +836,8 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isError: false,
 				}}
 				rows={rows}
@@ -834,8 +879,8 @@ describe('DataTable state rendering', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isError: false,
 				}}
 				columns={alignedColumns}
@@ -867,7 +912,7 @@ describe('DataTable i18n', () => {
 			<DataTable
 				{...baseProps}
 				rows={rows}
-				queryState={{ ...baseProps.queryState, isError: false }}
+				query={{ ...baseProps.query, isError: false }}
 			/>,
 		);
 
@@ -883,8 +928,8 @@ describe('DataTable i18n', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isError: false,
 				}}
 				rows={rows}
@@ -904,7 +949,7 @@ describe('DataTable i18n', () => {
 			<DataTable
 				{...baseProps}
 				rows={rows}
-				queryState={{ ...baseProps.queryState, isError: false }}
+				query={{ ...baseProps.query, isError: false }}
 			/>,
 		);
 
@@ -927,7 +972,7 @@ describe('DataTable i18n', () => {
 			<DataTable
 				{...baseProps}
 				rows={rows}
-				queryState={{ ...baseProps.queryState, isError: false }}
+				query={{ ...baseProps.query, isError: false }}
 			/>,
 		);
 
@@ -942,8 +987,8 @@ describe('DataTable a11y', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isError: false,
 				}}
 				rows={rows}
@@ -962,8 +1007,8 @@ describe('DataTable a11y', () => {
 		const { rerender } = render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isError: false,
 				}}
 				rows={rows}
@@ -980,8 +1025,8 @@ describe('DataTable a11y', () => {
 		rerender(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
+				query={{
+					...baseProps.query,
 					isError: false,
 				}}
 				rows={rows}
@@ -999,7 +1044,7 @@ describe('DataTable a11y', () => {
 			<DataTable
 				{...baseProps}
 				rows={rows}
-				queryState={{ ...baseProps.queryState, isError: false }}
+				query={{ ...baseProps.query, isError: false }}
 			/>,
 		);
 
@@ -1025,7 +1070,7 @@ describe('DataTable a11y', () => {
 			<DataTable
 				{...baseProps}
 				rows={rows}
-				queryState={{ ...baseProps.queryState, isError: false }}
+				query={{ ...baseProps.query, isError: false }}
 			/>,
 		);
 
@@ -1077,8 +1122,8 @@ describe('DataTable a11y', () => {
 			render(
 				<DataTable
 					{...baseProps}
-					queryState={{
-						...baseProps.queryState,
+					query={{
+						...baseProps.query,
 						isError: false,
 					}}
 					columns={multiColumnColumns}
@@ -1169,9 +1214,9 @@ describe('DataTable one error state (#2291)', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
-					error: { status: 403, detail: 'Permission revoked.' },
+				query={{
+					...baseProps.query,
+					error: Object.assign(new Error('Forbidden'), { status: 403 }),
 				}}
 			/>,
 		);
@@ -1187,10 +1232,10 @@ describe('DataTable one error state (#2291)', () => {
 		render(
 			<DataTable
 				{...baseProps}
-				queryState={{
-					...baseProps.queryState,
-					error: { status: 500, detail: 'Trace id: abc' },
-					onRetry,
+				query={{
+					...baseProps.query,
+					error: Object.assign(new Error('Trace id: abc'), { status: 500 }),
+					refetch: onRetry,
 				}}
 			/>,
 		);

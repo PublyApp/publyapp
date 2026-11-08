@@ -12,7 +12,6 @@ import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
 	invalidateStaffUsers,
 	removeStaffUserDetails,
-	toAssignedStaffRoles,
 	toStaffUserDetails,
 	useDeleteStaffUserMutation,
 	useReactivateStaffUserMutation,
@@ -69,7 +68,6 @@ const StaffUserDetailsPage = () => {
 		{ enabled: userId.length > 0 },
 	);
 	const user = toStaffUserDetails(detailQuery.data);
-	const roles = toAssignedStaffRoles(rolesQuery.data);
 
 	// Hoisted so the fatal-error gates read plain locals, not query flags —
 	// QueryDisplay owns the loading/error/data rendering below.
@@ -174,9 +172,6 @@ const StaffUserDetailsPage = () => {
 				const isDeleteConfirmReady =
 					deleteConfirmText.trim().toLowerCase() === 'delete';
 				const maxRolesPerUser = rolesQuery.data?.maxRolesPerUser;
-				// Reads the hoisted fatal-error local, not raw query flags.
-				const rolesHasError =
-					rolesError !== null && !shouldLogoutForFailure(rolesError);
 
 				// Memoizing this literal would require hoisting it above the early returns,
 				// breaking conditional hook order on this page. The Provider re-renders only
@@ -185,15 +180,7 @@ const StaffUserDetailsPage = () => {
 				const overviewContextValue: StaffUserOverviewContextValue = {
 					user,
 					locale: i18n.language,
-					roles,
-					// `detailQuery.isPending` alone gates the page's own loading screen —
-					// roles is a separate query that can still be pending once details
-					// resolve, so the overview tab must model this explicitly instead of
-					// treating "not yet loaded" the same as "loaded, zero assignments"
-					// (r5-F6).
-					rolesIsPending: rolesQuery.isPending,
-					rolesHasError,
-					onRetryRoles: () => void rolesQuery.refetch(),
+					query: rolesQuery,
 					maxRolesPerUser: maxRolesPerUser ?? 0,
 					canSuspend,
 					canReactivate,

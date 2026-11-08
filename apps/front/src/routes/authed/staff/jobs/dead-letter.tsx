@@ -114,7 +114,6 @@ const StaffJobsDeadLetterPage = () => {
 	};
 
 	const detailQuery = useStaffDeadLetterDetailQuery(inspected?.id);
-	const detail = detailQuery.data;
 	const requeueMutation = useStaffRequeueDeadLetterMutation();
 
 	const filtersValue: ListFiltersValue = {
@@ -269,12 +268,7 @@ const StaffJobsDeadLetterPage = () => {
 				/>
 			)}
 			onExport={() => exportJobRows(rows, columns, t, 'jobs-export-dead')}
-			queryState={{
-				isPending: query.isPending,
-				isError: query.isError,
-				error: query.error,
-				onRetry: () => void query.refetch(),
-			}}
+			query={query}
 			footer={
 				rows.length > 0 ? (
 					<DataTableCursorFooter
@@ -312,7 +306,7 @@ const StaffJobsDeadLetterPage = () => {
 					/>
 					<DeadLetterDrawer
 						row={inspected}
-						detail={detail}
+						query={detailQuery}
 						locale={locale}
 						onClose={() => setInspected(null)}
 						t={t}

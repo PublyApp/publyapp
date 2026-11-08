@@ -96,7 +96,6 @@ const TenantPostEditPage = () => {
 		{ enabled: Boolean(tenantId && postId) },
 	);
 	const projectsQuery = useTenantProjectsQuery({ tenantId: tenantId ?? '' });
-	const projectItems = toTenantProjectItems(projectsQuery.data);
 	// Language-keyed resolver: schema + resolver built once per language, not
 	// once per render.
 	const resolver = useLanguageKeyedZodResolver<Values>(getSchema, [
@@ -280,15 +279,19 @@ const TenantPostEditPage = () => {
 											methods.setValue('segments', next, { shouldDirty: true })
 										}
 									/>
-									<Field.Select
-										name="projectId"
-										label={t('posts:project-label')}
-										placeholder={t('posts:project-placeholder')}
-										options={projectItems.map((p) => ({
-											value: p.id,
-											label: p.name,
-										}))}
-									/>
+									<QueryDisplay query={projectsQuery} variant="inline">
+										{({ data }) => (
+											<Field.Select
+												name="projectId"
+												label={t('posts:project-label')}
+												placeholder={t('posts:project-placeholder')}
+												options={toTenantProjectItems(data).map((p) => ({
+													value: p.id,
+													label: p.name,
+												}))}
+											/>
+										)}
+									</QueryDisplay>
 									{methods.formState.errors.root ? (
 										<p className="text-sm text-destructive" role="alert">
 											{methods.formState.errors.root.message}

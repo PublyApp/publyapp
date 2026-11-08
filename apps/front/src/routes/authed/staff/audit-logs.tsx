@@ -11,6 +11,9 @@ import type {
 } from '~/components/history/history-types';
 import type { ListPanelGroup } from '~/components/list/filter-panel';
 import type { ListFiltersValue } from '~/components/list/list-types';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import { DataTableCursorFooter } from '~/components/table/data-table';
 import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
@@ -117,6 +120,51 @@ const buildActorPanelGroup = (
 		}),
 	},
 ];
+
+/** The toolbar's date range, split out of the page component (react-doctor
+ * `no-giant-component`): same markup, same test ids. */
+const DateRangeFilter = ({
+	locale,
+	startDate,
+	endDate,
+	onChange,
+	labels,
+}: {
+	locale: string;
+	startDate?: string;
+	endDate?: string;
+	onChange: (key: 'startDate' | 'endDate', value: string | undefined) => void;
+	labels: { start: string; end: string; invalid: string };
+}) => (
+	<div
+		className="flex items-center gap-1.5"
+		data-testid="staff-audit-logs-date-range-filter"
+	>
+		<LocalizedDateInput
+			locale={locale}
+			ariaLabel={labels.start}
+			errorMessage={labels.invalid}
+			testId="staff-audit-logs-start-date"
+			value={startDate}
+			max={endDate ?? undefined}
+			onChange={(value) => onChange('startDate', value)}
+			className="h-9 w-37"
+		/>
+		<span aria-hidden="true" className="text-muted-foreground">
+			–
+		</span>
+		<LocalizedDateInput
+			locale={locale}
+			ariaLabel={labels.end}
+			errorMessage={labels.invalid}
+			testId="staff-audit-logs-end-date"
+			value={endDate}
+			min={startDate ?? undefined}
+			onChange={(value) => onChange('endDate', value)}
+			className="h-9 w-37"
+		/>
+	</div>
+);
 
 const StaffAuditLogsPage = () => {
 	const navigate = Route.useNavigate();
@@ -252,37 +300,6 @@ const StaffAuditLogsPage = () => {
 		});
 	};
 
-	const dateRangeFilter = (
-		<div
-			className="flex items-center gap-1.5"
-			data-testid="staff-audit-logs-date-range-filter"
-		>
-			<LocalizedDateInput
-				locale={locale}
-				ariaLabel={tCommon('start-date')}
-				errorMessage={tCommon('invalid-date')}
-				testId="staff-audit-logs-start-date"
-				value={search.startDate}
-				max={search.endDate ?? undefined}
-				onChange={(value) => setDateFilter('startDate', value)}
-				className="h-9 w-37"
-			/>
-			<span aria-hidden="true" className="text-muted-foreground">
-				–
-			</span>
-			<LocalizedDateInput
-				locale={locale}
-				ariaLabel={tCommon('end-date')}
-				errorMessage={tCommon('invalid-date')}
-				testId="staff-audit-logs-end-date"
-				value={search.endDate}
-				min={search.startDate ?? undefined}
-				onChange={(value) => setDateFilter('endDate', value)}
-				className="h-9 w-37"
-			/>
-		</div>
-	);
-
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
 		(to: StaffTeamPath) => {
@@ -304,14 +321,21 @@ const StaffAuditLogsPage = () => {
 	// The filter pair can exclude each other (a category with no sensitive
 	// action): the page then renders the no-match state and never queries the
 	// whole history behind an impossible filter.
-	let isPending = query.isPending;
-	let isError = query.isError;
 	// While the action catalog has not fetched yet, an empty category
 	// selection does not prove the pair impossible: keep the skeleton instead
 	// of flashing the no-match state.
-	if (selection.impossible && catalogQuery.isFetched) {
-		isPending = false;
-		isError = false;
+	const impossible = selection.impossible && catalogQuery.isFetched;
+	// The history body has always painted the generic error cause — this page
+	// never forwarded the query's error — so keep that exact surface.
+	const historyQuery: QueryDisplayQuery<unknown> = {
+		...query,
+		error: null,
+	};
+	// A disabled query stays pending forever: an impossible filter paints the
+	// no-match state, never a skeleton.
+	if (impossible) {
+		historyQuery.isPending = false;
+		historyQuery.isError = false;
 	}
 
 	return (
@@ -330,24 +354,28 @@ const StaffAuditLogsPage = () => {
 				onExport={() => setIsExportOpen(true)}
 				exportTestId="staff-audit-logs-export-trigger"
 				banner={
-					catalogQuery.isError ? (
-						<div
-							role="alert"
-							className="flex items-center justify-between gap-2 rounded-[var(--publy-radius-medium-control)] border border-(--publy-alert-danger-border) bg-(--publy-alert-danger-bg) px-3 py-2.5"
-						>
-							<p className="text-sm text-(--publy-alert-danger-text)">
-								{t('actions-filter-error')}
-							</p>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() => void catalogQuery.refetch()}
+					<QueryDisplay
+						query={catalogQuery}
+						variant="discreet"
+						ErrorSlot={
+							<div
+								role="alert"
+								className="flex items-center justify-between gap-2 rounded-[var(--publy-radius-medium-control)] border border-(--publy-alert-danger-border) bg-(--publy-alert-danger-bg) px-3 py-2.5"
 							>
-								{t('common:retry')}
-							</Button>
-						</div>
-					) : null
+								<p className="text-sm text-(--publy-alert-danger-text)">
+									{t('actions-filter-error')}
+								</p>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => void catalogQuery.refetch()}
+								>
+									{t('common:retry')}
+								</Button>
+							</div>
+						}
+					/>
 				}
 				events={events}
 				locale={locale}
@@ -369,7 +397,19 @@ const StaffAuditLogsPage = () => {
 				filters={filters}
 				filtersValue={filtersValue}
 				onFiltersChange={applyFilters}
-				toolbarExtra={dateRangeFilter}
+				toolbarExtra={
+					<DateRangeFilter
+						locale={locale}
+						startDate={search.startDate}
+						endDate={search.endDate}
+						onChange={setDateFilter}
+						labels={{
+							start: tCommon('start-date'),
+							end: tCommon('end-date'),
+							invalid: tCommon('invalid-date'),
+						}}
+					/>
+				}
 				panelGroups={buildStaffTeamPanelGroups(
 					tCommon,
 					'audit',
@@ -377,11 +417,7 @@ const StaffAuditLogsPage = () => {
 					navigateToTeam,
 				)}
 				panelGroupsAfter={actorGroup}
-				queryState={{
-					isPending,
-					isError,
-					onRetry: () => void query.refetch(),
-				}}
+				query={historyQuery}
 				pager={
 					rows.length > 0 ? (
 						<DataTableCursorFooter

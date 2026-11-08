@@ -21,11 +21,13 @@ import {
  * Scope:
  *   - Only front component `.tsx` files.
  *   - Excludes the implementation itself (`components/query-display.tsx`), the
- *     three DataTable screens pinned in `EXCLUDED_DATATABLE_RELATIVE_PATHS`
- *     (`data-table.tsx`, `floating-selection-bar.tsx`, `row-actions.tsx`) and the query-definition
- *     modules (`lib/query/**`) — those own their own list-state mechanism or
- *     merely call the hooks. The three allow-listed auth/routing state-machine
- *     route files are also excluded by path.
+ *     two remaining DataTable screens pinned in
+ *     `EXCLUDED_DATATABLE_RELATIVE_PATHS` (`floating-selection-bar.tsx`,
+ *     `row-actions.tsx`; `data-table.tsx` delegates to `QueryDisplay` since
+ *     #2341) and the query-definition modules (`lib/query/**`) — those own
+ *     their own list-state mechanism or merely call the hooks. The three
+ *     allow-listed auth/routing state-machine route files are also excluded
+ *     by path.
  *   - `useMutation` results are ignored (mutations are out of scope).
  *
  * Detection: a component binds a variable to a `use*Query` hook
@@ -37,10 +39,25 @@ import {
  * simple data flow: renamed destructuring (`const { isPending: loading } =
  * useQuery()` tracks `loading`), rest elements (`const { data, ...rest } =
  * useQuery()` tracks `rest` as a whole binding), whole-binding aliasing
- * (`const r = useQuery(); const q = r;`) and destructuring from an already
- * tracked whole binding (`const { isPending } = q;`). Callback bodies
- * (effects, handlers, `useMemo`) are not render context and are skipped,
- * except JSX-returning render-prop callbacks (see below).
+ * (`const r = useQuery(); const q = r;`), object views built from the result
+ * (`const view = { ...q, data }`) and destructuring from an already tracked
+ * whole binding (`const { isPending } = q;`). Callback bodies (effects,
+ * handlers, `useMemo`) are not render context and are skipped, except
+ * JSX-returning render-prop callbacks (see below).
+ *
+ * #2341: the rule also requires that every `use*Query` binding in a
+ * JSX-returning function is handed WHOLE to a component through a query prop —
+ * a JSX attribute named `query` or ending in `Query` (`<QueryDisplay
+ * query={q}>`, `<ListPage query={q}>`, `<HistoryPage query={q}>`, `<DataTable
+ * query={q}>`, `<KpiCard query={q}>`, `<OverviewKpis countsQuery={q}>`) —
+ * directly or through an alias. Any other prop (`<Foo people={q}>`) does not
+ * count: the rule cannot prove the receiver renders the result through
+ * `QueryDisplay`. Otherwise `queryNotRenderedThroughQueryDisplay` reports on
+ * the binding: rendering `q.data` without the shared component bypasses the
+ * loading / error / empty states. Destructuring the result is always a
+ * violation — the whole result must be kept. A function that returns no JSX (a
+ * custom hook) is not checked. A hand-rolled ladder is reported by the message
+ * above instead, never both.
  *
  * Render props: an arrow/function expression that **returns JSX** and sits in
  * a JSX value position (a `JSXAttribute` value such as
@@ -69,8 +86,16 @@ const QUERY_FLAG_FIELDS: ReadonlySet<string> = new Set([
 ]);
 
 const isHookLikeName = (name: string): boolean => /^use[A-Z]/.test(name);
+
+/**
+ * Hooks that match the `use*Query` shape but do not return a TanStack Query
+ * result. `useMediaQuery` is the DOM media-query listener, not data.
+ */
+const NON_DATA_QUERY_HOOKS: ReadonlySet<string> = new Set(['useMediaQuery']);
+
 const isQueryHookName = (name: string): boolean =>
-	/^use[A-Z].*Query$/.test(name) || name === 'useQuery';
+	!NON_DATA_QUERY_HOOKS.has(name) &&
+	(/^use[A-Z].*Query$/.test(name) || name === 'useQuery');
 const isMutationHookName = (name: string): boolean =>
 	name === 'useMutation' || /^use[A-Z].*Mutation$/.test(name);
 
@@ -87,12 +112,11 @@ export const EXCLUDED_RELATIVE_PREFIXES: readonly string[] = [
  * `prefer-query-display.exemption.test.ts` and must never widen. It is an
  * explicit file list on purpose — the pre-#1323 broad `components/table/`
  * directory prefix silently exempted every future screen added to that
- * directory. When QueryDisplay PR 3 lands (DataTable delegating to
- * `resolveTableBodyState` via the `no-match` slot), this list shrinks and
- * the pin updates in the same PR.
+ * directory. `data-table.tsx` left the list in #2341: DataTable now renders its
+ * states through `QueryDisplay` and takes a `query` prop, so it no longer binds
+ * a query hook itself and needs no exemption.
  */
 export const EXCLUDED_DATATABLE_RELATIVE_PATHS: readonly string[] = [
-	'components/table/data-table.tsx',
 	'components/table/floating-selection-bar.tsx',
 	'components/table/row-actions.tsx',
 ];
@@ -118,11 +142,49 @@ const isExcludedFile = (relativePath: string): boolean => {
 /** Locally-declared JSX-returning callback node (a hoisted render prop). */
 type HoistedFn = ESTree.Function | ESTree.ArrowFunctionExpression;
 
+/**
+ * Visit a node's AST children, skipping the parser's `parent` back-link.
+ * Following `parent` climbs out of the function being inspected into the whole
+ * file, which made every function in a JSX file look JSX-returning (a custom
+ * hook was then checked as a render function).
+ */
+const forEachAstChild = (
+	node: ESTree.Node,
+	visit: (child: ESTree.Node) => void,
+): void => {
+	for (const [key, value] of Object.entries(node)) {
+		if (key === 'parent') {
+			continue;
+		}
+		if (Array.isArray(value)) {
+			for (const child of value) {
+				if (child && typeof child === 'object' && 'type' in child) {
+					visit(child as ESTree.Node);
+				}
+			}
+		} else if (value && typeof value === 'object' && 'type' in value) {
+			visit(value as ESTree.Node);
+		}
+	}
+};
+
 interface TrackedBindings {
 	/** Whole binding names: `const q = useQuery()` → "q" (member access q.flag). */
 	whole: Set<string>;
 	/** Destructured flag names: `const { isError } = useQuery()` → "isError". */
 	flagged: Set<string>;
+	/**
+	 * The declarator that originated each whole binding. An alias shares its
+	 * origin (`const a = q` and `const view = { ...q, data }` point at `q`'s
+	 * declarator), so a `query={alias}` attribute consumes the original.
+	 */
+	rootOf: Map<string, ESTree.VariableDeclarator>;
+	/**
+	 * Declarators that destructure a query result (`const { data } = useX()`).
+	 * A render function must keep the whole result and hand it to
+	 * `QueryDisplay` instead.
+	 */
+	destructuredDeclarators: Set<ESTree.VariableDeclarator>;
 	/**
 	 * Locally-declared JSX-returning callbacks: `const renderX = () => <jsx/>`
 	 * → the function node. Referenced from a JSX attribute/child, they execute
@@ -155,6 +217,8 @@ const collectTrackedBindings = (
 	const tracked: TrackedBindings = {
 		whole: new Set(),
 		flagged: new Set(),
+		rootOf: new Map(),
+		destructuredDeclarators: new Set(),
 		hoistedJsxCallbacks: new Map(),
 		objectLiterals: new Map(),
 	};
@@ -164,7 +228,18 @@ const collectTrackedBindings = (
 	const MAX_PASSES = 10;
 
 	/** Track what a destructuring pattern binds from a query result object. */
-	const trackPattern = (id: ESTree.ObjectPattern): boolean => {
+	const trackPattern = (
+		id: ESTree.ObjectPattern,
+		declarator: ESTree.VariableDeclarator,
+		direct: boolean,
+	): boolean => {
+		// Destructuring the hook's own result is a violation: the whole result
+		// must reach `QueryDisplay` (see `queryNotRenderedThroughQueryDisplay`).
+		// Destructuring an already-tracked whole binding (`const { data } =
+		// query`) is not: the whole result is still there and gets rendered.
+		if (direct) {
+			tracked.destructuredDeclarators.add(declarator);
+		}
 		let changed = false;
 		for (const prop of id.properties) {
 			if (prop.type === 'Property') {
@@ -185,6 +260,7 @@ const collectTrackedBindings = (
 			) {
 				// Rest aliasing: `const { data, ...rest }` keeps a whole result.
 				tracked.whole.add(prop.argument.name);
+				tracked.rootOf.set(prop.argument.name, declarator);
 				changed = true;
 			}
 		}
@@ -208,11 +284,31 @@ const collectTrackedBindings = (
 			);
 		};
 
-		/** Is this initializer a reference to a tracked whole binding? */
-		const isWholeBindingRef = (init: ESTree.Expression | null): boolean =>
-			init !== null &&
-			init.type === 'Identifier' &&
-			tracked.whole.has(init.name);
+		/**
+		 * Is this initializer an alias of a tracked whole binding? Covers a
+		 * direct alias (`const q = r`) and an object view built from the result
+		 * (`const view = { ...q, data }`), the shape the migrated pages use to
+		 * feed `QueryDisplay` a derived `data`.
+		 */
+		const wholeBindingSource = (
+			init: ESTree.Expression | null,
+		): string | null => {
+			if (init?.type === 'Identifier' && tracked.whole.has(init.name)) {
+				return init.name;
+			}
+			if (init?.type === 'ObjectExpression') {
+				for (const prop of init.properties) {
+					if (
+						prop.type === 'SpreadElement' &&
+						prop.argument.type === 'Identifier' &&
+						tracked.whole.has(prop.argument.name)
+					) {
+						return prop.argument.name;
+					}
+				}
+			}
+			return null;
+		};
 
 		const visit = (node: ESTree.Node | null | undefined): void => {
 			if (!node || visited.has(node)) {
@@ -232,7 +328,8 @@ const collectTrackedBindings = (
 					const id = decl.id;
 					const init = decl.init;
 					const fromQuery = isQueryInit(init);
-					const fromTrackedWhole = isWholeBindingRef(init);
+					const aliasSource = fromQuery ? null : wholeBindingSource(init);
+					const fromTrackedWhole = aliasSource !== null;
 					if (id.type === 'Identifier') {
 						if (
 							(fromQuery || fromTrackedWhole) &&
@@ -241,6 +338,11 @@ const collectTrackedBindings = (
 							// Whole binding from the hook, or an alias of one:
 							// `const q = useQuery(); const alias = q;`.
 							tracked.whole.add(id.name);
+							let root = decl;
+							if (!fromQuery && aliasSource !== null) {
+								root = tracked.rootOf.get(aliasSource) ?? decl;
+							}
+							tracked.rootOf.set(id.name, root);
 							changed = true;
 						}
 						if (
@@ -262,23 +364,13 @@ const collectTrackedBindings = (
 						id.type === 'ObjectPattern' &&
 						(fromQuery || fromTrackedWhole)
 					) {
-						if (trackPattern(id)) {
+						if (trackPattern(id, decl, fromQuery)) {
 							changed = true;
 						}
 					}
 				}
 			}
-			for (const value of Object.values(node)) {
-				if (Array.isArray(value)) {
-					for (const child of value) {
-						if (child && typeof child === 'object' && 'type' in child) {
-							visit(child as ESTree.Node);
-						}
-					}
-				} else if (value && typeof value === 'object' && 'type' in value) {
-					visit(value as ESTree.Node);
-				}
-			}
+			forEachAstChild(node, visit);
 		};
 
 		visit(body);
@@ -325,6 +417,111 @@ const isConditionalExpr = (node: ESTree.Node | null | undefined): boolean =>
 	node !== null &&
 	node !== undefined &&
 	(node.type === 'ConditionalExpression' || node.type === 'LogicalExpression');
+
+/**
+ * Prop names that make a whole query result "handed over": `query` or a
+ * `*Query` name (`countsQuery`, `ownersQuery`). Any other prop name does not
+ * prove the receiver renders the result through `QueryDisplay`, so it does not
+ * silence the rule (review H finding 1: `<Foo people={q} />` used to count).
+ */
+const isQueryPropName = (name: string): boolean =>
+	name === 'query' || name.endsWith('Query');
+
+/**
+ * Names handed WHOLE to a component: a JSX attribute named `query` or ending
+ * in `Query` whose value is the binding (`<QueryDisplay query={q}>`,
+ * `<ListPage query={q}>`, `<DataTable query={q}>`, `<KpiCard query={q}>`,
+ * `<OverviewKpis countsQuery={q}>`), or a `query` property of a props/context
+ * object (`renderCard({ query: q })`, `contextValue={{ query: q }}`). The
+ * receiving component is responsible for rendering the result through
+ * `QueryDisplay` — that responsibility is enforced by review, not by this
+ * rule. The `query` property form is narrower because a props object may be
+ * consumed by anything; it keeps the documented `query` slot.
+ */
+const collectConsumedQueryNames = (
+	body: ESTree.BlockStatement,
+): Set<string> => {
+	const consumed = new Set<string>();
+	const visited = new WeakSet<ESTree.Node>();
+
+	const walk = (node: ESTree.Node | null | undefined): void => {
+		if (!node || typeof node !== 'object' || !('type' in node)) {
+			return;
+		}
+		if (visited.has(node)) {
+			return;
+		}
+		visited.add(node);
+		if (node.type === 'JSXAttribute' && node.name.type === 'JSXIdentifier') {
+			const value = node.value;
+			if (
+				isQueryPropName(node.name.name) &&
+				value?.type === 'JSXExpressionContainer' &&
+				value.expression.type === 'Identifier'
+			) {
+				consumed.add(value.expression.name);
+			}
+		}
+		if (
+			node.type === 'Property' &&
+			!node.computed &&
+			node.key.type === 'Identifier' &&
+			node.key.name === 'query' &&
+			node.value.type === 'Identifier'
+		) {
+			consumed.add(node.value.name);
+		}
+		forEachAstChild(node, walk);
+	};
+	walk(body);
+	return consumed;
+};
+
+/**
+ * Declarators that bind a `use*Query` result and never hand it to a `query`
+ * slot. One declarator is reported even when several aliases share it
+ * (`const q = useX(); const view = { ...q, data }`). Destructuring the hook's
+ * own result is reported too: the render function must keep the whole result.
+ */
+const findUnconsumedQueryDeclarators = (
+	body: ESTree.BlockStatement,
+	tracked: TrackedBindings,
+): ESTree.VariableDeclarator[] => {
+	const consumed = collectConsumedQueryNames(body);
+	const roots = new Map<
+		ESTree.VariableDeclarator,
+		{ names: Set<string>; destructured: boolean }
+	>();
+
+	const rootFor = (declarator: ESTree.VariableDeclarator) => {
+		let root = roots.get(declarator);
+		if (!root) {
+			root = { names: new Set(), destructured: false };
+			roots.set(declarator, root);
+		}
+		return root;
+	};
+
+	for (const [name, declarator] of tracked.rootOf) {
+		rootFor(declarator).names.add(name);
+	}
+	for (const declarator of tracked.destructuredDeclarators) {
+		rootFor(declarator).destructured = true;
+	}
+
+	const unconsumed: ESTree.VariableDeclarator[] = [];
+	for (const [declarator, root] of roots) {
+		if (root.destructured) {
+			unconsumed.push(declarator);
+			continue;
+		}
+		const isConsumed = [...root.names].some((name) => consumed.has(name));
+		if (!isConsumed) {
+			unconsumed.push(declarator);
+		}
+	}
+	return unconsumed;
+};
 
 /**
  * Resolve a hoisted render-prop reference — `render={renderX}` or
@@ -408,17 +605,7 @@ const directlyReturnsJsx = (
 			found = true;
 			return;
 		}
-		for (const value of Object.values(node)) {
-			if (Array.isArray(value)) {
-				for (const child of value) {
-					if (child && typeof child === 'object' && 'type' in child) {
-						walk(child as ESTree.Node);
-					}
-				}
-			} else if (value && typeof value === 'object' && 'type' in value) {
-				walk(value as ESTree.Node);
-			}
-		}
+		forEachAstChild(node, walk);
 	};
 	walk(body);
 	return found;
@@ -591,17 +778,7 @@ const scan = (
 				return;
 			}
 			default: {
-				for (const value of Object.values(node)) {
-					if (Array.isArray(value)) {
-						for (const child of value) {
-							if (child && typeof child === 'object' && 'type' in child) {
-								scanInner(child as ESTree.Node, conditional, false);
-							}
-						}
-					} else if (value && typeof value === 'object' && 'type' in value) {
-						scanInner(value as ESTree.Node, conditional, false);
-					}
-				}
+				forEachAstChild(node, (child) => scanInner(child, conditional, false));
 			}
 		}
 	};
@@ -638,17 +815,7 @@ const containsJsx = (
 			found = true;
 			return;
 		}
-		for (const value of Object.values(node)) {
-			if (Array.isArray(value)) {
-				for (const child of value) {
-					if (child && typeof child === 'object' && 'type' in child) {
-						walk(child as ESTree.Node);
-					}
-				}
-			} else if (value && typeof value === 'object' && 'type' in value) {
-				walk(value as ESTree.Node);
-			}
-		}
+		forEachAstChild(node, walk);
 	};
 	walk(body);
 	return found;
@@ -659,13 +826,15 @@ export const preferQueryDisplay = {
 		type: 'suggestion' as const,
 		docs: {
 			description:
-				'Require QueryDisplay for components rendering TanStack Query loading/error/empty/data states instead of hand-rolled conditional ladders.',
+				'Require QueryDisplay for every TanStack Query render in a component: no hand-rolled conditional ladder, and no query result rendered without a `query` slot.',
 			recommended: false,
 		},
 		schema: [],
 		messages: {
 			preferQueryDisplay:
 				'Render this TanStack Query state with the shared `QueryDisplay` component (loading / error / empty / data slots) rather than a hand-rolled conditional on `{{field}}`.',
+			queryNotRenderedThroughQueryDisplay:
+				'Render this query through `QueryDisplay` (variant="inline" or "discreet" for small widgets).',
 		},
 	},
 	create(context: Context): Visitor {
@@ -698,11 +867,17 @@ export const preferQueryDisplay = {
 				}
 
 				const tracked = collectTrackedBindings(body);
-				if (tracked.whole.size === 0 && tracked.flagged.size === 0) {
+				if (
+					tracked.whole.size === 0 &&
+					tracked.flagged.size === 0 &&
+					tracked.destructuredDeclarators.size === 0
+				) {
 					return;
 				}
 
+				let laddered = false;
 				scan(body, false, tracked, (field) => {
+					laddered = true;
 					if (reportedFields.has(field)) {
 						return;
 					}
@@ -713,6 +888,22 @@ export const preferQueryDisplay = {
 						data: { field },
 					});
 				});
+
+				// A hand-rolled ladder is already reported by the message above;
+				// reporting the same binding again would double-count a fix.
+				if (laddered) {
+					return;
+				}
+
+				for (const declarator of findUnconsumedQueryDeclarators(
+					body,
+					tracked,
+				)) {
+					context.report({
+						node: declarator,
+						messageId: 'queryNotRenderedThroughQueryDisplay',
+					});
+				}
 			},
 		};
 	},

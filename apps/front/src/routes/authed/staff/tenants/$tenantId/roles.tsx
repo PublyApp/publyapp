@@ -209,15 +209,9 @@ const StaffTenantRolesPage = () => {
 				controller={controller}
 				selection={selection}
 				bodyState={list.bodyState}
-				queryState={{
-					hasActiveSearch: list.hasActiveSearch,
-					isPending: rolesQuery.isPending,
-					isError: rolesQuery.isError,
-					error: rolesQuery.error,
-					isFetching: rolesQuery.isFetching,
-				}}
+				query={rolesQuery}
+				hasActiveSearch={list.hasActiveSearch}
 				nextCursor={rolesQuery.data?.nextCursor}
-				onRetry={() => void rolesQuery.refetch()}
 				onEditRequest={list.onEditRequest}
 				onDeleteRequest={list.setDeleteTarget}
 				onToggleCardSelection={list.toggleCardSelection}

@@ -15,6 +15,9 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form } from '~/components/field';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
@@ -80,45 +83,45 @@ const getZodForI18n = (instance: I18nInstance) => {
 const InvitationRoleField = ({
 	index,
 	roleLoadError,
-	rolesQuery,
+	query,
 	roleOptions,
 	isPending,
 }: {
 	index: number;
 	roleLoadError: string;
-	rolesQuery: ReturnType<typeof useStaffRolesQuery>;
+	query: ReturnType<typeof useStaffRolesQuery>;
 	roleOptions: ReturnType<typeof buildStaffRoleOptions>;
 	isPending: boolean;
 }) => {
 	const { t } = useTranslation(['staff-invitations', 'common']);
-
-	if (roleLoadError) {
-		return <p className="text-sm text-destructive">{roleLoadError}</p>;
-	}
-
-	if (rolesQuery.isPending) {
-		return (
-			<div className="flex items-center gap-2 text-sm text-muted-foreground">
-				<LoadingSpinner />
-				<span>{t('common:roles')}</span>
-			</div>
-		);
-	}
-
-	if (roleOptions.length === 0) {
-		return (
-			<p className="text-sm text-muted-foreground">{t('no-results-found')}</p>
-		);
-	}
+	// `QueryDisplay` reads emptiness from `data`; hand it the built options —
+	// the same predicate the hand-written ladder used.
+	const stateQuery: QueryDisplayQuery = { ...query, data: roleOptions };
 
 	return (
-		<Field.CheckboxGroup
-			name={`invitations.${index}.roleIds`}
-			label={t('common:select-roles')}
-			helperText={t('select-at-least-one-role')}
-			options={roleOptions}
-			isDisabled={isPending || rolesQuery.isPending}
-		/>
+		<QueryDisplay
+			query={stateQuery}
+			LoadingSlot={
+				<div className="flex items-center gap-2 text-sm text-muted-foreground">
+					<LoadingSpinner />
+					<span>{t('common:roles')}</span>
+				</div>
+			}
+			ErrorSlot={<p className="text-sm text-destructive">{roleLoadError}</p>}
+			EmptySlot={
+				<p className="text-sm text-muted-foreground">{t('no-results-found')}</p>
+			}
+		>
+			{() => (
+				<Field.CheckboxGroup
+					name={`invitations.${index}.roleIds`}
+					label={t('common:select-roles')}
+					helperText={t('select-at-least-one-role')}
+					options={roleOptions}
+					isDisabled={isPending || query.isPending}
+				/>
+			)}
+		</QueryDisplay>
 	);
 };
 
@@ -364,7 +367,7 @@ const NewStaffInvitationsRoute = () => {
 								<InvitationRoleField
 									index={index}
 									roleLoadError={roleLoadError}
-									rolesQuery={rolesQuery}
+									query={rolesQuery}
 									roleOptions={roleOptions}
 									isPending={isPending}
 								/>

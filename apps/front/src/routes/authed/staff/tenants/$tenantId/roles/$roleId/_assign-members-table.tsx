@@ -1,4 +1,5 @@
 import { IconUsers } from '@tabler/icons-react';
+import QueryDisplay from '~/components/query-display';
 import { DataTable } from '~/components/table/data-table';
 import type { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
@@ -49,34 +50,33 @@ export const AssignMembersTable = ({
 
 	return (
 		<>
-			{resolutionQuery.isError ? (
-				<ErrorStateSurface
-					title={t('assign-members-resolution-error-title')}
-					description={t('assign-members-resolution-error-description')}
-					actions={
-						<Button
-							type="button"
-							variant="outline"
-							onClick={() => void resolutionQuery.refetch()}
-						>
-							{t('retry')}
-						</Button>
-					}
-					testId="assign-members-resolution-error"
-				/>
-			) : null}
+			<QueryDisplay
+				query={resolutionQuery}
+				variant="discreet"
+				ErrorSlot={
+					<ErrorStateSurface
+						title={t('assign-members-resolution-error-title')}
+						description={t('assign-members-resolution-error-description')}
+						actions={
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => void resolutionQuery.refetch()}
+							>
+								{t('retry')}
+							</Button>
+						}
+						testId="assign-members-resolution-error"
+					/>
+				}
+			/>
 			<DataTable<StaffTenantUserRow>
 				testId="assign-members-table"
 				ariaLabel={t('assign-members')}
 				columns={columns}
 				rows={rows}
-				queryState={{
-					isPending: usersQuery.isPending,
-					isError: usersQuery.isError,
-					error: usersQuery.error,
-					onRetry: () => void usersQuery.refetch(),
-					hasActiveSearch: Boolean(controller.search.committed),
-				}}
+				query={usersQuery}
+				hasActiveSearch={Boolean(controller.search.committed)}
 				pagination={{
 					pageIndex: controller.cursor.pageIndex,
 					hasPreviousPage: controller.cursor.hasPreviousPage,

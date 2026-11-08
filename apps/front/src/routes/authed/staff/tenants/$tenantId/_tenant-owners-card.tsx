@@ -1,4 +1,7 @@
 import { Link } from '@tanstack/react-router';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import { PersonAvatar } from '~/components/ui/person-avatar';
 import { toStaffTenantUserRows } from '~/lib/query/staff-tenant-users';
 import type { useStaffTenantUsersQuery } from '~/lib/query/staff-tenant-users';
@@ -6,60 +9,21 @@ import type { StaffTenantDetails } from '~/lib/query/staff-tenants';
 
 export const OwnersCard = ({
 	tenant,
-	ownersQuery,
+	query,
 	t,
 }: {
 	tenant: StaffTenantDetails;
-	ownersQuery: ReturnType<typeof useStaffTenantUsersQuery>;
+	query: ReturnType<typeof useStaffTenantUsersQuery>;
 	t: (key: string) => string;
 }) => {
 	// ponytail: no server-side access filter exists — owners are the full-access
 	// holders inside one scanned page. Move to a server filter if a tenant ever
 	// has more owners than the page size.
-	const rows = toStaffTenantUserRows(ownersQuery.data?.data)
+	const rows = toStaffTenantUserRows(query.data?.data)
 		.filter((row) => row.isFullAccess)
 		.slice(0, 5);
-
-	let rowsContent: React.ReactNode;
-	if (ownersQuery.isPending) {
-		rowsContent = <p className="px-4 py-4 text-xs text-muted-foreground">…</p>;
-	} else if (ownersQuery.isError) {
-		rowsContent = (
-			<p className="px-4 py-4 text-xs text-muted-foreground">
-				{t('tenant-owners-preview-error')}
-			</p>
-		);
-	} else if (rows.length === 0) {
-		rowsContent = (
-			<p className="px-4 py-4 text-xs text-muted-foreground">
-				{t('no-tenant-owners')}
-			</p>
-		);
-	} else {
-		rowsContent = (
-			<div className="divide-y divide-[color:var(--publy-row-border)]">
-				{rows.map((row) => (
-					<div
-						key={row.id}
-						className="flex items-center gap-3 px-[18px] py-[11px]"
-					>
-						<PersonAvatar name={row.displayName} avatarUrl={row.avatarUrl} />
-						<div className="min-w-0 flex-1">
-							<p className="truncate text-[13px] font-medium text-foreground">
-								{row.displayName}
-							</p>
-							<p className="truncate text-xs text-muted-foreground">
-								{row.email}
-							</p>
-						</div>
-						<span className="publy-detail-chip publy-detail-chip--amber shrink-0">
-							{t('owner-chip-label')}
-						</span>
-					</div>
-				))}
-			</div>
-		);
-	}
+	// `QueryDisplay` reads emptiness from `data`; hand it the owner rows.
+	const stateQuery: QueryDisplayQuery = { ...query, data: rows };
 
 	return (
 		<section className="rounded-[var(--publy-radius-card)] bg-card shadow-[var(--publy-shadow-ring)]">
@@ -76,7 +40,49 @@ export const OwnersCard = ({
 					{t('see-all')}
 				</Link>
 			</div>
-			<div data-testid="tenant-owners-rows">{rowsContent}</div>
+			<div data-testid="tenant-owners-rows">
+				<QueryDisplay
+					query={stateQuery}
+					LoadingSlot={
+						<p className="px-4 py-4 text-xs text-muted-foreground">…</p>
+					}
+					ErrorSlot={
+						<p className="px-4 py-4 text-xs text-muted-foreground">
+							{t('tenant-owners-preview-error')}
+						</p>
+					}
+					EmptySlot={
+						<p className="px-4 py-4 text-xs text-muted-foreground">
+							{t('no-tenant-owners')}
+						</p>
+					}
+				>
+					<div className="divide-y divide-[color:var(--publy-row-border)]">
+						{rows.map((row) => (
+							<div
+								key={row.id}
+								className="flex items-center gap-3 px-[18px] py-[11px]"
+							>
+								<PersonAvatar
+									name={row.displayName}
+									avatarUrl={row.avatarUrl}
+								/>
+								<div className="min-w-0 flex-1">
+									<p className="truncate text-[13px] font-medium text-foreground">
+										{row.displayName}
+									</p>
+									<p className="truncate text-xs text-muted-foreground">
+										{row.email}
+									</p>
+								</div>
+								<span className="publy-detail-chip publy-detail-chip--amber shrink-0">
+									{t('owner-chip-label')}
+								</span>
+							</div>
+						))}
+					</div>
+				</QueryDisplay>
+			</div>
 		</section>
 	);
 };

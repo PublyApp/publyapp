@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { Checkbox } from '~/components/ui/checkbox';
 import {
@@ -69,20 +70,105 @@ export const LinkCompaniesDrawerHost = ({
 		{ q: search || undefined, size: PICKER_PAGE_SIZE },
 		{ enabled: isOpen },
 	);
-	const options = useMemo(
-		() => toTenantPickerOptions(pickerQuery.data),
-		[pickerQuery.data],
-	);
-	// Hoisted so the picker's loading/error ladder reads plain locals.
-	const pickerIsPending = pickerQuery.isPending;
-	const pickerIsError = pickerQuery.isError;
-	const pickerError = pickerQuery.error;
-	// `isSuccess` is a query flag too: fold it here so the JSX below never
-	// branches on the raw query object.
-	const pickerIsEmptySuccess =
-		pickerQuery.data !== undefined && options.length === 0;
 	// Rows already linked cannot be linked twice — hidden from the picker.
 	const linkedIds = useMemo(() => new Set<string>(), []);
+
+	// The parent's list markup and empty-success copy: the parent showed the
+	// « no matching companies / no items found » paragraph AND the (empty)
+	// list on a zero-row success. `renderOptions` is shared by the data and
+	// error-held-data renders so the error branch never duplicates it.
+	const renderOptions = (options: ReturnType<typeof toTenantPickerOptions>) => (
+		<ul className="space-y-2" data-testid="link-companies-options">
+			{options.map((option) => {
+				const isChecked = selectedTenantIds.has(option.id);
+				const isLinked = linkedIds.has(option.id);
+
+				return (
+					<li key={option.id}>
+						<label className="flex cursor-pointer items-center gap-3 rounded-[var(--publy-radius-sm)] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-3 hover:bg-[var(--publy-surface-hover)]">
+							<Checkbox
+								checked={isChecked}
+								disabled={isLinked}
+								onCheckedChange={(checked) => {
+									setSelectedTenantIds((previous) => {
+										const next = new Set(previous);
+										if (checked) {
+											next.add(option.id);
+										} else {
+											next.delete(option.id);
+										}
+										return next;
+									});
+								}}
+								aria-label={option.name}
+							/>
+							<BrandTile name={option.name} logoUrl={option.logoUrl} />
+							<span className="min-w-0 flex-1 truncate text-sm font-medium">
+								{option.name}
+							</span>
+							{option.status ? (
+								<span className="text-xs text-muted-foreground">
+									{formatTenantStatusLabel(option.status ?? '', t)}
+								</span>
+							) : null}
+						</label>
+					</li>
+				);
+			})}
+		</ul>
+	);
+	const renderEmptyCompanies = (
+		<p
+			className="py-6 text-center text-sm text-muted-foreground"
+			data-testid="link-companies-empty"
+		>
+			{search ? t('no-matching-companies') : t('no-items-found')}
+		</p>
+	);
+
+	// F-M1 (#2341): ErrorSlot must be an ELEMENT with a stable type, not an
+	// inline arrow. QueryDisplay mounts a function slot as a component, so an
+	// arrow is a new component type on every host render and would remount the
+	// held-data list (dropping the focused row's checkbox) each time it is ticked.
+	// Computing the element here keeps the subtree reconciling in place.
+	const errorContent = (
+		<p
+			className="py-6 text-center text-sm text-destructive"
+			role="alert"
+			data-testid="link-companies-error"
+		>
+			{getFailureMessage(toApiFailure(pickerQuery.error), {
+				fallback: t('an-error-occurred'),
+			})}
+			<Button
+				variant="outline"
+				size="sm"
+				type="button"
+				className="ml-2"
+				onClick={() => void pickerQuery.refetch()}
+			>
+				{t('try-again')}
+			</Button>
+		</p>
+	);
+	const heldOptions =
+		pickerQuery.data === undefined
+			? undefined
+			: toTenantPickerOptions(pickerQuery.data);
+	// The parent rendered the error paragraph AND kept deriving the list from
+	// the query data, so a failed refetch (TanStack v5 flips `status: 'error'`
+	// without clearing `data`) still shows the loaded rows. On a first-load
+	// failure `data === undefined` -> the error paragraph alone, as before.
+	const errorSlot =
+		heldOptions === undefined ? (
+			errorContent
+		) : (
+			<>
+				{errorContent}
+				{heldOptions.length === 0 ? renderEmptyCompanies : null}
+				{renderOptions(heldOptions)}
+			</>
+		);
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
@@ -182,83 +268,33 @@ export const LinkCompaniesDrawerHost = ({
 							/>
 						</div>
 
-						{pickerIsPending ? (
-							<p
-								className="py-6 text-center text-sm text-muted-foreground"
-								data-testid="link-companies-loading"
-							>
-								{t('loading')}
-							</p>
-						) : null}
-
-						{pickerIsError ? (
-							<p
-								className="py-6 text-center text-sm text-destructive"
-								role="alert"
-								data-testid="link-companies-error"
-							>
-								{getFailureMessage(toApiFailure(pickerError), {
-									fallback: t('an-error-occurred'),
-								})}
-								<Button
-									variant="outline"
-									size="sm"
-									type="button"
-									className="ml-2"
-									onClick={() => void pickerQuery.refetch()}
+						<QueryDisplay
+							query={pickerQuery}
+							LoadingSlot={
+								<p
+									className="py-6 text-center text-sm text-muted-foreground"
+									data-testid="link-companies-loading"
 								>
-									{t('try-again')}
-								</Button>
-							</p>
-						) : null}
-
-						{pickerIsEmptySuccess ? (
-							<p
-								className="py-6 text-center text-sm text-muted-foreground"
-								data-testid="link-companies-empty"
-							>
-								{search ? t('no-matching-companies') : t('no-items-found')}
-							</p>
-						) : null}
-
-						<ul className="space-y-2" data-testid="link-companies-options">
-							{options.map((option) => {
-								const isChecked = selectedTenantIds.has(option.id);
-								const isLinked = linkedIds.has(option.id);
+									{t('loading')}
+								</p>
+							}
+							ErrorSlot={errorSlot}
+							EmptySlot={renderEmptyCompanies}
+						>
+							{({ data }) => {
+								const options = toTenantPickerOptions(data);
 
 								return (
-									<li key={option.id}>
-										<label className="flex cursor-pointer items-center gap-3 rounded-[var(--publy-radius-sm)] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-3 hover:bg-[var(--publy-surface-hover)]">
-											<Checkbox
-												checked={isChecked}
-												disabled={isLinked}
-												onCheckedChange={(checked) => {
-													setSelectedTenantIds((previous) => {
-														const next = new Set(previous);
-														if (checked) {
-															next.add(option.id);
-														} else {
-															next.delete(option.id);
-														}
-														return next;
-													});
-												}}
-												aria-label={option.name}
-											/>
-											<BrandTile name={option.name} logoUrl={option.logoUrl} />
-											<span className="min-w-0 flex-1 truncate text-sm font-medium">
-												{option.name}
-											</span>
-											{option.status ? (
-												<span className="text-xs text-muted-foreground">
-													{formatTenantStatusLabel(option.status ?? '', t)}
-												</span>
-											) : null}
-										</label>
-									</li>
+									<>
+										{
+											null /* ponytail: errorContent slot placeholder — keeps <ul> at child index 2, aligned with the error branch so React reconciles it in place across data↔error flips */
+										}
+										{options.length === 0 ? renderEmptyCompanies : null}
+										{renderOptions(options)}
+									</>
 								);
-							})}
-						</ul>
+							}}
+						</QueryDisplay>
 					</DrawerBody>
 					<DrawerFooter>
 						<Button

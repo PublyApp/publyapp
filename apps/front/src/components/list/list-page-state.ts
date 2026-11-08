@@ -41,7 +41,7 @@ export const useListPage = <T extends { id: string }>({
 	onTabChange,
 	renderActions,
 	totals,
-	queryState,
+	query,
 }: ListPageProps<T>) => {
 	const { t } = useTranslation('common');
 	const top = useRef<HTMLElement>(null);
@@ -201,8 +201,8 @@ export const useListPage = <T extends { id: string }>({
 	}
 	const hasActiveSearch = q.length > 0 || activeFilterCount > 0;
 	const bodyState = resolveTableBodyState({
-		isPending: queryState.isPending,
-		isError: queryState.isError,
+		isPending: query.isPending,
+		isError: query.isError,
 		rowCount: displayed.length,
 		hasActiveSearch,
 	});

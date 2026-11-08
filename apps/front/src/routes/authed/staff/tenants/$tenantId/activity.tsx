@@ -135,13 +135,8 @@ const StaffTenantActivityPage = () => {
 							ariaLabel={t('tenant-activity-page-title')}
 							columns={columns}
 							rows={rows}
-							queryState={{
-								isPending: activityQuery.isPending,
-								isError: activityQuery.isError,
-								error: activityQuery.error,
-								onRetry: () => void activityQuery.refetch(),
-								hasActiveSearch: false,
-							}}
+							query={activityQuery}
+							hasActiveSearch={false}
 							pagination={{
 								pageIndex: controller.cursor.pageIndex,
 								hasPreviousPage: controller.cursor.hasPreviousPage,

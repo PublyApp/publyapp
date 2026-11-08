@@ -143,12 +143,16 @@ const renderAllSelected = (): HTMLElement => {
 			ariaLabel="proof 1799 table"
 			columns={columns}
 			rows={rows}
-			queryState={{
+			query={{
 				isPending: false,
+				isLoading: false,
+				isFetching: false,
 				isError: false,
-				onRetry: () => undefined,
-				hasActiveSearch: false,
+				error: null,
+				data: undefined,
+				refetch: vi.fn(),
 			}}
+			hasActiveSearch={false}
 			pagination={{
 				pageIndex: 0,
 				hasPreviousPage: false,

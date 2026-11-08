@@ -106,7 +106,7 @@ vi.mock('~/lib/query/staff-roles', async (importOriginal) => ({
 	...(await importOriginal<typeof import('~/lib/query/staff-roles')>()),
 	toStaffRoleDetails: (
 		data: { id: string; name: string; userAccountCount: number } | undefined,
-	) => data ?? null,
+	) => (data?.id && data.name ? data : null),
 	useStaffRoleDetailsQuery: mocks.useStaffRoleDetailsQuery,
 	selectStaffRoleCrumbName: () => undefined,
 	staffRoleCrumbQuery: () => undefined,
@@ -300,6 +300,24 @@ describe('staff role users page', () => {
 		const tabsRoot = tabsContent?.closest('[data-slot="tabs"]');
 		expect(tabsRoot?.className).toContain('min-h-0');
 		expect(tabsRoot?.className).toContain('flex-1');
+	});
+
+	test('renders the not-found view for a malformed detail payload', () => {
+		// A 200 with a payload missing the role identity: `toStaffRoleDetails`
+		// returns null, the payload is not "empty" for QueryDisplay, so the
+		// children branch must render the 404 view instead of a blank page.
+		mocks.useStaffRoleDetailsQuery.mockReturnValue({
+			data: { userAccountCount: 3 },
+			isPending: false,
+			isError: false,
+			error: null,
+			refetch: vi.fn(),
+		});
+
+		renderPage();
+
+		expect(screen.getByTestId('staff-role-users-empty')).toBeTruthy();
+		expect(screen.queryByTestId('staff-role-users-page')).toBeNull();
 	});
 
 	test('passes the 403 explanation to the list error state', () => {

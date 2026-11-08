@@ -108,12 +108,16 @@ const renderDataTableWithSelection = (selectionMap: RowSelectionMap) => {
 			ariaLabel="Selection integration table"
 			columns={selectionColumns}
 			rows={selectionRows}
-			queryState={{
+			query={{
 				isPending: false,
+				isLoading: false,
+				isFetching: false,
 				isError: false,
-				onRetry: () => undefined,
-				hasActiveSearch: false,
+				error: null,
+				data: undefined,
+				refetch: vi.fn(),
 			}}
+			hasActiveSearch={false}
 			pagination={{
 				pageIndex: 0,
 				hasPreviousPage: false,

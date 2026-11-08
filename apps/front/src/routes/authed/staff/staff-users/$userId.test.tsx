@@ -65,8 +65,7 @@ vi.mock('@tanstack/react-router', () => ({
 			canReactivate,
 			isDeletePending,
 			suspendLabelKey,
-			rolesIsPending,
-			onRetryRoles,
+			query,
 		} = useStaffUserOverviewContext();
 		const suspendLabel =
 			suspendLabelKey === 'reactivate' ? 'Reactivate' : 'Suspend';
@@ -74,9 +73,9 @@ vi.mock('@tanstack/react-router', () => ({
 		return (
 			<div data-testid="staff-user-details-outlet">
 				<span data-testid="staff-user-details-outlet-roles-pending">
-					{String(rolesIsPending)}
+					{String(query.isPending)}
 				</span>
-				<button type="button" onClick={onRetryRoles}>
+				<button type="button" onClick={() => void query.refetch()}>
 					Retry roles
 				</button>
 				<button

@@ -27,7 +27,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import type { i18n as I18nInstance } from 'i18next';
 import { createElement } from 'react';
 import { I18nextProvider } from 'react-i18next';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import enLocale from '~/i18n/locales/en';
 import frLocale from '~/i18n/locales/fr';
 import { createI18nFromResources } from '~/lib/i18n/react-i18n';
@@ -85,12 +85,16 @@ const renderTable = (
 				ariaLabel: 'Test table',
 				columns,
 				rows: props.rows,
-				queryState: {
+				query: {
 					isPending: false,
+					isLoading: false,
+					isFetching: false,
 					isError: false,
-					onRetry: () => undefined,
-					hasActiveSearch: false,
+					error: null,
+					data: undefined,
+					refetch: vi.fn(),
 				},
+				hasActiveSearch: false,
 				pagination: {
 					pageIndex: props.pageIndex ?? 1,
 					hasPreviousPage: true,
@@ -197,12 +201,16 @@ describe('DataTable range counter — the #282 state matrix (real bundles)', () 
 					ariaLabel: 'Test table',
 					columns,
 					rows: fullPageRows,
-					queryState: {
+					query: {
 						isPending: false,
+						isLoading: false,
+						isFetching: false,
 						isError: false,
-						onRetry: () => undefined,
-						hasActiveSearch: false,
+						error: null,
+						data: undefined,
+						refetch: vi.fn(),
 					},
+					hasActiveSearch: false,
 					pagination: {
 						pageIndex: 1,
 						hasPreviousPage: true,

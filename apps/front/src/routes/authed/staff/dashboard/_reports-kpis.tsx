@@ -23,6 +23,7 @@ import { KpiCard } from './_dashboard-ui';
 export const ReportsKpis = ({
 	auditEvents,
 	seriesQuery,
+	previousSeriesQuery,
 	seriesPoints,
 	impersonationsQuery,
 	auditDelta,
@@ -31,6 +32,11 @@ export const ReportsKpis = ({
 }: {
 	auditEvents: number | null | undefined;
 	seriesQuery: UseQueryResult<GetDashboardSeriesForStaffResponse, Error>;
+	/** The previous window's series, read only for the delta. */
+	previousSeriesQuery: UseQueryResult<
+		GetDashboardSeriesForStaffResponse,
+		Error
+	>;
 	seriesPoints: ReadonlyArray<{ label: string; value: number }>;
 	impersonationsQuery: UseQueryResult<FindAuditLogsResponse, Error>;
 	auditDelta?: { label: string; direction: 'up' | 'down' };
@@ -51,6 +57,7 @@ export const ReportsKpis = ({
 				figure={auditEvents}
 				locale={locale}
 				query={seriesQuery}
+				deltaQuery={previousSeriesQuery}
 				delta={auditDelta}
 				deltaPeriod={deltaPeriod}
 				sparkline={seriesPoints.map((point) => point.value)}

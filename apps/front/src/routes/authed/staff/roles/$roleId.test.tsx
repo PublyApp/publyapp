@@ -217,6 +217,19 @@ describe('staff role details route', () => {
 		expect(screen.queryByTestId('logout-redirect')).toBeNull();
 	});
 
+	test('renders the role page while the permission catalog is still pending, gating only the count (#2341 M1)', () => {
+		mocks.useStaffPermissionCatalogQuery.mockReturnValue(
+			buildQueryResult({ isPending: true }),
+		);
+
+		renderPage();
+
+		// The catalog only feeds the optional "N of M" count: while it is in
+		// flight the whole detail page must stay rendered, not be replaced by
+		// a bare spinner.
+		expect(screen.getByTestId('staff-role-details-page')).toBeTruthy();
+	});
+
 	test('omits the member count metric entirely when it is null, instead of fabricating "0 members" or an em-dash (r5-F5)', () => {
 		mocks.useStaffRoleDetailsQuery.mockReturnValue(
 			buildQueryResult({
@@ -337,6 +350,48 @@ describe('staff role details route', () => {
 					title: 'Server Error',
 					detail: 'Oops',
 				},
+				isError: true,
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByText('problem-loading-staff-role-details')).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'try-again' })).toBeTruthy();
+	});
+
+	test('keeps the shown member rows when a refetch fails with cached data (#2341 M2)', () => {
+		mocks.useStaffRoleUsersQuery.mockReturnValue(
+			buildQueryResult({
+				data: {
+					users: [
+						{
+							id: 'u1',
+							firstName: 'Ada',
+							lastName: 'Lovelace',
+							email: 'ada@example.com',
+							avatarUrl: null,
+						},
+					],
+					count: 1,
+				},
+				// A dropped connection on a window-focus refetch: the rows are
+				// already on screen and must not be swapped for an error view.
+				error: new TypeError('Failed to fetch'),
+				isError: true,
+			}),
+		);
+
+		renderPage();
+
+		expect(screen.getByText('Ada Lovelace')).toBeTruthy();
+		expect(screen.queryByText('problem-loading-staff-role-details')).toBeNull();
+	});
+
+	test('shows the retryable error on a first-load members network failure (#2341 M2)', () => {
+		mocks.useStaffRoleUsersQuery.mockReturnValue(
+			buildQueryResult({
+				error: new TypeError('Failed to fetch'),
 				isError: true,
 			}),
 		);

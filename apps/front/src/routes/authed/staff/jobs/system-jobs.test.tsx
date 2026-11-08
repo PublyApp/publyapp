@@ -279,18 +279,18 @@ vi.mock('~/components/table/data-table', () => ({
 		testId,
 		columns,
 		rows,
-		queryState,
+		query,
 		emptyTitle,
 		emptyContent,
 	}: {
 		testId?: string;
 		columns: Array<{ id: string; cell: (ctx: unknown) => ReactNode }>;
 		rows: Array<{ id: string; jobKey: string }>;
-		queryState: { isPending: boolean; isError: boolean };
+		query: { isPending: boolean; isError: boolean };
 		emptyTitle?: string;
 		emptyContent?: string;
 	}) => {
-		if (queryState.isPending) {
+		if (query.isPending) {
 			return createElement('div', { 'data-testid': testId }, [
 				createElement('div', { key: 'loading' }, 'Loading...'),
 			]);

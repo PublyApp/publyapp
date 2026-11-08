@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
+import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
@@ -167,50 +168,57 @@ const IdentityEditSection = ({ userId }: { userId: string }) => {
 		toastLocalMutationResult.success(t('tenant-user-updated-success'));
 	});
 
+	// The form is fed by the details payload: it only exists once the query has
+	// one (the shell above already renders the loading/error states, and this
+	// tab shares its cache key).
 	return (
-		<FormPageLayout data-testid="tenant-user-general-tab">
-			<Form methods={methods} onSubmit={onSubmit}>
-				<div className="rounded-[var(--publy-radius-card)] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-5">
-					<h2 className="text-sm font-medium text-foreground">
-						{t('metadata')}
-					</h2>
-					<div className="mt-4 grid gap-4 sm:grid-cols-2">
-						<Field.Text
-							name="firstName"
-							label={t('firstname')}
-							isDisabled={updateIdentity.isPending}
-						/>
-						<Field.Text
-							name="lastName"
-							label={t('lastname')}
-							isDisabled={updateIdentity.isPending}
-						/>
-					</div>
-					<p className="mt-4 text-[13px] text-muted-foreground">
-						{t('email-address')}: {user?.email ?? ''}
-					</p>
-				</div>
+		<QueryDisplay query={detailsQuery}>
+			{() => (
+				<FormPageLayout data-testid="tenant-user-general-tab">
+					<Form methods={methods} onSubmit={onSubmit}>
+						<div className="rounded-[var(--publy-radius-card)] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-5">
+							<h2 className="text-sm font-medium text-foreground">
+								{t('metadata')}
+							</h2>
+							<div className="mt-4 grid gap-4 sm:grid-cols-2">
+								<Field.Text
+									name="firstName"
+									label={t('firstname')}
+									isDisabled={updateIdentity.isPending}
+								/>
+								<Field.Text
+									name="lastName"
+									label={t('lastname')}
+									isDisabled={updateIdentity.isPending}
+								/>
+							</div>
+							<p className="mt-4 text-[13px] text-muted-foreground">
+								{t('email-address')}: {user?.email ?? ''}
+							</p>
+						</div>
 
-				<FormActionBar>
-					<Button type="submit" disabled={updateIdentity.isPending}>
-						{t('save-changes')}
-					</Button>
-				</FormActionBar>
-			</Form>
-			<ConfirmDialog
-				isOpen={blocker.status === 'blocked'}
-				title={t('unsaved-changes-dialog-title')}
-				description={t('unsaved-changes-dialog-description')}
-				confirmLabel={t('leave-page')}
-				cancelLabel={t('cancel')}
-				tone="danger"
-				onConfirm={() => blocker.proceed?.()}
-				onOpenChange={(isOpen) => {
-					if (!isOpen) {
-						blocker.reset?.();
-					}
-				}}
-			/>
-		</FormPageLayout>
+						<FormActionBar>
+							<Button type="submit" disabled={updateIdentity.isPending}>
+								{t('save-changes')}
+							</Button>
+						</FormActionBar>
+					</Form>
+					<ConfirmDialog
+						isOpen={blocker.status === 'blocked'}
+						title={t('unsaved-changes-dialog-title')}
+						description={t('unsaved-changes-dialog-description')}
+						confirmLabel={t('leave-page')}
+						cancelLabel={t('cancel')}
+						tone="danger"
+						onConfirm={() => blocker.proceed?.()}
+						onOpenChange={(isOpen) => {
+							if (!isOpen) {
+								blocker.reset?.();
+							}
+						}}
+					/>
+				</FormPageLayout>
+			)}
+		</QueryDisplay>
 	);
 };

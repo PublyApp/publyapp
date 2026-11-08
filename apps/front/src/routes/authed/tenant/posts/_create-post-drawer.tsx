@@ -16,10 +16,7 @@ import {
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import { savePost, invalidateTenantPosts } from '~/lib/query/tenant-posts';
-import {
-	useTenantProjectsQuery,
-	toTenantProjectItems,
-} from '~/lib/query/tenant-projects';
+import { useTenantProjectsQuery } from '~/lib/query/tenant-projects';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -29,6 +26,7 @@ import { CreatePostActions, HandoffPanel } from './_create-post-drawer-parts';
 import { PostBodyCounter } from './_post-body-counter';
 import type { DeferredImageSelection } from './_post-image-picker';
 import { PostImagePicker } from './_post-image-picker';
+import { PostProjectField } from './_post-project-field';
 import { PostSegmentsEditor } from './_post-segments-editor';
 import { PublishOnBlock } from './_publish-on-block';
 import { NO_SEGMENTS } from './_segment-draft';
@@ -66,7 +64,6 @@ export const CreatePostDrawer = ({
 	const translateResponseMessage = useResponseMessageTranslator();
 	const qc = useQueryClient();
 	const projectsQuery = useTenantProjectsQuery({ tenantId });
-	const projectItems = toTenantProjectItems(projectsQuery.data);
 	// Language-keyed resolver: schema + resolver built once per language, not
 	// once per render.
 	const resolver = useLanguageKeyedZodResolver<FormValues>(getSchema, [
@@ -285,20 +282,7 @@ export const CreatePostDrawer = ({
 								{methods.formState.errors.root.message}
 							</p>
 						) : null}
-						<Field.Select
-							name="projectId"
-							label={t('posts:project-label')}
-							placeholder={t('posts:project-placeholder')}
-							options={projectItems.map((p) => ({
-								value: p.id,
-								label: p.name,
-							}))}
-						/>
-						{projectItems.length === 0 ? (
-							<p className="text-muted-foreground text-xs">
-								{t('posts:no-projects-yet')}
-							</p>
-						) : null}
+						<PostProjectField projectsQuery={projectsQuery} />
 						{isHandoffPending ? (
 							<HandoffPanel
 								cause={handoffCause}

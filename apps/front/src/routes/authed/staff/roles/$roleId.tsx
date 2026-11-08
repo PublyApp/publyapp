@@ -1,9 +1,11 @@
-import { IconArrowLeft, IconSearchOff } from '@tabler/icons-react';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { createFileRoute, Link, useBlocker } from '@tanstack/react-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
@@ -25,13 +27,13 @@ import {
 	useStaffRolePermissionKeysQuery,
 } from '~/lib/query/staff-roles';
 
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { StaffRoleAboutCard } from './$roleId/_about-card';
 import { RoleDetailsError, RoleDetailsLoading } from './$roleId/_detail-views';
 import { StaffRoleIdentityHeader } from './$roleId/_identity-header';
 import { renderStaffRoleMembersCard } from './$roleId/_members-card-content';
+import { StaffRoleNotFound } from './$roleId/_not-found';
 import { StaffRolePermissionsCardBody } from './$roleId/_permissions-card-body';
 import { StaffRoleEditDetailsDrawer } from './$roleId/_role-edit-details-drawer';
 
@@ -162,75 +164,28 @@ const StaffRoleDetailsPage = () => {
 		return <LogoutRedirect />;
 	}
 
-	const detailIsPending = detailQuery.isPending;
-	if (detailIsPending) {
-		return <RoleDetailsLoading />;
-	}
-
-	const detailIsError = detailQuery.isError;
-	if (detailIsError) {
-		return (
-			<RoleDetailsError
-				error={detailError}
-				onRetry={() => void detailQuery.refetch()}
-			/>
-		);
-	}
-
-	const permissionKeysIsPending = permissionKeysQuery.isPending;
-	if (permissionKeysIsPending) {
-		return <RoleDetailsLoading />;
-	}
-
-	const permissionKeysIsError = permissionKeysQuery.isError;
-	if (permissionKeysIsError) {
-		return (
-			<RoleDetailsError
-				error={permissionKeysError}
-				onRetry={() => void permissionKeysQuery.refetch()}
-			/>
-		);
-	}
-
-	const permissionCatalogIsError = permissionCatalogQuery.isError;
-	if (permissionCatalogIsError) {
-		return (
-			<RoleDetailsError
-				error={permissionCatalogError}
-				onRetry={() => void permissionCatalogQuery.refetch()}
-			/>
-		);
-	}
-
-	if (!details) {
-		return (
-			<AppErrorView
-				icon={<IconSearchOff aria-hidden="true" className="size-7" />}
-				code={t('error-404-code')}
-				title={t('staff-role-not-found')}
-				description={t('staff-role-payload-empty')}
-				testId="staff-role-details-empty"
-			/>
-		);
-	}
-
-	const assignedKeys = permissionKeysQuery.data.permissionKeys ?? [];
+	const assignedKeys = permissionKeysQuery.data?.permissionKeys ?? [];
 	const catalog = (permissionCatalogQuery.data?.additionalData ?? undefined) as
 		| StaffPermissionCatalog
 		| undefined;
+	// The catalog is optional: an absent payload is a loaded page with no
+	// catalogue to show, not a missing one. The sentinel keeps `QueryDisplay`
+	// out of its empty branch, which the hand-written ladder never entered.
+	// #2341 M1: the catalog only feeds the optional "N of M" count, so while
+	// it is pending it must gate nothing — keep the derived view out of the
+	// pending branch so the whole page renders as soon as detail + keys are
+	// loaded. Only an error still swaps in RoleDetailsError.
+	const catalogStateQuery: QueryDisplayQuery = {
+		...permissionCatalogQuery,
+		isPending: false,
+		data: permissionCatalogQuery.data ?? {},
+	};
 	const userRows = toStaffRoleUserRows(usersQuery.data?.users);
-	// Hoisted: the fatal gate and members card read plain locals, not flags.
-	const usersIsError = usersQuery.isError;
-	const usersFailure = usersIsError ? toApiFailure(usersError) : null;
-	const usersPending = usersQuery.isPending;
-	const userCount = details.userAccountCount;
+	const userCount = details?.userAccountCount ?? null;
 	const membersCardContent = renderStaffRoleMembersCard({
 		t,
+		query: usersQuery,
 		userRows,
-		usersPending,
-		usersFailureStatus:
-			usersFailure?.kind === 'problem' ? usersFailure.status : null,
-		onRetry: () => void usersQuery.refetch(),
 	});
 
 	let catalogPermCount = 0;
@@ -242,7 +197,7 @@ const StaffRoleDetailsPage = () => {
 
 	// Full access is implicit: no "N of M granted" count to show.
 	let permissionsCountLabel: string | number = assignedKeys.length;
-	if (details.isFullAccess) {
+	if (details?.isFullAccess === true) {
 		permissionsCountLabel = t('full-access');
 	} else if (catalogPermCount > 0) {
 		permissionsCountLabel = t('permissions-of-total-granted', {
@@ -252,96 +207,145 @@ const StaffRoleDetailsPage = () => {
 	}
 
 	return (
-		<div
-			className="publy-detail-page publy-page-fill"
-			data-testid="staff-role-details-page"
+		<QueryDisplay
+			query={detailQuery}
+			LoadingSlot={<RoleDetailsLoading />}
+			ErrorSlot={
+				<RoleDetailsError
+					error={detailError}
+					onRetry={() => void detailQuery.refetch()}
+				/>
+			}
+			EmptySlot={<StaffRoleNotFound />}
 		>
-			<div className="mb-4">
-				<Link to="/staff/roles" className="publy-back-link">
-					<IconArrowLeft aria-hidden="true" className="size-3" />
-					{t('back-to-roles')}
-				</Link>
-			</div>
-
-			<StaffRoleIdentityHeader
-				details={details}
-				roleId={roleId}
-				assignedCount={assignedKeys.length}
-				onEdit={() => setEditDrawerOpen(true)}
-			/>
-
-			<DetailGrid>
-				<DetailMain>
-					{/* Permissions in this role */}
-					<Card className="publy-detail-card">
-						<div className="publy-detail-card-header">
-							<span className="text-[14px] font-semibold">
-								{t('permissions-in-this-role')}
-							</span>
-						</div>
-						<StaffRolePermissionsCardBody
-							isFullAccess={details.isFullAccess}
-							assignedKeys={assignedKeys}
-							catalog={catalog}
+			{() => (
+				<QueryDisplay
+					query={permissionKeysQuery}
+					LoadingSlot={<RoleDetailsLoading />}
+					ErrorSlot={
+						<RoleDetailsError
+							error={permissionKeysError}
+							onRetry={() => void permissionKeysQuery.refetch()}
 						/>
-					</Card>
-				</DetailMain>
-
-				<DetailAside className="flex flex-col gap-5">
-					{/* About Card */}
-					<StaffRoleAboutCard
-						details={details}
-						permissionsCountLabel={permissionsCountLabel}
-					/>
-
-					{/* Members Card */}
-					<Card className="publy-detail-card">
-						<div className="publy-detail-card-header">
-							<span className="text-[14px] font-semibold">
-								{t('members')}
-								{userCount === null ? null : (
-									<span className="font-normal text-[var(--publy-foreground-subtle)]">
-										{' '}
-										· {userCount}
-									</span>
-								)}
-							</span>
-							<Link
-								to="/staff/roles/$roleId/users"
-								params={{ roleId }}
-								className="text-[12px] no-underline text-[var(--publy-foreground-muted)]"
-							>
-								{t('view-all')}
-							</Link>
-						</div>
-						<div className="flex flex-col">{membersCardContent}</div>
-					</Card>
-				</DetailAside>
-			</DetailGrid>
-
-			<StaffRoleEditDetailsDrawer
-				isOpen={isEditDrawerOpen}
-				role={details}
-				onOpenChange={setEditDrawerOpen}
-				onSessionExpired={() => setShouldRedirectToLogout(true)}
-				onDirtyChange={setIsEditFormDirty}
-				onSaved={() => setEditDrawerOpen(false)}
-			/>
-			<ConfirmDialog
-				isOpen={editDrawerBlocker.status === 'blocked'}
-				title={t('unsaved-changes-dialog-title')}
-				description={t('unsaved-changes-dialog-description')}
-				confirmLabel={t('leave-page')}
-				cancelLabel={t('cancel')}
-				tone="danger"
-				onConfirm={() => editDrawerBlocker.proceed?.()}
-				onOpenChange={(isOpen) => {
-					if (!isOpen) {
-						editDrawerBlocker.reset?.();
 					}
-				}}
-			/>
-		</div>
+				>
+					{() => (
+						<QueryDisplay
+							query={catalogStateQuery}
+							ErrorSlot={
+								<RoleDetailsError
+									error={permissionCatalogError}
+									onRetry={() => void permissionCatalogQuery.refetch()}
+								/>
+							}
+						>
+							{() => {
+								// A payload without its required role identity is not a
+								// renderable detail page: same 404 view as an empty body.
+								if (!details) {
+									return <StaffRoleNotFound />;
+								}
+
+								return (
+									<div
+										className="publy-detail-page publy-page-fill"
+										data-testid="staff-role-details-page"
+									>
+										<div className="mb-4">
+											<Link to="/staff/roles" className="publy-back-link">
+												<IconArrowLeft aria-hidden="true" className="size-3" />
+												{t('back-to-roles')}
+											</Link>
+										</div>
+
+										<StaffRoleIdentityHeader
+											details={details}
+											roleId={roleId}
+											assignedCount={assignedKeys.length}
+											onEdit={() => setEditDrawerOpen(true)}
+										/>
+
+										<DetailGrid>
+											<DetailMain>
+												{/* Permissions in this role */}
+												<Card className="publy-detail-card">
+													<div className="publy-detail-card-header">
+														<span className="text-[14px] font-semibold">
+															{t('permissions-in-this-role')}
+														</span>
+													</div>
+													<StaffRolePermissionsCardBody
+														isFullAccess={details.isFullAccess}
+														assignedKeys={assignedKeys}
+														catalog={catalog}
+													/>
+												</Card>
+											</DetailMain>
+
+											<DetailAside className="flex flex-col gap-5">
+												{/* About Card */}
+												<StaffRoleAboutCard
+													details={details}
+													permissionsCountLabel={permissionsCountLabel}
+												/>
+
+												{/* Members Card */}
+												<Card className="publy-detail-card">
+													<div className="publy-detail-card-header">
+														<span className="text-[14px] font-semibold">
+															{t('members')}
+															{userCount === null ? null : (
+																<span className="font-normal text-[var(--publy-foreground-subtle)]">
+																	{' '}
+																	· {userCount}
+																</span>
+															)}
+														</span>
+														<Link
+															to="/staff/roles/$roleId/users"
+															params={{ roleId }}
+															className="text-[12px] no-underline text-[var(--publy-foreground-muted)]"
+														>
+															{t('view-all')}
+														</Link>
+													</div>
+													<div className="flex flex-col">
+														{membersCardContent}
+													</div>
+												</Card>
+											</DetailAside>
+										</DetailGrid>
+
+										<StaffRoleEditDetailsDrawer
+											isOpen={isEditDrawerOpen}
+											role={details}
+											onOpenChange={setEditDrawerOpen}
+											onSessionExpired={() => setShouldRedirectToLogout(true)}
+											onDirtyChange={setIsEditFormDirty}
+											onSaved={() => setEditDrawerOpen(false)}
+										/>
+										<ConfirmDialog
+											isOpen={editDrawerBlocker.status === 'blocked'}
+											title={t('unsaved-changes-dialog-title')}
+											description={t('unsaved-changes-dialog-description')}
+											confirmLabel={t('leave-page')}
+											cancelLabel={t('cancel')}
+											tone="danger"
+											onConfirm={() => editDrawerBlocker.proceed?.()}
+											onOpenChange={(isOpen) => {
+												if (!isOpen) {
+													editDrawerBlocker.reset?.();
+												}
+											}}
+										/>
+									</div>
+								);
+							}}
+						</QueryDisplay>
+					)}
+				</QueryDisplay>
+			)}
+		</QueryDisplay>
 	);
 };
 
