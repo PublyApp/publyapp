@@ -256,7 +256,9 @@ const Reports = () => {
 				/>
 			</div>
 
-			<div className="grid gap-4 md:grid-cols-2">
+			{/* items-start: a 31-row table must not stretch the row and
+			    recenter the neighbour card (fix8). */}
+			<div className="grid gap-4 md:grid-cols-2 items-start">
 				<ChartCard
 					testId="staff-dashboard-events-per-day"
 					label={t('dashboard-card-audit-events-per-day')}
