@@ -374,15 +374,16 @@ describe('ListPage', () => {
 	});
 });
 
-// #2341: the four states are rendered through `QueryDisplay` now; these
-// snapshots were taken from the hand-written ladder and must stay identical.
-// The loading state is asserted structurally: the table skeleton's pill shapes
-// carry circular radii the design-system source scanner forbids in source.
+// #2341: the four states are rendered through `QueryDisplay` now; the pending
+// state is asserted structurally — header, row count and per-row cells — rather
+// than by snapshot: the table skeleton's pill shapes carry circular radii the
+// design-system source scanner forbids in source.
 describe('ListPage state DOM', () => {
 	test('pending', () => {
 		renderPage({}, { isPending: true });
 
 		const loading = screen.getByTestId('list-loading');
+		expect(loading.querySelector('.publy-table-skeleton-header')).toBeTruthy();
 		expect(loading.getAttribute('data-row-height')).toBe('48');
 		expect(loading.querySelectorAll('.publy-table-skeleton-row')).toHaveLength(
 			7,

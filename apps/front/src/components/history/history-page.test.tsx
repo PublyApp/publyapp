@@ -580,6 +580,7 @@ describe('HistoryPage state DOM', () => {
 		expect(scope.getByText('history-sensitive')).toBeTruthy();
 		expect(scope.getByText('history-category-tenant')).toBeTruthy();
 		expect(scope.getByText('10.0.0.1')).toBeTruthy();
+		expect(days.querySelector('time')).toBeTruthy();
 		expect(scope.getByRole('button', { name: 'open log-1' })).toBeTruthy();
 	});
 });
