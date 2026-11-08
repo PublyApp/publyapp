@@ -353,6 +353,19 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
 - Each toast variant's contrast is measured live in the browser (see Guards). `richColors` is off
   because Sonner's un-layered stylesheet would defeat the app cascade. — source: `app.css`, `e2e/toast-contrast.spec.ts`
 
+### Visual consistency (owner rule, no concession)
+
+- **One element kind, one look, on every page.** A skeleton, a card, a pill or badge, a toast, an empty
+  state: the same kind of element looks the same wherever it appears. No page-local variant: reuse the
+  shared component, and when it cannot express a need, change the shared component (for every page) instead
+  of drawing a local copy. — source: owner rule 2026-11-08 (#2352)
+- **PublyApp and ShopKartOS share one visual language.** A shared UI library will come later; until then,
+  a convention settled in one product (for example the skeleton convention) is aligned in the other.
+- **Skeletons mirror the real content.** A loading placeholder has the shape of what it replaces (rows,
+  avatar, text lines, chart outline) and the same size (±2 px), and it comes from one shared convention,
+  never a plain grey block drawn differently on each page.
+- Owner's words: « La consistance, c'est un point sur lequel je ne veux pas qu'on fasse de concession… »
+
 ### Empty / error / loading states
 
 - **Every failure state shows its cause in plain words and the next action; never a bare "something went wrong".** This is the owner's product UI rule (decision 2026-08-22, spec `docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md` §1.7, on branch `docs/spec-epic-c-social-accounts`). A failed or paused state names what went wrong in one short sentence and offers the concrete recovery action (Retry / Reconnect the account / Reschedule), not a generic error string. — source: owner decision 2026-08-22, `docs/records/2026-08-22-spec-epic-d-publishing-scheduling.md` §1.7

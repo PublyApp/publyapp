@@ -27,6 +27,11 @@ Method:
 2. **Measure each block pair** (prototype selector ↔ app selector) at 1440×900. Measure the bounding
    box and the computed font-size, font-weight, line-height, letter-spacing, text-transform, colour,
    background, border (width, colour, radius), padding, gap and shadow, plus the label texts.
+   **Measure the content, not only the boxes** (lesson from #2339, where a grey placeholder of the
+   right size passed as the chart it replaced and the score said 96 % on a screen far from the
+   prototype). A block that shows a placeholder, a ghost or « no data yet » where the prototype shows
+   data **fails all its properties**. The visible texts of labels, badges, legends and row sentences
+   are compared too (same language, same words).
 3. **Score** = properties within tolerance / all properties. Tolerances:
    - sizes and positions: ±2 px, relative to the content column;
    - colours: identical once resolved to rgb;
@@ -35,9 +40,13 @@ Method:
 4. **Loop fix → re-measure** until the target is met. A remaining gap stays only with a written reason:
    the prototype cannot be reproduced with real data, or a repo rule forbids it (cite the rule).
    « Not worth it » is not a reason.
-5. Check placeholder states (skeletons, « no data yet » ghosts) keep the real block's size (±2 px),
+5. **Look at the side-by-side captures yourself** before trusting the score: if the screen visibly
+   differs from the prototype, the measurement is missing a block — fix the measurement, then the screen.
+6. **Visual consistency** (`DESIGN.md` « Visual consistency »): every skeleton, card, pill and empty
+   state uses the shared component, with no page-local variant.
+7. Check placeholder states (skeletons, « no data yet » ghosts) keep the real block's size (±2 px),
    dark mode, and 390 px mobile with no overflow.
-6. **Proof on the PR:** side-by-side captures (« Application » left, « Maquette » right) for each
+8. **Proof on the PR:** side-by-side captures (« Application » left, « Maquette » right) for each
    screen, plus the score table.
 
 No code review is dispatched, and no merge is requested, on a redesign screen without the score and

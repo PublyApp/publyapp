@@ -513,6 +513,14 @@ surface without waiting to be told. `docs/records/2026-07-29-spec-front-parity-c
 decision log; this section is the forward-looking rulebook. When a new screen forces a genuinely
 new choice, decide in this spirit and add the rule here.
 
+### Visual consistency (no concession)
+
+The same kind of element (skeleton, card, pill/badge, toast, empty state) looks the same on every
+page; no page-local variant. Reuse the shared component; if it cannot express the need, change the
+shared component for every page. PublyApp and ShopKartOS share one visual language. Skeletons mirror
+the real content and come from one shared convention. Full rule: `DESIGN.md` §4 « Visual consistency »
+(owner rule 2026-11-08, #2352). A reviewer treats a page-local variant of a shared element as a finding.
+
 ### Elevation & borders
 
 - Cards and sections are outlined by a **1px box-shadow ring**, never a drop-shadow/elevation.
