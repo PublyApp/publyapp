@@ -167,12 +167,15 @@ db-remove $APP_ROLE="api" $POSTGRES_CONNECTION_STRING=apphost_db:
 # Bulk seeding (testing)
 # =============================================================================
 
+# Same AppHost database as db-migrate: the exported POSTGRES_CONNECTION_STRING wins over a
+# stale .env.development (NoClobber), and _require-db fails fast when just dev is not running.
+# Bulk seed creates no audit events and no invitations (it inserts rows directly).
 # Run bulk seed (500 tenants, ~8K tenant users, 500 staff users, ~5K projects)
-seed-bulk:
+seed-bulk $POSTGRES_CONNECTION_STRING=apphost_db: _require-db
   cd {{api_dir}} && dotnet run -property:OpenApiGenerateDocuments=false -- seed-bulk
 
 # Clear bulk seed data
-seed-bulk-reset:
+seed-bulk-reset $POSTGRES_CONNECTION_STRING=apphost_db: _require-db
   cd {{api_dir}} && dotnet run -property:OpenApiGenerateDocuments=false -- seed-bulk-reset
 
 # =============================================================================
