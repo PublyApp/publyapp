@@ -266,15 +266,8 @@ const StaffTenantUsersPage = () => {
 							hasActiveFilters={Boolean(
 								controller.search.committed || search.status || search.role,
 							)}
-							queryState={{
-								isPending: usersQuery.isPending,
-								isError: usersQuery.isError,
-								error: usersQuery.error,
-								isFetching: usersQuery.isFetching,
-								hasNextPage: usersQuery.data?.nextCursor != null,
-							}}
+							query={usersQuery}
 							nextCursor={usersQuery.data?.nextCursor ?? undefined}
-							onRetry={() => void usersQuery.refetch()}
 							onInvite={() => setInviteDrawerOpen(true)}
 							toolbarEnd={
 								<TenantUsersFilterMenus

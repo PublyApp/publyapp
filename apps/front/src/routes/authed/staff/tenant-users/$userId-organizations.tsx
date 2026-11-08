@@ -163,10 +163,8 @@ const OrganizationsTable = ({ userId }: { userId: string }) => {
 		}
 	}, [selection.isSelectionMode, resetDraftToCommitted]);
 
-	// Hoisted so the fatal gate and the table props read plain locals.
+	// Hoisted so the fatal gate reads a plain local.
 	const companiesError = query.error;
-	const companiesIsPending = query.isPending;
-	const companiesIsError = query.isError;
 
 	if (companiesError !== null && shouldLogoutForFailure(companiesError)) {
 		return <LogoutRedirect />;
@@ -179,13 +177,8 @@ const OrganizationsTable = ({ userId }: { userId: string }) => {
 				ariaLabel={t('companies')}
 				columns={columns}
 				rows={rows}
-				queryState={{
-					isPending: companiesIsPending,
-					isError: companiesIsError,
-					error: query.error,
-					onRetry: () => void query.refetch(),
-					hasActiveSearch: Boolean(controller.search.committed),
-				}}
+				query={query}
+				hasActiveSearch={Boolean(controller.search.committed)}
 				pagination={{
 					pageIndex: controller.cursor.pageIndex,
 					hasPreviousPage: controller.cursor.hasPreviousPage,

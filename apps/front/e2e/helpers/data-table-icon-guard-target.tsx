@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import type { QueryObserverResult } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { I18nextProvider } from 'react-i18next';
@@ -113,12 +114,16 @@ const render = (i18n: ReturnType<typeof buildI18n>): ReactElement => (
 			ariaLabel="icon guard 1799"
 			columns={columns}
 			rows={rows}
-			queryState={{
+			query={{
 				isPending: false,
+				isLoading: false,
+				isFetching: false,
 				isError: false,
-				onRetry: () => undefined,
-				hasActiveSearch: false,
+				error: null,
+				data: undefined,
+				refetch: async () => ({}) as QueryObserverResult,
 			}}
+			hasActiveSearch={false}
 			pagination={{
 				pageIndex: 0,
 				hasPreviousPage: false,

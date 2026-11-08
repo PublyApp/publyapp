@@ -80,12 +80,16 @@ const renderDataTableWithSort = (sort: SortState) =>
 			ariaLabel="Sort integration table"
 			columns={sortColumns}
 			rows={sortRows}
-			queryState={{
+			query={{
 				isPending: false,
+				isLoading: false,
+				isFetching: false,
 				isError: false,
-				onRetry: () => undefined,
-				hasActiveSearch: false,
+				error: null,
+				data: undefined,
+				refetch: vi.fn(),
 			}}
+			hasActiveSearch={false}
 			pagination={{
 				pageIndex: 0,
 				hasPreviousPage: false,

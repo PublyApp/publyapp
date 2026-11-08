@@ -8,7 +8,9 @@ import {
 import { createFileRoute } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import QueryDisplay from '~/components/query-display';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import { ReconnectBanner } from '~/components/social-accounts/reconnect-banner';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
@@ -264,6 +266,16 @@ const TenantSettingsIntegrationsPage = () => {
 	const isListLoadedAndEmpty =
 		socialAccountsQuery.data !== undefined && rows.length === 0;
 
+	// The workspace tenant resolves before the accounts query can start; the
+	// table must stay on its skeleton until then (the old `queryState` did).
+	// Read the flag once: `QueryDisplay` owns the branch, so this is the only
+	// conditional read of it.
+	const accountsPending = socialAccountsQuery.isPending;
+	const socialAccountsTableQuery: QueryDisplayQuery = {
+		...socialAccountsQuery,
+		isPending: tenantId === null || accountsPending,
+	};
+
 	const [drawerUi, setDrawerUi] = useState<DrawerUiState>(IDLE_DRAWER_UI);
 	const closeDrawerUi = () => setDrawerUi(IDLE_DRAWER_UI);
 	const reconnectAccount = drawerUi.reconnectAccount;
@@ -377,13 +389,8 @@ const TenantSettingsIntegrationsPage = () => {
 							ariaLabel={t('integrations-list-title')}
 							columns={columns}
 							rows={rows}
-							queryState={{
-								isPending: tenantId === null || socialAccountsQuery.isPending,
-								isError: socialAccountsQuery.isError,
-								error: socialAccountsQuery.error,
-								onRetry: () => void socialAccountsQuery.refetch(),
-								hasActiveSearch: false,
-							}}
+							query={socialAccountsTableQuery}
+							hasActiveSearch={false}
 							pagination={{
 								pageIndex: 0,
 								hasPreviousPage: false,

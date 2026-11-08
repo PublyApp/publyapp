@@ -2,6 +2,7 @@ import { IconShield } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorKindState } from '~/components/error-views/error-kind-state';
+import type { QueryDisplayQuery } from '~/components/query-display';
 import type { ColumnDef } from '~/components/table/column-type';
 import {
 	DataTable,
@@ -31,17 +32,10 @@ type RolesListBodyProps = {
 	controller: UseTableControllerResult;
 	selection: UseRowSelectionResult;
 	bodyState: TableBodyState;
-	/** Grouped so the component does not take a fistful of loose on/off props
-	 * (`react-doctor/no-many-boolean-props`). */
-	queryState: {
-		hasActiveSearch: boolean;
-		isPending: boolean;
-		isError: boolean;
-		error?: unknown;
-		isFetching: boolean;
-	};
+	query: QueryDisplayQuery;
+	/** A committed search/filter is active; zero rows render "no matches". */
+	hasActiveSearch: boolean;
 	nextCursor: string | null | undefined;
-	onRetry: () => void;
 	onEditRequest: (role: StaffTenantRoleRow) => void;
 	onDeleteRequest: (role: StaffTenantRoleRow) => void;
 	onToggleCardSelection: (roleId: string) => void;
@@ -59,22 +53,20 @@ export const RolesListBody = ({
 	controller,
 	selection,
 	bodyState,
-	queryState,
+	query,
+	hasActiveSearch,
 	nextCursor,
-	onRetry,
 	onEditRequest,
 	onDeleteRequest,
 	onToggleCardSelection,
 	toolbarEnd,
 }: RolesListBodyProps) => {
 	const { t } = useTranslation('common');
-	const { hasActiveSearch, isPending, isError, isFetching } = queryState;
 	// #2291: the card-grid branch owns its error surface (no DataTable), so it
 	// resolves the same one-error-state copy: 5xx retries, 403 has no Retry.
+	const queryError = query.error ?? undefined;
 	const resolvedError =
-		queryState.error === undefined
-			? undefined
-			: resolveQueryError(queryState.error, t);
+		queryError === undefined ? undefined : resolveQueryError(queryError, t);
 
 	if (view === 'table') {
 		return (
@@ -83,18 +75,13 @@ export const RolesListBody = ({
 				ariaLabel={t('tenant-roles-table-aria-label')}
 				columns={columns}
 				rows={rows}
-				queryState={{
-					isPending: isPending,
-					isError: isError,
-					error: queryState.error,
-					onRetry: onRetry,
-					hasActiveSearch: hasActiveSearch,
-				}}
+				query={query}
+				hasActiveSearch={hasActiveSearch}
 				pagination={{
 					pageIndex: controller.cursor.pageIndex,
 					hasPreviousPage: controller.cursor.hasPreviousPage,
 					hasNextPage: nextCursor != null,
-					isPaginationPending: isFetching,
+					isPaginationPending: query.isFetching,
 					onNextPage: () =>
 						controller.cursor.onNextPage(nextCursor ?? undefined),
 					onPreviousPage: controller.cursor.onPreviousPage,
@@ -137,8 +124,8 @@ export const RolesListBody = ({
 					scale="inline"
 					panel
 					kind={resolvedError?.kind}
-					error={queryState.error}
-					onRetry={onRetry}
+					error={queryError}
+					onRetry={() => void query.refetch()}
 					testId={`${testId}-error`}
 				/>
 			) : null}
@@ -183,7 +170,7 @@ export const RolesListBody = ({
 						onSizeChange={controller.onSizeChange}
 						hasPreviousPage={controller.cursor.hasPreviousPage}
 						hasNextPage={nextCursor != null}
-						isPaginationPending={isFetching}
+						isPaginationPending={query.isFetching}
 						onNextPage={() =>
 							controller.cursor.onNextPage(nextCursor ?? undefined)
 						}

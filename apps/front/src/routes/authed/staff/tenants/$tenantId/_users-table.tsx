@@ -1,6 +1,7 @@
 import { IconPlus, IconUsers } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { QueryDisplayQuery } from '~/components/query-display';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
@@ -14,9 +15,8 @@ export const TenantUsersTable = ({
 	controller,
 	selection,
 	hasActiveFilters,
-	queryState,
+	query,
 	nextCursor,
-	onRetry,
 	onInvite,
 	toolbarEnd,
 }: {
@@ -25,15 +25,8 @@ export const TenantUsersTable = ({
 	controller: UseTableControllerResult;
 	selection: UseRowSelectionResult;
 	hasActiveFilters: boolean;
-	queryState: {
-		isPending: boolean;
-		isError: boolean;
-		error?: unknown;
-		isFetching: boolean;
-		hasNextPage: boolean;
-	};
+	query: QueryDisplayQuery;
 	nextCursor: string | undefined;
-	onRetry: () => void;
 	onInvite: () => void;
 	toolbarEnd: ReactNode;
 }) => {
@@ -45,18 +38,13 @@ export const TenantUsersTable = ({
 			ariaLabel={t('tenant-users-table-aria-label')}
 			columns={columns}
 			rows={rows}
-			queryState={{
-				isPending: queryState.isPending,
-				isError: queryState.isError,
-				error: queryState.error,
-				onRetry: onRetry,
-				hasActiveSearch: hasActiveFilters,
-			}}
+			query={query}
+			hasActiveSearch={hasActiveFilters}
 			pagination={{
 				pageIndex: controller.cursor.pageIndex,
 				hasPreviousPage: controller.cursor.hasPreviousPage,
-				hasNextPage: queryState.hasNextPage,
-				isPaginationPending: queryState.isFetching,
+				hasNextPage: nextCursor != null,
+				isPaginationPending: query.isFetching,
 				onNextPage: () => controller.cursor.onNextPage(nextCursor),
 				onPreviousPage: controller.cursor.onPreviousPage,
 			}}

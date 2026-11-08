@@ -70,13 +70,8 @@ export const AssignMembersTable = ({
 				ariaLabel={t('assign-members')}
 				columns={columns}
 				rows={rows}
-				queryState={{
-					isPending: usersQuery.isPending,
-					isError: usersQuery.isError,
-					error: usersQuery.error,
-					onRetry: () => void usersQuery.refetch(),
-					hasActiveSearch: Boolean(controller.search.committed),
-				}}
+				query={usersQuery}
+				hasActiveSearch={Boolean(controller.search.committed)}
 				pagination={{
 					pageIndex: controller.cursor.pageIndex,
 					hasPreviousPage: controller.cursor.hasPreviousPage,

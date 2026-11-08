@@ -116,13 +116,8 @@ export const RoleMembersView = ({
 						columns={memberColumns}
 						rows={memberRows}
 						getRowLabel={(row) => row.displayName}
-						queryState={{
-							isPending: membersQuery.isPending,
-							isError: membersQuery.isError,
-							error: membersQuery.error,
-							onRetry: () => void membersQuery.refetch(),
-							hasActiveSearch: Boolean(membersController.search.committed),
-						}}
+						query={membersQuery}
+						hasActiveSearch={Boolean(membersController.search.committed)}
 						emptyIcon={IconUsers}
 						emptyTitle={t('role-members-empty-title')}
 						emptyContent={t('role-members-empty-description')}

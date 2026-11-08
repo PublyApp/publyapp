@@ -119,13 +119,8 @@ export const RoleMembersTab = ({
 					ariaLabel={t('role-members-table-aria-label')}
 					columns={columns}
 					rows={rows}
-					queryState={{
-						isPending: membersQuery.isPending,
-						isError: membersQuery.isError,
-						error: membersQuery.error,
-						onRetry: () => void membersQuery.refetch(),
-						hasActiveSearch: Boolean(controller.search.committed),
-					}}
+					query={membersQuery}
+					hasActiveSearch={Boolean(controller.search.committed)}
 					pagination={{
 						pageIndex: pageIndex,
 						hasPreviousPage: pageIndex > 0,

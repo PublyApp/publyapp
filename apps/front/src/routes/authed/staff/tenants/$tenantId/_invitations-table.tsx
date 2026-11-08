@@ -40,13 +40,8 @@ export const InvitationsTable = ({
 		ariaLabel={t('tenant-invitations-table-aria-label')}
 		columns={columns}
 		rows={rows}
-		queryState={{
-			isPending: invitationsQuery.isPending,
-			isError: invitationsQuery.isError,
-			error: invitationsQuery.error,
-			onRetry: () => void invitationsQuery.refetch(),
-			hasActiveSearch: hasActiveSearch,
-		}}
+		query={invitationsQuery}
+		hasActiveSearch={hasActiveSearch}
 		pagination={{
 			pageIndex: controller.cursor.pageIndex,
 			hasPreviousPage: controller.cursor.hasPreviousPage,

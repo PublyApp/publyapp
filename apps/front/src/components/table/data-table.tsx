@@ -5,6 +5,9 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import { SearchInput } from '~/components/ui/search-input';
 import {
 	Select,
@@ -27,7 +30,6 @@ import { DataTableStates } from './data-table-states';
 import { derivePaginationRange } from './pagination-range';
 import { toSortingState } from './sort-descriptor';
 import type { SortState } from './sort-descriptor';
-import { resolveTableBodyState } from './table-body-state';
 import {
 	DENSITY_TO_ROW_HEIGHT,
 	TABLE_DEFAULT_ROW_HEIGHT,
@@ -276,13 +278,19 @@ export type DataTableProps<TData extends { id: string }> = {
 	ariaLabel: string;
 	columns: ColumnDef<TData>[];
 	rows: TData[];
-	/** Loading / error / active-search flags that select the table body
-	 * state (loading, error, empty, no-match, rows). Grouped as one object so
-	 * the component stays under the `no-many-boolean-props` cap without a
-	 * suppression (#1291 rung 1). */
-	queryState: DataTableQueryState;
+	/** The table's query. `QueryDisplay` owns the pending / error / empty
+	 * branch (the table keeps its own skeleton, error and no-match bodies as
+	 * its slots); the rows themselves stay the `rows` prop, because a caller
+	 * may narrow or merge them before rendering. A failed refetch that still
+	 * holds rows keeps them on screen — the same `discreet` rule as the rest
+	 * of the migration (#2341). */
+	query: QueryDisplayQuery;
+	/** A committed search/filter is active; zero rows then render "no matches"
+	 * instead of "nothing here". */
+	hasActiveSearch: boolean;
 	/** Cursor-pager state and callbacks, rendered inside the table card.
-	 * Grouped for the same reason as `queryState`. */
+	 * Grouped so the component stays under the `no-many-boolean-props` cap
+	 * without a suppression (#1291 rung 1). */
 	pagination: DataTablePaginationState;
 	errorContent?: ReactNode;
 	emptyContent?: ReactNode;
@@ -320,22 +328,6 @@ export type DataTableProps<TData extends { id: string }> = {
 	getRowLabel?: (row: TData) => string;
 };
 
-type DataTableQueryState = {
-	/** Query is loading its first page. */
-	isPending: boolean;
-	/** Query failed; renders the error body state. */
-	isError: boolean;
-	/** The query's error, when the consumer has it. Resolves the ONE error
-	 * state (#2291): 5xx paints « Impossible de charger » + Réessayer, 403
-	 * paints « Accès refusé » with no retry action. */
-	error?: unknown;
-	/** Retry callback surfaced by the error body state. */
-	onRetry: () => void;
-	/** A committed search filter is active; empty rows render "no matches"
-	 * instead of "nothing here". */
-	hasActiveSearch: boolean;
-};
-
 type DataTablePaginationState = {
 	pageIndex: number;
 	hasPreviousPage: boolean;
@@ -356,15 +348,15 @@ type DataTablePaginationState = {
 	totalCount?: number | null;
 };
 
-// Grouped state objects keep the public prop list clear of six scattered
-// booleans (`no-many-boolean-props`) — see `DataTableQueryState` and
-// `DataTablePaginationState` above (#1291 rung 1).
+// The pager state stays a grouped object so the public prop list stays clear
+// of scattered booleans (`no-many-boolean-props`) (#1291 rung 1).
 export const DataTable = <TData extends { id: string }>({
 	testId,
 	ariaLabel,
 	columns,
 	rows,
-	queryState: { isPending, isError, error, onRetry, hasActiveSearch },
+	query,
+	hasActiveSearch,
 	pagination: {
 		pageIndex,
 		hasPreviousPage,
@@ -411,8 +403,9 @@ export const DataTable = <TData extends { id: string }>({
 	'use no memo';
 	const { t } = useTranslation('common');
 	// #2291: one error state. Same resolver as `ListPage` — 5xx keeps Retry,
-	// 403/404 drop it. `undefined` (no error prop) keeps the historical
-	// always-retry default for callers that cannot supply the cause.
+	// 403/404 drop it. A null error (the query's idle value) keeps the
+	// historical always-retry default for callers that cannot supply a cause.
+	const error = query.error ?? undefined;
 	const resolvedError =
 		error === undefined ? undefined : resolveQueryError(error, t);
 	const isSelectionMode = selection?.isSelectionMode ?? false;
@@ -453,12 +446,37 @@ export const DataTable = <TData extends { id: string }>({
 		getRowId: (row) => row.id,
 	});
 
-	const bodyState = resolveTableBodyState({
-		isPending,
-		isError,
-		rowCount: rows.length,
-		hasActiveSearch,
-	});
+	// `QueryDisplay` reads emptiness from `data`; the table renders the `rows`
+	// prop, so hand it the row list. `undefined` on a zero-row page keeps the
+	// empty branch, and `discreet` then keeps rows already on screen when a
+	// background refetch fails.
+	const stateQuery: QueryDisplayQuery = {
+		...query,
+		data: rows.length > 0 ? rows : undefined,
+	};
+	const renderState = (
+		bodyState: 'loading' | 'error' | 'empty' | 'no-match',
+	) => (
+		<DataTableStates
+			testId={testId}
+			bodyState={bodyState}
+			resolvedRowHeight={resolvedRowHeight}
+			onRetry={() => void query.refetch()}
+			errorContent={errorContent ?? resolvedError?.description}
+			emptyContent={emptyContent}
+			noMatchContent={noMatchContent}
+			errorIcon={errorIcon}
+			errorTitle={errorTitle ?? resolvedError?.title}
+			errorRetryable={resolvedError?.supportsRetry}
+			errorKind={resolvedError?.kind}
+			error={error}
+			emptyIcon={emptyIcon}
+			emptyTitle={emptyTitle}
+			emptyActions={emptyActions}
+			noMatchIcon={noMatchIcon}
+			noMatchTitle={noMatchTitle}
+		/>
+	);
 
 	return (
 		<div className="publy-data-table-shell" data-testid={testId}>
@@ -472,27 +490,13 @@ export const DataTable = <TData extends { id: string }>({
 				toolbarEnd={toolbarEnd}
 			/>
 
-			<DataTableStates
-				testId={testId}
-				bodyState={bodyState}
-				resolvedRowHeight={resolvedRowHeight}
-				onRetry={onRetry}
-				errorContent={errorContent ?? resolvedError?.description}
-				emptyContent={emptyContent}
-				noMatchContent={noMatchContent}
-				errorIcon={errorIcon}
-				errorTitle={errorTitle ?? resolvedError?.title}
-				errorRetryable={resolvedError?.supportsRetry}
-				errorKind={resolvedError?.kind}
-				error={error}
-				emptyIcon={emptyIcon}
-				emptyTitle={emptyTitle}
-				emptyActions={emptyActions}
-				noMatchIcon={noMatchIcon}
-				noMatchTitle={noMatchTitle}
-			/>
-
-			{bodyState === 'rows' ? (
+			<QueryDisplay
+				query={stateQuery}
+				variant="discreet"
+				LoadingSlot={renderState('loading')}
+				ErrorSlot={renderState('error')}
+				EmptySlot={renderState(hasActiveSearch ? 'no-match' : 'empty')}
+			>
 				<div
 					className="publy-table-card"
 					data-row-height={resolvedRowHeight}
@@ -529,7 +533,7 @@ export const DataTable = <TData extends { id: string }>({
 						disabledTitle={t(SELECTION_LOCKED_TITLE_KEY)}
 					/>
 				</div>
-			) : null}
+			</QueryDisplay>
 		</div>
 	);
 };

@@ -1,7 +1,7 @@
 import { IconListCheck } from '@tabler/icons-react';
-import type { UseQueryResult } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
+import type { QueryDisplayQuery } from '~/components/query-display';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
@@ -32,10 +32,7 @@ export const ScheduledPublicationQueueTable = ({
 	rows,
 	pagination,
 }: {
-	query: Pick<
-		UseQueryResult,
-		'isPending' | 'isError' | 'error' | 'isFetching' | 'refetch'
-	>;
+	query: QueryDisplayQuery;
 	rows: ScheduledPublicationRow[];
 	pagination: QueuePagination;
 }) => {
@@ -136,13 +133,8 @@ export const ScheduledPublicationQueueTable = ({
 			ariaLabel={t('common:queue')}
 			columns={columns}
 			rows={rows}
-			queryState={{
-				isPending: query.isPending,
-				isError: query.isError,
-				error: query.error,
-				onRetry: () => void query.refetch(),
-				hasActiveSearch: false,
-			}}
+			query={query}
+			hasActiveSearch={false}
 			pagination={{
 				pageIndex: pagination.pageIndex,
 				hasPreviousPage: pagination.hasPreviousPage,
