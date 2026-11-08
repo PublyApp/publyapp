@@ -1588,6 +1588,14 @@ html.dark {
 		container-type: inline-size;
 	}
 
+	/* The staff dashboard reproduces the refonte prototype's own frame (20px
+	   top, 28px sides, 32px bottom, measured at 1440px — #2339 fidelity).
+	   Scoped to the dashboard page; every other page keeps the 32px frame. */
+	.app-shell-main:has([data-dashboard-page]) {
+		padding: 20px 28px 32px;
+		--page-pad-top: 20px;
+	}
+
 	/* The pages built from Shopkart's list page (the generic ListPage) use its
 	   32px frame on every side, as the prototype does — its pinned toolbar and
 	   table header offsets are calibrated on that padding through

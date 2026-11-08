@@ -20,6 +20,7 @@ import {
 	ChartCard,
 	OrganisationScopeSelect,
 	PeriodSelect,
+	SampleDataChip,
 } from './_dashboard-ui';
 import { OverviewCharts } from './_overview-charts';
 import { OverviewKpis } from './_overview-kpis';
@@ -88,7 +89,7 @@ const Overview = () => {
 	}
 
 	return (
-		<div className="space-y-4" data-testid="staff-dashboard-overview-panel">
+		<div className="space-y-5" data-testid="staff-dashboard-overview-panel">
 			<div className="mb-4 flex flex-wrap items-center gap-2">
 				<div className="w-full sm:w-48">
 					<PeriodSelect
@@ -105,6 +106,7 @@ const Overview = () => {
 						onChange={(next) => onSearchChange({ scope: next })}
 					/>
 				</div>
+				<SampleDataChip className="ml-auto" />
 			</div>
 
 			<OverviewKpis

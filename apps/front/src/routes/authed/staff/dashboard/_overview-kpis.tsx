@@ -36,7 +36,7 @@ export const OverviewKpis = ({
 	const { t } = useTranslation('common');
 
 	return (
-		<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+		<div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 			<KpiCard
 				testId="staff-dashboard-kpi-active-tenants"
 				label={t('dashboard-kpi-active-tenants')}

@@ -195,7 +195,7 @@ describe('ChartCard series', () => {
 				series={{ status: 'ready', chart: <span />, table: <span /> }}
 			/>,
 		);
-		const readyNote = ready.container.querySelector('p.pt-3');
+		const readyNote = ready.container.querySelector('p.pt-3\\.5');
 		expect(readyNote?.textContent).toBe('The real description');
 		cleanup();
 
@@ -210,7 +210,7 @@ describe('ChartCard series', () => {
 				}}
 			/>,
 		);
-		const ghostNote = ghost.container.querySelector('p.pt-3');
+		const ghostNote = ghost.container.querySelector('p.pt-3\\.5');
 		expect(ghostNote?.textContent).toBe('The curve will be drawn here.');
 		// Same slot, same size: only the colour mix differs (the AA-safe
 		// `.ghost-sentence`).
@@ -224,7 +224,7 @@ describe('KpiCard error', () => {
 	const heightSlotsOf = (card: HTMLElement) => ({
 		shell: card.className,
 		figure: card.querySelector('p')?.className,
-		reservedFooter: card.querySelector('.min-h-9') !== null,
+		reservedFooter: card.querySelector('.min-h-10') !== null,
 	});
 
 	test('a failed KPI is a compact error, not the page-scale error surface', () => {

@@ -30,7 +30,12 @@ import {
 	type DashboardPeriod,
 } from './_dashboard-filters';
 import { UNKNOWN_VALUE } from './_dashboard-format';
-import { ChartCard, KpiCard, PeriodSelect } from './_dashboard-ui';
+import {
+	ChartCard,
+	KpiCard,
+	PeriodSelect,
+	SampleDataChip,
+} from './_dashboard-ui';
 
 const Reports = () => {
 	const { t, i18n } = useTranslation('common');
@@ -62,7 +67,7 @@ const Reports = () => {
 	}
 
 	return (
-		<div className="space-y-4" data-testid="staff-dashboard-reports-panel">
+		<div className="space-y-5" data-testid="staff-dashboard-reports-panel">
 			<div className="mb-4 flex flex-wrap items-center gap-2">
 				<div className="w-full sm:w-52">
 					<PeriodSelect
@@ -74,6 +79,7 @@ const Reports = () => {
 						ariaLabel={t('dashboard-filter-report-period')}
 					/>
 				</div>
+				<SampleDataChip />
 				<div className="ml-auto">
 					<DashboardExportMenu
 						startDate={startDate}
@@ -82,7 +88,7 @@ const Reports = () => {
 				</div>
 			</div>
 
-			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+			<div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 				<KpiCard
 					testId="staff-dashboard-kpi-report-events"
 					label={t('dashboard-kpi-audit-events')}

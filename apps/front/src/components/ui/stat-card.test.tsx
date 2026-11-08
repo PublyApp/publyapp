@@ -93,8 +93,8 @@ describe('StatCard', () => {
 
 		expect(screen.getByText('—')).toBeTruthy();
 		expect(screen.getByText('Pas encore de données')).toBeTruthy();
-		// `min-h-9` is the 36 px the coloured delta and its period occupied.
-		expect(container.querySelector('.min-h-9')).toBeTruthy();
+		// `min-h-10` is the 40 px the coloured delta and its period occupy.
+		expect(container.querySelector('.min-h-10')).toBeTruthy();
 	});
 
 	test('a real figure keeps that height without the ghost copy', () => {
@@ -104,13 +104,13 @@ describe('StatCard', () => {
 				label="Membres"
 				icon={<IconUsers />}
 				value="31"
-				footer={<span aria-hidden="true" className="block min-h-9" />}
+				footer={<span aria-hidden="true" className="block min-h-10" />}
 			/>,
 		);
 
 		expect(screen.getByText('31')).toBeTruthy();
 		expect(screen.queryByText('Pas encore de données')).toBeNull();
-		expect(container.querySelector('.min-h-9')).toBeTruthy();
+		expect(container.querySelector('.min-h-10')).toBeTruthy();
 	});
 
 	test('a card with its trend series keeps the plain footer', () => {
@@ -124,7 +124,9 @@ describe('StatCard', () => {
 			/>,
 		);
 
-		expect(container.querySelector('.min-h-9')).toBeNull();
+		// The footer keeps the prototype's 40 px band in both states; only the
+		// ghost copy and the ghost sparkline differ.
+		expect(container.querySelector('.min-h-10')).toBeTruthy();
 		expect(screen.getByText('vs 30 jours précédents')).toBeTruthy();
 	});
 });

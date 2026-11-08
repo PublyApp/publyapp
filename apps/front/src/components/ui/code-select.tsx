@@ -85,7 +85,7 @@ export const CodeSelect = <T extends string>({
 				aria-expanded={sheetOpen}
 				onClick={() => setSheetOpen(true)}
 				className={cn(
-					'flex h-9 w-full items-center justify-between gap-1.5 rounded-[var(--publy-radius-input)] border border-border bg-input/50 px-3 text-[13px] outline-none focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50',
+					'flex h-9 w-auto min-w-48 items-center justify-between gap-1.5 rounded-[12px] border border-(--publy-input-border) bg-background px-3 py-2 text-sm whitespace-nowrap shadow-(--effect-raised-control) outline-none focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50',
 					className,
 				)}
 			>

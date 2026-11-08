@@ -39,13 +39,13 @@ export const SectionCard = ({
 		<div
 			data-slot="section-card-header"
 			className={cn(
-				'flex min-h-8 items-center justify-between gap-3 px-4 pt-1 pb-2',
+				'flex min-h-8 items-center justify-between gap-3 pt-1 pr-2.5 pb-2 pl-4',
 				headerClassName,
 			)}
 		>
 			<span
 				className={cn(
-					'flex min-w-0 items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase [&_svg]:size-3.5 [&_svg]:shrink-0',
+					'flex min-w-0 items-center gap-1.5 text-xs leading-[1.45] font-medium tracking-wide text-muted-foreground uppercase [&_svg]:size-3.5 [&_svg]:shrink-0',
 					tone === 'danger' && 'text-destructive',
 				)}
 			>

@@ -200,14 +200,19 @@ export const ChartBody = ({
 	className?: string;
 }) => (
 	<div
-		className={cn('flex flex-1 flex-col justify-center px-4 py-4', className)}
+		className={cn(
+			'flex flex-1 flex-col justify-center px-4 pt-3.5 pb-4',
+			className,
+		)}
 	>
 		{children}
 	</div>
 );
 
 export const ChartNote = ({ children }: { children: ReactNode }) => (
-	<p className="px-4 pt-3 text-xs text-muted-foreground">{children}</p>
+	<p className="px-4 pt-3.5 text-[13px] leading-[1.45] text-foreground">
+		{children}
+	</p>
 );
 
 export const ChartTable = ({

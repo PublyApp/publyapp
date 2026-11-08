@@ -12,6 +12,7 @@ import { Segmented } from '~/components/ui/segmented';
 import { Skeleton } from '~/components/ui/skeleton';
 import { StatCard } from '~/components/ui/stat-card';
 import { resolveQueryError } from '~/lib/server/query-error-resolver';
+import { cn } from '~/lib/utils';
 
 import { GhostSpark, GhostTag } from './_chart-ghost';
 import { ChartBody, ChartNote } from './_dashboard-charts';
@@ -74,6 +75,37 @@ export const OrganisationScopeSelect = ({
 			onChange={onChange}
 			ariaLabel={t('dashboard-filter-organisations')}
 		/>
+	);
+};
+
+/** The dotted « Données d'exemple » chip (§5.2): the page's quiet statement
+ * that some of its figures are sample data, not API series yet. */
+export const SampleDataChip = ({ className }: { className?: string }) => {
+	const { t } = useTranslation('common');
+	return (
+		<span
+			data-testid="staff-dashboard-sample-chip"
+			className={cn(
+				'inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-[8px] border border-dashed border-(--publy-border-strong) px-2.5 text-[11px] leading-[1.45] font-medium text-muted-foreground',
+				className,
+			)}
+		>
+			<svg
+				aria-hidden="true"
+				viewBox="0 0 12 12"
+				className="size-[9px] shrink-0"
+			>
+				<circle
+					cx="6"
+					cy="6"
+					r="4"
+					fill="none"
+					stroke="currentColor"
+					strokeWidth="1"
+				/>
+			</svg>
+			{t('dashboard-sample-data')}
+		</span>
 	);
 };
 

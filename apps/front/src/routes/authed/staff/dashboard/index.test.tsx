@@ -434,7 +434,7 @@ describe('staff dashboard overview', () => {
 		expect(within(card).getByText('31')).toBeTruthy();
 		expect(within(card).queryByText('No data yet')).toBeNull();
 		// The ghost footer's 36 px stays, so the figure does not jump.
-		expect(card.querySelector('.min-h-9')).toBeTruthy();
+		expect(card.querySelector('.min-h-10')).toBeTruthy();
 	});
 
 	test('a failed KPI request shows the error state, never the ghost (B4)', () => {

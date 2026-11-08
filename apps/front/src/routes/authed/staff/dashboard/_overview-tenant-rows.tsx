@@ -78,7 +78,7 @@ export const TenantRows = ({
 		{tenants.map((tenant) => (
 			<div
 				key={tenant.id}
-				className="flex items-center gap-3 border-t border-(--publy-row-border) py-2.5 first:border-t-0"
+				className="flex items-center gap-3 border-t border-(--publy-row-border) py-[9px] first:border-t-0"
 				data-testid="staff-dashboard-tenant-row"
 			>
 				<PersonAvatar name={tenant.name} size="sm" />

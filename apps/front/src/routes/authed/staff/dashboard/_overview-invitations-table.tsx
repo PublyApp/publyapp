@@ -97,18 +97,18 @@ export const PendingInvitationsTable = ({
 								className="border-t border-(--publy-row-border)"
 								data-testid="staff-dashboard-invitation-row"
 							>
-								<td className="py-2.5">{invitation.email}</td>
-								<td className="py-2.5">
+								<td className="py-3.5">{invitation.email}</td>
+								<td className="py-3.5">
 									{invitation.roleName ? (
 										<StatusPill>{invitation.roleName}</StatusPill>
 									) : (
 										UNKNOWN_VALUE
 									)}
 								</td>
-								<td className="py-2.5 text-(--publy-foreground-secondary)">
+								<td className="py-3.5 text-(--publy-foreground-secondary)">
 									{invitation.invitedByName ?? UNKNOWN_VALUE}
 								</td>
-								<td className="py-2.5 font-mono text-xs text-muted-foreground">
+								<td className="py-3.5 font-mono text-xs text-muted-foreground">
 									<ExpiryCell
 										expiresAt={invitation.expiresAt}
 										locale={locale}

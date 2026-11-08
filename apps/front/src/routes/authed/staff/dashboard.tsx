@@ -26,7 +26,11 @@ const StaffDashboardPage = () => {
 	const activeSection = getActiveSection(pathname);
 
 	return (
-		<div className="space-y-5" data-testid="staff-dashboard-page">
+		<div
+			className="space-y-5"
+			data-testid="staff-dashboard-page"
+			data-dashboard-page
+		>
 			<div className="space-y-1" data-testid="staff-dashboard-heading">
 				<h1 className="text-[22px] font-semibold leading-7 tracking-[-0.01em] text-foreground">
 					{t('dashboard')}
@@ -52,7 +56,7 @@ const StaffDashboardPage = () => {
 					</TabsTrigger>
 				</TabsList>
 
-				<TabsContent value={activeSection} className="mt-5">
+				<TabsContent value={activeSection} className="mt-3">
 					<Outlet />
 				</TabsContent>
 			</Tabs>

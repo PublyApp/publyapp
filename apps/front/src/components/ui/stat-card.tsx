@@ -62,14 +62,14 @@ export const StatCard = ({
 			data-testid={testId}
 		>
 			<div className="flex items-center justify-between gap-3 px-3 pt-1 pb-2">
-				<div className="flex min-w-0 items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase [&_svg]:size-3.5 [&_svg]:shrink-0">
+				<div className="flex min-w-0 items-center gap-1.5 text-xs leading-[1.45] font-medium tracking-wide text-muted-foreground uppercase [&_svg]:size-3.5 [&_svg]:shrink-0">
 					{icon}
 					<span className="truncate">{label}</span>
 				</div>
 				{action}
 			</div>
 			<div className="flex min-h-0 flex-1 flex-col justify-between gap-3 rounded-[var(--publy-radius-medium-control)] border bg-background p-3">
-				<p className="text-[length:clamp(20px,13cqi,30px)] leading-8 font-medium tabular-nums">
+				<p className="text-[length:clamp(20px,13cqi,30px)] leading-8 font-medium tracking-[-0.01em] tabular-nums">
 					<span className="whitespace-nowrap">{figure}</span>
 					{unit ? (
 						<span className="ml-1 text-base text-muted-foreground md:text-lg">
@@ -81,8 +81,8 @@ export const StatCard = ({
 					className={cn(
 						'text-xs text-muted-foreground',
 						unavailable
-							? 'flex min-h-9 items-end justify-between gap-3'
-							: '[&_svg]:inline [&_svg]:size-3.5 [&_svg]:align-[-2px]',
+							? 'flex min-h-10 items-end justify-between gap-3'
+							: 'flex min-h-10 items-end justify-between gap-3 [&_svg]:inline [&_svg]:size-3.5 [&_svg]:align-[-2px]',
 					)}
 				>
 					{footer ?? secondary}
