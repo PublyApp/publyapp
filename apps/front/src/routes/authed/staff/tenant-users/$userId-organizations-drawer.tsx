@@ -286,6 +286,9 @@ export const LinkCompaniesDrawerHost = ({
 
 								return (
 									<>
+										{
+											null /* ponytail: errorContent slot placeholder — keeps <ul> at child index 2, aligned with the error branch so React reconciles it in place across data↔error flips */
+										}
 										{options.length === 0 ? renderEmptyCompanies : null}
 										{renderOptions(options)}
 									</>

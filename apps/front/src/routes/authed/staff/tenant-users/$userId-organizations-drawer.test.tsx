@@ -113,4 +113,62 @@ describe('LinkCompaniesDrawerHost companies picker', () => {
 		expect(screen.getByRole('checkbox', { name: 'Acme' })).toBe(checkbox);
 		expect(document.activeElement).toBe(checkbox);
 	});
+
+	// F-M2 (#2341): the error branch rendered [errorContent, empty?, <ul>]
+	// (3 children) while the data branch rendered [empty?, <ul>] (2 children),
+	// so the <ul> sat at child index 2 vs 1. React reconciles positionally
+	// inside the same Fragment, so flipping between the two branches destroyed
+	// and rebuilt the <ul> — every row checkbox became a new DOM node and
+	// keyboard focus fell back to <body>.
+	test('keeps the same <ul> DOM node and focus when the query flips between data and held-data error', () => {
+		const rows = [{ id: 't1', name: 'Acme', logoUrl: null }];
+		mocks.useGlobalTenantUsersPickerQuery.mockReturnValue(pickerOf(rows));
+		const { rerender } = renderHost();
+
+		const checkbox = screen.getByRole('checkbox', { name: 'Acme' });
+		checkbox.focus();
+		expect(document.activeElement).toBe(checkbox);
+		const ulBeforeError = screen.getByTestId('link-companies-options');
+
+		// Flip to held-data + error (background refetch failure).
+		mocks.useGlobalTenantUsersPickerQuery.mockReturnValue(
+			staleErrorPicker(rows),
+		);
+		rerender(
+			createElement(
+				QueryClientProvider,
+				{ client: new QueryClient() },
+				createElement(LinkCompaniesDrawerHost, {
+					userId: 'user-1',
+					isOpen: true,
+					onOpenChange: vi.fn(),
+				}),
+			),
+		);
+
+		// The <ul> must be the same DOM node, and the checkbox must still be focused.
+		expect(screen.getByTestId('link-companies-options')).toBe(ulBeforeError);
+		const checkboxAfterError = screen.getByRole('checkbox', { name: 'Acme' });
+		expect(checkboxAfterError).toBe(checkbox);
+		expect(document.activeElement).toBe(checkbox);
+
+		// Flip back to data (retry succeeds).
+		mocks.useGlobalTenantUsersPickerQuery.mockReturnValue(pickerOf(rows));
+		rerender(
+			createElement(
+				QueryClientProvider,
+				{ client: new QueryClient() },
+				createElement(LinkCompaniesDrawerHost, {
+					userId: 'user-1',
+					isOpen: true,
+					onOpenChange: vi.fn(),
+				}),
+			),
+		);
+
+		// Same <ul> DOM node again, same checkbox, focus preserved both ways.
+		expect(screen.getByTestId('link-companies-options')).toBe(ulBeforeError);
+		expect(screen.getByRole('checkbox', { name: 'Acme' })).toBe(checkbox);
+		expect(document.activeElement).toBe(checkbox);
+	});
 });
