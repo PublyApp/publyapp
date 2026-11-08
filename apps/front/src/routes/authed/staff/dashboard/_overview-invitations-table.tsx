@@ -16,9 +16,11 @@ const COLUMNS = [
 /** One pending invitation as a stacked card, below `md` (N14). */
 const PendingInvitationCard = ({
 	invitation,
+	locale,
 	t,
 }: {
 	invitation: InvitationListItem;
+	locale: string;
 	t: Translate;
 }) => (
 	<div
@@ -42,7 +44,7 @@ const PendingInvitationCard = ({
 			<div className="col-span-2 min-w-0">
 				<dt className="text-muted-foreground">{t('dashboard-col-expiry')}</dt>
 				<dd className="font-mono text-(--publy-foreground-secondary)">
-					<ExpiryCell expiresAt={invitation.expiresAt} t={t} />
+					<ExpiryCell expiresAt={invitation.expiresAt} locale={locale} t={t} />
 				</dd>
 			</div>
 		</dl>
@@ -54,9 +56,11 @@ const PendingInvitationCard = ({
  * slot, not this table's concern. */
 export const PendingInvitationsTable = ({
 	invitations,
+	locale,
 	t,
 }: {
 	invitations: readonly InvitationListItem[];
+	locale: string;
 	t: Translate;
 }) => {
 	return (
@@ -66,6 +70,7 @@ export const PendingInvitationsTable = ({
 					<PendingInvitationCard
 						key={invitation.id}
 						invitation={invitation}
+						locale={locale}
 						t={t}
 					/>
 				))}
@@ -104,7 +109,11 @@ export const PendingInvitationsTable = ({
 									{invitation.invitedByName ?? UNKNOWN_VALUE}
 								</td>
 								<td className="py-2.5 font-mono text-xs text-muted-foreground">
-									<ExpiryCell expiresAt={invitation.expiresAt} t={t} />
+									<ExpiryCell
+										expiresAt={invitation.expiresAt}
+										locale={locale}
+										t={t}
+									/>
 								</td>
 							</tr>
 						))}

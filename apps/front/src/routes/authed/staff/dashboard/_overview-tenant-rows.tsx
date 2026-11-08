@@ -2,6 +2,7 @@ import { PersonAvatar } from '~/components/ui/person-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { statusPillTone } from '~/components/ui/status-tone';
 import type { StaffTenantRow } from '~/lib/query/staff-tenants';
+import { formatNumericDay } from '~/utils/format-time';
 
 import { UNKNOWN_VALUE } from './_dashboard-format';
 
@@ -29,9 +30,11 @@ const statusLabelKey = (status: string | null): string | undefined => {
  * carries no readable date. */
 export const ExpiryCell = ({
 	expiresAt,
+	locale,
 	t,
 }: {
 	expiresAt: Date | null | undefined;
+	locale: string;
 	t: Translate;
 }) => {
 	if (!expiresAt) {
@@ -56,7 +59,7 @@ export const ExpiryCell = ({
 	return (
 		<>
 			{relative}{' '}
-			<span className="font-mono">· {expiry.toISOString().slice(0, 10)}</span>
+			<span className="font-mono">· {formatNumericDay(expiry, locale)}</span>
 		</>
 	);
 };

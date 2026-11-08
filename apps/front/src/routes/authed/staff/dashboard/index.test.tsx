@@ -11,6 +11,7 @@ import {
 import type { ComponentType } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
+import { formatNumericDay } from '~/utils/format-time';
 
 type DashboardSearch = { period?: string; scope?: string };
 
@@ -544,6 +545,32 @@ describe('staff dashboard overview', () => {
 			'staff-dashboard-pending-invitations-view-all',
 		);
 		expect(invitationsLink.getAttribute('href')).toBe('/staff/invitations');
+	});
+
+	test('the invitation expiry day is the viewer-local day, never the UTC day (2339)', () => {
+		withData();
+		// 22:30 UTC is already the next day at UTC+14 (Pacific/Kiritimati), so
+		// the UTC slice and the viewer's local day disagree on this row.
+		const expiry = new Date('2099-01-01T22:30:00Z');
+		mocks.pendingInvitationsQuery.data = {
+			data: [
+				{
+					id: '0197b8f0-3333-7ccc-8ccc-cccccccccc02',
+					email: 'new-hire@example.com',
+					roleName: 'Support',
+					invitedByName: 'Ada Admin',
+					expiresAt: expiry,
+				},
+			],
+			nextCursor: null,
+			counts: { total: 1, pending: 1, accepted: 0, expired: 0, revoked: 0 },
+		};
+
+		render(<Overview />);
+
+		// The react-i18next mock above resolves the locale to « en ».
+		const card = screen.getByTestId('staff-dashboard-pending-invitations');
+		expect(card.textContent).toContain(formatNumericDay(expiry, 'en'));
 	});
 
 	test('an auth failure on any query logs out through the shared path', () => {

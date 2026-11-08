@@ -168,7 +168,11 @@ export const OverviewLists = ({
 						}
 					>
 						{({ data }) => (
-							<PendingInvitationsTable invitations={data.data ?? []} t={t} />
+							<PendingInvitationsTable
+								invitations={data.data ?? []}
+								locale={locale}
+								t={t}
+							/>
 						)}
 					</DashboardCardQuery>
 				</div>
