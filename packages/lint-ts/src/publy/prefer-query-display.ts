@@ -46,18 +46,18 @@ import {
  * JSX-returning render-prop callbacks (see below).
  *
  * #2341: the rule also requires that every `use*Query` binding in a
- * JSX-returning function is handed WHOLE to a component as a JSX attribute —
- * `<QueryDisplay query={q}>`, `<ListPage query={q}>`, `<HistoryPage
- * query={q}>`, `<DataTable query={q}>`, or any component/prop name that
- * forwards the result (`<KpiCard query={q}>`, `<OverviewKpis
- * countsQuery={q}>`) — directly or through an alias. The prop name is
- * irrelevant: passing the whole result makes the receiving component
- * responsible for rendering it through `QueryDisplay`. Otherwise
- * `queryNotRenderedThroughQueryDisplay` reports on the binding: rendering
- * `q.data` without the shared component bypasses the loading / error / empty
- * states. Destructuring the result is always a violation — the whole result
- * must be kept. A function that returns no JSX (a custom hook) is not checked.
- * A hand-rolled ladder is reported by the message above instead, never both.
+ * JSX-returning function is handed WHOLE to a component through a query prop —
+ * a JSX attribute named `query` or ending in `Query` (`<QueryDisplay
+ * query={q}>`, `<ListPage query={q}>`, `<HistoryPage query={q}>`, `<DataTable
+ * query={q}>`, `<KpiCard query={q}>`, `<OverviewKpis countsQuery={q}>`) —
+ * directly or through an alias. Any other prop (`<Foo people={q}>`) does not
+ * count: the rule cannot prove the receiver renders the result through
+ * `QueryDisplay`. Otherwise `queryNotRenderedThroughQueryDisplay` reports on
+ * the binding: rendering `q.data` without the shared component bypasses the
+ * loading / error / empty states. Destructuring the result is always a
+ * violation — the whole result must be kept. A function that returns no JSX (a
+ * custom hook) is not checked. A hand-rolled ladder is reported by the message
+ * above instead, never both.
  *
  * Render props: an arrow/function expression that **returns JSX** and sits in
  * a JSX value position (a `JSXAttribute` value such as
@@ -418,15 +418,24 @@ const isConditionalExpr = (node: ESTree.Node | null | undefined): boolean =>
 	(node.type === 'ConditionalExpression' || node.type === 'LogicalExpression');
 
 /**
- * Names handed WHOLE to a component: any JSX attribute whose value is the
- * binding (`<QueryDisplay query={q}>`, `<ListPage query={q}>`,
- * `<DataTable query={q}>`, `<KpiCard query={q}>`, `<OverviewKpis
- * countsQuery={q}>`), or a `query` property of a props/context object
- * (`renderCard({ query: q })`, `contextValue={{ query: q }}`). The prop name
- * does not matter: a component receiving the whole result is responsible for
- * rendering it through `QueryDisplay`. The `query` property form is narrower
- * because a props object may be consumed by anything; it keeps the documented
- * `query` slot.
+ * Prop names that make a whole query result "handed over": `query` or a
+ * `*Query` name (`countsQuery`, `ownersQuery`). Any other prop name does not
+ * prove the receiver renders the result through `QueryDisplay`, so it does not
+ * silence the rule (review H finding 1: `<Foo people={q} />` used to count).
+ */
+const isQueryPropName = (name: string): boolean =>
+	name === 'query' || name.endsWith('Query');
+
+/**
+ * Names handed WHOLE to a component: a JSX attribute named `query` or ending
+ * in `Query` whose value is the binding (`<QueryDisplay query={q}>`,
+ * `<ListPage query={q}>`, `<DataTable query={q}>`, `<KpiCard query={q}>`,
+ * `<OverviewKpis countsQuery={q}>`), or a `query` property of a props/context
+ * object (`renderCard({ query: q })`, `contextValue={{ query: q }}`). The
+ * receiving component is responsible for rendering the result through
+ * `QueryDisplay` — that responsibility is enforced by review, not by this
+ * rule. The `query` property form is narrower because a props object may be
+ * consumed by anything; it keeps the documented `query` slot.
  */
 const collectConsumedQueryNames = (
 	body: ESTree.BlockStatement,
@@ -442,9 +451,10 @@ const collectConsumedQueryNames = (
 			return;
 		}
 		visited.add(node);
-		if (node.type === 'JSXAttribute') {
+		if (node.type === 'JSXAttribute' && node.name.type === 'JSXIdentifier') {
 			const value = node.value;
 			if (
+				isQueryPropName(node.name.name) &&
 				value?.type === 'JSXExpressionContainer' &&
 				value.expression.type === 'Identifier'
 			) {

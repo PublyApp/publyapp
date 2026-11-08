@@ -440,28 +440,33 @@ Render TanStack Query loading / error / empty / data ladders through the shared
 loading, error, and empty states visually consistent (it composes `StateView` /
 `StateSurface` / `Skeleton`), and it is the single place to evolve those states.
 
-The `publy/prefer-query-display` oxlint rule is **enforced at `"error"`** and covers every query
-render in `apps/front/src`, not only hand-rolled ladders:
+The `publy/prefer-query-display` oxlint rule is **enforced at `"error"`**. It catches the two shapes
+a static check can see in `apps/front/src`: a hand-rolled ladder, and a query result rendered in the
+component that binds it without being handed through a query prop. What a receiving component does
+with the result is not visible to the rule.
 
 - **Message `preferQueryDisplay`:** flags a component file that binds a `use*Query` result and then
   branches on a query flag (`isPending` / `isLoading` / `isError` / `isSuccess` / `status` /
   `error`) inside a conditional render.
 - **Message `queryNotRenderedThroughQueryDisplay` (#2341):** flags any `use*Query` binding in a
-  JSX-returning function that is not handed WHOLE to a component as a JSX attribute — the prop
-  name does not matter (`<QueryDisplay query={q}>`, `<ListPage query={q}>`, `<HistoryPage
-  query={q}>`, `<DataTable query={q}>`, `<KpiCard query={q}>`, `<OverviewKpis countsQuery={q}>`):
-  the receiving component is responsible for rendering it through `QueryDisplay`. A `query`
-  property of a props/context object also counts. Destructuring the hook's own result
-  (`const { data } = useFooQuery()`) is a violation: keep the whole result. A custom hook that
-  returns no JSX is not checked.
+  JSX-returning function that is not handed WHOLE through a query prop — a JSX attribute named
+  `query` or ending in `Query` (`<QueryDisplay query={q}>`, `<ListPage query={q}>`, `<HistoryPage
+  query={q}>`, `<DataTable query={q}>`, `<KpiCard query={q}>`, `<OverviewKpis countsQuery={q}>`),
+  directly or through an alias. Any other prop name (`<Foo people={q}>`) does not count: the rule
+  cannot see into the receiver. A `query` property of a props/context object also counts.
+  Destructuring the hook's own result (`const { data } = useFooQuery()`) is a violation: keep the
+  whole result. A custom hook that returns no JSX is not checked. The rule does **not** prove the
+  receiver renders the result through `QueryDisplay`: a component that takes a `query` / `*Query`
+  prop MUST render it through `QueryDisplay` (loading / error / empty slots included), and that
+  half of the contract is enforced by review.
 
 `QueryDisplay` has three presets, so small widgets cost no extra code:
 
-| `variant`        | Loading                                 | Error                                      | Use for                   |
-| ---------------- | --------------------------------------- | ------------------------------------------ | ------------------------- |
-| `page` (default) | spinner / caller `LoadingSlot`          | full error state                           | pages, drawers, cards     |
-| `inline`         | spinner + visible « Chargement… » label | one-line cause + « Réessayer »             | menus, selects, form rows |
-| `discreet`       | nothing                                 | nothing (a failed refetch keeps held data) | banners, badges, counts   |
+| `variant`        | Loading                                 | Error                                                           | Use for                   |
+| ---------------- | --------------------------------------- | --------------------------------------------------------------- | ------------------------- |
+| `page` (default) | spinner / caller `LoadingSlot`          | full error state                                                | pages, drawers, cards     |
+| `inline`         | spinner + visible « Chargement… » label | one-line cause + « Réessayer »                                  | menus, selects, form rows |
+| `discreet`       | nothing                                 | nothing, unless it renders held data or an explicit `ErrorSlot` | banners, badges, counts   |
 
 An explicit `LoadingSlot` / `ErrorSlot` / `EmptySlot` always wins over the preset. The escape is a
 named disable comment with a written reason, `// oxlint-disable-next-line publy/prefer-query-display

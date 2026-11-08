@@ -903,6 +903,19 @@ const runCases = (rule, label) => {
 					filename: COMPONENT_FILE,
 					errors: [{ messageId: 'queryNotRenderedThroughQueryDisplay' }],
 				},
+				// RED fixture (review H finding 1): handing the whole result to
+				// an arbitrary prop does not prove the receiver renders it
+				// through QueryDisplay, so only `query` / `*Query` count.
+				{
+					code: [
+						'const List = () => {',
+						'  const q = useFooQuery();',
+						'  return <Foo people={q} />;',
+						'};',
+					].join('\n'),
+					filename: COMPONENT_FILE,
+					errors: [{ messageId: 'queryNotRenderedThroughQueryDisplay' }],
+				},
 			],
 		});
 	});

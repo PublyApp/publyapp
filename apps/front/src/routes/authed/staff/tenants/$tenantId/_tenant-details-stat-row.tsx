@@ -6,6 +6,7 @@ import {
 	IconUsers,
 } from '@tabler/icons-react';
 import { Link } from '@tanstack/react-router';
+import QueryDisplay from '~/components/query-display';
 import { AvatarStack } from '~/components/ui/initials-avatar';
 import { StatusPill } from '~/components/ui/product-page';
 import { StatCard } from '~/components/ui/stat-card';
@@ -14,6 +15,10 @@ import {
 	useStaffTenantUsersQuery,
 } from '~/lib/query/staff-tenant-users';
 import type { StaffTenantDetails } from '~/lib/query/staff-tenants';
+
+/** 20px spacer matching the avatar stack's height: the owners footer must not
+ * collapse while the enrichment query loads or fails. */
+const ownerStackPlaceholder = <span aria-hidden="true" className="block h-5" />;
 
 /** The four headline stat cards of the tenant "basics" section. Split out of
  * the route file for `react-doctor/no-giant-component`; markup, test ids and
@@ -70,7 +75,16 @@ export const TenantDetailsStatRow = ({
 				testId="tenant-stat-owners"
 				label={t('owners')}
 				icon={<IconKey aria-hidden="true" className="size-[14px]" />}
-				secondary={<AvatarStack people={ownerPeople} />}
+				secondary={
+					<QueryDisplay
+						query={query}
+						variant="discreet"
+						LoadingSlot={ownerStackPlaceholder}
+						ErrorSlot={ownerStackPlaceholder}
+					>
+						<AvatarStack people={ownerPeople} />
+					</QueryDisplay>
+				}
 			>
 				{tenant.ownersCount}
 			</StatCard>

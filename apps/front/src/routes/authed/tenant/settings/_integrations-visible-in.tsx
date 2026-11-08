@@ -32,11 +32,19 @@ export const IntegrationsVisibleIn = ({
 		label: project.name,
 	}));
 
+	// Every non-data state keeps the cell and its label: unknown ids degrade to
+	// the raw id rather than silently disappearing (the component's contract).
+	const rawIdFallback = (
+		<span>{t('visible-in-projects', { names: renderNames([]) })}</span>
+	);
+
 	return (
 		<QueryDisplay
 			query={query}
 			variant="discreet"
-			LoadingSlot={<span>{renderNames([])}</span>}
+			LoadingSlot={rawIdFallback}
+			ErrorSlot={rawIdFallback}
+			EmptySlot={rawIdFallback}
 		>
 			<span>{t('visible-in-projects', { names: renderNames(projects) })}</span>
 		</QueryDisplay>

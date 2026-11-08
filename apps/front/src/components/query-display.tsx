@@ -43,9 +43,9 @@ type Props<TData = unknown, TError = Error> = {
 	loadingStrategy?: LoadingMode; // defaults to 'pending'
 	/** `page` (default): spinner + full error state. `inline`: spinner plus a visible
 	 * « Chargement… » label, and a one-line error with « Réessayer », for menus and
-	 * selects. `discreet`: nothing while loading and nothing on error unless data is
-	 * already held (a failed refetch keeps it), for banners and badges that only
-	 * matter when data exists. Explicit slots win. */
+	 * selects. `discreet`: nothing while loading and nothing on error unless it
+	 * renders data it already holds (a failed refetch keeps `children`), for
+	 * banners and badges that only matter when data exists. Explicit slots win. */
 	variant?: 'page' | 'inline' | 'discreet';
 	LoadingSlot?: RenderSlot;
 	ErrorSlot?: RenderSlot<{
@@ -260,8 +260,16 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	if (query.isError) {
 		// A failed *refetch* keeps the last good data (TanStack v5 sets
 		// `status: 'error'` without clearing `data`); `discreet` banners must
-		// keep showing it instead of blanking what they already hold.
-		if (variant === 'discreet' && query.data !== undefined) {
+		// keep showing it instead of blanking what they already hold. With no
+		// children there is nothing to keep showing — an error-only banner
+		// (`<QueryDisplay query={q} variant="discreet" ErrorSlot={…} />`) must
+		// still surface its cause and retry on a failed refetch.
+		if (
+			variant === 'discreet' &&
+			query.data !== undefined &&
+			children !== undefined &&
+			children !== null
+		) {
 			return renderData(query, children);
 		}
 		return renderError(query.error, query, ErrorSlot, t, variant);

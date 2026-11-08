@@ -476,6 +476,25 @@ describe('QueryDisplay variants', () => {
 		expect(screen.getByText('payload')).toBeTruthy();
 	});
 
+	// An error-only banner (no children) has nothing to keep showing, so the
+	// held-data path must not swallow it on a failed refetch (review H #3).
+	test('discreet still shows an error-only banner when a refetch fails with held data', () => {
+		render(
+			<QueryDisplay
+				query={staleErrorQuery}
+				variant="discreet"
+				ErrorSlot={
+					<span role="alert">
+						banner <button type="button">Retry</button>
+					</span>
+				}
+			/>,
+		);
+
+		expect(screen.getByRole('alert').textContent).toContain('banner');
+		expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy();
+	});
+
 	test('an explicit LoadingSlot wins over the preset', () => {
 		render(
 			<QueryDisplay

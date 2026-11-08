@@ -294,7 +294,9 @@ const StaffRoleUsersPage = () => {
 							</TabsContent>
 						</Tabs>
 					</div>
-				) : null
+				) : (
+					notFoundNode
+				)
 			}
 		</QueryDisplay>
 	);
