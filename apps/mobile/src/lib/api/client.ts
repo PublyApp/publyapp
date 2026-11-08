@@ -83,6 +83,7 @@ export const apiRequest = async <T>(
 		headers.set(TENANT_ID_HEADER, options.tenantId);
 	}
 
+	const deadline = AbortSignal.timeout(15_000);
 	let response: Response;
 	try {
 		response = await fetch(`${getApiBaseUrl()}${path}`, {
@@ -90,11 +91,11 @@ export const apiRequest = async <T>(
 			headers,
 			body:
 				options.body === undefined ? undefined : JSON.stringify(options.body),
-			signal: AbortSignal.timeout(15_000),
+			signal: deadline,
 		});
 	} catch (error) {
-		// Name only: DOMException is not a guaranteed global in React Native.
-		if ((error as { name?: unknown } | null)?.name === 'TimeoutError') {
+		// React Native's fetch rejects with a plain AbortError, so ask the signal.
+		if (deadline.aborted) {
 			throw new ApiError(0, 'Le serveur ne répond pas. Réessayez.');
 		}
 		throw new ApiError(
