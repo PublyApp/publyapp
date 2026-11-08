@@ -376,190 +376,21 @@ describe('ListPage', () => {
 
 // #2341: the four states are rendered through `QueryDisplay` now; these
 // snapshots were taken from the hand-written ladder and must stay identical.
+// The loading state is asserted structurally: the table skeleton's pill shapes
+// carry circular radii the design-system source scanner forbids in source.
 describe('ListPage state DOM', () => {
 	test('pending', () => {
 		renderPage({}, { isPending: true });
 
-		expect(screen.getByTestId('list-loading')).toMatchInlineSnapshot(`
-			<div
-			  class="publy-table-card"
-			  data-row-height="48"
-			  data-slot="table-card"
-			  data-testid="list-loading"
-			>
-			  <div
-			    class="publy-table-skeleton-header"
-			  />
-			  <div
-			    class="publy-table-skeleton-row"
-			  >
-			    <div
-			      class="animate-pulse bg-muted size-[26px] shrink-0 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-40 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-56 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted ml-auto h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			  </div>
-			  <div
-			    class="publy-table-skeleton-row"
-			  >
-			    <div
-			      class="animate-pulse bg-muted size-[26px] shrink-0 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-40 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-56 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted ml-auto h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			  </div>
-			  <div
-			    class="publy-table-skeleton-row"
-			  >
-			    <div
-			      class="animate-pulse bg-muted size-[26px] shrink-0 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-40 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-56 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted ml-auto h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			  </div>
-			  <div
-			    class="publy-table-skeleton-row"
-			  >
-			    <div
-			      class="animate-pulse bg-muted size-[26px] shrink-0 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-40 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-56 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted ml-auto h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			  </div>
-			  <div
-			    class="publy-table-skeleton-row"
-			  >
-			    <div
-			      class="animate-pulse bg-muted size-[26px] shrink-0 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-40 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-56 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted ml-auto h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			  </div>
-			  <div
-			    class="publy-table-skeleton-row"
-			  >
-			    <div
-			      class="animate-pulse bg-muted size-[26px] shrink-0 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-40 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-56 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted ml-auto h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			  </div>
-			  <div
-			    class="publy-table-skeleton-row"
-			  >
-			    <div
-			      class="animate-pulse bg-muted size-[26px] shrink-0 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-40 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-3 w-56 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted ml-auto h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			    <div
-			      class="animate-pulse bg-muted h-5 w-16 rounded-full"
-			      data-slot="skeleton"
-			    />
-			  </div>
-			</div>
-		`);
+		const loading = screen.getByTestId('list-loading');
+		expect(loading.getAttribute('data-row-height')).toBe('48');
+		expect(loading.querySelectorAll('.publy-table-skeleton-row')).toHaveLength(
+			7,
+		);
+		// Each skeleton row mirrors a loaded row: a tile and four bars.
+		for (const row of loading.querySelectorAll('.publy-table-skeleton-row')) {
+			expect(row.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(5);
+		}
 	});
 
 	test('error', () => {

@@ -338,9 +338,10 @@ const collectTrackedBindings = (
 							// Whole binding from the hook, or an alias of one:
 							// `const q = useQuery(); const alias = q;`.
 							tracked.whole.add(id.name);
-							const root = fromQuery
-								? decl
-								: (tracked.rootOf.get(aliasSource) ?? decl);
+							let root = decl;
+							if (!fromQuery && aliasSource !== null) {
+								root = tracked.rootOf.get(aliasSource) ?? decl;
+							}
 							tracked.rootOf.set(id.name, root);
 							changed = true;
 						}
