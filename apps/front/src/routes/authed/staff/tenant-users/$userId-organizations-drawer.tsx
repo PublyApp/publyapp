@@ -126,6 +126,50 @@ export const LinkCompaniesDrawerHost = ({
 		</p>
 	);
 
+	// F-M1 (#2341): ErrorSlot must be an ELEMENT with a stable type, not an
+	// inline arrow. QueryDisplay mounts a function slot as a component, so an
+	// arrow is a new component type on every host render and would remount the
+	// held-data list (dropping the focused row's checkbox) each time it is ticked.
+	// Computing the element here keeps the subtree reconciling in place.
+	const errorContent = (
+		<p
+			className="py-6 text-center text-sm text-destructive"
+			role="alert"
+			data-testid="link-companies-error"
+		>
+			{getFailureMessage(toApiFailure(pickerQuery.error), {
+				fallback: t('an-error-occurred'),
+			})}
+			<Button
+				variant="outline"
+				size="sm"
+				type="button"
+				className="ml-2"
+				onClick={() => void pickerQuery.refetch()}
+			>
+				{t('try-again')}
+			</Button>
+		</p>
+	);
+	const heldOptions =
+		pickerQuery.data === undefined
+			? undefined
+			: toTenantPickerOptions(pickerQuery.data);
+	// The parent rendered the error paragraph AND kept deriving the list from
+	// the query data, so a failed refetch (TanStack v5 flips `status: 'error'`
+	// without clearing `data`) still shows the loaded rows. On a first-load
+	// failure `data === undefined` -> the error paragraph alone, as before.
+	const errorSlot =
+		heldOptions === undefined ? (
+			errorContent
+		) : (
+			<>
+				{errorContent}
+				{heldOptions.length === 0 ? renderEmptyCompanies : null}
+				{renderOptions(heldOptions)}
+			</>
+		);
+
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
@@ -234,45 +278,7 @@ export const LinkCompaniesDrawerHost = ({
 									{t('loading')}
 								</p>
 							}
-							ErrorSlot={({ error, query }) => {
-								const errorContent = (
-									<p
-										className="py-6 text-center text-sm text-destructive"
-										role="alert"
-										data-testid="link-companies-error"
-									>
-										{getFailureMessage(toApiFailure(error), {
-											fallback: t('an-error-occurred'),
-										})}
-										<Button
-											variant="outline"
-											size="sm"
-											type="button"
-											className="ml-2"
-											onClick={() => void pickerQuery.refetch()}
-										>
-											{t('try-again')}
-										</Button>
-									</p>
-								);
-								// The parent rendered the error paragraph AND kept deriving
-								// the list from `query.data`, so a failed *refetch* (TanStack
-								// v5 flips `status: 'error'` without clearing `data`) still
-								// shows the loaded rows. On a first-load failure
-								// `data === undefined` → the error paragraph alone, as before.
-								if (query.data === undefined) {
-									return errorContent;
-								}
-								const options = toTenantPickerOptions(query.data);
-
-								return (
-									<>
-										{errorContent}
-										{options.length === 0 ? renderEmptyCompanies : null}
-										{renderOptions(options)}
-									</>
-								);
-							}}
+							ErrorSlot={errorSlot}
 							EmptySlot={renderEmptyCompanies}
 						>
 							{({ data }) => {

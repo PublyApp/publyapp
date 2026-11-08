@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -89,5 +89,28 @@ describe('LinkCompaniesDrawerHost companies picker', () => {
 
 		expect(screen.getByText('no-items-found')).toBeTruthy();
 		expect(screen.getByTestId('link-companies-options')).toBeTruthy();
+	});
+
+	// F-M1 (#2341): in the held-data + refetch-error state the rows must
+	// reconcile IN PLACE. Passing an inline arrow as ErrorSlot made QueryDisplay
+	// mount a fresh component type on every host render, so ticking a row (which
+	// re-renders the host through setSelectedTenantIds) destroyed and rebuilt
+	// the whole subtree — the just-focused checkbox lost the DOM node and focus.
+	test('keeps the same focused row node when a tick re-renders a held-data refetch error', () => {
+		mocks.useGlobalTenantUsersPickerQuery.mockReturnValue(
+			staleErrorPicker([{ id: 't1', name: 'Acme', logoUrl: null }]),
+		);
+		renderHost();
+
+		const checkbox = screen.getByRole('checkbox', { name: 'Acme' });
+		checkbox.focus();
+		expect(document.activeElement).toBe(checkbox);
+
+		// Ticking the row re-renders the host (setSelectedTenantIds).
+		fireEvent.click(checkbox);
+
+		// The very same DOM node must survive that re-render and keep focus.
+		expect(screen.getByRole('checkbox', { name: 'Acme' })).toBe(checkbox);
+		expect(document.activeElement).toBe(checkbox);
 	});
 });

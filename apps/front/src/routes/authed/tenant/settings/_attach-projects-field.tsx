@@ -50,7 +50,7 @@ export const AttachProjectsField = ({
 				// rendering the loaded options, so the held envelope drives this
 				// slot too. On a first-load failure `data` is undefined →
 				// toTenantProjectItems(undefined) === [] → the same empty field.
-				ErrorSlot={({ query }) => renderField(toFieldOptions(query.data))}
+				ErrorSlot={renderField(toFieldOptions(projectsQuery.data))}
 				EmptySlot={renderField([])}
 			>
 				{({ data }) => renderField(toFieldOptions(data))}

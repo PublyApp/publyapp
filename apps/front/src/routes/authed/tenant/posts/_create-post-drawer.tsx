@@ -317,9 +317,9 @@ export const CreatePostDrawer = ({
 							// this slot too. On a first-load failure `data` is undefined
 							// → toTenantProjectItems(undefined) === [] → the same empty
 							// select + hint.
-							ErrorSlot={({ query }) =>
-								renderProjectField(toTenantProjectItems(query.data))
-							}
+							ErrorSlot={renderProjectField(
+								toTenantProjectItems(projectsQuery.data),
+							)}
 							EmptySlot={renderProjectField([])}
 						>
 							{({ data }) => renderProjectField(toTenantProjectItems(data))}

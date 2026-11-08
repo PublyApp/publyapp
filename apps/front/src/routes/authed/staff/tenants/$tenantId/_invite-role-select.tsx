@@ -266,9 +266,7 @@ export const InviteRoleSelect = ({
 									// envelope drives this slot too. On a first-load failure
 									// `data` is undefined -> rows=[] -> the same «
 									// no-roles-available » message as before.
-									ErrorSlot={({ query }) =>
-										renderRoleRows(toStaffTenantRoleRows(query.data?.data))
-									}
+									ErrorSlot={<>{renderRoleRows(roles)}</>}
 								>
 									{({ data }) =>
 										renderRoleRows(toStaffTenantRoleRows(data?.data))
