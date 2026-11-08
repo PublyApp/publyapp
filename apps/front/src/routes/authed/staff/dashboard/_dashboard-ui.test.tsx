@@ -2,7 +2,13 @@
  * @vitest-environment jsdom
  */
 import type { UseQueryResult } from '@tanstack/react-query';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	within,
+} from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
@@ -11,6 +17,8 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-view-chart': 'Chart',
 	'dashboard-view-table': 'Table',
 	'dashboard-view-toggle': 'Display',
+	'query-display-error-default': 'Could not load the data',
+	'common:retry': 'Retry',
 };
 
 vi.mock('react-i18next', () => ({
@@ -32,7 +40,7 @@ import sharedFr from '@org/shared-ts/lib/i18n/locales/fr';
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { periodStart } from './_dashboard-filters';
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
-import { ChartCard } from './_dashboard-ui';
+import { ChartCard, KpiCard } from './_dashboard-ui';
 
 afterEach(cleanup);
 
@@ -207,6 +215,73 @@ describe('ChartCard series', () => {
 		// Same slot, same size: only the colour mix differs (the AA-safe
 		// `.ghost-sentence`).
 		expect(ghostNote?.className).toBe(readyNote?.className);
+	});
+});
+
+describe('KpiCard error', () => {
+	/** The height-relevant slots of a StatCard, which jsdom cannot measure:
+	 * the shell, the figure line and the reserved footer height. */
+	const heightSlotsOf = (card: HTMLElement) => ({
+		shell: card.className,
+		figure: card.querySelector('p')?.className,
+		reservedFooter: card.querySelector('.min-h-9') !== null,
+	});
+
+	test('a failed KPI is a compact error, not the page-scale error surface', () => {
+		const refetch = vi.fn();
+		render(
+			<KpiCard
+				testId="staff-dashboard-kpi-audit-events"
+				label="Audit events"
+				icon={null}
+				figure={undefined}
+				locale="en"
+				query={queryOf({ isError: true, error: new Error('500'), refetch })}
+			/>,
+		);
+
+		const card = screen.getByTestId('staff-dashboard-kpi-audit-events');
+		expect(
+			within(card).getByTestId('staff-dashboard-kpi-audit-events-error'),
+		).toBeTruthy();
+		// The value area keeps the card's own figure slot, as « — ».
+		expect(within(card).getByText('—')).toBeTruthy();
+		// One small line and a small retry, no page pictogram/title/44px button.
+		expect(within(card).getByText('Could not load the data')).toBeTruthy();
+		expect(card.querySelector('.publy-state-icon-cluster')).toBeNull();
+		expect(card.querySelector('h1, h2, h3')).toBeNull();
+		const retry = within(card).getByRole('button', { name: 'Retry' });
+		expect(retry.className).toContain('h-7');
+		fireEvent.click(retry);
+		expect(refetch).toHaveBeenCalledTimes(1);
+	});
+
+	test('the compact error keeps a normal card’s height-relevant slots', () => {
+		const normal = render(
+			<KpiCard
+				testId="kpi-normal"
+				label="Audit events"
+				icon={null}
+				figure={31}
+				locale="en"
+			/>,
+		);
+		const normalSlots = heightSlotsOf(screen.getByTestId('kpi-normal'));
+		normal.unmount();
+
+		render(
+			<KpiCard
+				testId="kpi-error"
+				label="Audit events"
+				icon={null}
+				figure={undefined}
+				locale="en"
+				query={queryOf({ isError: true, error: new Error('500') })}
+			/>,
+		);
+		const errorSlots = heightSlotsOf(screen.getByTestId('kpi-error'));
+
+		expect(errorSlots).toEqual(normalSlots);
 	});
 });
 

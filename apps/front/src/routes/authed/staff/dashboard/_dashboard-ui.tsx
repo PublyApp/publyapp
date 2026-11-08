@@ -5,11 +5,13 @@ import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorKindState } from '~/components/error-views/error-kind-state';
 import QueryDisplay from '~/components/query-display';
+import { Button } from '~/components/ui/button';
 import { CodeSelect } from '~/components/ui/code-select';
 import { SectionCard } from '~/components/ui/section-card';
 import { Segmented } from '~/components/ui/segmented';
 import { Skeleton } from '~/components/ui/skeleton';
 import { StatCard } from '~/components/ui/stat-card';
+import { resolveQueryError } from '~/lib/server/query-error-resolver';
 
 import { GhostSpark, GhostTag } from './_chart-ghost';
 import { ChartBody, ChartNote } from './_dashboard-charts';
@@ -364,6 +366,10 @@ export const KpiCard = ({
 		return card;
 	}
 
+	// The one-line compact error names the real cause (server, offline, 403…)
+	// through the shared resolver, and paints nothing for a cancelled request.
+	const resolvedError = resolveQueryError(query.error, t);
+
 	return (
 		<QueryDisplay
 			query={query}
@@ -377,18 +383,37 @@ export const KpiCard = ({
 				/>
 			}
 			ErrorSlot={
-				<div
-					data-testid={testId}
-					className="flex min-h-28 flex-col justify-center rounded-[16px] bg-card p-1 text-card-foreground shadow-(--effect-raised-control)"
-				>
-					<ErrorKindState
-						scale="inline"
-						panel
-						error={query.error}
-						onRetry={() => void query.refetch()}
-						testId={`${testId}-error`}
+				// A KPI is one cell of a four-card row: the page-scale error state
+				// (pictogram, title, sentence, 44 px button) made that row ~400 px
+				// tall. The compact error keeps the card's own frame, its « — »
+				// figure and the ghost footer's 36 px, so the row stays put.
+				resolvedError.silent ? null : (
+					<StatCard
+						testId={testId}
+						label={label}
+						icon={icon}
+						value={
+							<span className="text-muted-foreground">{UNKNOWN_VALUE}</span>
+						}
+						footer={
+							<div
+								role="alert"
+								data-testid={`${testId}-error`}
+								className="flex min-h-9 min-w-0 items-center justify-between gap-2"
+							>
+								<span className="min-w-0 truncate">{resolvedError.title}</span>
+								<Button
+									size="sm"
+									variant="outline"
+									className="h-7 shrink-0 px-2"
+									onClick={() => void query.refetch()}
+								>
+									{t('common:retry')}
+								</Button>
+							</div>
+						}
 					/>
-				</div>
+				)
 			}
 		>
 			{() => card}
