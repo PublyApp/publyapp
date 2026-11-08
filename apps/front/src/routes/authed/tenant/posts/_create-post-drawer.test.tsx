@@ -33,7 +33,7 @@ const mocks = vi.hoisted(() => ({
 	invalidatePostImageCaches: vi.fn(),
 	savePost: vi.fn(),
 	invalidateTenantPosts: vi.fn(),
-	projectsState: 'success' as 'success' | 'pending' | 'error',
+	projectsState: 'success' as 'success' | 'pending' | 'error' | 'stale-error',
 }));
 
 /** Shared react-hook-form state so tests can reset between renders. */
@@ -136,8 +136,20 @@ vi.mock('~/lib/query/tenant-posts', () => ({
 }));
 
 vi.mock('~/lib/query/tenant-projects', () => ({
-	useTenantProjectsQuery: () => ({ data: undefined }),
-	toTenantProjectItems: () => [],
+	useTenantProjectsQuery: () =>
+		mocks.projectsState === 'stale-error'
+			? // A failed *refetch* keeps the last good data (TanStack v5 flips
+				// `status: 'error'` without clearing `data`); the field must keep
+				// showing the loaded project options in that state.
+				{
+					data: { items: [{ id: 'p1', name: 'Acme' }], nextCursor: null },
+					isPending: false,
+					isError: true,
+					error: null,
+				}
+			: { data: undefined },
+	toTenantProjectItems: (result: { items?: { id: string; name: string }[] }) =>
+		result?.items ?? [],
 }));
 
 vi.mock('react-i18next', () => ({
@@ -410,6 +422,16 @@ describe('CreatePostDrawer project picker query states (#2341)', () => {
 
 		expect(document.querySelector('select[name="projectId"]')).toBeTruthy();
 		expect(screen.getByText('posts:no-projects-yet')).toBeTruthy();
+	});
+
+	test('keeps the loaded project options when a background refetch fails', () => {
+		mocks.projectsState = 'stale-error';
+		renderDrawer(vi.fn());
+
+		// The select stub drops its options, so the data state is pinned by the
+		// empty hint disappearing: with options loaded, renderProjectField
+		// renders no hint.
+		expect(screen.queryByText('posts:no-projects-yet')).toBeNull();
 	});
 });
 

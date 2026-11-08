@@ -73,6 +73,59 @@ export const LinkCompaniesDrawerHost = ({
 	// Rows already linked cannot be linked twice — hidden from the picker.
 	const linkedIds = useMemo(() => new Set<string>(), []);
 
+	// The parent's list markup and empty-success copy: the parent showed the
+	// « no matching companies / no items found » paragraph AND the (empty)
+	// list on a zero-row success. `renderOptions` is shared by the data and
+	// error-held-data renders so the error branch never duplicates it.
+	const renderOptions = (options: ReturnType<typeof toTenantPickerOptions>) => (
+		<ul className="space-y-2" data-testid="link-companies-options">
+			{options.map((option) => {
+				const isChecked = selectedTenantIds.has(option.id);
+				const isLinked = linkedIds.has(option.id);
+
+				return (
+					<li key={option.id}>
+						<label className="flex cursor-pointer items-center gap-3 rounded-[var(--publy-radius-sm)] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-3 hover:bg-[var(--publy-surface-hover)]">
+							<Checkbox
+								checked={isChecked}
+								disabled={isLinked}
+								onCheckedChange={(checked) => {
+									setSelectedTenantIds((previous) => {
+										const next = new Set(previous);
+										if (checked) {
+											next.add(option.id);
+										} else {
+											next.delete(option.id);
+										}
+										return next;
+									});
+								}}
+								aria-label={option.name}
+							/>
+							<BrandTile name={option.name} logoUrl={option.logoUrl} />
+							<span className="min-w-0 flex-1 truncate text-sm font-medium">
+								{option.name}
+							</span>
+							{option.status ? (
+								<span className="text-xs text-muted-foreground">
+									{formatTenantStatusLabel(option.status ?? '', t)}
+								</span>
+							) : null}
+						</label>
+					</li>
+				);
+			})}
+		</ul>
+	);
+	const renderEmptyCompanies = (
+		<p
+			className="py-6 text-center text-sm text-muted-foreground"
+			data-testid="link-companies-empty"
+		>
+			{search ? t('no-matching-companies') : t('no-items-found')}
+		</p>
+	);
+
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
@@ -181,78 +234,57 @@ export const LinkCompaniesDrawerHost = ({
 									{t('loading')}
 								</p>
 							}
-							ErrorSlot={
-								<p
-									className="py-6 text-center text-sm text-destructive"
-									role="alert"
-									data-testid="link-companies-error"
-								>
-									{getFailureMessage(toApiFailure(pickerQuery.error), {
-										fallback: t('an-error-occurred'),
-									})}
-									<Button
-										variant="outline"
-										size="sm"
-										type="button"
-										className="ml-2"
-										onClick={() => void pickerQuery.refetch()}
+							ErrorSlot={({ error, query }) => {
+								const errorContent = (
+									<p
+										className="py-6 text-center text-sm text-destructive"
+										role="alert"
+										data-testid="link-companies-error"
 									>
-										{t('try-again')}
-									</Button>
-								</p>
-							}
-							EmptySlot={
-								<p
-									className="py-6 text-center text-sm text-muted-foreground"
-									data-testid="link-companies-empty"
-								>
-									{search ? t('no-matching-companies') : t('no-items-found')}
-								</p>
-							}
-						>
-							{({ data }) => (
-								<ul className="space-y-2" data-testid="link-companies-options">
-									{toTenantPickerOptions(data).map((option) => {
-										const isChecked = selectedTenantIds.has(option.id);
-										const isLinked = linkedIds.has(option.id);
+										{getFailureMessage(toApiFailure(error), {
+											fallback: t('an-error-occurred'),
+										})}
+										<Button
+											variant="outline"
+											size="sm"
+											type="button"
+											className="ml-2"
+											onClick={() => void pickerQuery.refetch()}
+										>
+											{t('try-again')}
+										</Button>
+									</p>
+								);
+								// The parent rendered the error paragraph AND kept deriving
+								// the list from `query.data`, so a failed *refetch* (TanStack
+								// v5 flips `status: 'error'` without clearing `data`) still
+								// shows the loaded rows. On a first-load failure
+								// `data === undefined` → the error paragraph alone, as before.
+								if (query.data === undefined) {
+									return errorContent;
+								}
+								const options = toTenantPickerOptions(query.data);
 
-										return (
-											<li key={option.id}>
-												<label className="flex cursor-pointer items-center gap-3 rounded-[var(--publy-radius-sm)] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-3 hover:bg-[var(--publy-surface-hover)]">
-													<Checkbox
-														checked={isChecked}
-														disabled={isLinked}
-														onCheckedChange={(checked) => {
-															setSelectedTenantIds((previous) => {
-																const next = new Set(previous);
-																if (checked) {
-																	next.add(option.id);
-																} else {
-																	next.delete(option.id);
-																}
-																return next;
-															});
-														}}
-														aria-label={option.name}
-													/>
-													<BrandTile
-														name={option.name}
-														logoUrl={option.logoUrl}
-													/>
-													<span className="min-w-0 flex-1 truncate text-sm font-medium">
-														{option.name}
-													</span>
-													{option.status ? (
-														<span className="text-xs text-muted-foreground">
-															{formatTenantStatusLabel(option.status ?? '', t)}
-														</span>
-													) : null}
-												</label>
-											</li>
-										);
-									})}
-								</ul>
-							)}
+								return (
+									<>
+										{errorContent}
+										{options.length === 0 ? renderEmptyCompanies : null}
+										{renderOptions(options)}
+									</>
+								);
+							}}
+							EmptySlot={renderEmptyCompanies}
+						>
+							{({ data }) => {
+								const options = toTenantPickerOptions(data);
+
+								return (
+									<>
+										{options.length === 0 ? renderEmptyCompanies : null}
+										{renderOptions(options)}
+									</>
+								);
+							}}
 						</QueryDisplay>
 					</DrawerBody>
 					<DrawerFooter>

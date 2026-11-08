@@ -311,7 +311,15 @@ export const CreatePostDrawer = ({
 						<QueryDisplay
 							query={projectsQuery}
 							LoadingSlot={renderProjectField([])}
-							ErrorSlot={renderProjectField([])}
+							// A failed refetch keeps the last good data (TanStack v5 flips
+							// `status: 'error'` without clearing `data`): the parent kept
+							// rendering the loaded options, so the held envelope drives
+							// this slot too. On a first-load failure `data` is undefined
+							// → toTenantProjectItems(undefined) === [] → the same empty
+							// select + hint.
+							ErrorSlot={({ query }) =>
+								renderProjectField(toTenantProjectItems(query.data))
+							}
 							EmptySlot={renderProjectField([])}
 						>
 							{({ data }) => renderProjectField(toTenantProjectItems(data))}

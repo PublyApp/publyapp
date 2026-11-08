@@ -29,6 +29,11 @@ export const AttachProjectsField = ({
 			options={options}
 		/>
 	);
+	const toFieldOptions = (result: Parameters<typeof toTenantProjectItems>[0]) =>
+		toTenantProjectItems(result).map((project) => ({
+			value: project.id,
+			label: project.name,
+		}));
 
 	return (
 		<div data-testid="attach-projects-field">
@@ -40,17 +45,15 @@ export const AttachProjectsField = ({
 				query={projectsQuery}
 				variant="inline"
 				LoadingSlot={renderField([])}
-				ErrorSlot={renderField([])}
+				// A failed refetch keeps the last good data (TanStack v5 flips
+				// `status: 'error'` without clearing `data`): the parent kept
+				// rendering the loaded options, so the held envelope drives this
+				// slot too. On a first-load failure `data` is undefined →
+				// toTenantProjectItems(undefined) === [] → the same empty field.
+				ErrorSlot={({ query }) => renderField(toFieldOptions(query.data))}
 				EmptySlot={renderField([])}
 			>
-				{({ data }) =>
-					renderField(
-						toTenantProjectItems(data).map((project) => ({
-							value: project.id,
-							label: project.name,
-						})),
-					)
-				}
+				{({ data }) => renderField(toFieldOptions(data))}
 			</QueryDisplay>
 		</div>
 	);
