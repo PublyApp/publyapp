@@ -58,10 +58,13 @@ public sealed record AuditLogActorCount(
 );
 
 /// <summary>
-/// Whole-history facets behind the audit page's StatCards and its two panel
-/// groups. Deliberately unfiltered: the cards name fixed windows (« today »,
-/// « 30 derniers jours ») and the panels count what the history holds, so the
-/// user's current filter never rewrites the navigation offers.
+/// Facets behind the audit page's StatCards and its two panel groups. The
+/// cards name fixed windows (« today », « 30 derniers jours ») and the actor
+/// panel counts what the history holds, so the user's other filters never
+/// rewrite the navigation offers. <see cref="ByAction"/> is the « Répartition
+/// par type » offer: it counts the whole history when the request names no
+/// period, and exactly the requested <c>start_date</c>/<c>end_date</c> window
+/// when it does.
 /// </summary>
 public sealed record AuditLogListCounts(
 	int Today,
@@ -186,7 +189,11 @@ public class AuditLogQueryService : IAuditLogQueryService {
 
 		// Whole filtered collection, cursor excluded.
 		var totalCount = await query.CountAsync(cancellationToken);
-		var counts = await this._BuildCountsAsync(cancellationToken);
+		var counts = await this._BuildCountsAsync(
+			args.StartDate,
+			args.EndDate,
+			cancellationToken
+		);
 
 		if (args.Cursor != Guid.Empty) {
 			var cursorValue =
@@ -261,10 +268,16 @@ public class AuditLogQueryService : IAuditLogQueryService {
 
 	/// <summary>
 	/// The StatCards' two time windows and the per-action / per-actor panel
-	/// counters, computed over the whole history (never the current filter, see
+	/// counters. The cards name fixed windows (« today », « 30 derniers
+	/// jours ») and the actor panel counts what the history holds, so neither
+	/// follows the user's filter. The <c>byAction</c> facet is the exception:
+	/// when the request names a period it counts that period only, because it
+	/// is the « Répartition par type » offer for the window on screen (see
 	/// <see cref="AuditLogListCounts"/>).
 	/// </summary>
 	private async Task<AuditLogListCounts> _BuildCountsAsync(
+		DateTime? startDate,
+		DateTime? endDate,
 		CancellationToken cancellationToken
 	) {
 		var logs = this._BaseQuery();
@@ -280,8 +293,22 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			cancellationToken
 		);
 
+		var actionLogs = logs;
+		if (startDate.HasValue) {
+			actionLogs =
+				from auditLog in actionLogs
+				where auditLog.CreatedAt >= startDate.Value
+				select auditLog;
+		}
+		if (endDate.HasValue) {
+			actionLogs =
+				from auditLog in actionLogs
+				where auditLog.CreatedAt <= endDate.Value
+				select auditLog;
+		}
+
 		var actionRows = await (
-			from auditLog in logs
+			from auditLog in actionLogs
 			group auditLog by auditLog.Action into grouped
 			select new AuditLogActionCount(grouped.Key, grouped.Count())
 		).ToListAsync(cancellationToken);

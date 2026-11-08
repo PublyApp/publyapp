@@ -10638,6 +10638,194 @@
         }
       }
     },
+    "/staff/dashboard/series": {
+      "get": {
+        "tags": [
+          "Staff Dashboard"
+        ],
+        "summary": "Get a daily staff dashboard series",
+        "operationId": "GetDashboardSeries",
+        "parameters": [
+          {
+            "name": "end_date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "metric",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetDashboardSeriesForStaffResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/dashboard/top-organisations": {
+      "get": {
+        "tags": [
+          "Staff Dashboard"
+        ],
+        "summary": "Rank organisations by audit events in a window",
+        "operationId": "FindTopOrganisations",
+        "parameters": [
+          {
+            "name": "end_date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "start_date",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindTopOrganisationsForStaffResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/staff/uploads": {
       "post": {
         "tags": [
@@ -16736,6 +16924,24 @@
           }
         }
       },
+      "DashboardSeriesPoint": {
+        "required": [
+          "date",
+          "value"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "value": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "description": "One UTC calendar day of a dashboard series. The date is the wire\n`YYYY-MM-DD` day, so the client never has to re-derive a timezone."
+      },
       "DeadLetterDetail": {
         "required": [
           "id",
@@ -17611,6 +17817,29 @@
           }
         }
       },
+      "FindTopOrganisationsForStaffResponse": {
+        "required": [
+          "startDate",
+          "endDate",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "startDate": {
+            "type": "string"
+          },
+          "endDate": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "description": "One organisation in the ranking, with the number of audit events in the\nwindow attributed to it.",
+              "$ref": "#/components/schemas/TopOrganisationItem"
+            }
+          }
+        }
+      },
       "GetAuditLogActionsResponse": {
         "required": [
           "actions"
@@ -17621,6 +17850,33 @@
             "type": "array",
             "items": {
               "type": "string"
+            }
+          }
+        }
+      },
+      "GetDashboardSeriesForStaffResponse": {
+        "required": [
+          "metric",
+          "startDate",
+          "endDate",
+          "points"
+        ],
+        "type": "object",
+        "properties": {
+          "metric": {
+            "type": "string"
+          },
+          "startDate": {
+            "type": "string"
+          },
+          "endDate": {
+            "type": "string"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "description": "One UTC calendar day of a dashboard series. The date is the wire\n`YYYY-MM-DD` day, so the client never has to re-derive a timezone.",
+              "$ref": "#/components/schemas/DashboardSeriesPoint"
             }
           }
         }
@@ -21442,6 +21698,29 @@
           "GloballySuspended"
         ]
       },
+      "TopOrganisationItem": {
+        "required": [
+          "id",
+          "name",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "description": "One organisation in the ranking, with the number of audit events in the\nwindow attributed to it."
+      },
       "UnassignStaffRoleUsersBody": {
         "required": [
           "userIds"
@@ -21863,6 +22142,9 @@
     },
     {
       "name": "Staff Audit Logs"
+    },
+    {
+      "name": "Staff Dashboard"
     },
     {
       "name": "Staff Uploads"

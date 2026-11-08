@@ -41,6 +41,7 @@ internal static class AuditLogTestHelper {
 		string? details = null,
 		string? ipAddress = "127.0.0.1",
 		string? userAgent = "test-agent",
+		DateTime? createdAt = null,
 		CancellationToken ct = default
 	) {
 		using var scope =
@@ -60,7 +61,24 @@ internal static class AuditLogTestHelper {
 		await dbContext.AuditLog.AddAsync(log, ct);
 		await dbContext.SaveChangesAsync(ct);
 
-		return log.GetRequiredId();
+		var id = log.GetRequiredId();
+
+		// SaveChanges stamps CreatedAt with "now"; a period-scoped spec needs
+		// a historical row, so backdate it with an update (which the audit
+		// stamping override does not rewrite).
+		if (createdAt.HasValue) {
+			await dbContext.AuditLog
+				.Where(auditLog => auditLog.Id == id)
+				.ExecuteUpdateAsync(
+					setters => setters.SetProperty(
+						auditLog => auditLog.CreatedAt,
+						createdAt.Value
+					),
+					ct
+				);
+		}
+
+		return id;
 	}
 
 	public static async Task<Guid>

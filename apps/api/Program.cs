@@ -16,6 +16,7 @@ using PublyApp.Api.Lib.Seeding;
 using PublyApp.Api.Modules.Account.Endpoints;
 using PublyApp.Api.Modules.AuditLogs.Endpoints;
 using PublyApp.Api.Modules.Auth.Endpoints;
+using PublyApp.Api.Modules.Dashboard.Endpoints;
 using PublyApp.Api.Modules.Invitations.Endpoints;
 using PublyApp.Api.Modules.Jobs.Endpoints;
 using PublyApp.Api.Modules.Permissions.Endpoints;
@@ -331,6 +332,7 @@ public class Program {
 		staffGroup.MapTenantEndpointsForStaff();
 		staffGroup.MapSystemNoticeEndpointsForStaff();
 		staffGroup.MapAuditLogEndpointsForStaff();
+		staffGroup.MapDashboardEndpointsForStaff();
 		staffGroup.MapUploadEndpointsForStaff();
 		staffGroup.MapJobDeadLetterEndpointsForStaff();
 		staffGroup.MapJobVisibilityEndpointsForStaff();

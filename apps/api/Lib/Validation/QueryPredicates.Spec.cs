@@ -144,6 +144,24 @@ namespace PublyApp.Api.Lib.Validation {
 		}
 
 		[Fact]
+		public void ItShouldPinABareDateToUtc() {
+			// A bare YYYY-MM-DD parses with Unspecified kind; the audit
+			// columns are timestamptz, so the value must be pinned to UTC
+			// before it reaches the query.
+			DateTime? result = QueryPredicates.ParseNullableDate(
+				"2026-02-22"
+			);
+			_ = result.Should().NotBeNull();
+			var parsed = result ?? DateTime.MinValue;
+			_ = parsed.Kind.Should().Be(DateTimeKind.Utc);
+			_ = parsed.Should().Be(
+				new DateTime(
+					2026, 2, 22, 0, 0, 0, DateTimeKind.Utc
+				)
+			);
+		}
+
+		[Fact]
 		public void ItShouldReturnNullDateWhenInvalid() {
 			DateTime? result = QueryPredicates
 				.ParseNullableDate("invalid");
