@@ -93,7 +93,7 @@ export const apiRequest = async <T>(
 				options.body === undefined ? undefined : JSON.stringify(options.body),
 			signal: deadline,
 		});
-	} catch (error) {
+	} catch {
 		// React Native's fetch rejects with a plain AbortError, so ask the signal.
 		if (deadline.aborted) {
 			throw new ApiError(0, 'Le serveur ne répond pas. Réessayez.');
