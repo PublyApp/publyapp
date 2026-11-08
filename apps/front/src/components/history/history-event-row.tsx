@@ -59,14 +59,10 @@ export const HistoryEventRow = ({
 			data-history-event={event.id}
 			className="group/row flex min-h-12 items-center gap-3 border-b px-3 py-2 text-sm last:border-b-0 hover:bg-card focus-within:bg-card"
 		>
-			{/* 24px: the prototype's history row avatar (measured 24×24 at
-			   fs 10px — #2339 fidelity). */}
-			<PersonAvatar
-				name={actor}
-				system={isSystem}
-				size="sm"
-				className="size-6 text-[10px]"
-			/>
+			{/* The shared history row keeps its 32 px avatar: the same row is
+			   rendered on /staff/audit-logs, so a page-local measurement must
+			   not shrink every feed (A-3). */}
+			<PersonAvatar name={actor} system={isSystem} size="sm" />
 			<p className="min-w-0 flex-1 truncate text-muted-foreground">
 				<span className="font-medium text-foreground">{actor}</span>{' '}
 				{phrase !== null ? (

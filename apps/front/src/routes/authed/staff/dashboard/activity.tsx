@@ -69,9 +69,9 @@ const toHistoryEvents = (
  * The staff Dashboard › Activité tab: the shared activity history (§5.1), fed
  * by the same `GET /staff/audit-logs` query as `/staff/audit-logs` — per-day
  * groups, search, category/period/sensitivity filters, the retention
- * footnote, an honest total with its cursor pager, and the « Tout voir → »
- * link to the full log. The dashboard owns the page title, so the history
- * renders without its own title row.
+ * footnote and an honest total with its cursor pager. The dashboard owns the
+ * page title, so the history renders without its own title row (the full log
+ * is reached from the side panel).
  */
 const Activity = () => {
 	const { t, i18n } = useTranslation(['staff-audit-logs', 'common']);

@@ -39,17 +39,25 @@ const StaffDashboardPage = () => {
 
 			<Tabs value={activeSection}>
 				<TabsList variant="line">
-					<TabsTrigger value="overview" render={<Link to="/staff/dashboard" />}>
+					<TabsTrigger
+						value="overview"
+						// The prototype's 4px line-tab padding (#2339 fidelity);
+						// the shared default stays at the other pages' 12px.
+						className="group-data-[variant=line]/tabs-list:px-1"
+						render={<Link to="/staff/dashboard" />}
+					>
 						{t('overview')}
 					</TabsTrigger>
 					<TabsTrigger
 						value="activity"
+						className="group-data-[variant=line]/tabs-list:px-1"
 						render={<Link to="/staff/dashboard/activity" />}
 					>
 						{t('activity')}
 					</TabsTrigger>
 					<TabsTrigger
 						value="reports"
+						className="group-data-[variant=line]/tabs-list:px-1"
 						render={<Link to="/staff/dashboard/reports" />}
 					>
 						{t('reports')}

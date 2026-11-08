@@ -25,6 +25,14 @@ const statusLabelKey = (status: string | null): string | undefined => {
 	if (normalized === 'suspended') {
 		return 'dashboard-status-suspended';
 	}
+	// The API's fourth lifecycle member: an organisation suspended platform-
+	// wide. Without it the pill printed the raw `GloballySuspended` code (A-2).
+	if (
+		normalized === 'globallysuspended' ||
+		normalized === 'globally_suspended'
+	) {
+		return 'status-globally-suspended';
+	}
 	return undefined;
 };
 
@@ -81,29 +89,30 @@ export const TenantRows = ({
 	// first (`.row{border-top:1px}` + `:first-child{border-top:0}`), not as a
 	// `divide-y` bottom border — the first row must measure 0 border (#2339).
 	<div className="flex flex-col">
-		{tenants.map((tenant) => (
-			<div
-				key={tenant.id}
-				// `first:border-t-current`: the prototype's first row resets its
-				// 0-width `border-top` (`border-top:0`), which also resets the
-				// colour to currentColor. No visual effect at 0px; matched so the
-				// measured value agrees (#2339 fidelity).
-				className="flex items-center gap-3 border-t border-(--publy-border) py-[9px] first:border-t-0 first:border-t-current"
-				data-testid="staff-dashboard-tenant-row"
-			>
-				<PersonAvatar name={tenant.name} size="sm" />
-				<div className="min-w-0 flex-1">
-					<p className="truncate text-[13px] font-medium">{tenant.name}</p>
-					<p className="truncate text-muted-foreground">
-						{t('tenant-member-count', { count: tenant.usersCount })}
-					</p>
+		{tenants.map((tenant) => {
+			const labelKey = statusLabelKey(tenant.status);
+			return (
+				<div
+					key={tenant.id}
+					// `first:border-t-current`: the prototype's first row resets its
+					// 0-width `border-top` (`border-top:0`), which also resets the
+					// colour to currentColor. No visual effect at 0px; matched so the
+					// measured value agrees (#2339 fidelity).
+					className="flex items-center gap-3 border-t border-(--publy-border) py-[9px] first:border-t-0 first:border-t-current"
+					data-testid="staff-dashboard-tenant-row"
+				>
+					<PersonAvatar name={tenant.name} size="sm" />
+					<div className="min-w-0 flex-1">
+						<p className="truncate text-[13px] font-medium">{tenant.name}</p>
+						<p className="truncate text-muted-foreground">
+							{t('tenant-member-count', { count: tenant.usersCount })}
+						</p>
+					</div>
+					<StatusPill tone={statusPillTone(tenant.status)}>
+						{labelKey ? t(labelKey) : UNKNOWN_VALUE}
+					</StatusPill>
 				</div>
-				<StatusPill tone={statusPillTone(tenant.status)}>
-					{statusLabelKey(tenant.status)
-						? t(statusLabelKey(tenant.status) ?? '')
-						: (tenant.status ?? UNKNOWN_VALUE)}
-				</StatusPill>
-			</div>
-		))}
+			);
+		})}
 	</div>
 );

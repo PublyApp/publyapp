@@ -155,6 +155,9 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-filter-report-period': 'Report period',
 	'dashboard-period-30d': 'Last 30 days',
 	'dashboard-period-7d': 'Last 7 days',
+	'dashboard-period-previous-30d': 'previous 30 days',
+	'dashboard-delta-vs-previous': 'vs {{period}}',
+	'dashboard-chart-column': 'Column chart',
 	'export-failed': 'Export failed',
 	'dashboard-ghost-tag': 'No data yet',
 	'dashboard-ghost-card-events-per-day':
@@ -285,6 +288,25 @@ describe('staff dashboard reports', () => {
 		}
 	});
 
+	test('the delta names the previous window, not the current one (B ME-1)', () => {
+		withData();
+		render(<Reports />);
+
+		const kpi = screen.getByTestId('staff-dashboard-kpi-report-events');
+		expect(within(kpi).getByText('vs previous 30 days')).toBeTruthy();
+		expect(within(kpi).queryByText('Last 30 days')).toBeNull();
+	});
+
+	test('an empty series falls back to the audit list total, not a false 0', () => {
+		withData();
+		mocks.series.data = { points: [] };
+		render(<Reports />);
+
+		const kpi = screen.getByTestId('staff-dashboard-kpi-report-events');
+		expect(within(kpi).getByText('4,812')).toBeTruthy();
+		expect(within(kpi).queryByText('0')).toBeNull();
+	});
+
 	test('the sign-in KPIs are ghosts: their audit actions are never emitted (B1)', () => {
 		withData();
 		render(<Reports />);
@@ -323,7 +345,9 @@ describe('staff dashboard reports', () => {
 
 		const events = screen.getByTestId('staff-dashboard-events-per-day');
 		expect(within(events).queryByText('No data yet')).toBeNull();
-		expect(events.querySelector('svg[role="img"]')).not.toBeNull();
+		expect(
+			within(events).getByRole('img', { name: 'Column chart' }),
+		).toBeTruthy();
 		expect(within(events).getByRole('button', { name: 'Table' })).toBeTruthy();
 
 		const top = screen.getByTestId('staff-dashboard-top-orgs');

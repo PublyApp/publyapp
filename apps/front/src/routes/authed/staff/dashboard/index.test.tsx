@@ -161,7 +161,8 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-delta-vs-previous': 'vs {{period}}',
 	'dashboard-period-previous-30d': 'previous 30 days',
 	'dashboard-card-invitation-outcomes': 'Invitation outcomes',
-	'dashboard-note-invitation-outcomes': 'Staff invitations, by final status',
+	'dashboard-note-invitation-outcomes':
+		'All staff invitations, by final status',
 	'dashboard-card-latest-tenants': 'Latest organisations',
 	'dashboard-note-latest-tenants':
 		'The five most recently created organisations.',
@@ -180,6 +181,7 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-status-active': 'Active',
 	'dashboard-status-pending': 'Pending',
 	'dashboard-status-suspended': 'Suspended',
+	'status-globally-suspended': 'Globally suspended',
 	'dashboard-filter-period': 'Period',
 	'dashboard-filter-organisations': 'Organisations',
 	'dashboard-period-30d': 'Last 30 days',
@@ -372,7 +374,9 @@ describe('staff dashboard overview', () => {
 			).getByText('31'),
 		).toBeTruthy();
 		expect(screen.getByText('1,284')).toBeTruthy();
-		expect(screen.getByText('4,812')).toBeTruthy();
+		// The audit-events figure is the series total (30 × 160), the same
+		// source the reports screen reads — never the audit list's 4,812.
+		expect(screen.getByText('4,800')).toBeTruthy();
 		expect(
 			within(
 				screen.getByTestId('staff-dashboard-kpi-pending-invitations'),
@@ -481,7 +485,45 @@ describe('staff dashboard overview', () => {
 		expect(
 			within(kpi).getByTestId('staff-dashboard-kpi-audit-events-delta'),
 		).toBeTruthy();
-		expect(within(kpi).getByText('Last 30 days')).toBeTruthy();
+		expect(within(kpi).getByText('vs previous 30 days')).toBeTruthy();
+	});
+
+	test('the audit-events KPI and the audit-list facets read the same window (B MA-1)', () => {
+		withData();
+		render(<Overview />);
+
+		expect(useStaffAuditLogsQuery).toHaveBeenCalledWith({
+			size: 1,
+			startDate: periodStart('30d'),
+			endDate: todayIso(),
+		});
+		const kpi = screen.getByTestId('staff-dashboard-kpi-audit-events');
+		expect(within(kpi).getByText('4,800')).toBeTruthy();
+		expect(within(kpi).queryByText('4,812')).toBeNull();
+	});
+
+	test('an empty series falls back to the audit list total, not a false 0', () => {
+		withData();
+		mocks.seriesQuery.data = { points: [] };
+		render(<Overview />);
+
+		const kpi = screen.getByTestId('staff-dashboard-kpi-audit-events');
+		expect(within(kpi).getByText('4,812')).toBeTruthy();
+		expect(within(kpi).queryByText('0')).toBeNull();
+	});
+
+	test('a globally suspended organisation shows its translated label, never the raw code (A-2)', () => {
+		withData();
+		const latest = mocks.latestTenantsQuery.data;
+		if (latest) {
+			const rows = latest.data as Array<Record<string, unknown>>;
+			rows[0].status = 'GloballySuspended';
+		}
+		render(<Overview />);
+
+		const card = screen.getByTestId('staff-dashboard-latest-tenants');
+		expect(within(card).getByText('Globally suspended')).toBeTruthy();
+		expect(within(card).queryByText('GloballySuspended')).toBeNull();
 	});
 
 	test('a real zero KPI shows « 0 », never « — » nor the ghost footer', () => {
@@ -589,6 +631,7 @@ describe('staff dashboard overview', () => {
 		expect(useStaffAuditLogsQuery).toHaveBeenCalledWith({
 			size: 1,
 			startDate: expectedStart,
+			endDate: todayIso(),
 		});
 		expect(useStaffTenantsQuery).toHaveBeenCalledWith({
 			size: 5,

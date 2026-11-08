@@ -25,7 +25,7 @@ export const Segmented = <T extends string>({
 		role="group"
 		aria-label={ariaLabel}
 		className={cn(
-			'flex gap-0.5 rounded-[var(--publy-radius-small-control)] bg-secondary p-0.5',
+			'flex rounded-[var(--publy-radius-small-control)] bg-secondary p-0.5',
 			className,
 		)}
 	>
@@ -38,7 +38,7 @@ export const Segmented = <T extends string>({
 					aria-pressed={active}
 					onClick={() => onChange(option)}
 					className={cn(
-						'h-6 rounded-[var(--publy-radius-menu-item)] px-3 text-xs whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60',
+						'h-7 rounded-[var(--publy-radius-menu-item)] px-2 text-xs whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-60',
 						active &&
 							'bg-background text-foreground shadow-[var(--effect-raised-control)]',
 						itemClassName,

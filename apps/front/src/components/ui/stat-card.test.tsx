@@ -47,70 +47,24 @@ describe('StatCard', () => {
 		expect(card.textContent).toContain('12 restantes');
 	});
 
-	test('a real figure — including a real zero — shows as given when the trend series is unavailable', () => {
+	test('the shared footer stays an inline block, so list footers keep their « · » (A-3)', () => {
 		render(
 			<StatCard
-				testId="stat-zero"
+				testId="stat-list"
 				label="Membres"
 				icon={<IconUsers />}
-				value="0"
-				unavailable
-			/>,
-		);
-
-		expect(screen.getByText('0')).toBeTruthy();
-		expect(screen.queryByText('—')).toBeNull();
-	});
-
-	test('without a figure it shows a muted « — »', () => {
-		render(
-			<StatCard
-				testId="stat-empty"
-				label="Membres"
-				icon={<IconUsers />}
-				unavailable
-			/>,
-		);
-
-		expect(screen.getByText('—').className).toContain('text-muted-foreground');
-	});
-
-	test('the unavailable footer keeps the delta’s two-line height for the ghost spark', () => {
-		const { container } = render(
-			<StatCard
-				testId="stat-ghost"
-				label="Membres"
-				icon={<IconUsers />}
-				unavailable
+				value={12}
 				footer={
 					<>
-						<span>Pas encore de données</span>
-						<svg aria-hidden="true" />
+						<span>12 actifs</span> · 3 suspendus
 					</>
 				}
 			/>,
 		);
 
-		expect(screen.getByText('—')).toBeTruthy();
-		expect(screen.getByText('Pas encore de données')).toBeTruthy();
-		// `min-h-10` is the 40 px the coloured delta and its period occupy.
-		expect(container.querySelector('.min-h-10')).toBeTruthy();
-	});
-
-	test('a real figure keeps that height without the ghost copy', () => {
-		const { container } = render(
-			<StatCard
-				testId="stat-real"
-				label="Membres"
-				icon={<IconUsers />}
-				value="31"
-				footer={<span aria-hidden="true" className="block min-h-10" />}
-			/>,
-		);
-
-		expect(screen.getByText('31')).toBeTruthy();
-		expect(screen.queryByText('Pas encore de données')).toBeNull();
-		expect(container.querySelector('.min-h-10')).toBeTruthy();
+		const footer = screen.getByText('12 actifs').parentElement;
+		expect(footer?.className).not.toContain('flex');
+		expect(footer?.textContent).toContain('12 actifs · 3 suspendus');
 	});
 
 	test('a card with its trend series keeps the plain footer', () => {
@@ -124,9 +78,7 @@ describe('StatCard', () => {
 			/>,
 		);
 
-		// The footer keeps the prototype's 40 px band in both states; only the
-		// ghost copy and the ghost sparkline differ.
-		expect(container.querySelector('.min-h-10')).toBeTruthy();
 		expect(screen.getByText('vs 30 jours précédents')).toBeTruthy();
+		expect(container.querySelector('.min-h-10')).toBeNull();
 	});
 });

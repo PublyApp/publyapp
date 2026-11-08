@@ -135,8 +135,11 @@ export const DonutChart = ({
 						key={segment.label}
 						className="flex w-full items-center gap-2 border-t border-(--publy-row-border) py-2 text-xs leading-[1.45] text-(--publy-foreground-secondary) first:border-t-0"
 					>
+						{/* The same square legend swatch as the heatmap's scale:
+						   a 10 px dot with a 3 px radius, not a fully rounded
+						   avatar-shaped surface. */}
 						<span
-							className="size-2.5 shrink-0 rounded-full border-[1.5px]"
+							className="size-2.5 shrink-0 rounded-[3px] border-[1.5px]"
 							style={{ borderColor: segment.color }}
 						/>
 						<span>{segment.label}</span>
@@ -304,12 +307,13 @@ const xLabelIndexes = (count: number): number[] => {
 export const LineChart = ({
 	points,
 	locale,
-	unit,
+	label,
 	testId,
 }: {
 	points: readonly SeriesPoint[];
 	locale: string;
-	unit?: string;
+	/** The chart's accessible name, translated by the caller. */
+	label: string;
 	testId?: string;
 }) => {
 	if (points.length === 0) {
@@ -342,7 +346,7 @@ export const LineChart = ({
 			className="w-full"
 			viewBox={`0 0 ${SERIES_W} ${SERIES_H}`}
 			role="img"
-			aria-label={unit ?? 'line chart'}
+			aria-label={label}
 			data-testid={testId}
 		>
 			{ticks.map((tick) => (
@@ -397,10 +401,13 @@ export const LineChart = ({
 export const ColumnChart = ({
 	points,
 	locale,
+	label,
 	testId,
 }: {
 	points: readonly SeriesPoint[];
 	locale: string;
+	/** The chart's accessible name, translated by the caller. */
+	label: string;
 	testId?: string;
 }) => {
 	if (points.length === 0) {
@@ -411,14 +418,19 @@ export const ColumnChart = ({
 	const plotTop = 8;
 	const plotBottom = 177;
 	const gap = 2;
-	const barWidth = Math.max((SERIES_W - 42) / points.length - gap, 1);
+	// One slot per point, not one `barWidth + gap` per point: at 365 daily
+	// points the old 1px floor pushed every bar after ~240 outside the
+	// viewBox (A-5). A slot-based x keeps every point inside it; the bar may
+	// get thin, but it is still drawn.
+	const slot = (SERIES_W - 42) / points.length;
+	const barWidth = Math.max(slot - gap, 0.4);
 
 	return (
 		<svg
 			className="w-full"
 			viewBox={`0 0 ${SERIES_W} 205`}
 			role="img"
-			aria-label="column chart"
+			aria-label={label}
 			data-testid={testId}
 		>
 			{[0, 1, 2, 3].map((index) => {
@@ -451,7 +463,7 @@ export const ColumnChart = ({
 				return (
 					<rect
 						key={`${point.label}-${index}`}
-						x={42 + index * (barWidth + gap)}
+						x={42 + index * slot}
 						y={plotBottom - height}
 						width={barWidth}
 						height={height}
@@ -465,7 +477,7 @@ export const ColumnChart = ({
 			{xLabelIndexes(points.length).map((index) => (
 				<text
 					key={index}
-					x={42 + index * (barWidth + gap) + barWidth / 2}
+					x={42 + index * slot + barWidth / 2}
 					y="197"
 					textAnchor="middle"
 					fontSize="11"
@@ -521,10 +533,13 @@ const HEAT_GAP = 3;
 export const Heatmap = ({
 	days,
 	locale,
+	label,
 	testId,
 }: {
 	days: ReadonlyArray<{ date: string; value: number }>;
 	locale: string;
+	/** The chart's accessible name, translated by the caller. */
+	label: string;
 	testId?: string;
 }) => {
 	if (days.length === 0) {
@@ -582,7 +597,15 @@ export const Heatmap = ({
 		'--publy-chart-seq-3',
 		'--publy-chart-seq-4',
 	] as const;
-	const weekdayLabels = ['', 'Mar', '', 'Jeu', '', 'Sam', ''];
+	// Monday-first, like the grid; every other row (Tue/Thu/Sat) is labelled.
+	// The locale's own short weekday, never a hardcoded French list (B ME-2).
+	const weekdayFormat = new Intl.DateTimeFormat(locale, {
+		weekday: 'short',
+		timeZone: 'UTC',
+	});
+	const weekdayLabels = Array.from({ length: 7 }, (_, index) =>
+		weekdayFormat.format(new Date(Date.UTC(2024, 0, 1 + index))),
+	);
 	const width = 30 + weeks * (HEAT_CELL + HEAT_GAP);
 	let monthOffset = 0;
 	const monthLabels = months.map((month) => {
@@ -599,7 +622,7 @@ export const Heatmap = ({
 				viewBox={`0 0 ${width} ${14 + 7 * (HEAT_CELL + HEAT_GAP)}`}
 				preserveAspectRatio="none"
 				role="img"
-				aria-label="heatmap"
+				aria-label={label}
 				data-testid="staff-dashboard-heatmap-grid"
 			>
 				{monthLabels.map((month, index) => (
@@ -614,17 +637,17 @@ export const Heatmap = ({
 						{month.label}
 					</text>
 				))}
-				{weekdayLabels.map((label, index) =>
-					label ? (
+				{weekdayLabels.map((weekday, index) =>
+					index % 2 === 1 ? (
 						<text
-							key={label}
+							key={weekday}
 							x="0"
 							y={14 + index * (HEAT_CELL + HEAT_GAP) + 9}
 							fontSize="10"
 							fontFamily="var(--publy-font-mono)"
 							fill="var(--publy-foreground-subtle)"
 						>
-							{label}
+							{weekday}
 						</text>
 					) : null,
 				)}
@@ -633,12 +656,12 @@ export const Heatmap = ({
 						return null;
 					}
 					const week = Math.floor(index / 7);
-					const weekday = index % 7;
+					const weekdayRow = index % 7;
 					return (
 						<rect
 							key={cell.date.toISOString()}
 							x={30 + week * (HEAT_CELL + HEAT_GAP)}
-							y={14 + weekday * (HEAT_CELL + HEAT_GAP)}
+							y={14 + weekdayRow * (HEAT_CELL + HEAT_GAP)}
 							width={HEAT_CELL}
 							height={HEAT_CELL}
 							rx="2"

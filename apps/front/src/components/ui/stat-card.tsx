@@ -20,7 +20,6 @@ export const StatCard = ({
 	footer,
 	secondary,
 	action,
-	unavailable,
 	children,
 	className,
 }: {
@@ -35,20 +34,10 @@ export const StatCard = ({
 	/** Historical name for the footer slot. */
 	secondary?: ReactNode;
 	action?: ReactNode;
-	/**
-	 * The card's trend series (the delta and its sparkline) is not served yet:
-	 * the footer keeps the delta's two-line height (36 px) for the caller's
-	 * ghost sparkline and quiet line, and the figure falls back to « — » when
-	 * none was given. A real figure (including a real 0) still shows as given.
-	 */
-	unavailable?: boolean;
 	children?: ReactNode;
 	className?: string;
 }) => {
-	const figure =
-		value ??
-		children ??
-		(unavailable ? <span className="text-muted-foreground">—</span> : null);
+	const figure = value ?? children;
 
 	return (
 		<div
@@ -62,14 +51,14 @@ export const StatCard = ({
 			data-testid={testId}
 		>
 			<div className="flex items-center justify-between gap-3 px-3 pt-1 pb-2">
-				<div className="flex min-w-0 items-center gap-1.5 text-xs leading-[1.45] font-medium tracking-wide text-muted-foreground uppercase [&_svg]:size-3.5 [&_svg]:shrink-0">
+				<div className="flex min-w-0 items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase [&_svg]:size-3.5 [&_svg]:shrink-0">
 					{icon}
 					<span className="truncate">{label}</span>
 				</div>
 				{action}
 			</div>
 			<div className="flex min-h-0 flex-1 flex-col justify-between gap-3 rounded-[var(--publy-radius-medium-control)] border bg-background p-3">
-				<p className="text-[length:clamp(20px,13cqi,30px)] leading-8 font-medium tracking-[-0.01em] tabular-nums">
+				<p className="text-[length:clamp(20px,13cqi,30px)] leading-8 font-medium tabular-nums">
 					<span className="whitespace-nowrap">{figure}</span>
 					{unit ? (
 						<span className="ml-1 text-base text-muted-foreground md:text-lg">
@@ -77,14 +66,7 @@ export const StatCard = ({
 						</span>
 					) : null}
 				</p>
-				<div
-					className={cn(
-						'text-xs text-muted-foreground',
-						unavailable
-							? 'flex min-h-10 items-end justify-between gap-3'
-							: 'flex min-h-10 items-end justify-between gap-3 [&_svg]:inline [&_svg]:size-3.5 [&_svg]:align-[-2px]',
-					)}
-				>
+				<div className="text-xs text-muted-foreground [&_svg]:inline [&_svg]:size-3.5 [&_svg]:align-[-2px]">
 					{footer ?? secondary}
 				</div>
 			</div>

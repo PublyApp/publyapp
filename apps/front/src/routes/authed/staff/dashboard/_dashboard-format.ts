@@ -26,17 +26,40 @@ export const formatShare = (
 
 /** « 22 sept. – 21 oct. 2026 » — the report period's resolved range, the way
  * the prototype's select shows it (day-month for the start, with the shared
- * year at the end). Pure functions, locale-driven; no hardcoded copy. */
+ * year at the end). Both days are calendar days (`YYYY-MM-DD`) and are
+ * formatted in UTC, like the charts: formatting a date-only string in the
+ * viewer's zone would print the day before west of UTC (A-1). */
 const dayMonth = (locale: string): Intl.DateTimeFormat =>
-	new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' });
+	new Intl.DateTimeFormat(locale, {
+		day: 'numeric',
+		month: 'short',
+		timeZone: 'UTC',
+	});
 const dayMonthYear = (locale: string): Intl.DateTimeFormat =>
 	new Intl.DateTimeFormat(locale, {
 		day: 'numeric',
 		month: 'short',
 		year: 'numeric',
+		timeZone: 'UTC',
 	});
 export const formatPeriodRange = (
-	start: Date | string,
+	start: string,
+	end: string,
 	locale: string,
 ): string =>
-	`${dayMonth(locale).format(new Date(start))} – ${dayMonthYear(locale).format(new Date())}`;
+	`${dayMonth(locale).format(new Date(`${start}T00:00:00Z`))} – ${dayMonthYear(locale).format(new Date(`${end}T00:00:00Z`))}`;
+
+/** The sum of a dashboard series. `undefined` when the API served no point
+ * at all — an empty window is unknown, not a real 0. */
+export const seriesTotal = (
+	points: ReadonlyArray<{ value?: number | null }> | null | undefined,
+): number | undefined => {
+	if (!points || points.length === 0) {
+		return undefined;
+	}
+	let total = 0;
+	for (const point of points) {
+		total += point.value ?? 0;
+	}
+	return total;
+};

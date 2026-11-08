@@ -21,6 +21,7 @@ import {
 	organisationScopeLabelKey,
 	periodLabelKey,
 	periodStart,
+	todayIso,
 	type DashboardPeriod,
 	type OrganisationScope,
 } from './_dashboard-filters';
@@ -63,7 +64,7 @@ export const PeriodSelect = ({
 			options={DASHBOARD_PERIODS}
 			label={(period) =>
 				range
-					? formatPeriodRange(periodStart(period), i18n.language)
+					? formatPeriodRange(periodStart(period), todayIso(), i18n.language)
 					: t(periodLabelKey(period))
 			}
 			onChange={onChange}
@@ -112,10 +113,12 @@ const ChartViewToggle = ({
 			options={CHART_VIEWS}
 			ariaLabel={t('dashboard-view-toggle')}
 			onChange={onChange}
-			// The prototype's `.pa-seg`: a translucent border-coloured track and
-			// 10px/12px items (#2339 fidelity). Its buttons are 500-weight.
-			className="bg-[color-mix(in_srgb,var(--publy-border)_60%,transparent)]"
-			itemClassName="px-2.5 leading-[1.45] font-medium"
+			// The prototype's `.pa-seg`: a translucent border-coloured track,
+			// 24px items and 12px side padding (#2339 fidelity). The shared
+			// defaults stay at the other pages' 28px/8px scale, so the dashboard
+			// opts into its measurements here.
+			className="gap-0.5 bg-[color-mix(in_srgb,var(--publy-border)_60%,transparent)]"
+			itemClassName="h-6 px-3 leading-[1.45] font-medium"
 			label={(view) =>
 				view === 'chart' ? t('dashboard-view-chart') : t('dashboard-view-table')
 			}
@@ -380,17 +383,20 @@ export const KpiCard = ({
 	const { t } = useTranslation('common');
 	const missing = figure === null || figure === undefined;
 
+	// The KPI's own footer band (40 px, the prototype's two-line delta). It is
+	// composed here, not forced on every `StatCard` consumer: the list pages'
+	// footers are inline text, not a flex row (A-3).
 	let footer: ReactNode;
 	if (missing) {
 		footer = (
-			<>
+			<div className="flex min-h-10 min-w-0 items-end justify-between gap-3">
 				<span className="min-w-0 truncate">{t('dashboard-ghost-tag')}</span>
 				<GhostSpark />
-			</>
+			</div>
 		);
 	} else if (delta) {
 		footer = (
-			<div className="flex min-h-9 min-w-0 items-center justify-between gap-3">
+			<div className="flex min-h-10 min-w-0 items-center justify-between gap-3">
 				<div className="min-w-0">
 					<span
 						data-testid={`${testId}-delta`}
@@ -423,9 +429,9 @@ export const KpiCard = ({
 			</div>
 		);
 	} else {
-		// The ghost footer's 36 px, kept so the card does not jump once the
+		// The ghost footer's 40 px, kept so the card does not jump once the
 		// delta series ships. No ghost text or sparkline on a figure.
-		footer = <span aria-hidden="true" className="block min-h-9" />;
+		footer = <span aria-hidden="true" className="block min-h-10" />;
 	}
 
 	const card = (
@@ -441,7 +447,6 @@ export const KpiCard = ({
 				)
 			}
 			footer={footer}
-			unavailable={missing}
 		/>
 	);
 

@@ -36,14 +36,14 @@ import {
 } from './_dashboard-charts';
 import { DashboardExportMenu } from './_dashboard-export-menu';
 import {
+	dashboardWindow,
 	parseDashboardPeriod,
 	periodLabelKey,
-	periodStart,
 	previousPeriod,
-	todayIso,
+	previousPeriodLabelKey,
 	type DashboardPeriod,
 } from './_dashboard-filters';
-import { UNKNOWN_VALUE, formatCount } from './_dashboard-format';
+import { UNKNOWN_VALUE, formatCount, seriesTotal } from './_dashboard-format';
 import { ChartCard, KpiCard, PeriodSelect } from './_dashboard-ui';
 
 /** The prototype's five « Répartition par type » buckets, in its order. */
@@ -93,27 +93,14 @@ const typeBucket = (action: string): string => {
 	return 'other';
 };
 
-const seriesTotal = (
-	points: ReadonlyArray<{ value?: number | null }> | null | undefined,
-): number | undefined => {
-	if (!points) {
-		return undefined;
-	}
-	let total = 0;
-	for (const point of points) {
-		total += point.value ?? 0;
-	}
-	return total;
-};
-
 const Reports = () => {
 	const { t, i18n } = useTranslation('common');
 	const locale = i18n.language;
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 	const period: DashboardPeriod = search.period ?? '30d';
-	const startDate = periodStart(period);
-	const endDate = todayIso();
+	// The same window the overview's cards read (B MA-1).
+	const { startDate, endDate } = dashboardWindow(period);
 	const [shouldLogout, setShouldLogout] = useState(false);
 
 	const auditQuery = useStaffAuditLogsQuery({ size: 1, startDate, endDate });
@@ -160,6 +147,9 @@ const Reports = () => {
 
 	const currentTotal = seriesTotal(seriesQuery.data?.points);
 	const previousTotal = seriesTotal(previousSeriesQuery.data?.points);
+	// One « Événements d'audit » source for both screens: the series total,
+	// falling back to the audit list's exact total when the series is empty.
+	const auditEvents = currentTotal ?? auditQuery.data?.totalCount;
 	const auditDelta =
 		currentTotal !== undefined &&
 		previousTotal !== undefined &&
@@ -174,7 +164,9 @@ const Reports = () => {
 						currentTotal >= previousTotal ? ('up' as const) : ('down' as const),
 				}
 			: undefined;
-	const deltaPeriod = t(periodLabelKey(period));
+	const deltaPeriod = t('dashboard-delta-vs-previous', {
+		period: t(previousPeriodLabelKey(period)),
+	});
 
 	const seriesPoints = (seriesQuery.data?.points ?? []).map((point) => ({
 		label: new Intl.DateTimeFormat(locale, {
@@ -233,7 +225,7 @@ const Reports = () => {
 					testId="staff-dashboard-kpi-report-events"
 					label={t('dashboard-kpi-audit-events')}
 					icon={<IconFileSearch />}
-					figure={currentTotal ?? auditQuery.data?.totalCount}
+					figure={auditEvents}
 					locale={locale}
 					query={seriesQuery}
 					delta={auditDelta}
@@ -272,7 +264,7 @@ const Reports = () => {
 					note={t('dashboard-note-events-per-day')}
 					hero={
 						<span className="flex flex-wrap items-baseline gap-x-2">
-							<span>{formatCount(currentTotal ?? 0, locale)}</span>
+							<span>{formatCount(auditEvents ?? 0, locale)}</span>
 							{auditDelta ? (
 								<span
 									className="text-[12px] font-medium"
@@ -292,7 +284,13 @@ const Reports = () => {
 						seriesQuery.data
 							? {
 									status: 'ready',
-									chart: <ColumnChart points={seriesPoints} locale={locale} />,
+									chart: (
+										<ColumnChart
+											points={seriesPoints}
+											locale={locale}
+											label={t('dashboard-chart-column')}
+										/>
+									),
 									table: (
 										<ChartTable
 											head={[

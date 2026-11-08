@@ -12,16 +12,16 @@ import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-fai
 import { GhostHeatmap } from './_chart-ghost';
 import { Heatmap } from './_dashboard-charts';
 import {
+	dashboardWindow,
 	heatmapWindow,
 	parseDashboardPeriod,
 	parseOrganisationScope,
-	periodLabelKey,
-	periodStart,
 	previousPeriod,
-	todayIso,
+	previousPeriodLabelKey,
 	type DashboardPeriod,
 	type OrganisationScope,
 } from './_dashboard-filters';
+import { seriesTotal } from './_dashboard-format';
 import {
 	ChartCard,
 	OrganisationScopeSelect,
@@ -42,19 +42,6 @@ const HEATMAP_SCALE = [
 	'var(--publy-chart-seq-4)',
 ] as const;
 
-const seriesTotal = (
-	points: ReadonlyArray<{ value?: number | null }> | null | undefined,
-): number | undefined => {
-	if (!points) {
-		return undefined;
-	}
-	let total = 0;
-	for (const point of points) {
-		total += point.value ?? 0;
-	}
-	return total;
-};
-
 const Overview = () => {
 	const { t, i18n } = useTranslation('common');
 	const locale = i18n.language;
@@ -62,6 +49,10 @@ const Overview = () => {
 	const navigate = Route.useNavigate();
 	const period: DashboardPeriod = search.period ?? '30d';
 	const scope: OrganisationScope = search.scope ?? 'all';
+	// One period, one window: every card of this screen — the audit-list
+	// facets, the KPI, its sparkline and the delta — reads these exact days,
+	// today included (B MA-1).
+	const { startDate, endDate } = dashboardWindow(period);
 
 	const onSearchChange = (next: {
 		period?: DashboardPeriod;
@@ -89,18 +80,15 @@ const Overview = () => {
 	// API computes them over the status-filtered set, so reusing the pending
 	// one would report accepted/expired/revoked as structural zeros (B2).
 	const invitationOutcomesQuery = useStaffInvitationsQuery({ size: 1 });
-	const auditQuery = useStaffAuditLogsQuery({
-		size: 1,
-		startDate: periodStart(period),
-	});
+	const auditQuery = useStaffAuditLogsQuery({ size: 1, startDate, endDate });
 
 	// The KPI delta and its sparkline need the same window twice: the current
 	// one and the one before it. The only metric the series endpoint serves is
 	// `audit_events` (#2348); `active_tenants` answers 422 by design.
 	const currentWindow = {
 		metric: 'audit_events' as const,
-		startDate: periodStart(period),
-		endDate: todayIso(),
+		startDate,
+		endDate,
 	};
 	const previousWindow = {
 		metric: 'audit_events' as const,
@@ -133,6 +121,10 @@ const Overview = () => {
 
 	const currentTotal = seriesTotal(seriesQuery.data?.points);
 	const previousTotal = seriesTotal(previousSeriesQuery.data?.points);
+	// The KPI and the report's KPI read the same source, so the two screens
+	// can never print two different « Événements d'audit » for one period.
+	// A series with no point falls back to the audit list's exact total.
+	const auditEvents = currentTotal ?? auditQuery.data?.totalCount;
 	const auditDelta =
 		currentTotal !== undefined &&
 		previousTotal !== undefined &&
@@ -171,13 +163,15 @@ const Overview = () => {
 			<OverviewKpis
 				activeTenants={countsQuery.data?.counts?.active}
 				members={countsQuery.data?.counts?.members}
-				auditEvents={auditQuery.data?.totalCount}
+				auditEvents={auditEvents}
 				pendingInvitations={pendingInvitationsQuery.data?.counts?.pending}
 				countsQuery={countsQuery}
 				auditQuery={auditQuery}
 				pendingInvitationsQuery={pendingInvitationsQuery}
 				auditDelta={auditDelta}
-				auditDeltaPeriod={t(periodLabelKey(period))}
+				auditDeltaPeriod={t('dashboard-delta-vs-previous', {
+					period: t(previousPeriodLabelKey(period)),
+				})}
 				auditSparkline={(seriesQuery.data?.points ?? []).map(
 					(point) => point.value ?? 0,
 				)}
@@ -225,6 +219,7 @@ const Overview = () => {
 											value: point.value ?? 0,
 										}))}
 										locale={locale}
+										label={t('dashboard-chart-heatmap')}
 									/>
 								),
 								table: null,

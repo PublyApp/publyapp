@@ -48,6 +48,9 @@ export const parseOrganisationScope = (
 export const periodLabelKey = (period: DashboardPeriod): string =>
 	`dashboard-period-${period}`;
 
+export const previousPeriodLabelKey = (period: DashboardPeriod): string =>
+	`dashboard-period-previous-${period}`;
+
 export const organisationScopeLabelKey = (scope: OrganisationScope): string =>
 	`dashboard-org-${scope}`;
 
@@ -67,6 +70,9 @@ const isoLocalDay = (date: Date): string =>
 		.toISOString()
 		.slice(0, 10);
 
+/** The first day of a preset's window: the last day (today) included, so
+ * « 30 derniers jours » is exactly 30 daily buckets, not 31. `12m` is 12
+ * calendar months (N11), its day count follows the calendar. */
 export const periodStart = (
 	period: DashboardPeriod,
 	now: Date = new Date(),
@@ -80,13 +86,25 @@ export const periodStart = (
 		new Date(
 			now.getFullYear(),
 			now.getMonth(),
-			now.getDate() - PERIOD_DAYS[period],
+			now.getDate() - (PERIOD_DAYS[period] - 1),
 		),
 	);
 };
 
 /** `YYYY-MM-DD` for today, the inclusive end of a dashboard window. */
 export const todayIso = (now: Date = new Date()): string => isoLocalDay(now);
+
+/** The one window every card of a period reads: the series endpoint counts
+ * `[startDate, endDate]` inclusive, and the audit-list endpoint's bare
+ * `end_date` is normalised to the end of that day, so both cover exactly the
+ * days the period's label says — today included. */
+export const dashboardWindow = (
+	period: DashboardPeriod,
+	now: Date = new Date(),
+) => ({
+	startDate: periodStart(period, now),
+	endDate: todayIso(now),
+});
 
 /** Shift a `YYYY-MM-DD` day by `days`, in UTC so DST never moves it. */
 export const addIsoDays = (iso: string, days: number): string =>

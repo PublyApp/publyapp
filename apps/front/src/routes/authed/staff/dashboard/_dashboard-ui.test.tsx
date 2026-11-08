@@ -292,11 +292,12 @@ describe('periodStart', () => {
 	test('the start is the local calendar day, never a UTC-shifted one (N11)', () => {
 		// 00:30 local is still the previous day in UTC east of Greenwich; the
 		// wire date must stay on the local day the user picked.
-		expect(periodStart('7d', new Date(2026, 0, 15, 0, 30))).toBe('2026-01-08');
+		expect(periodStart('7d', new Date(2026, 0, 15, 0, 30))).toBe('2026-01-09');
 	});
 
-	test('the day presets count calendar days', () => {
-		expect(periodStart('30d', new Date(2026, 0, 31, 9))).toBe('2026-01-01');
+	test('the day presets count calendar days, today included', () => {
+		// Jan 31 − 29 days = Jan 2: exactly 30 days, not 31 (B MA-1).
+		expect(periodStart('30d', new Date(2026, 0, 31, 9))).toBe('2026-01-02');
 	});
 });
 

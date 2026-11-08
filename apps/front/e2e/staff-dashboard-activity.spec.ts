@@ -11,12 +11,12 @@ test.describe(
 		// test still passes.
 		const LOG_ID = '0197b8f0-3333-7ccc-8ccc-cccccccccccc';
 
-		// The feed imports the audit-logs route's own filter modules, so a
-		// `**/staff/audit-logs**` glob would also swallow those Vite module
-		// requests (served as application/json → blank page). Match the API
-		// origin and path exactly.
-		const isApiPath = (url: URL, pathname: string): boolean =>
-			url.origin === API_BASE_URL && url.pathname === pathname;
+		// The feed imports the audit-logs route's own filter modules, so an
+		// origin-less `**/staff/audit-logs**` glob would also swallow those
+		// Vite module requests (served as application/json → blank page).
+		// Anchor each glob on the API origin: nothing served by the front dev
+		// server can match it. The literal is inlined at every call because
+		// the design-system guard cannot statically check a named constant.
 
 		// The activity tab pulls the whole shared history stack; the first
 		// navigation on a cold Vite dev server can exceed the 5 s default.
@@ -24,18 +24,15 @@ test.describe(
 
 		/** Mocks the audit-log list endpoint the activity feed reads. */
 		const mockAuditLogs = async (page: Page, data: unknown[]) => {
+			await page.route(`${API_BASE_URL}/staff/audit-logs**`, async (route) => {
+				await route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({ data, nextCursor: null }),
+				});
+			});
 			await page.route(
-				(url) => isApiPath(url, '/staff/audit-logs'),
-				async (route) => {
-					await route.fulfill({
-						status: 200,
-						contentType: 'application/json',
-						body: JSON.stringify({ data, nextCursor: null }),
-					});
-				},
-			);
-			await page.route(
-				(url) => isApiPath(url, '/staff/audit-logs/actions'),
+				`${API_BASE_URL}/staff/audit-logs/actions**`,
 				async (route) => {
 					await route.fulfill({
 						status: 200,
@@ -46,7 +43,7 @@ test.describe(
 			);
 		};
 
-		test('renders the recent audit-event feed and links to the full log', async ({
+		test('renders the recent audit-event feed, starting with its toolbar', async ({
 			page,
 		}) => {
 			await mockAuditLogs(page, [
@@ -71,9 +68,15 @@ test.describe(
 			await expect(feed.locator('[data-history-event]')).toHaveCount(1);
 			await expect(feed.getByText('Ada Admin')).toBeVisible();
 
+			// The shipped design has no title row above the toolbar (§5.1): the
+			// tab starts directly with its search/filters. The full log is
+			// reached from the side panel, not a « Tout voir » link.
+			await expect(
+				page.getByTestId('staff-dashboard-activity-search'),
+			).toBeVisible();
 			await expect(
 				page.getByTestId('staff-dashboard-activity-view-all'),
-			).toHaveAttribute('href', '/staff/audit-logs');
+			).toHaveCount(0);
 		});
 
 		test('shows an honest empty state when the audit log is empty (no placeholder text)', async ({
@@ -96,19 +99,16 @@ test.describe(
 			page,
 		}) => {
 			let observedLimit: string | null = null;
-			await page.route(
-				(url) => isApiPath(url, '/staff/audit-logs'),
-				async (route) => {
-					observedLimit = new URL(route.request().url()).searchParams.get(
-						'limit',
-					);
-					await route.fulfill({
-						status: 200,
-						contentType: 'application/json',
-						body: JSON.stringify({ data: [], nextCursor: null }),
-					});
-				},
-			);
+			await page.route(`${API_BASE_URL}/staff/audit-logs**`, async (route) => {
+				observedLimit = new URL(route.request().url()).searchParams.get(
+					'limit',
+				);
+				await route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({ data: [], nextCursor: null }),
+				});
+			});
 
 			await page.goto('/staff/dashboard/activity');
 
