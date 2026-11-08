@@ -389,3 +389,48 @@ describe('QueryDisplay', () => {
 		expect(screen.queryByText(/boom/)).toBeNull();
 	});
 });
+
+describe('QueryDisplay variants', () => {
+	test('discreet renders nothing while loading', () => {
+		const { container } = render(
+			<QueryDisplay query={pendingQuery} variant="discreet">
+				{() => 'data'}
+			</QueryDisplay>,
+		);
+		expect(container.innerHTML).toBe('');
+	});
+
+	test('discreet renders nothing on error', () => {
+		const { container } = render(
+			<QueryDisplay query={errorQuery} variant="discreet">
+				{() => 'data'}
+			</QueryDisplay>,
+		);
+		expect(container.innerHTML).toBe('');
+	});
+
+	test('inline shows a visible loading label next to the spinner', () => {
+		render(
+			<QueryDisplay query={pendingQuery} variant="inline">
+				{() => 'data'}
+			</QueryDisplay>,
+		);
+		expect(screen.getByRole('status')).toBeTruthy();
+		expect(
+			screen.getByTestId('query-display-inline-loading').textContent,
+		).toMatch(/.+/);
+	});
+
+	test('an explicit LoadingSlot wins over the preset', () => {
+		render(
+			<QueryDisplay
+				query={pendingQuery}
+				variant="discreet"
+				LoadingSlot={<span>mine</span>}
+			>
+				{() => 'data'}
+			</QueryDisplay>,
+		);
+		expect(screen.getByText('mine')).toBeTruthy();
+	});
+});

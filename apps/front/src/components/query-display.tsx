@@ -27,6 +27,10 @@ type RenderSlot<TProps = object> =
 type Props<TData = unknown, TError = Error> = {
 	query: UseQueryResult<TData, TError>;
 	loadingStrategy?: LoadingMode; // defaults to 'pending'
+	/** `page` (default): spinner + full inline error state. `inline`: spinner plus a visible
+	 * « Chargement… » label, for menus and selects. `discreet`: nothing while loading and nothing on
+	 * error, for banners and badges that only matter when data exists. Explicit slots win. */
+	variant?: 'page' | 'inline' | 'discreet';
 	LoadingSlot?: RenderSlot;
 	ErrorSlot?: RenderSlot<{
 		error: unknown;
@@ -47,19 +51,30 @@ type Props<TData = unknown, TError = Error> = {
 const renderLoading = (
 	LoadingSlot: Props['LoadingSlot'],
 	loadingLabel: string,
+	variant: NonNullable<Props['variant']>,
 ) => {
 	if (typeof LoadingSlot === 'function') {
 		const Slot = LoadingSlot;
 		return <Slot />;
 	}
-	if (isValidElement(LoadingSlot)) {
+	if (isValidElement(LoadingSlot) || LoadingSlot !== undefined) {
 		return LoadingSlot;
 	}
-	return (
-		LoadingSlot ?? (
-			<LoadingSpinner {...defaultLoadingProps} label={loadingLabel} />
-		)
-	);
+	if (variant === 'discreet') {
+		return null;
+	}
+	if (variant === 'inline') {
+		return (
+			<span
+				data-testid="query-display-inline-loading"
+				className="inline-flex items-center gap-2 text-sm text-muted-foreground"
+			>
+				<LoadingSpinner {...defaultLoadingProps} label={loadingLabel} />
+				<span aria-hidden="true">{loadingLabel}</span>
+			</span>
+		);
+	}
+	return <LoadingSpinner {...defaultLoadingProps} label={loadingLabel} />;
 };
 
 const LoadingSpinner = ({
@@ -100,6 +115,7 @@ const renderError = <TData, TError>(
 	query: UseQueryResult<TData, TError>,
 	ErrorSlot: Props<TData, TError>['ErrorSlot'],
 	t: (key: string) => string,
+	variant: NonNullable<Props['variant']>,
 ) => {
 	if (typeof ErrorSlot === 'function') {
 		const Slot = ErrorSlot;
@@ -107,6 +123,9 @@ const renderError = <TData, TError>(
 	}
 	if (isValidElement(ErrorSlot)) {
 		return ErrorSlot;
+	}
+	if (variant === 'discreet') {
+		return null;
 	}
 	// Issue #2043: the default error branch used to discard the real error
 	// and show one generic sentence for every cause (server unreachable, 403,
@@ -155,6 +174,7 @@ const defaultLoadingProps: LoadingSpinnerProps = {
 const QueryDisplay = <TData = unknown, TError = Error>({
 	query,
 	loadingStrategy = 'pending',
+	variant = 'page',
 	LoadingSlot,
 	ErrorSlot,
 	EmptySlot,
@@ -167,13 +187,14 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	if (forceRender) {
 		switch (forceRender) {
 			case 'loading':
-				return renderLoading(LoadingSlot, t('loading'));
+				return renderLoading(LoadingSlot, t('loading'), variant);
 			case 'error':
 				return renderError(
 					query.error ?? new Error('forced error'),
 					query,
 					ErrorSlot,
 					t,
+					variant,
 				);
 			case 'empty':
 				return renderEmpty(EmptySlot);
@@ -190,11 +211,11 @@ const QueryDisplay = <TData = unknown, TError = Error>({
 	}
 
 	if (showLoading) {
-		return renderLoading(LoadingSlot, t('loading'));
+		return renderLoading(LoadingSlot, t('loading'), variant);
 	}
 
 	if (query.isError) {
-		return renderError(query.error, query, ErrorSlot, t);
+		return renderError(query.error, query, ErrorSlot, t, variant);
 	}
 
 	// `checkIfEmptyQueryData` short-circuits first, so a custom rule only ever
