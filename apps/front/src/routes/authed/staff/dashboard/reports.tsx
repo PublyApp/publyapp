@@ -72,6 +72,33 @@ const typeBucket = (action: string): string => {
 	return 'other';
 };
 
+/** The change against the previous window, when both totals are known and
+ * the previous one is not 0 (a percentage of 0 has no meaning). */
+const seriesDelta = (
+	current: number | undefined,
+	previous: number | undefined,
+	locale: string,
+): { label: string; direction: 'up' | 'down' } | undefined =>
+	current !== undefined && previous !== undefined && previous > 0
+		? {
+				label: formatSignedPercent((current - previous) / previous, locale),
+				direction: current >= previous ? ('up' as const) : ('down' as const),
+			}
+		: undefined;
+
+/** The API's daily points as the shared charts' labelled series. */
+const toSeriesPoints = (
+	points:
+		| ReadonlyArray<{ date?: string | null; value?: number | null }>
+		| null
+		| undefined,
+	locale: string,
+) =>
+	(points ?? []).map((point) => ({
+		label: formatDayMonth(new Date(`${point.date ?? ''}T12:00:00Z`), locale),
+		value: point.value ?? 0,
+	}));
+
 const Reports = () => {
 	const { t, i18n } = useTranslation('common');
 	const locale = i18n.language;
@@ -84,8 +111,7 @@ const Reports = () => {
 
 	const auditQuery = useStaffAuditLogsQuery({ size: 1, startDate, endDate });
 	// `impersonation.started` is emitted by the impersonation service, so this
-	// figure is real. The two sign-in actions exist only as constants in the
-	// backend and are never written, so they have no query at all (B1).
+	// figure is real.
 	const impersonationsQuery = useStaffAuditLogsQuery({
 		size: 1,
 		startDate,
@@ -100,6 +126,24 @@ const Reports = () => {
 	});
 	const previousSeriesQuery = useStaffDashboardSeriesQuery({
 		metric: 'audit_events',
+		...previousPeriod(period),
+	});
+	const signInsQuery = useStaffDashboardSeriesQuery({
+		metric: 'sign_ins',
+		startDate,
+		endDate,
+	});
+	const previousSignInsQuery = useStaffDashboardSeriesQuery({
+		metric: 'sign_ins',
+		...previousPeriod(period),
+	});
+	const failedSignInsQuery = useStaffDashboardSeriesQuery({
+		metric: 'failed_sign_ins',
+		startDate,
+		endDate,
+	});
+	const previousFailedSignInsQuery = useStaffDashboardSeriesQuery({
+		metric: 'failed_sign_ins',
 		...previousPeriod(period),
 	});
 	const topOrganisationsQuery = useStaffDashboardTopOrganisationsQuery({
@@ -117,6 +161,10 @@ const Reports = () => {
 		impersonationsQuery.error,
 		seriesQuery.error,
 		previousSeriesQuery.error,
+		signInsQuery.error,
+		previousSignInsQuery.error,
+		failedSignInsQuery.error,
+		previousFailedSignInsQuery.error,
 		topOrganisationsQuery.error,
 	]) {
 		if (queryError !== null && shouldLogoutForFailure(queryError)) {
@@ -129,24 +177,26 @@ const Reports = () => {
 	// One « Événements d'audit » source for both screens: the series total,
 	// falling back to the audit list's exact total when the series is empty.
 	const auditEvents = currentTotal ?? auditQuery.data?.totalCount;
-	const auditDelta =
-		currentTotal !== undefined &&
-		previousTotal !== undefined &&
-		previousTotal > 0
-			? {
-					label: formatSignedPercent(
-						(currentTotal - previousTotal) / previousTotal,
-						locale,
-					),
-					direction:
-						currentTotal >= previousTotal ? ('up' as const) : ('down' as const),
-				}
-			: undefined;
+	const auditDelta = seriesDelta(currentTotal, previousTotal, locale);
+	const signIns = seriesTotal(signInsQuery.data?.points);
+	const signInsDelta = seriesDelta(
+		signIns,
+		seriesTotal(previousSignInsQuery.data?.points),
+		locale,
+	);
+	const failedSignIns = seriesTotal(failedSignInsQuery.data?.points);
+	const failedSignInsDelta = seriesDelta(
+		failedSignIns,
+		seriesTotal(previousFailedSignInsQuery.data?.points),
+		locale,
+	);
 
-	const seriesPoints = (seriesQuery.data?.points ?? []).map((point) => ({
-		label: formatDayMonth(new Date(`${point.date ?? ''}T12:00:00Z`), locale),
-		value: point.value ?? 0,
-	}));
+	const seriesPoints = toSeriesPoints(seriesQuery.data?.points, locale);
+	const signInsPoints = toSeriesPoints(signInsQuery.data?.points, locale);
+	const failedSignInsPoints = toSeriesPoints(
+		failedSignInsQuery.data?.points,
+		locale,
+	);
 
 	const byAction = auditQuery.data?.counts?.byAction ?? [];
 	const bucketTotals = new Map<string, number>();
@@ -185,6 +235,16 @@ const Reports = () => {
 				seriesPoints={seriesPoints}
 				impersonationsQuery={impersonationsQuery}
 				auditDelta={auditDelta}
+				signIns={signIns}
+				signInsQuery={signInsQuery}
+				previousSignInsQuery={previousSignInsQuery}
+				signInsPoints={signInsPoints}
+				signInsDelta={signInsDelta}
+				failedSignIns={failedSignIns}
+				failedSignInsQuery={failedSignInsQuery}
+				previousFailedSignInsQuery={previousFailedSignInsQuery}
+				failedSignInsPoints={failedSignInsPoints}
+				failedSignInsDelta={failedSignInsDelta}
 				period={period}
 				locale={locale}
 			/>
@@ -202,6 +262,10 @@ const Reports = () => {
 
 			<ReportsSecondaryCharts
 				period={period}
+				signInsQuery={signInsQuery}
+				signIns={signIns}
+				signInsDelta={signInsDelta}
+				signInsPoints={signInsPoints}
 				topOrganisationsQuery={topOrganisationsQuery}
 				locale={locale}
 			/>

@@ -22,7 +22,6 @@ import {
 	useAuditLogActionsQuery,
 	useStaffAuditLogsQuery,
 } from '~/lib/query/staff-audit-logs';
-import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import type { AuditLogListCounts } from '@org/client-ts/models/index';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
@@ -44,6 +43,8 @@ import {
 	buildAuditLogsCursorResetKey,
 	parseAuditLogCategories,
 	parseAuditLogsListSearchParams,
+	selectAuditActorFilter,
+	selectAuditSearchFilter,
 	serializeAuditLogCategories,
 	serializeAuditLogsListSearchParams,
 	type AuditLogsListSearchParamInput,
@@ -62,6 +63,7 @@ const toHistoryEvents = (
 		id: row.id,
 		at: row.createdAt,
 		actorName: row.userName,
+		userId: row.userId,
 		action: row.action,
 		ipAddress: row.ipAddress,
 		targetId: row.targetId,
@@ -93,11 +95,14 @@ const countAuditCategories = (
 };
 
 /** The panel's per-actor counters, from the API's actor facets (already
- * ranked by volume, so the panel needs no client-side sort). */
+ * ranked by volume, so the panel needs no client-side sort). Each entry is a
+ * filter: a known actor is searched by name, the unknown-account bucket on
+ * the events without an actor. */
 const buildActorPanelGroup = (
 	counts: AuditLogListCounts | null | undefined,
 	t: (key: string) => string,
-	onSelect: (actor: string) => void,
+	search: AuditLogsListSearchParams,
+	onChange: (next: AuditLogsListSearchParams) => void,
 ): ListPanelGroup[] => [
 	{
 		key: 'audit-actors',
@@ -107,14 +112,29 @@ const buildActorPanelGroup = (
 			if (name.length === 0) {
 				return [];
 			}
+			const userId = actor.userId ?? null;
+			// Translate the synthetic API labels for unknown/deleted actors.
+			let label: string;
+			if (userId === null) {
+				label = t('common:history-unknown-account');
+			} else if (name === '(deleted user)') {
+				label = t('common:history-deleted-user');
+			} else {
+				label = name;
+			}
 			return [
 				{
 					key: `actor:${actor.userId ?? name}`,
-					label: name,
+					label,
 					icon: <IconUser />,
 					count: actor.count ?? 0,
-					active: false,
-					onClick: () => onSelect(name),
+					active: userId === null && search.unknownActor === true,
+					onClick: () =>
+						onChange({
+							...search,
+							...selectAuditActorFilter({ userId, name }, search),
+							cursor: undefined,
+						}),
 				},
 			];
 		}),
@@ -180,7 +200,7 @@ const StaffAuditLogsPage = () => {
 	const [isExportOpen, setIsExportOpen] = useState(false);
 	const [shouldLogout, setShouldLogout] = useState(false);
 
-	const onSearchChange = (next: TableSearchParams): void => {
+	const onSearchChange = (next: AuditLogsListSearchParams): void => {
 		void navigate({
 			search: serializeAuditLogsListSearchParams({ ...search, ...next }),
 			replace: true,
@@ -215,6 +235,7 @@ const StaffAuditLogsPage = () => {
 	const query = useStaffAuditLogsQuery(
 		{
 			q: search.q,
+			unknownActor: search.unknownActor,
 			actions: selection.actions?.split(','),
 			startDate: selection.startDate,
 			endDate: selection.endDate,
@@ -248,8 +269,11 @@ const StaffAuditLogsPage = () => {
 		// unknown. Once the facets are in, an absent category is a real 0.
 		categoryCounts: counts ? countAuditCategories(counts) : null,
 	});
-	const actorGroup = buildActorPanelGroup(counts, tCommon, (actor) =>
-		onSearchChange({ ...search, q: actor, cursor: undefined }),
+	const actorGroup = buildActorPanelGroup(
+		counts,
+		tCommon,
+		search,
+		onSearchChange,
 	);
 
 	const filtersValue: ListFiltersValue = {
@@ -347,7 +371,11 @@ const StaffAuditLogsPage = () => {
 				searchPlaceholder={tCommon('history-search-placeholder')}
 				q={search.q ?? ''}
 				onSearch={(next) =>
-					onSearchChange({ ...search, q: next, cursor: undefined })
+					onSearchChange({
+						...search,
+						...selectAuditSearchFilter(next),
+						cursor: undefined,
+					})
 				}
 				searchTestId="staff-audit-logs-search"
 				cards={<AuditLogStatCards counts={counts} />}
@@ -445,6 +473,8 @@ const StaffAuditLogsPage = () => {
 				onOpenChange={setIsExportOpen}
 				onAuthFailure={onSessionExpired}
 				filters={{
+					q: search.q,
+					unknownActor: search.unknownActor,
 					actions: selection.actions?.split(','),
 					startDate: selection.startDate,
 					endDate: selection.endDate,

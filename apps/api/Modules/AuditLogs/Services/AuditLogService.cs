@@ -5,7 +5,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 namespace PublyApp.Api.Modules.AuditLogs.Services;
 
 public record CreateAuditLogArgs(
-	Guid UserId,
+	Guid? UserId,
 	string Action,
 	Guid? TargetId = null,
 	object? Details = null

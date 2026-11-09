@@ -3,21 +3,33 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { StateSurface } from '~/components/ui/state-surface';
 
-import type { FindTopOrganisationsForStaffResponse } from '@org/client-ts/models/index';
+import type {
+	FindTopOrganisationsForStaffResponse,
+	GetDashboardSeriesForStaffResponse,
+} from '@org/client-ts/models/index';
 
-import { GhostAxis, GhostHBars, GhostLine } from './_chart-ghost';
-import { HorizontalBars } from './_dashboard-charts';
+import { GhostHBars } from './_chart-ghost';
+import { ChartTable, HorizontalBars, LineChart } from './_dashboard-charts';
 import { periodLabelKey, type DashboardPeriod } from './_dashboard-filters';
-import { UNKNOWN_VALUE } from './_dashboard-format';
-import { ChartCard } from './_dashboard-ui';
+import { UNKNOWN_VALUE, formatCount } from './_dashboard-format';
+import { ChartCard, ChartHero } from './_dashboard-ui';
 
-/** The sign-ins ghost and the top-organisations ranking. */
+/** The sign-ins curve and the top-organisations ranking. */
 export const ReportsSecondaryCharts = ({
 	period,
+	signInsQuery,
+	signIns,
+	signInsDelta,
+	signInsPoints,
 	topOrganisationsQuery,
 	locale,
 }: {
 	period: DashboardPeriod;
+	signInsQuery: UseQueryResult<GetDashboardSeriesForStaffResponse, Error>;
+	/** The same period total the « Connexions » KPI shows. */
+	signIns: number | undefined;
+	signInsDelta?: { label: string; direction: 'up' | 'down' };
+	signInsPoints: ReadonlyArray<{ label: string; value: number }>;
 	topOrganisationsQuery: UseQueryResult<
 		FindTopOrganisationsForStaffResponse,
 		Error
@@ -34,17 +46,31 @@ export const ReportsSecondaryCharts = ({
 				label={t('dashboard-card-signins-per-day')}
 				icon={<IconTrendingUp />}
 				note={`${t('dashboard-note-signins')} · ${t(periodLabelKey(period))}`}
-				hero={UNKNOWN_VALUE}
+				hero={
+					<ChartHero total={signIns} delta={signInsDelta} locale={locale} />
+				}
+				// The card owns a query, so `QueryDisplay` paints the skeleton
+				// and the error: a ready series is the only body it can reach.
 				series={{
-					status: 'unavailable',
-					sentence: t('dashboard-ghost-card-signins-per-day'),
-					ghost: (
-						<>
-							<GhostLine />
-							<GhostAxis />
-						</>
+					status: 'ready',
+					chart: (
+						<LineChart
+							points={signInsPoints}
+							locale={locale}
+							label={t('dashboard-chart-line')}
+						/>
+					),
+					table: (
+						<ChartTable
+							head={[t('dashboard-col-date'), t('dashboard-kpi-signins')]}
+							rows={signInsPoints.map((point) => [
+								point.label,
+								formatCount(point.value, locale),
+							])}
+						/>
 					),
 				}}
+				query={signInsQuery}
 			/>
 
 			<ChartCard

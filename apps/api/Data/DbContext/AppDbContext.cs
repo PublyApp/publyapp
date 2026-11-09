@@ -371,6 +371,16 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 
 		modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
+		// An audit row's actor is optional (an unknown-account sign-in attempt
+		// has none), and an optional relationship defaults to no delete action.
+		// Keep the previous cascade: hard-deleting a user still removes the
+		// audit rows they authored.
+		modelBuilder.Entity<AuditLog>()
+			.HasOne(auditLog => auditLog.User)
+			.WithMany()
+			.HasForeignKey(auditLog => auditLog.UserId)
+			.OnDelete(DeleteBehavior.Cascade);
+
 		// Partial indexes to favor active rows without enforcing global filters
 		modelBuilder.HasPostgresExtension("pg_trgm");
 

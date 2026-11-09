@@ -35,7 +35,7 @@ internal static class AuditLogTestHelper {
 
 	public static async Task<Guid> SeedAuditLogAsync(
 		ApiFactory factory,
-		Guid userId,
+		Guid? userId,
 		string action,
 		Guid? targetId = null,
 		string? details = null,
@@ -125,7 +125,8 @@ internal static class AuditLogTestHelper {
 		IReadOnlyList<string>? actions = null,
 		string? targetId = null,
 		string? startDate = null,
-		string? endDate = null
+		string? endDate = null,
+		bool? unknownActor = null
 	) {
 		var queryParams = new List<string>();
 
@@ -164,6 +165,11 @@ internal static class AuditLogTestHelper {
 		if (endDate is not null) {
 			queryParams.Add($"end_date={endDate}");
 		}
+		if (unknownActor.HasValue) {
+			queryParams.Add(
+				$"unknown_actor={(unknownActor.Value ? "true" : "false")}"
+			);
+		}
 
 		if (queryParams.Count == 0) {
 			return AuditLogTestHelper._FindUrl;
@@ -194,7 +200,9 @@ internal static class AuditLogTestHelper {
 		IReadOnlyList<string>? actions = null,
 		string? targetId = null,
 		string? startDate = null,
-		string? endDate = null
+		string? endDate = null,
+		string? search = null,
+		bool? unknownActor = null
 	) {
 		var queryParams = new List<string> {
 			$"format={format}"
@@ -220,6 +228,16 @@ internal static class AuditLogTestHelper {
 		}
 		if (endDate is not null) {
 			queryParams.Add($"end_date={endDate}");
+		}
+		if (search is not null) {
+			queryParams.Add(
+				$"q={Uri.EscapeDataString(search)}"
+			);
+		}
+		if (unknownActor.HasValue) {
+			queryParams.Add(
+				$"unknown_actor={(unknownActor.Value ? "true" : "false")}"
+			);
 		}
 
 		return AuditLogTestHelper._ExportUrl

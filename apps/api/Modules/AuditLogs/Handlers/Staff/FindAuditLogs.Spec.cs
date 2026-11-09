@@ -41,6 +41,7 @@ public sealed class FindAuditLogsSpec
 			{ nameof(FindAuditLogsQuery.TargetId), "target_id" },
 			{ nameof(FindAuditLogsQuery.StartDate), "start_date" },
 			{ nameof(FindAuditLogsQuery.EndDate), "end_date" },
+			{ nameof(FindAuditLogsQuery.UnknownActor), "unknown_actor" },
 		};
 		}
 	}
@@ -212,6 +213,56 @@ public sealed class FindAuditLogsSpec
 			.Subject;
 		actorRow.Name.Should().Be($"{marker} Actor");
 		actorRow.Count.Should().Be(2);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldFilterToTheEventsWithoutAnActor() {
+		var token =
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var actorId =
+			await AuditLogTestHelper.GetUserIdByEmailAsync(
+				this._Fixture.Factory,
+				TestConstants.StaffAdminEmail
+			);
+
+		// One event with an actor, one without (an unknown-account attempt):
+		// the « (unknown) » facet must return exactly the latter.
+		var actorRowId =
+			await AuditLogTestHelper.SeedAuditLogAsync(
+				this._Fixture.Factory,
+				actorId,
+				AuditActions.LoginFailed
+			);
+		var unknownActorRowId =
+			await AuditLogTestHelper.SeedAuditLogAsync(
+				this._Fixture.Factory,
+				userId: null,
+				AuditActions.LoginFailed
+			);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			AuditLogTestHelper.GetFindUrl(unknownActor: true)
+		).WithSessionToken(token);
+
+		using var response =
+			await this._Http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		result.Data.Should()
+			.Contain(row => row.Id == unknownActorRowId);
+		result.Data.Should()
+			.NotContain(row => row.Id == actorRowId);
+		result.Data.Should()
+			.OnlyContain(row => row.UserId == null);
 	}
 
 	[Fact]
@@ -861,14 +912,14 @@ public sealed class FindAuditLogsSpec
 	}
 
 	private record AuditLogActorCount {
-		public Guid UserId { get; init; }
+		public Guid? UserId { get; init; }
 		public string Name { get; init; } = string.Empty;
 		public int Count { get; init; }
 	}
 
 	private record AuditLogListItem {
 		public Guid Id { get; init; }
-		public Guid UserId { get; init; }
+		public Guid? UserId { get; init; }
 		public string UserName { get; init; }
 			= string.Empty;
 		public string UserEmail { get; init; }

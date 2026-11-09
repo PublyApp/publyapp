@@ -71,6 +71,8 @@ describe('AuditLogExportDrawer', () => {
 
 	test('exports CSV with the current filters and downloads the response', async () => {
 		const filters = {
+			q: 'jane',
+			unknownActor: true,
 			actions: ['user.created'],
 			startDate: '2026-01-01',
 			endDate: '2026-01-31',
@@ -83,6 +85,8 @@ describe('AuditLogExportDrawer', () => {
 		await waitFor(() => {
 			expect(mocks.mutateAsync).toHaveBeenCalledWith({
 				format: 'csv',
+				q: 'jane',
+				unknownActor: true,
 				actions: ['user.created'],
 				startDate: '2026-01-01',
 				endDate: '2026-01-31',

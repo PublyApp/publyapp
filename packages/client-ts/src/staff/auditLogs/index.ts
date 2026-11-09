@@ -62,12 +62,13 @@ export interface AuditLogsRequestBuilderGetQueryParameters {
     sortOrder?: string;
     startDate?: string;
     targetId?: string;
+    unknownActor?: string;
     userId?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const AuditLogsRequestBuilderUriTemplate = "{+baseurl}/staff/audit-logs{?actions*,cursor*,end_date*,limit*,q*,sort_id*,sort_order*,start_date*,target_id*,user_id*}";
+export const AuditLogsRequestBuilderUriTemplate = "{+baseurl}/staff/audit-logs{?actions*,cursor*,end_date*,limit*,q*,sort_id*,sort_order*,start_date*,target_id*,unknown_actor*,user_id*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
@@ -77,6 +78,7 @@ const AuditLogsRequestBuilderGetQueryParametersMapper: Record<string, string> = 
     "sortOrder": "sort_order",
     "startDate": "start_date",
     "targetId": "target_id",
+    "unknownActor": "unknown_actor",
     "userId": "user_id",
 };
 /**

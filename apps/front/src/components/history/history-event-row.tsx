@@ -51,7 +51,20 @@ export const HistoryEventRow = ({
 				? t(targetKey, { name: event.targetName })
 				: t(phraseKey);
 	}
-	const actor = event.actorName ?? t('history-system');
+	// An unknown-account attempt or a soft-deleted user has no real identity:
+	// the API marks both with a synthetic name (never a real one), so show the
+	// translated label and the neutral avatar.
+	const isUnknownAccount = event.actorName === '(unknown)';
+	const isDeletedUser = event.actorName === '(deleted user)';
+	const isAnonymous = isUnknownAccount || isDeletedUser;
+	let actor: string;
+	if (isUnknownAccount) {
+		actor = t('history-unknown-account');
+	} else if (isDeletedUser) {
+		actor = t('history-deleted-user');
+	} else {
+		actor = event.actorName ?? t('history-system');
+	}
 	const isSystem = event.actorName === null;
 
 	return (
@@ -62,7 +75,7 @@ export const HistoryEventRow = ({
 			{/* The shared history row keeps its 32 px avatar: the same row is
 			   rendered on /staff/audit-logs, so a page-local measurement must
 			   not shrink every feed (A-3). */}
-			<PersonAvatar name={actor} system={isSystem} size="sm" />
+			<PersonAvatar name={actor} system={isSystem || isAnonymous} size="sm" />
 			<p className="min-w-0 flex-1 truncate text-muted-foreground">
 				<span className="font-medium text-foreground">{actor}</span>{' '}
 				{phrase !== null ? (

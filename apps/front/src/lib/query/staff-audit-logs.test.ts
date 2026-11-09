@@ -180,6 +180,8 @@ describe('exportStaffAuditLogsMutationOptions.mutationFn', () => {
 
 		const result = await exportStaffAuditLogsMutationOptions.mutationFn({
 			format: 'csv',
+			q: '  jane ',
+			unknownActor: true,
 			actions: ['user.created', 'tenant.updated'],
 			startDate: '2026-01-01',
 			endDate: '2026-01-31',
@@ -189,6 +191,8 @@ describe('exportStaffAuditLogsMutationOptions.mutationFn', () => {
 		expect(get).toHaveBeenCalledWith({
 			queryParameters: {
 				format: 'csv',
+				q: 'jane',
+				unknownActor: 'true',
 				actions: 'user.created,tenant.updated',
 				startDate: '2026-01-01',
 				endDate: '2026-01-31T23:59:59',
@@ -268,11 +272,42 @@ describe('toStaffAuditLogRows', () => {
 		expect(rows).toEqual([
 			{
 				id: 'log-1',
+				userId: 'user-1',
 				action: 'tenant.updated',
 				userName: 'Ada Lovelace',
 				userEmail: 'ada@example.com',
 				ipAddress: '10.0.0.1',
 				targetId: 'tenant-1',
+				createdAt,
+			},
+		]);
+	});
+
+	test('preserves a null userId for an unknown-account event', () => {
+		const createdAt = new Date('2026-07-02T08:30:00Z');
+
+		const rows = toStaffAuditLogRows([
+			{
+				id: 'log-unknown',
+				userId: null,
+				userName: '(unknown)',
+				userEmail: '(unknown)',
+				action: 'auth.login.failed',
+				targetId: null,
+				ipAddress: '127.0.0.1',
+				createdAt,
+			} as AuditLogListItem,
+		]);
+
+		expect(rows).toEqual([
+			{
+				id: 'log-unknown',
+				userId: null,
+				action: 'auth.login.failed',
+				userName: '(unknown)',
+				userEmail: '(unknown)',
+				ipAddress: '127.0.0.1',
+				targetId: null,
 				createdAt,
 			},
 		]);

@@ -52,6 +52,34 @@ const mocks = vi.hoisted(() => ({
 		data: undefined as Record<string, unknown> | undefined,
 		refetch: vi.fn(),
 	},
+	signIns: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
+	previousSignIns: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
+	failedSignIns: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
+	previousFailedSignIns: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
 	topOrganisations: {
 		isPending: false,
 		isError: false,
@@ -159,12 +187,11 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-period-previous-30d': 'previous 30 days',
 	'dashboard-delta-vs-previous': 'vs {{period}}',
 	'dashboard-chart-column': 'Column chart',
+	'dashboard-chart-line': 'Line chart',
 	'export-failed': 'Export failed',
 	'dashboard-ghost-tag': 'No data yet',
 	'dashboard-ghost-card-events-per-day':
 		'One bar per day: the volume of audit events.',
-	'dashboard-ghost-card-signins-per-day':
-		'The successful sign-ins curve will be drawn here, day by day.',
 	'dashboard-ghost-card-top-orgs':
 		'The most active organisations will be ranked here.',
 	'dashboard-ghost-card-type-share':
@@ -217,6 +244,10 @@ const withData = () => {
 		}));
 	mocks.series.data = { points: points(30, 160) };
 	mocks.previousSeries.data = { points: points(30, 148) };
+	mocks.signIns.data = { points: points(30, 12) };
+	mocks.previousSignIns.data = { points: points(30, 10) };
+	mocks.failedSignIns.data = { points: points(30, 2) };
+	mocks.previousFailedSignIns.data = { points: points(30, 1) };
 	mocks.topOrganisations.data = {
 		startDate: '',
 		endDate: '',
@@ -233,6 +264,10 @@ const resetMocks = () => {
 		mocks.impersonations,
 		mocks.series,
 		mocks.previousSeries,
+		mocks.signIns,
+		mocks.previousSignIns,
+		mocks.failedSignIns,
+		mocks.previousFailedSignIns,
 		mocks.topOrganisations,
 	] as AuditQuery[]) {
 		query.isPending = false;
@@ -250,8 +285,16 @@ const resetMocks = () => {
 				: mocks.audit,
 	);
 	useStaffDashboardSeriesQuery.mockImplementation(
-		(variables: { endDate: string }) =>
-			variables.endDate !== todayIso() ? mocks.previousSeries : mocks.series,
+		(variables: { metric: string; endDate: string }) => {
+			const previous = variables.endDate !== todayIso();
+			if (variables.metric === 'sign_ins') {
+				return previous ? mocks.previousSignIns : mocks.signIns;
+			}
+			if (variables.metric === 'failed_sign_ins') {
+				return previous ? mocks.previousFailedSignIns : mocks.failedSignIns;
+			}
+			return previous ? mocks.previousSeries : mocks.series;
+		},
 	);
 	useStaffDashboardTopOrganisationsQuery.mockImplementation(
 		() => mocks.topOrganisations,
@@ -274,12 +317,14 @@ describe('staff dashboard reports', () => {
 		expect(screen.queryByTestId('staff-dashboard-sample-chip')).toBeNull();
 	});
 
-	test('renders the two served KPIs from period-scoped audit totals', () => {
+	test('renders the four served KPIs from their period-scoped series', () => {
 		withData();
 		render(<Reports />);
 
 		for (const [testId, figure] of [
 			['staff-dashboard-kpi-report-events', '4,800'],
+			['staff-dashboard-kpi-signins', '360'],
+			['staff-dashboard-kpi-failed-signins', '60'],
 			['staff-dashboard-kpi-impersonations', '12'],
 		]) {
 			const card = screen.getByTestId(testId);
@@ -326,24 +371,37 @@ describe('staff dashboard reports', () => {
 		expect(within(kpi).getByText('—')).toBeTruthy();
 	});
 
-	test('the sign-in KPIs are ghosts: their audit actions are never emitted (B1)', () => {
+	test('the sign-in KPIs read their own series with a delta and a sparkline (B1)', () => {
 		withData();
 		render(<Reports />);
 
-		for (const testId of [
-			'staff-dashboard-kpi-signins',
-			'staff-dashboard-kpi-failed-signins',
-		]) {
-			const card = screen.getByTestId(testId);
-			expect(within(card).getByText('—')).toBeTruthy();
-			expect(within(card).getByText('No data yet')).toBeTruthy();
-		}
+		const signIns = screen.getByTestId('staff-dashboard-kpi-signins');
+		expect(within(signIns).getByText('360')).toBeTruthy();
+		expect(
+			within(signIns).getByTestId('staff-dashboard-kpi-signins-delta')
+				.textContent,
+		).toBe('+20%');
+		expect(within(signIns).queryByText('No data yet')).toBeNull();
 
-		// No query is even issued for an action the backend never writes.
-		for (const call of useStaffAuditLogsQuery.mock.calls) {
-			expect(call[0].actions ?? []).not.toContain('auth.login.succeeded');
-			expect(call[0].actions ?? []).not.toContain('auth.login.failed');
-		}
+		const failed = screen.getByTestId('staff-dashboard-kpi-failed-signins');
+		expect(within(failed).getByText('60')).toBeTruthy();
+		expect(
+			within(failed).getByTestId('staff-dashboard-kpi-failed-signins-delta')
+				.textContent,
+		).toBe('+100%');
+		expect(within(failed).queryByText('No data yet')).toBeNull();
+
+		const startDate = periodStart('30d');
+		expect(useStaffDashboardSeriesQuery).toHaveBeenCalledWith({
+			metric: 'sign_ins',
+			startDate,
+			endDate: todayIso(),
+		});
+		expect(useStaffDashboardSeriesQuery).toHaveBeenCalledWith({
+			metric: 'failed_sign_ins',
+			startDate,
+			endDate: todayIso(),
+		});
 	});
 
 	test('the type breakdown renders the byAction facet as a stacked bar and its table', () => {
@@ -358,7 +416,7 @@ describe('staff dashboard reports', () => {
 		expect(within(card).getByText('1,215')).toBeTruthy();
 	});
 
-	test('draws the real events series and top organisations, and keeps the sign-in ghost', () => {
+	test('draws the real events, sign-ins and top-organisations series', () => {
 		withData();
 		render(<Reports />);
 
@@ -375,12 +433,14 @@ describe('staff dashboard reports', () => {
 		expect(within(top).getByText('1,284')).toBeTruthy();
 
 		const signins = screen.getByTestId('staff-dashboard-signins-per-day');
-		expect(within(signins).getByText('No data yet')).toBeTruthy();
+		expect(within(signins).queryByText('No data yet')).toBeNull();
 		expect(
-			within(signins).getByText(
-				'The successful sign-ins curve will be drawn here, day by day.',
-			),
+			within(signins).getByRole('img', { name: 'Line chart' }),
 		).toBeTruthy();
+		expect(within(signins).getByText('360')).toBeTruthy();
+		// The chart hero shows the total AND its delta, exactly like the
+		// events chart on the same screen.
+		expect(within(signins).getByText('+20%')).toBeTruthy();
 	});
 
 	test('a served but empty period is an empty state, never the ghost (#2339 fix9 ME-2)', () => {
@@ -405,14 +465,21 @@ describe('staff dashboard reports', () => {
 		).toBeNull();
 	});
 
-	test('the sign-ins ghost keeps the hero slot as a muted « — » (N3)', () => {
+	test('a failed sign-ins query shows the error state, never a ghost (N3)', () => {
 		withData();
+		mocks.signIns.isError = true;
+		mocks.signIns.error = new Error('500');
+		mocks.signIns.data = undefined;
 		render(<Reports />);
 
-		const card = screen.getByTestId('staff-dashboard-signins-per-day');
-		const hero = card.querySelector('.pt-3\\.5 p');
-		expect(hero?.textContent).toBe('—');
-		expect(hero?.querySelector('.text-muted-foreground')).toBeTruthy();
+		expect(
+			screen.getByTestId('staff-dashboard-kpi-signins-error'),
+		).toBeTruthy();
+		expect(
+			within(screen.getByTestId('staff-dashboard-signins-per-day')).queryByText(
+				'No data yet',
+			),
+		).toBeNull();
 	});
 
 	test('a failed events query shows the error state, never the ghost (B4)', () => {

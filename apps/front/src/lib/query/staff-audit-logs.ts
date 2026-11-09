@@ -17,6 +17,8 @@ import {
 
 export type StaffAuditLogsQueryVariables = {
 	q?: string;
+	/** Narrows to the events with no actor: the « (unknown) » actor facet. */
+	unknownActor?: boolean;
 	actions?: string[];
 	startDate?: string;
 	endDate?: string;
@@ -34,6 +36,9 @@ export type StaffAuditLogExportFormat = 'csv' | 'json';
 
 export type StaffAuditLogExportInput = {
 	format: StaffAuditLogExportFormat;
+	q?: string;
+	/** Narrows to the events with no actor: the « (unknown) » actor facet. */
+	unknownActor?: boolean;
 	actions?: string[];
 	startDate?: string;
 	endDate?: string;
@@ -41,6 +46,8 @@ export type StaffAuditLogExportInput = {
 
 export type StaffAuditLogRow = {
 	id: string;
+	/** Null when the event has no known actor (an unknown-account attempt). */
+	userId: string | null;
 	action: string | null;
 	userName: string | null;
 	userEmail: string | null;
@@ -139,6 +146,7 @@ const normalizeActions = (
 
 type StaffAuditLogsQueryParameters = {
 	q?: string;
+	unknownActor?: 'true';
 	actions?: string;
 	startDate?: string;
 	endDate?: string;
@@ -155,6 +163,7 @@ export const buildFindStaffAuditLogsQueryParameters = (
 
 	return {
 		q: normalizeString(variables.q),
+		unknownActor: variables.unknownActor === true ? 'true' : undefined,
 		// The backend binds multi-value action filters as a single CSV string
 		// (Kiota exposes the param as a primitive — see the FindAuditLogs
 		// handler's AuditLogActionsCsv).
@@ -183,6 +192,7 @@ export const toStaffAuditLogRows = (
 
 		rows.push({
 			id,
+			userId: normalizeNullableString(item.userId),
 			action: normalizeNullableString(item.action),
 			userName: normalizeNullableString(item.userName),
 			userEmail: normalizeNullableString(item.userEmail),
@@ -272,6 +282,8 @@ export const exportStaffAuditLogsMutationOptions = buildStaffMutationOptions<
 			return client.staff.auditLogs.exportEscaped.get({
 				queryParameters: {
 					format: variables.format,
+					q: normalizeString(variables.q),
+					unknownActor: variables.unknownActor === true ? 'true' : undefined,
 					actions: actions?.join(','),
 					startDate: normalizeString(variables.startDate),
 					endDate: normalizeEndDate(variables.endDate),

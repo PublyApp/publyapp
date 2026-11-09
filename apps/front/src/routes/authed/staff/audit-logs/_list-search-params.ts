@@ -28,6 +28,8 @@ export type AuditLogsListSearchParams = TableSearchParams & {
 	 * presets; the page shows it as a removable chip. */
 	startDate?: string;
 	endDate?: string;
+	/** Narrows to the events with no actor: the « (unknown) » actor facet. */
+	unknownActor?: boolean;
 };
 
 export type AuditLogsListSearchParamInput = TableSearchParamInput & {
@@ -36,6 +38,7 @@ export type AuditLogsListSearchParamInput = TableSearchParamInput & {
 	sensitivity?: unknown;
 	start_date?: unknown;
 	end_date?: unknown;
+	unknown_actor?: unknown;
 };
 
 const DATE_QUERY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -144,6 +147,8 @@ export const parseAuditLogsListSearchParams = (
 				: undefined,
 		startDate: parseAuditLogsDateFilter(search.start_date),
 		endDate: parseAuditLogsDateFilter(search.end_date),
+		unknownActor:
+			normalizeString(search.unknown_actor) === 'true' ? true : undefined,
 	};
 };
 
@@ -153,6 +158,7 @@ export type AuditLogsListWireParams = {
 	sensitivity?: 'sensitive';
 	start_date?: string;
 	end_date?: string;
+	unknown_actor?: 'true';
 } & TableSearchWireParams;
 
 export const serializeAuditLogsListSearchParams = (
@@ -169,6 +175,7 @@ export const serializeAuditLogsListSearchParams = (
 		sensitivity: params.sensitivity === 'sensitive' ? 'sensitive' : undefined,
 		start_date: parseAuditLogsDateFilter(params.startDate),
 		end_date: parseAuditLogsDateFilter(params.endDate),
+		unknown_actor: params.unknownActor === true ? 'true' : undefined,
 	};
 };
 
@@ -208,4 +215,31 @@ export const buildAuditLogsCursorResetKey = (
 		params.sensitivity ?? '',
 		params.startDate ?? '',
 		params.endDate ?? '',
+		params.unknownActor === true ? 'unknown' : '',
 	].join('\u001E');
+
+/** The URL-state change an actor-facet click makes. A known actor is searched
+ * by name; the « (unknown) » bucket has no name to search, so it filters on
+ * the events without an actor instead — clicking the active bucket clears it. */
+export const selectAuditActorFilter = (
+	actor: { userId: string | null; name: string },
+	search: AuditLogsListSearchParams,
+): Pick<AuditLogsListSearchParams, 'q' | 'unknownActor'> => {
+	if (actor.userId !== null) {
+		return { q: actor.name, unknownActor: undefined };
+	}
+
+	return {
+		q: undefined,
+		unknownActor: search.unknownActor === true ? undefined : true,
+	};
+};
+
+/** Typing a search replaces the actor-facet filter instead of stacking a
+ * second, invisible one on top of it. */
+export const selectAuditSearchFilter = (
+	q: string | undefined,
+): Pick<AuditLogsListSearchParams, 'q' | 'unknownActor'> => ({
+	q,
+	unknownActor: undefined,
+});

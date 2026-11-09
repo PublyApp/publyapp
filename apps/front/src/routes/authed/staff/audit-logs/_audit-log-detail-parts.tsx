@@ -41,26 +41,69 @@ export const AuditLogDetailHero = ({
 	);
 };
 
+/** Extract the attempted e-mail from a failed-login details payload. */
+const attemptedEmailFromDetails = (details?: string | null): string | null => {
+	if (!details?.trim()) {
+		return null;
+	}
+	try {
+		const parsed = JSON.parse(details) as { Email?: string };
+		if (typeof parsed.Email === 'string' && parsed.Email.trim().length > 0) {
+			return parsed.Email.trim();
+		}
+		return null;
+	} catch {
+		return null;
+	}
+};
+
 export const AuditLogActor = ({ auditLog }: { auditLog: AuditLogDetail }) => {
 	const { t } = useTranslation(['staff-audit-logs', 'common']);
+
+	// An unknown-account attempt or a soft-deleted user has no real identity:
+	// the API marks both with a synthetic name (never a real one), so show the
+	// translated label and the neutral avatar.
+	const isUnknownAccount = auditLog.userName === '(unknown)';
+	const isDeletedUser = auditLog.userName === '(deleted user)';
+	const isAnonymous = isUnknownAccount || isDeletedUser;
+
+	let displayName: string;
+	if (isUnknownAccount) {
+		displayName = t('common:history-unknown-account');
+	} else if (isDeletedUser) {
+		displayName = t('common:history-deleted-user');
+	} else {
+		displayName = auditLog.userName || t('common:no-value');
+	}
+
+	// For an unknown account, show the attempted e-mail from the details
+	// payload; for a deleted user, the stored e-mail is "(unknown)" so hide it.
+	let displayEmail: string;
+	if (isUnknownAccount) {
+		displayEmail =
+			attemptedEmailFromDetails(auditLog.details) ?? t('common:no-value');
+	} else if (isDeletedUser) {
+		displayEmail = t('common:no-value');
+	} else {
+		displayEmail = auditLog.userEmail || t('common:no-value');
+	}
 
 	return (
 		<div>
 			<p className="publy-type-metadata-label">{t('common:user')}</p>
 			<div className="mt-1.5 flex items-center gap-2.5">
 				<PersonAvatar
-					name={auditLog.userName?.trim() || '?'}
+					name={displayName}
 					size="sm"
+					system={isAnonymous}
 					accessibleLabel={t('actor-avatar-label')}
 				/>
 				<div className="min-w-0">
 					<p className="truncate text-sm font-medium text-foreground">
-						{/* data-honesty-ignore: a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data */}
-						{auditLog.userName || '-'}
+						{displayName}
 					</p>
 					<p className="truncate text-xs text-muted-foreground">
-						{/* data-honesty-ignore: a deleted user's identity is genuinely absent, so the no-value dash is not fabricated identity data */}
-						{auditLog.userEmail || '-'}
+						{displayEmail}
 					</p>
 				</div>
 			</div>

@@ -19,7 +19,9 @@ public record FindAuditLogsArgs(
 	Guid? TargetId,
 	DateTime? StartDate,
 	DateTime? EndDate,
-	string? Search = null
+	string? Search = null,
+	// Narrows to the events with no actor: the « (unknown) » actor facet.
+	bool? UnknownActor = null
 );
 
 public record ExportAuditLogsArgs(
@@ -27,7 +29,11 @@ public record ExportAuditLogsArgs(
 	IReadOnlyList<string>? Actions,
 	Guid? TargetId,
 	DateTime? StartDate,
-	DateTime? EndDate
+	DateTime? EndDate,
+	// The export mirrors the list's filters: the search box and the
+	// « (unknown) » actor facet narrow the exported rows too.
+	string? Search = null,
+	bool? UnknownActor = null
 );
 
 public abstract record FindAuditLogsResult {
@@ -52,7 +58,7 @@ public sealed record AuditLogActionCount(
 );
 
 public sealed record AuditLogActorCount(
-	Guid UserId,
+	Guid? UserId,
 	string Name,
 	int Count
 );
@@ -75,7 +81,8 @@ public sealed record AuditLogListCounts(
 
 public record AuditLogListItem {
 	public required Guid Id { get; init; }
-	public required Guid UserId { get; init; }
+	/// <summary>Null when the event has no known actor (an unknown-account attempt).</summary>
+	public Guid? UserId { get; init; }
 	public required string UserName { get; init; }
 	public required string UserEmail { get; init; }
 	public required string Action { get; init; }
@@ -86,7 +93,8 @@ public record AuditLogListItem {
 
 public record AuditLogDetail {
 	public required Guid Id { get; init; }
-	public required Guid UserId { get; init; }
+	/// <summary>Null when the event has no known actor (an unknown-account attempt).</summary>
+	public Guid? UserId { get; init; }
 	public required string UserName { get; init; }
 	public required string UserEmail { get; init; }
 	public required string Action { get; init; }
@@ -184,7 +192,8 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			args.TargetId,
 			args.StartDate,
 			args.EndDate,
-			args.Search
+			args.Search,
+			args.UnknownActor ?? false
 		);
 
 		// Whole filtered collection, cursor excluded.
@@ -223,14 +232,14 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				.IgnoreQueryFilters()
 				// Audit rows outlive soft-deleted users; keep
 				// the historical actor visible when possible.
-				on (Guid?)a.UserId equals u.Id
+				on a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
 			select new AuditLogListItem {
 				Id = a.Id ?? Guid.Empty,
 				UserId = a.UserId,
 				UserName = u == null
-					? "(deleted user)"
+					? (a.UserId == null ? "(unknown)" : "(deleted user)")
 					: u.FirstName != null
 						|| u.LastName != null
 						? ((u.FirstName ?? "")
@@ -316,7 +325,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var actorRows = await (
 			from auditLog in logs
 			join user in this._DbContext.User.IgnoreQueryFilters()
-				on (Guid?)auditLog.UserId equals user.Id into userJoin
+				on auditLog.UserId equals user.Id into userJoin
 			from user in userJoin.DefaultIfEmpty()
 			group auditLog by new {
 				auditLog.UserId,
@@ -336,7 +345,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var actors = new List<AuditLogActorCount>();
 		foreach (var row in actorRows) {
 			// Same display name as the list rows (deleted actor, name, else email).
-			var name = "(deleted user)";
+			var name = row.UserId is null ? "(unknown)" : "(deleted user)";
 			if (row.Email is not null) {
 				name = row.FirstName is not null || row.LastName is not null
 					? ((row.FirstName ?? "") + " " + (row.LastName ?? "")).Trim()
@@ -375,14 +384,14 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				.IgnoreQueryFilters()
 				// Audit rows outlive soft-deleted users; keep
 				// the historical actor visible when possible.
-				on (Guid?)a.UserId equals u.Id
+				on a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
 			select new AuditLogDetail {
 				Id = a.Id ?? Guid.Empty,
 				UserId = a.UserId,
 				UserName = u == null
-					? "(deleted user)"
+					? (a.UserId == null ? "(unknown)" : "(deleted user)")
 					: u.FirstName != null
 						|| u.LastName != null
 						? ((u.FirstName ?? "")
@@ -428,7 +437,9 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			args.Actions,
 			args.TargetId,
 			args.StartDate,
-			args.EndDate
+			args.EndDate,
+			args.Search,
+			args.UnknownActor ?? false
 		);
 
 		var count = await query
@@ -455,7 +466,9 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			args.Actions,
 			args.TargetId,
 			args.StartDate,
-			args.EndDate
+			args.EndDate,
+			args.Search,
+			args.UnknownActor ?? false
 		);
 
 		var baseQuery = (
@@ -471,13 +484,13 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				.IgnoreQueryFilters()
 				// Audit rows outlive soft-deleted users; keep
 				// the historical actor visible when possible.
-				on (Guid?)a.UserId equals u.Id
+				on a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
 			select new AuditLogExportItem {
 				Id = a.Id ?? Guid.Empty,
 				UserName = u == null
-					? "(deleted user)"
+					? (a.UserId == null ? "(unknown)" : "(deleted user)")
 					: u.FirstName != null
 						|| u.LastName != null
 						? ((u.FirstName ?? "")
@@ -512,12 +525,19 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		Guid? targetId,
 		DateTime? startDate,
 		DateTime? endDate,
-		string? search = null
+		string? search = null,
+		bool unknownActor = false
 	) {
 		if (userId.HasValue) {
 			query =
 				from auditLog in query
 				where auditLog.UserId == userId.Value
+				select auditLog;
+		}
+		if (unknownActor) {
+			query =
+				from auditLog in query
+				where auditLog.UserId == null
 				select auditLog;
 		}
 		if (actions is { Count: > 0 }) {

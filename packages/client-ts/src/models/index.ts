@@ -190,7 +190,7 @@ export interface AuditLogDetail extends AdditionalDataHolder, Parsable {
      */
     userEmail?: string | null;
     /**
-     * The userId property
+     * Null when the event has no known actor (an unknown-account attempt).
      */
     userId?: Guid | null;
     /**
@@ -242,7 +242,7 @@ export interface AuditLogListItem extends AdditionalDataHolder, Parsable {
      */
     userEmail?: string | null;
     /**
-     * The userId property
+     * Null when the event has no known actor (an unknown-account attempt).
      */
     userId?: Guid | null;
     /**

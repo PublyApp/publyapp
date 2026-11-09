@@ -36,14 +36,16 @@ export interface ExportRequestBuilderGetQueryParameters {
     actions?: string;
     endDate?: string;
     format?: string;
+    q?: string;
     startDate?: string;
     targetId?: string;
+    unknownActor?: string;
     userId?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const ExportRequestBuilderUriTemplate = "{+baseurl}/staff/audit-logs/export{?actions*,end_date*,format*,start_date*,target_id*,user_id*}";
+export const ExportRequestBuilderUriTemplate = "{+baseurl}/staff/audit-logs/export{?actions*,end_date*,format*,q*,start_date*,target_id*,unknown_actor*,user_id*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
@@ -51,6 +53,7 @@ const ExportRequestBuilderGetQueryParametersMapper: Record<string, string> = {
     "endDate": "end_date",
     "startDate": "start_date",
     "targetId": "target_id",
+    "unknownActor": "unknown_actor",
     "userId": "user_id",
 };
 /**

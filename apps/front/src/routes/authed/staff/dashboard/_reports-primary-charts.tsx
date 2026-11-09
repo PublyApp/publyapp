@@ -14,12 +14,8 @@ import {
 	StackedShareBar,
 	type DonutSegment,
 } from './_dashboard-charts';
-import {
-	UNKNOWN_VALUE,
-	formatCount,
-	formatPercentOneDecimal,
-} from './_dashboard-format';
-import { ChartCard } from './_dashboard-ui';
+import { formatCount, formatPercentOneDecimal } from './_dashboard-format';
+import { ChartCard, ChartHero } from './_dashboard-ui';
 
 /** The events-per-day column chart and the type-share breakdown. */
 export const ReportsPrimaryCharts = ({
@@ -53,28 +49,7 @@ export const ReportsPrimaryCharts = ({
 				icon={<IconChartBar />}
 				note={t('dashboard-note-events-per-day')}
 				hero={
-					<span className="flex flex-wrap items-baseline gap-x-2">
-						{/* #2339 fix9 MI-5: an unknown figure is the same muted
-						    « — » the KPI above shows, never a hard 0. */}
-						{auditEvents === null || auditEvents === undefined ? (
-							<span className="text-muted-foreground">{UNKNOWN_VALUE}</span>
-						) : (
-							formatCount(auditEvents, locale)
-						)}
-						{auditDelta ? (
-							<span
-								className="text-[12px] font-medium"
-								style={{
-									color:
-										auditDelta.direction === 'up'
-											? 'var(--publy-success)'
-											: 'var(--publy-danger)',
-								}}
-							>
-								{auditDelta.label}
-							</span>
-						) : null}
-					</span>
+					<ChartHero total={auditEvents} delta={auditDelta} locale={locale} />
 				}
 				series={
 					seriesQuery.data

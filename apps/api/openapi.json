@@ -10273,6 +10273,13 @@
             }
           },
           {
+            "name": "unknown_actor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "user_id",
             "in": "query",
             "schema": {
@@ -10445,6 +10452,13 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "start_date",
             "in": "query",
             "schema": {
@@ -10453,6 +10467,13 @@
           },
           {
             "name": "target_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "unknown_actor",
             "in": "query",
             "schema": {
               "type": "string"
@@ -15927,7 +15948,10 @@
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "name": {
@@ -15943,7 +15967,6 @@
       "AuditLogDetail": {
         "required": [
           "id",
-          "userId",
           "userName",
           "userEmail",
           "action",
@@ -15956,7 +15979,11 @@
             "format": "uuid"
           },
           "userId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Null when the event has no known actor (an unknown-account attempt).",
             "format": "uuid"
           },
           "userName": {
@@ -16029,7 +16056,6 @@
       "AuditLogListItem": {
         "required": [
           "id",
-          "userId",
           "userName",
           "userEmail",
           "action",
@@ -16042,7 +16068,11 @@
             "format": "uuid"
           },
           "userId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Null when the event has no known actor (an unknown-account attempt).",
             "format": "uuid"
           },
           "userName": {

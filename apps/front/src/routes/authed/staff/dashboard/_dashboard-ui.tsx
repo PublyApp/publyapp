@@ -232,6 +232,40 @@ export const DashboardCardQuery = <TData,>({
 	</QueryDisplay>
 );
 
+/** A chart card's figure: the period's total, then its change against the
+ * previous window (« +8,4 % »). One hero for every report chart, so the
+ * events and sign-ins cards read the same. */
+export const ChartHero = ({
+	total,
+	delta,
+	locale,
+}: {
+	total: number | null | undefined;
+	delta?: { label: string; direction: 'up' | 'down' };
+	locale: string;
+}) => (
+	<span className="flex flex-wrap items-baseline gap-x-2">
+		{total === null || total === undefined ? (
+			<span className="text-muted-foreground">{UNKNOWN_VALUE}</span>
+		) : (
+			formatCount(total, locale)
+		)}
+		{delta ? (
+			<span
+				className="text-[12px] font-medium"
+				style={{
+					color:
+						delta.direction === 'up'
+							? 'var(--publy-success)'
+							: 'var(--publy-danger)',
+				}}
+			>
+				{delta.label}
+			</span>
+		) : null}
+	</span>
+);
+
 /**
  * A chart card's series: the chart (and its table twin) when the API serves it,
  * or — when it does not — the card's own ghost chart and the one sentence that

@@ -17,11 +17,16 @@ namespace PublyApp.Api.Modules.AuditLogs.Entities;
 public class AuditLog : BaseAttributes, INoTenantEntity {
 	private UserEntity? _User;
 
+	/// <summary>
+	/// The actor, when the event has one. Null for an event with no known
+	/// account — a sign-in attempt for an email that matches no user — so the
+	/// row can still record the attempt (IP, reason) without inventing an actor.
+	/// </summary>
 	[Column("user_id")]
-	public required Guid UserId { get; set; }
+	public Guid? UserId { get; set; }
 	[JsonIgnore]
-	public UserEntity User {
-		get { return RequiredNavigation.Get(this._User, nameof(AuditLog), nameof(this.User)); }
+	public UserEntity? User {
+		get { return this._User; }
 		set { this._User = value; }
 	}
 
@@ -46,7 +51,7 @@ public class AuditLog : BaseAttributes, INoTenantEntity {
 	/// same transaction as the state change it records.
 	/// </summary>
 	public static AuditLog CreateEntry(
-		Guid userId,
+		Guid? userId,
 		string action,
 		Guid? targetId,
 		object? details,
