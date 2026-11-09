@@ -51,9 +51,10 @@ export const HistoryEventRow = ({
 				? t(targetKey, { name: event.targetName })
 				: t(phraseKey);
 	}
-	// An unknown-account attempt (null userId) or a soft-deleted user has no
-	// real identity: show the translated label and the neutral avatar.
-	const isUnknownAccount = event.userId === null && event.actorName !== null;
+	// An unknown-account attempt or a soft-deleted user has no real identity:
+	// the API marks both with a synthetic name (never a real one), so show the
+	// translated label and the neutral avatar.
+	const isUnknownAccount = event.actorName === '(unknown)';
 	const isDeletedUser = event.actorName === '(deleted user)';
 	const isAnonymous = isUnknownAccount || isDeletedUser;
 	let actor: string;

@@ -60,10 +60,10 @@ const attemptedEmailFromDetails = (details?: string | null): string | null => {
 export const AuditLogActor = ({ auditLog }: { auditLog: AuditLogDetail }) => {
 	const { t } = useTranslation(['staff-audit-logs', 'common']);
 
-	// An unknown-account attempt (null userId) or a soft-deleted user has no
-	// real identity: show the translated label and the neutral avatar.
-	const isUnknownAccount =
-		auditLog.userId === null && auditLog.userName !== null;
+	// An unknown-account attempt or a soft-deleted user has no real identity:
+	// the API marks both with a synthetic name (never a real one), so show the
+	// translated label and the neutral avatar.
+	const isUnknownAccount = auditLog.userName === '(unknown)';
 	const isDeletedUser = auditLog.userName === '(deleted user)';
 	const isAnonymous = isUnknownAccount || isDeletedUser;
 
@@ -73,18 +73,19 @@ export const AuditLogActor = ({ auditLog }: { auditLog: AuditLogDetail }) => {
 	} else if (isDeletedUser) {
 		displayName = t('common:history-deleted-user');
 	} else {
-		displayName = auditLog.userName || '-';
+		displayName = auditLog.userName || t('common:no-value');
 	}
 
 	// For an unknown account, show the attempted e-mail from the details
 	// payload; for a deleted user, the stored e-mail is "(unknown)" so hide it.
 	let displayEmail: string;
 	if (isUnknownAccount) {
-		displayEmail = attemptedEmailFromDetails(auditLog.details) ?? '-';
+		displayEmail =
+			attemptedEmailFromDetails(auditLog.details) ?? t('common:no-value');
 	} else if (isDeletedUser) {
-		displayEmail = '-';
+		displayEmail = t('common:no-value');
 	} else {
-		displayEmail = auditLog.userEmail || '-';
+		displayEmail = auditLog.userEmail || t('common:no-value');
 	}
 
 	return (

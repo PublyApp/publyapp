@@ -11,6 +11,7 @@ vi.mock('react-i18next', () => ({
 				'common:user': 'User',
 				'common:history-unknown-account': 'Unknown account',
 				'common:history-deleted-user': 'Deleted user',
+				'common:no-value': '—',
 				'actor-avatar-label': 'Actor',
 			} as const;
 			return translations[key as keyof typeof translations] ?? key;
@@ -82,9 +83,9 @@ describe('AuditLogActor', () => {
 		const { container } = render(<AuditLogActor auditLog={detail} />);
 
 		expect(screen.getByText('Unknown account')).toBeTruthy();
-		// The email paragraph should contain a dash
+		// The email paragraph carries the shared no-value dash
 		const emailParagraph = container.querySelector('p.text-muted-foreground');
-		expect(emailParagraph?.textContent).toBe('-');
+		expect(emailParagraph?.textContent).toBe('—');
 	});
 
 	test('a deleted-user event shows the translated label and hides the synthetic email', () => {
@@ -98,9 +99,9 @@ describe('AuditLogActor', () => {
 		const { container } = render(<AuditLogActor auditLog={detail} />);
 
 		expect(screen.getByText('Deleted user')).toBeTruthy();
-		// The email paragraph should contain a dash
+		// The email paragraph carries the shared no-value dash
 		const emailParagraph = container.querySelector('p.text-muted-foreground');
-		expect(emailParagraph?.textContent).toBe('-');
+		expect(emailParagraph?.textContent).toBe('—');
 		const avatar = document.querySelector('[data-slot="person-avatar"]');
 		expect(avatar?.hasAttribute('data-system')).toBe(true);
 	});
