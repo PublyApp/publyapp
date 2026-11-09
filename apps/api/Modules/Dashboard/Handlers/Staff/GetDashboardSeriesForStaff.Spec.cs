@@ -4,12 +4,16 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
+using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
 
 using Xunit;
 
@@ -387,37 +391,116 @@ public sealed class GetDashboardSeriesForStaffSpec
 
 	[Fact]
 	public async Task
-		ItShouldReturn422WhenActiveTenantsMetricIsRequested() {
+		ItShouldDrawTheActiveTenantsCurveAcrossASuspendAndReactivate() {
 		var token =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetDashboardSeriesForStaffSpec._GetUrl(
-				"active_tenants",
-				"2020-06-01",
-				"2020-06-02"
-			)
-		).WithSessionToken(token);
+		await using var scope =
+			this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext =
+			scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var tenantId = Guid.NewGuid();
+		var createdAt =
+			new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-		using var response =
-			await this._Http.SendAsync(request);
+		var code = tenantId.ToString();
 
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.UnprocessableEntity);
-
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("metric");
-		problem.Errors["metric"].Should()
-			.Contain(message =>
-				message.Contains(
-					"active_tenants is not available",
-					StringComparison.Ordinal
-				)
+		try {
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				INSERT INTO tenants
+					(id, code, name, status, max_users, created_at,
+					 updated_at, is_deleted)
+				VALUES
+					({tenantId}, {code}, {code}, {(int)TenantStatus.Active},
+					 5, {createdAt}, {createdAt}, false)
+				"""
 			);
+			// The creation row the trigger just wrote happened "now", outside
+			// this spec's window; the exact history is what we place below.
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				DELETE FROM tenant_status_history
+				WHERE tenant_id = {tenantId}
+				"""
+			);
+
+			// Active exactly at the window's first midnight (inclusive start),
+			// suspended mid-day, reactivated at the last day's midnight
+			// (inclusive end).
+			foreach (var (status, occurredAt) in new[] {
+				(
+					TenantLifecycleStatus.Active,
+					new DateTime(2020, 6, 1, 0, 0, 0, DateTimeKind.Utc)
+				),
+				(
+					TenantLifecycleStatus.Suspended,
+					new DateTime(2020, 6, 2, 12, 0, 0, DateTimeKind.Utc)
+				),
+				(
+					TenantLifecycleStatus.Active,
+					new DateTime(2020, 6, 4, 0, 0, 0, DateTimeKind.Utc)
+				),
+			}) {
+				await dbContext.Database.ExecuteSqlAsync(
+					$"""
+					INSERT INTO tenant_status_history
+						(tenant_id, status, occurred_at, created_at)
+					VALUES
+						({tenantId}, {(int)status}, {occurredAt}, {occurredAt})
+					"""
+				);
+			}
+
+			var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				GetDashboardSeriesForStaffSpec._GetUrl(
+					"active_tenants",
+					"2020-06-01",
+					"2020-06-04"
+				)
+			).WithSessionToken(token);
+
+			using var response =
+				await this._Http.SendAsync(request);
+
+			response.StatusCode.Should()
+				.Be(HttpStatusCode.OK);
+
+			var result = await response.Content
+				.ReadFromJsonAsync<SeriesResponse>();
+			result.Should().NotBeNull();
+			Assert.NotNull(result);
+
+			result.Metric.Should().Be("active_tenants");
+			result.Points.Select(point => point.Date)
+				.Should()
+				.Equal(
+					"2020-06-01",
+					"2020-06-02",
+					"2020-06-03",
+					"2020-06-04"
+				);
+			// One active on the 1st, none after the suspend, none on the empty
+			// day (zero-filled), one again after the reactivation.
+			result.Points.Select(point => point.Value)
+				.Should()
+				.Equal(1, 0, 0, 1);
+		} finally {
+			// No FK on tenant_id (see TenantStatusHistory): the spec removes
+			// its own rows so a leftover curve cannot leak into another run.
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				DELETE FROM tenant_status_history
+				WHERE tenant_id = {tenantId}
+				"""
+			);
+			await dbContext.Database.ExecuteSqlAsync(
+				$"""
+				DELETE FROM tenants WHERE id = {tenantId}
+				"""
+			);
+		}
 	}
 
 	[Fact]

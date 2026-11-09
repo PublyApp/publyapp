@@ -1954,6 +1954,7 @@
 	"dashboard-heatmap-note-weeks": "Audit events per day over the last {{count}} weeks",
 	"dashboard-note-type-share": "Every event in the period, grouped by domain",
 	"dashboard-col-date": "Date",
+	"dashboard-col-organisations": "Organisations",
 	"dashboard-chart-line": "Line chart",
 	"dashboard-chart-column": "Column chart",
 	"dashboard-chart-heatmap": "Activity heatmap",

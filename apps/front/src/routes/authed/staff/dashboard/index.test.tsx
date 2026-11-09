@@ -65,6 +65,13 @@ const mocks = vi.hoisted(() => ({
 		data: undefined as Record<string, unknown> | undefined,
 		refetch: vi.fn(),
 	},
+	growthQuery: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
 	previousSeriesQuery: {
 		isPending: false,
 		isError: false,
@@ -171,6 +178,9 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-view-all': 'View all',
 	'dashboard-view-chart': 'Chart',
 	'dashboard-view-table': 'Table',
+	'dashboard-col-date': 'Date',
+	'dashboard-col-organisations': 'Organisations',
+	'dashboard-chart-line': 'Line chart',
 	'dashboard-col-status': 'Status',
 	'dashboard-col-invitations': 'Invitations',
 	'dashboard-col-share': 'Share',
@@ -303,6 +313,7 @@ const withData = () => {
 			value,
 		}));
 	mocks.seriesQuery.data = { points: points(30, 160) };
+	mocks.growthQuery.data = { points: points(30, 31) };
 	mocks.previousSeriesQuery.data = { points: points(30, 148) };
 	mocks.heatmapQuery.data = { points: points(365, 12) };
 };
@@ -315,6 +326,7 @@ const resetMocks = () => {
 		mocks.invitationOutcomesQuery,
 		mocks.auditQuery,
 		mocks.seriesQuery,
+		mocks.growthQuery,
 		mocks.previousSeriesQuery,
 		mocks.heatmapQuery,
 	] as QueryMock[]) {
@@ -336,7 +348,10 @@ const resetMocks = () => {
 	);
 	useStaffAuditLogsQuery.mockImplementation(() => mocks.auditQuery);
 	useStaffDashboardSeriesQuery.mockImplementation(
-		(variables: { startDate: string; endDate: string }) => {
+		(variables: { metric: string; startDate: string; endDate: string }) => {
+			if (variables.metric === 'active_tenants') {
+				return mocks.growthQuery;
+			}
 			if (variables.startDate <= addIsoDays(todayIso(), -300)) {
 				return mocks.heatmapQuery;
 			}
@@ -443,29 +458,42 @@ describe('staff dashboard overview', () => {
 			expect(screen.getByText(label)).toBeTruthy();
 		}
 
-		// The invitation-outcomes table is hidden until « Table » is pressed.
-		expect(screen.queryByText('Status')).toBeNull();
-		fireEvent.click(screen.getByRole('button', { name: 'Table' }));
-		expect(screen.getByText('Status')).toBeTruthy();
-		fireEvent.click(screen.getByRole('button', { name: 'Chart' }));
-		expect(screen.queryByText('Status')).toBeNull();
+		// The invitation-outcomes table is hidden until its « Table » is
+		// pressed — the growth card has its own toggle, so scope the click.
+		const invitationCard = screen.getByTestId(
+			'staff-dashboard-invitation-outcomes',
+		);
+		expect(within(invitationCard).queryByText('Status')).toBeNull();
+		fireEvent.click(
+			within(invitationCard).getByRole('button', { name: 'Table' }),
+		);
+		expect(within(invitationCard).getByText('Status')).toBeTruthy();
+		fireEvent.click(
+			within(invitationCard).getByRole('button', { name: 'Chart' }),
+		);
+		expect(within(invitationCard).queryByText('Status')).toBeNull();
 	});
 
-	test('draws a ghost (not « — ») for the one series the API does not provide', () => {
+	test('draws the real active-organisations curve, not the ghost (#2349)', () => {
 		withData();
 		render(<Overview />);
 
 		const growth = screen.getByTestId('staff-dashboard-growth');
-		expect(within(growth).getByText('No data yet')).toBeTruthy();
+		expect(within(growth).queryByText('No data yet')).toBeNull();
 		expect(
-			within(growth).getByText(
-				'The active-organisations curve will be drawn here, day by day.',
-			),
+			within(growth).getByRole('img', { name: 'Line chart' }),
 		).toBeTruthy();
-		expect(
-			growth.querySelectorAll('svg[aria-hidden="true"]').length,
-		).toBeGreaterThan(0);
-		expect(within(growth).queryByRole('button', { name: 'Table' })).toBeNull();
+		expect(useStaffDashboardSeriesQuery).toHaveBeenCalledWith({
+			metric: 'active_tenants',
+			startDate: periodStart('30d'),
+			endDate: todayIso(),
+		});
+
+		// The table twin is the same series, never a second query.
+		fireEvent.click(within(growth).getByRole('button', { name: 'Table' }));
+		expect(within(growth).getByText('Organisations')).toBeTruthy();
+		// One row per day of the window, each carrying that day's count.
+		expect(within(growth).getAllByText('31')).toHaveLength(30);
 	});
 
 	test('draws the real heatmap and the audit-events delta from the series endpoint', () => {

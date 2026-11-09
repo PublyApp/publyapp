@@ -2,27 +2,38 @@ import { IconActivity, IconCircleCheck } from '@tabler/icons-react';
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import type { FindTenantsAsStaffResponse } from '@org/client-ts/models/index';
+import type {
+	FindTenantsAsStaffResponse,
+	GetDashboardSeriesForStaffResponse,
+} from '@org/client-ts/models/index';
 
 import { GhostAxis, GhostDonut, GhostLine } from './_chart-ghost';
-import { DonutChart, type DonutSegment } from './_dashboard-charts';
+import {
+	ChartTable,
+	DonutChart,
+	LineChart,
+	type DonutSegment,
+} from './_dashboard-charts';
+import { formatCount, toSeriesPoints } from './_dashboard-format';
 import { ChartCard } from './_dashboard-ui';
 
-/** « Croissance des organisations » (no honest daily series: the API's
- * `active_tenants` metric answers 422, see `DashboardMetrics`) and
- * « Organisations par statut » (the UNFILTERED tenants facets: the
- * « Organisations » filter never reaches this card, B3). The status donut owns
- * the counts query, so its loading/error state renders through `QueryDisplay`.
+/** « Croissance des organisations » (the active-organisations series, #2349)
+ * and « Organisations par statut » (the UNFILTERED tenants facets: the
+ * « Organisations » filter never reaches this card, B3). Each card owns its
+ * query, so its loading/error state renders through `QueryDisplay`.
  */
 export const OverviewCharts = ({
 	countsQuery,
+	growthQuery,
 	locale,
 }: {
 	countsQuery: UseQueryResult<FindTenantsAsStaffResponse, Error>;
+	growthQuery: UseQueryResult<GetDashboardSeriesForStaffResponse, Error>;
 	locale: string;
 }) => {
 	const { t } = useTranslation('common');
 	const counts = countsQuery.data?.counts;
+	const growthPoints = toSeriesPoints(growthQuery.data?.points, locale);
 
 	const statusSegments: DonutSegment[] = [
 		{
@@ -49,16 +60,42 @@ export const OverviewCharts = ({
 				label={t('dashboard-card-growth')}
 				icon={<IconActivity />}
 				note={t('dashboard-note-growth')}
-				series={{
-					status: 'unavailable',
-					sentence: t('dashboard-ghost-card-growth'),
-					ghost: (
-						<>
-							<GhostLine />
-							<GhostAxis />
-						</>
-					),
-				}}
+				series={
+					growthQuery.data
+						? {
+								status: 'ready',
+								chart: (
+									<LineChart
+										points={growthPoints}
+										locale={locale}
+										label={t('dashboard-chart-line')}
+									/>
+								),
+								table: (
+									<ChartTable
+										head={[
+											t('dashboard-col-date'),
+											t('dashboard-col-organisations'),
+										]}
+										rows={growthPoints.map((point) => [
+											point.label,
+											formatCount(point.value, locale),
+										])}
+									/>
+								),
+							}
+						: {
+								status: 'unavailable',
+								sentence: t('dashboard-ghost-card-growth'),
+								ghost: (
+									<>
+										<GhostLine />
+										<GhostAxis />
+									</>
+								),
+							}
+				}
+				query={growthQuery}
 			/>
 
 			<ChartCard

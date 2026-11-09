@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Dashboard.Services;
@@ -52,6 +53,10 @@ public interface IDashboardQueryService {
 		GetDashboardSeriesArgs args,
 		CancellationToken cancellationToken = default);
 
+	Task<IReadOnlyList<DashboardSeriesPoint>> GetActiveTenantSeriesAsync(
+		GetDashboardSeriesArgs args,
+		CancellationToken cancellationToken = default);
+
 	Task<IReadOnlyList<TopOrganisationItem>> FindTopOrganisationsAsync(
 		FindTopOrganisationsArgs args,
 		CancellationToken cancellationToken = default);
@@ -95,6 +100,73 @@ public class DashboardQueryService : IDashboardQueryService {
 			AuditActions.LoginFailed,
 			cancellationToken
 		);
+	}
+
+	/// <summary>
+	/// Organisations active at the end of each UTC day, from the lifecycle
+	/// history written by the <c>tenants_record_status_history</c> trigger.
+	/// Zero-filled on purpose: a day where nothing changed still has a count.
+	/// </summary>
+	public async Task<IReadOnlyList<DashboardSeriesPoint>>
+		GetActiveTenantSeriesAsync(
+		GetDashboardSeriesArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var endExclusive = args.EndDate.AddDays(1);
+
+		// Every transition up to the end of the window, oldest first. Rows
+		// before the window are replayed too: they are what the first day's
+		// state is built from.
+		// ponytail: the whole history in memory (a few narrow rows per tenant).
+		// If it grows past ~100k rows, read a per-tenant baseline row before
+		// the window plus the window's rows only.
+		var transitions = await (
+			from history in this._DbContext.TenantStatusHistory
+				.AsNoTracking()
+			where history.OccurredAt < endExclusive
+			orderby history.OccurredAt, history.Id
+			select new {
+				history.TenantId,
+				history.Status,
+				history.OccurredAt,
+			}
+		).ToListAsync(cancellationToken);
+
+		var statusByTenant = new Dictionary<Guid, TenantLifecycleStatus>();
+		var activeCount = 0;
+		var cursor = 0;
+		var points = new List<DashboardSeriesPoint>();
+
+		for (var day = args.StartDate; day <= args.EndDate; day = day.AddDays(1)) {
+			var dayEnd = day.AddDays(1);
+			while (cursor < transitions.Count
+				&& transitions[cursor].OccurredAt < dayEnd
+			) {
+				var transition = transitions[cursor];
+				var wasActive = statusByTenant.TryGetValue(
+					transition.TenantId,
+					out var previous
+				) && previous == TenantLifecycleStatus.Active;
+				var isActive = transition.Status == TenantLifecycleStatus.Active;
+
+				if (wasActive != isActive) {
+					activeCount += isActive ? 1 : -1;
+				}
+
+				statusByTenant[transition.TenantId] = transition.Status;
+				cursor++;
+			}
+
+			points.Add(new DashboardSeriesPoint {
+				Date = day.ToString(
+					"yyyy-MM-dd",
+					CultureInfo.InvariantCulture
+				),
+				Value = activeCount,
+			});
+		}
+
+		return points;
 	}
 
 	/// <summary>

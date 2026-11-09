@@ -89,3 +89,16 @@ export const seriesTotal = (
 	}
 	return total;
 };
+
+/** The API's daily points as the shared charts' labelled series. */
+export const toSeriesPoints = (
+	points:
+		| ReadonlyArray<{ date?: string | null; value?: number | null }>
+		| null
+		| undefined,
+	locale: string,
+): { label: string; value: number }[] =>
+	(points ?? []).map((point) => ({
+		label: formatDayMonth(new Date(`${point.date ?? ''}T12:00:00Z`), locale),
+		value: point.value ?? 0,
+	}));

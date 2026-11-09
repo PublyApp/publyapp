@@ -21,15 +21,8 @@ public static class DashboardMetrics {
 		DashboardMetrics.AuditEvents,
 		DashboardMetrics.SignIns,
 		DashboardMetrics.FailedSignIns,
+		DashboardMetrics.ActiveTenants,
 	];
-
-	public const string ActiveTenantsUnavailable =
-		"active_tenants is not available: organisations store only their "
-		+ "current status, activation is not audited, and lifecycle audit "
-		+ "writes are best-effort, so a past daily count cannot be computed "
-		+ "from stored data without inventing values. "
-		+ "Use metric=audit_events, metric=sign_ins or "
-		+ "metric=failed_sign_ins.";
 }
 
 public class GetDashboardSeriesForStaffQuery
@@ -61,18 +54,6 @@ public class GetDashboardSeriesForStaffQueryValidator
 					)) {
 						return;
 					}
-				}
-
-				if (string.Equals(
-					normalized,
-					DashboardMetrics.ActiveTenants,
-					StringComparison.OrdinalIgnoreCase
-				)) {
-					context.AddFailure(
-						"metric",
-						DashboardMetrics.ActiveTenantsUnavailable
-					);
-					return;
 				}
 
 				context.AddFailure(
@@ -132,6 +113,11 @@ public sealed class GetDashboardSeriesForStaff {
 				),
 			DashboardMetrics.FailedSignIns =>
 				await dashboardQueryService.GetFailedSignInSeriesAsync(
+					args,
+					cancellationToken
+				),
+			DashboardMetrics.ActiveTenants =>
+				await dashboardQueryService.GetActiveTenantSeriesAsync(
 					args,
 					cancellationToken
 				),

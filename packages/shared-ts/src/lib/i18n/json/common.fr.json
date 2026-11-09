@@ -1954,6 +1954,7 @@
 	"dashboard-heatmap-note-weeks": "Événements d'audit par jour sur les {{count}} dernières semaines",
 	"dashboard-note-type-share": "Tous les événements de la période, regroupés par domaine",
 	"dashboard-col-date": "Date",
+	"dashboard-col-organisations": "Organisations",
 	"dashboard-chart-line": "Graphique d'évolution",
 	"dashboard-chart-column": "Graphique en colonnes",
 	"dashboard-chart-heatmap": "Carte d'activité",

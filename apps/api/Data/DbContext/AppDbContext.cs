@@ -38,6 +38,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 	public DbSet<Tenant> Tenant {
 		get { return this.Set<Tenant>(); }
 	}
+	public DbSet<TenantStatusHistory> TenantStatusHistory {
+		get { return this.Set<TenantStatusHistory>(); }
+	}
 
 	// Project system entities (still needed for Project entity)
 	public DbSet<Project> Project {
