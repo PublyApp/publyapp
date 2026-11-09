@@ -52,6 +52,8 @@ public sealed class ExportAuditLogsSpec
 			{ nameof(ExportAuditLogsQuery.TargetId), "target_id" },
 			{ nameof(ExportAuditLogsQuery.StartDate), "start_date" },
 			{ nameof(ExportAuditLogsQuery.EndDate), "end_date" },
+			{ nameof(ExportAuditLogsQuery.Search), "q" },
+			{ nameof(ExportAuditLogsQuery.UnknownActor), "unknown_actor" },
 		};
 		}
 	}
@@ -277,6 +279,112 @@ public sealed class ExportAuditLogsSpec
 		content.Should().NotContain(
 			AuditActions.ImpersonationEnded
 		);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldFilterExportToTheEventsWithoutAnActor() {
+		var token =
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var userId =
+			await AuditLogTestHelper
+				.GetUserIdByEmailAsync(
+					this._Fixture.Factory,
+					TestConstants.StaffAdminEmail
+				);
+		var seededAction = AuditActions.LoginFailed;
+		var actorMarker =
+			$"actor-row-{Guid.NewGuid().ToString()[..8]}";
+		var unknownActorMarker =
+			$"unknown-actor-row-{Guid.NewGuid().ToString()[..8]}";
+
+		await AuditLogTestHelper.SeedAuditLogAsync(
+			this._Fixture.Factory,
+			userId,
+			seededAction,
+			details: actorMarker
+		);
+		await AuditLogTestHelper.SeedAuditLogAsync(
+			this._Fixture.Factory,
+			userId: null,
+			seededAction,
+			details: unknownActorMarker
+		);
+
+		var url = AuditLogTestHelper.GetExportUrl(
+			"csv",
+			actions: [seededAction],
+			unknownActor: true
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await this._Http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var content = await response.Content
+			.ReadAsStringAsync();
+		content.Should().Contain(unknownActorMarker);
+		content.Should().NotContain(actorMarker);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldApplyTheSearchFilterToExport() {
+		var token =
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var userId =
+			await AuditLogTestHelper
+				.GetUserIdByEmailAsync(
+					this._Fixture.Factory,
+					TestConstants.StaffAdminEmail
+				);
+		var seededAction = AuditActions.LoginSucceeded;
+		var searchMarker =
+			$"203.0.113.{Random.Shared.Next(1, 254)}";
+		var matchMarker =
+			$"match-row-{Guid.NewGuid().ToString()[..8]}";
+		var otherMarker =
+			$"other-row-{Guid.NewGuid().ToString()[..8]}";
+
+		await AuditLogTestHelper.SeedAuditLogAsync(
+			this._Fixture.Factory,
+			userId,
+			seededAction,
+			details: matchMarker,
+			ipAddress: searchMarker
+		);
+		await AuditLogTestHelper.SeedAuditLogAsync(
+			this._Fixture.Factory,
+			userId,
+			seededAction,
+			details: otherMarker,
+			ipAddress: "198.51.100.1"
+		);
+
+		var url = AuditLogTestHelper.GetExportUrl(
+			"csv",
+			actions: [seededAction],
+			search: searchMarker
+		);
+		var request = new HttpRequestMessage(
+			HttpMethod.Get, url
+		).WithSessionToken(token);
+
+		using var response =
+			await this._Http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var content = await response.Content
+			.ReadAsStringAsync();
+		content.Should().Contain(matchMarker);
+		content.Should().NotContain(otherMarker);
 	}
 
 	[Fact]

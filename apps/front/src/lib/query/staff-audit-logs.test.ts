@@ -180,6 +180,8 @@ describe('exportStaffAuditLogsMutationOptions.mutationFn', () => {
 
 		const result = await exportStaffAuditLogsMutationOptions.mutationFn({
 			format: 'csv',
+			q: '  jane ',
+			unknownActor: true,
 			actions: ['user.created', 'tenant.updated'],
 			startDate: '2026-01-01',
 			endDate: '2026-01-31',
@@ -189,6 +191,8 @@ describe('exportStaffAuditLogsMutationOptions.mutationFn', () => {
 		expect(get).toHaveBeenCalledWith({
 			queryParameters: {
 				format: 'csv',
+				q: 'jane',
+				unknownActor: 'true',
 				actions: 'user.created,tenant.updated',
 				startDate: '2026-01-01',
 				endDate: '2026-01-31T23:59:59',

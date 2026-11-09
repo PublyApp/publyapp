@@ -473,6 +473,8 @@ const StaffAuditLogsPage = () => {
 				onOpenChange={setIsExportOpen}
 				onAuthFailure={onSessionExpired}
 				filters={{
+					q: search.q,
+					unknownActor: search.unknownActor,
 					actions: selection.actions?.split(','),
 					startDate: selection.startDate,
 					endDate: selection.endDate,

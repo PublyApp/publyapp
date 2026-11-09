@@ -29,7 +29,11 @@ public record ExportAuditLogsArgs(
 	IReadOnlyList<string>? Actions,
 	Guid? TargetId,
 	DateTime? StartDate,
-	DateTime? EndDate
+	DateTime? EndDate,
+	// The export mirrors the list's filters: the search box and the
+	// « (unknown) » actor facet narrow the exported rows too.
+	string? Search = null,
+	bool? UnknownActor = null
 );
 
 public abstract record FindAuditLogsResult {
@@ -433,7 +437,9 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			args.Actions,
 			args.TargetId,
 			args.StartDate,
-			args.EndDate
+			args.EndDate,
+			args.Search,
+			args.UnknownActor ?? false
 		);
 
 		var count = await query
@@ -460,7 +466,9 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			args.Actions,
 			args.TargetId,
 			args.StartDate,
-			args.EndDate
+			args.EndDate,
+			args.Search,
+			args.UnknownActor ?? false
 		);
 
 		var baseQuery = (

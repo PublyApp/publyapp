@@ -36,6 +36,9 @@ export type StaffAuditLogExportFormat = 'csv' | 'json';
 
 export type StaffAuditLogExportInput = {
 	format: StaffAuditLogExportFormat;
+	q?: string;
+	/** Narrows to the events with no actor: the « (unknown) » actor facet. */
+	unknownActor?: boolean;
 	actions?: string[];
 	startDate?: string;
 	endDate?: string;
@@ -279,6 +282,8 @@ export const exportStaffAuditLogsMutationOptions = buildStaffMutationOptions<
 			return client.staff.auditLogs.exportEscaped.get({
 				queryParameters: {
 					format: variables.format,
+					q: normalizeString(variables.q),
+					unknownActor: variables.unknownActor === true ? 'true' : undefined,
 					actions: actions?.join(','),
 					startDate: normalizeString(variables.startDate),
 					endDate: normalizeEndDate(variables.endDate),

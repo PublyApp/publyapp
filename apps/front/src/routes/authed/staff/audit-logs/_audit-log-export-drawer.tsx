@@ -32,6 +32,8 @@ import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 export type AuditLogExportFilters = {
+	q?: string;
+	unknownActor?: boolean;
 	actions?: string[];
 	startDate?: string;
 	endDate?: string;
@@ -64,6 +66,8 @@ export const AuditLogExportDrawer = ({
 		try {
 			data = await exportMutation.mutateAsync({
 				format,
+				q: filters.q,
+				unknownActor: filters.unknownActor,
 				actions: filters.actions,
 				startDate: filters.startDate,
 				endDate: filters.endDate,

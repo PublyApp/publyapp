@@ -10452,6 +10452,13 @@
             }
           },
           {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "start_date",
             "in": "query",
             "schema": {
@@ -10460,6 +10467,13 @@
           },
           {
             "name": "target_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "unknown_actor",
             "in": "query",
             "schema": {
               "type": "string"

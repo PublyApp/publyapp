@@ -21,6 +21,10 @@ public class ExportAuditLogsQuery {
 	[FromQuery(Name = "target_id")] public string? TargetId { get; set; }
 	[FromQuery(Name = "start_date")] public string? StartDate { get; set; }
 	[FromQuery(Name = "end_date")] public string? EndDate { get; set; }
+	[FromQuery(Name = "q")] public string? Search { get; set; }
+	/// <summary>Narrows the export to the events that have no actor, like the
+	/// list's « (unknown) » actor facet.</summary>
+	[FromQuery(Name = "unknown_actor")] public string? UnknownActor { get; set; }
 
 	// CSV-encoded so the property remains primitive - required for
 	// [AsParameters] binding and so the OpenAPI generator emits the
@@ -69,6 +73,19 @@ public class ExportAuditLogsQuery {
 			this.EndDate
 		);
 	}
+
+	public string? GetSearchNormalized() {
+		if (this.Search is null) {
+			return null;
+		}
+
+		var trimmed = this.Search.Trim();
+		return trimmed.Length == 0 ? null : trimmed;
+	}
+
+	public bool? GetUnknownActor() {
+		return QueryPredicates.ParseNullableBoolean(this.UnknownActor);
+	}
 }
 
 public class ExportAuditLogsQueryValidator
@@ -104,6 +121,14 @@ public class ExportAuditLogsQueryValidator
 			.Must(QueryPredicates.BeValidNullableGuid)
 			.WithMessage(
 				"target_id must be a valid GUID"
+			);
+
+		this.RuleFor(x => x.Search).MaximumLength(200);
+
+		this.RuleFor(x => x.UnknownActor)
+			.Must(QueryPredicates.BeValidNullableBoolean)
+			.WithMessage(
+				"unknown_actor must be 'true' or 'false'"
 			);
 
 		this.RuleFor(x => x.StartDate)
@@ -173,7 +198,9 @@ public sealed class ExportAuditLogs {
 			Actions: query.GetActionsList(),
 			TargetId: query.GetTargetId(),
 			StartDate: query.GetStartDate(),
-			EndDate: query.GetEndDate()
+			EndDate: query.GetEndDate(),
+			Search: query.GetSearchNormalized(),
+			UnknownActor: query.GetUnknownActor()
 		);
 
 		var exceedsLimit =
