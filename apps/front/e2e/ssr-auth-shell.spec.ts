@@ -266,7 +266,8 @@ test.describe('SSR auth shell', { tag: ['@security', '@997'] }, () => {
 		);
 		expect(neutralSubtrees.genuine).toBeDefined();
 		expect(neutralSubtrees.junk).toBe(neutralSubtrees.genuine);
-		expect(neutralSubtrees.genuine).toHaveLength(2739);
+		// 2875 since #2365: 17 skeleton bones, `bg-muted` → `bg-foreground/10` (+8 chars each).
+		expect(neutralSubtrees.genuine).toHaveLength(2875);
 	});
 
 	test('a junk session cookie redirects from neutral chrome without mounting the authenticated shell', async ({
