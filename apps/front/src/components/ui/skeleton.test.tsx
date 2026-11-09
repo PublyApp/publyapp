@@ -19,5 +19,8 @@ describe('Skeleton', () => {
 			'rounded-[var(--publy-radius-control)]',
 		);
 		expect(skeleton.getAttribute('data-slot')).toBe('skeleton');
+		// #2365: same fill as ShopKart OS — bg-muted equals the page background.
+		expect(skeleton.className).toContain('bg-foreground/10');
+		expect(skeleton.className).not.toContain('bg-muted');
 	});
 });

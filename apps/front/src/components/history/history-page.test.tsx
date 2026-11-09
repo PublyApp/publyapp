@@ -209,7 +209,7 @@ describe('HistoryPage state DOM', () => {
 			    class="flex flex-col gap-2"
 			  >
 			    <div
-			      class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted ml-1 h-4 w-24"
+			      class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 ml-1 h-4 w-24"
 			      data-slot="skeleton"
 			    />
 			    <div
@@ -219,47 +219,23 @@ describe('HistoryPage state DOM', () => {
 			        class="flex min-h-12 items-center gap-3 border-b px-3 py-2 last:border-b-0"
 			      >
 			        <div
-			          class="animate-pulse bg-muted size-8 shrink-0 rounded-[10px]"
+			          class="animate-pulse bg-foreground/10 size-8 shrink-0 rounded-[10px]"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-64"
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-64"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse bg-muted ml-auto h-5 w-20 rounded-[10px]"
+			          class="animate-pulse bg-foreground/10 ml-auto h-5 w-20 rounded-[10px]"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-24"
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-24"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-10"
-			          data-slot="skeleton"
-			        />
-			      </div>
-			      <div
-			        class="flex min-h-12 items-center gap-3 border-b px-3 py-2 last:border-b-0"
-			      >
-			        <div
-			          class="animate-pulse bg-muted size-8 shrink-0 rounded-[10px]"
-			          data-slot="skeleton"
-			        />
-			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-64"
-			          data-slot="skeleton"
-			        />
-			        <div
-			          class="animate-pulse bg-muted ml-auto h-5 w-20 rounded-[10px]"
-			          data-slot="skeleton"
-			        />
-			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-24"
-			          data-slot="skeleton"
-			        />
-			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-10"
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-10"
 			          data-slot="skeleton"
 			        />
 			      </div>
@@ -267,47 +243,23 @@ describe('HistoryPage state DOM', () => {
 			        class="flex min-h-12 items-center gap-3 border-b px-3 py-2 last:border-b-0"
 			      >
 			        <div
-			          class="animate-pulse bg-muted size-8 shrink-0 rounded-[10px]"
+			          class="animate-pulse bg-foreground/10 size-8 shrink-0 rounded-[10px]"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-64"
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-64"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse bg-muted ml-auto h-5 w-20 rounded-[10px]"
+			          class="animate-pulse bg-foreground/10 ml-auto h-5 w-20 rounded-[10px]"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-24"
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-24"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-10"
-			          data-slot="skeleton"
-			        />
-			      </div>
-			      <div
-			        class="flex min-h-12 items-center gap-3 border-b px-3 py-2 last:border-b-0"
-			      >
-			        <div
-			          class="animate-pulse bg-muted size-8 shrink-0 rounded-[10px]"
-			          data-slot="skeleton"
-			        />
-			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-64"
-			          data-slot="skeleton"
-			        />
-			        <div
-			          class="animate-pulse bg-muted ml-auto h-5 w-20 rounded-[10px]"
-			          data-slot="skeleton"
-			        />
-			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-24"
-			          data-slot="skeleton"
-			        />
-			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-10"
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-10"
 			          data-slot="skeleton"
 			        />
 			      </div>
@@ -315,23 +267,23 @@ describe('HistoryPage state DOM', () => {
 			        class="flex min-h-12 items-center gap-3 border-b px-3 py-2 last:border-b-0"
 			      >
 			        <div
-			          class="animate-pulse bg-muted size-8 shrink-0 rounded-[10px]"
+			          class="animate-pulse bg-foreground/10 size-8 shrink-0 rounded-[10px]"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-64"
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-64"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse bg-muted ml-auto h-5 w-20 rounded-[10px]"
+			          class="animate-pulse bg-foreground/10 ml-auto h-5 w-20 rounded-[10px]"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-24"
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-24"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-10"
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-10"
 			          data-slot="skeleton"
 			        />
 			      </div>
@@ -339,23 +291,71 @@ describe('HistoryPage state DOM', () => {
 			        class="flex min-h-12 items-center gap-3 border-b px-3 py-2 last:border-b-0"
 			      >
 			        <div
-			          class="animate-pulse bg-muted size-8 shrink-0 rounded-[10px]"
+			          class="animate-pulse bg-foreground/10 size-8 shrink-0 rounded-[10px]"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-64"
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-64"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse bg-muted ml-auto h-5 w-20 rounded-[10px]"
+			          class="animate-pulse bg-foreground/10 ml-auto h-5 w-20 rounded-[10px]"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-24"
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-24"
 			          data-slot="skeleton"
 			        />
 			        <div
-			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-muted h-3 w-10"
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-10"
+			          data-slot="skeleton"
+			        />
+			      </div>
+			      <div
+			        class="flex min-h-12 items-center gap-3 border-b px-3 py-2 last:border-b-0"
+			      >
+			        <div
+			          class="animate-pulse bg-foreground/10 size-8 shrink-0 rounded-[10px]"
+			          data-slot="skeleton"
+			        />
+			        <div
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-64"
+			          data-slot="skeleton"
+			        />
+			        <div
+			          class="animate-pulse bg-foreground/10 ml-auto h-5 w-20 rounded-[10px]"
+			          data-slot="skeleton"
+			        />
+			        <div
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-24"
+			          data-slot="skeleton"
+			        />
+			        <div
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-10"
+			          data-slot="skeleton"
+			        />
+			      </div>
+			      <div
+			        class="flex min-h-12 items-center gap-3 border-b px-3 py-2 last:border-b-0"
+			      >
+			        <div
+			          class="animate-pulse bg-foreground/10 size-8 shrink-0 rounded-[10px]"
+			          data-slot="skeleton"
+			        />
+			        <div
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-64"
+			          data-slot="skeleton"
+			        />
+			        <div
+			          class="animate-pulse bg-foreground/10 ml-auto h-5 w-20 rounded-[10px]"
+			          data-slot="skeleton"
+			        />
+			        <div
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-24"
+			          data-slot="skeleton"
+			        />
+			        <div
+			          class="animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10 h-3 w-10"
 			          data-slot="skeleton"
 			        />
 			      </div>
