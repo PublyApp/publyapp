@@ -100,10 +100,17 @@ export const toSeriesPoints = (
 		| undefined,
 	locale: string,
 	since?: string | null,
-): { label: string; value: number }[] =>
-	(points ?? [])
-		.filter((point) => !since || (point.date ?? '') >= since)
-		.map((point) => ({
-			label: formatDayMonth(new Date(`${point.date ?? ''}T12:00:00Z`), locale),
+): { label: string; value: number }[] => {
+	const series: { label: string; value: number }[] = [];
+	for (const point of points ?? []) {
+		const date = point.date ?? '';
+		if (since && date < since) {
+			continue;
+		}
+		series.push({
+			label: formatDayMonth(new Date(`${date}T12:00:00Z`), locale),
 			value: point.value ?? 0,
-		}));
+		});
+	}
+	return series;
+};
