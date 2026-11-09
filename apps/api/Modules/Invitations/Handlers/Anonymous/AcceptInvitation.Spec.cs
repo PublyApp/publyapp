@@ -14,6 +14,7 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 
@@ -303,6 +304,49 @@ public sealed class AcceptInvitationSpec
 		Assert.NotNull(problem);
 		problem.Detail.Should().Be("Failed to accept invitation");
 		problem.TranslationKey.Should().Be(ResponseKeys.BadRequest);
+	}
+
+	[Fact]
+	public async Task
+		ItShouldRecordTheFirstSignInWhenAcceptingAnInvitation() {
+		var seeded =
+			await InvitationTestHelper.SeedStaffInvitationAsync(this._Fixture);
+
+		using var acceptBody = JsonDocument.Parse(
+			"""
+			{
+				"firstName": "First",
+				"lastName": "SignIn",
+				"password": "StrongPass!123"
+			}
+			"""
+		);
+
+		using var acceptResponse = await this._Http.PostAsJsonAsync(
+			Routes.Invitations.Anonymous.AcceptByTokenFn(seeded.Token),
+			acceptBody.RootElement
+		);
+
+		acceptResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var accepted = await acceptResponse.Content
+			.ReadFromJsonAsync<InvitationAcceptedResponse>();
+		accepted.Should().NotBeNull();
+		Assert.NotNull(accepted);
+
+		await using var scope =
+			this._Fixture.Factory.Services.CreateAsyncScope();
+		var dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+		// Accepting the invitation minted the session the user lands in, so
+		// it is also their first sign-in event.
+		var signIn = await dbContext.AuditLog
+			.SingleAsync(log =>
+				log.UserId == accepted.UserId
+				&& log.Action == AuditActions.LoginSucceeded
+			);
+		signIn.TargetId.Should().BeNull();
+		signIn.Details.Should().BeNull();
 	}
 
 	private sealed record InvitationAcceptedResponse {

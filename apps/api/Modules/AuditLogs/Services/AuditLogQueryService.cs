@@ -19,7 +19,9 @@ public record FindAuditLogsArgs(
 	Guid? TargetId,
 	DateTime? StartDate,
 	DateTime? EndDate,
-	string? Search = null
+	string? Search = null,
+	// Narrows to the events with no actor: the « (unknown) » actor facet.
+	bool? UnknownActor = null
 );
 
 public record ExportAuditLogsArgs(
@@ -186,7 +188,8 @@ public class AuditLogQueryService : IAuditLogQueryService {
 			args.TargetId,
 			args.StartDate,
 			args.EndDate,
-			args.Search
+			args.Search,
+			args.UnknownActor ?? false
 		);
 
 		// Whole filtered collection, cursor excluded.
@@ -514,12 +517,19 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		Guid? targetId,
 		DateTime? startDate,
 		DateTime? endDate,
-		string? search = null
+		string? search = null,
+		bool unknownActor = false
 	) {
 		if (userId.HasValue) {
 			query =
 				from auditLog in query
 				where auditLog.UserId == userId.Value
+				select auditLog;
+		}
+		if (unknownActor) {
+			query =
+				from auditLog in query
+				where auditLog.UserId == null
 				select auditLog;
 		}
 		if (actions is { Count: > 0 }) {

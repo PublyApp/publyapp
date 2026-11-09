@@ -17,6 +17,8 @@ import {
 
 export type StaffAuditLogsQueryVariables = {
 	q?: string;
+	/** Narrows to the events with no actor: the « (unknown) » actor facet. */
+	unknownActor?: boolean;
 	actions?: string[];
 	startDate?: string;
 	endDate?: string;
@@ -139,6 +141,7 @@ const normalizeActions = (
 
 type StaffAuditLogsQueryParameters = {
 	q?: string;
+	unknownActor?: 'true';
 	actions?: string;
 	startDate?: string;
 	endDate?: string;
@@ -155,6 +158,7 @@ export const buildFindStaffAuditLogsQueryParameters = (
 
 	return {
 		q: normalizeString(variables.q),
+		unknownActor: variables.unknownActor === true ? 'true' : undefined,
 		// The backend binds multi-value action filters as a single CSV string
 		// (Kiota exposes the param as a primitive — see the FindAuditLogs
 		// handler's AuditLogActionsCsv).

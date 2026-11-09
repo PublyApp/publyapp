@@ -50,7 +50,6 @@ public class PasswordLoginBodyValidator
 public static class SignInFailureReasons {
 	public const string UnknownAccount = "unknown_account";
 	public const string WrongPassword = "wrong_password";
-	public const string Deleted = "deleted";
 	public const string Suspended = "suspended";
 	public const string NotVerified = "not_verified";
 }
@@ -63,6 +62,14 @@ public class PasswordLoginResult {
 }
 
 public sealed class PasswordLogin {
+	// A fixed, valid PBKDF2 hash that belongs to no account. The
+	// unknown-account branch verifies the presented password against it and
+	// discards the result, so that branch spends the same PBKDF2 work as the
+	// wrong-password branch: response time cannot reveal whether the email
+	// is registered. Computed once, never stored.
+	private static readonly string _DummyPasswordHash =
+		PasswordUtils.HashPassword("not-a-real-account-password");
+
 	public static async Task<Results<
 		Ok<PasswordLoginResult>,
 		AppBadRequestHttpResult
@@ -80,6 +87,14 @@ public sealed class PasswordLogin {
 		var user = await userService.GetUserByEmailAsync(email, cancellationToken);
 
 		if (user is null) {
+			// Same PBKDF2 cost as the wrong-password branch below, so the
+			// response time cannot tell an unknown account from a bad
+			// password.
+			_ = PasswordUtils.VerifyPassword(
+				password,
+				PasswordLogin._DummyPasswordHash
+			);
+
 			// No actor exists for an unknown email: the event keeps the
 			// attempted email and the classified reason, never a credential.
 			await PasswordLogin._LogFailureAsync(
@@ -87,20 +102,6 @@ public sealed class PasswordLogin {
 				userId: null,
 				email,
 				SignInFailureReasons.UnknownAccount,
-				cancellationToken
-			);
-			return TypedProblems.BadRequest(
-				"Invalid email or password",
-				ResponseKeys.InvalidEmailOrPassword
-			);
-		}
-
-		if (user.IsDeleted) {
-			await PasswordLogin._LogFailureAsync(
-				auditLogService,
-				user.Id,
-				email,
-				SignInFailureReasons.Deleted,
 				cancellationToken
 			);
 			return TypedProblems.BadRequest(

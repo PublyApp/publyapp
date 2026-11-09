@@ -8,22 +8,27 @@ import type {
 	GetDashboardSeriesForStaffResponse,
 } from '@org/client-ts/models/index';
 
-import { GhostAxis, GhostHBars, GhostLine } from './_chart-ghost';
+import { GhostHBars } from './_chart-ghost';
 import { ChartTable, HorizontalBars, LineChart } from './_dashboard-charts';
 import { periodLabelKey, type DashboardPeriod } from './_dashboard-filters';
 import { UNKNOWN_VALUE, formatCount } from './_dashboard-format';
-import { ChartCard } from './_dashboard-ui';
+import { ChartCard, ChartHero } from './_dashboard-ui';
 
 /** The sign-ins curve and the top-organisations ranking. */
 export const ReportsSecondaryCharts = ({
 	period,
 	signInsQuery,
+	signIns,
+	signInsDelta,
 	signInsPoints,
 	topOrganisationsQuery,
 	locale,
 }: {
 	period: DashboardPeriod;
 	signInsQuery: UseQueryResult<GetDashboardSeriesForStaffResponse, Error>;
+	/** The same period total the « Connexions » KPI shows. */
+	signIns: number | undefined;
+	signInsDelta?: { label: string; direction: 'up' | 'down' };
 	signInsPoints: ReadonlyArray<{ label: string; value: number }>;
 	topOrganisationsQuery: UseQueryResult<
 		FindTopOrganisationsForStaffResponse,
@@ -33,13 +38,6 @@ export const ReportsSecondaryCharts = ({
 }) => {
 	const { t } = useTranslation('common');
 	const topOrganisations = topOrganisationsQuery.data?.items ?? [];
-	let signInsTotal: number | undefined;
-	if (signInsQuery.data?.points?.length) {
-		signInsTotal = 0;
-		for (const point of signInsPoints) {
-			signInsTotal += point.value;
-		}
-	}
 
 	return (
 		<div className="grid gap-4 md:grid-cols-2">
@@ -49,44 +47,29 @@ export const ReportsSecondaryCharts = ({
 				icon={<IconTrendingUp />}
 				note={`${t('dashboard-note-signins')} · ${t(periodLabelKey(period))}`}
 				hero={
-					signInsTotal === undefined ? (
-						<span className="text-muted-foreground">{UNKNOWN_VALUE}</span>
-					) : (
-						formatCount(signInsTotal, locale)
-					)
+					<ChartHero total={signIns} delta={signInsDelta} locale={locale} />
 				}
-				series={
-					signInsQuery.data
-						? {
-								status: 'ready',
-								chart: (
-									<LineChart
-										points={signInsPoints}
-										locale={locale}
-										label={t('dashboard-chart-line')}
-									/>
-								),
-								table: (
-									<ChartTable
-										head={[t('dashboard-col-date'), t('dashboard-kpi-signins')]}
-										rows={signInsPoints.map((point) => [
-											point.label,
-											formatCount(point.value, locale),
-										])}
-									/>
-								),
-							}
-						: {
-								status: 'unavailable',
-								sentence: t('dashboard-ghost-card-signins-per-day'),
-								ghost: (
-									<>
-										<GhostLine />
-										<GhostAxis />
-									</>
-								),
-							}
-				}
+				// The card owns a query, so `QueryDisplay` paints the skeleton
+				// and the error: a ready series is the only body it can reach.
+				series={{
+					status: 'ready',
+					chart: (
+						<LineChart
+							points={signInsPoints}
+							locale={locale}
+							label={t('dashboard-chart-line')}
+						/>
+					),
+					table: (
+						<ChartTable
+							head={[t('dashboard-col-date'), t('dashboard-kpi-signins')]}
+							rows={signInsPoints.map((point) => [
+								point.label,
+								formatCount(point.value, locale),
+							])}
+						/>
+					),
+				}}
 				query={signInsQuery}
 			/>
 

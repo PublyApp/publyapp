@@ -220,6 +220,22 @@ public sealed class PasswordLoginSpec
 		events[0].Details.Should()
 			.Contain(SignInFailureReasons.WrongPassword);
 		events[0].Details.Should().NotContain(password);
+		// Same no-secret guarantee as the unknown-account event: the details
+		// carry the attempted email and the classified reason, no other
+		// field. (The reason's value is `wrong_password`, so a case-
+		// insensitive search for the word would fail by design; what must
+		// never appear is a field holding the credential.)
+		var details = events[0].Details;
+		details.Should().NotBeNull();
+		if (details is null) {
+			return;
+		}
+		using var parsedDetails = JsonDocument.Parse(details);
+		parsedDetails.RootElement.EnumerateObject()
+			.Should()
+			.OnlyContain(property =>
+				property.Name == "Email" || property.Name == "Reason"
+			);
 		events[0].UserId.Should()
 			.Be(
 				await AuditLogTestHelper.GetUserIdByEmailAsync(
@@ -260,7 +276,7 @@ public sealed class PasswordLoginSpec
 
 	[Fact]
 	public async Task
-		ItShouldNotRevealWhetherTheAccountExists() {
+		ItShouldReturnTheSameProblemForAnUnknownAccountAndAWrongPassword() {
 		var unknownEmail = $"nobody-{Guid.NewGuid():N}@example.com";
 
 		using var unknownResponse = await this._Http.PostAsJsonAsync(
@@ -287,8 +303,10 @@ public sealed class PasswordLoginSpec
 		var wrongPasswordBody =
 			await wrongPasswordResponse.Content.ReadAsStringAsync();
 
-		// Same detail, same translation key: an attempt cannot be used to
-		// enumerate accounts. (Only the per-request traceId differs.)
+		// Same status and same RFC 7807 body (only the per-request traceId
+		// differs). The handler also spends the same PBKDF2 work on both
+		// branches (see PasswordLogin._DummyPasswordHash); this spec asserts
+		// the response, not the timing.
 		using var unknownProblem = JsonDocument.Parse(unknownBody);
 		using var wrongPasswordProblem =
 			JsonDocument.Parse(wrongPasswordBody);

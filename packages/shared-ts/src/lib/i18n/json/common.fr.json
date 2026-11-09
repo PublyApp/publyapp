@@ -1940,7 +1940,6 @@
 	"dashboard-ghost-card-growth": "La courbe des organisations actives se dessinera ici, jour après jour.",
 	"dashboard-ghost-card-heatmap": "Chaque case deviendra une journée d'activité de la plateforme.",
 	"dashboard-ghost-card-events-per-day": "Une barre par jour : le volume des événements d'audit.",
-	"dashboard-ghost-card-signins-per-day": "La courbe des connexions réussies se dessinera ici, jour après jour.",
 	"dashboard-ghost-card-top-orgs": "Les organisations les plus actives seront classées ici.",
 	"dashboard-ghost-card-status": "La répartition des organisations par statut apparaîtra ici.",
 	"dashboard-ghost-card-invitation-outcomes": "Ici, ce que deviennent les invitations : acceptées, expirées ou révoquées.",

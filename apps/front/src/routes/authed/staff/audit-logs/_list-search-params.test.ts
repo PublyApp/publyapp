@@ -6,6 +6,8 @@ import {
 	parseAuditLogCategories,
 	parseAuditLogsDateFilter,
 	parseAuditLogsListSearchParams,
+	selectAuditActorFilter,
+	selectAuditSearchFilter,
 	serializeAuditLogCategories,
 	serializeAuditLogsListSearchParams,
 } from './_list-search-params';
@@ -138,6 +140,53 @@ describe('audit log list search params', () => {
 		});
 	});
 
+	describe('unknown actor facet', () => {
+		test('parses and serialises the null-actor filter', () => {
+			const parsed = parseAuditLogsListSearchParams({
+				unknown_actor: 'true',
+			});
+			expect(parsed.unknownActor).toBe(true);
+			expect(serializeAuditLogsListSearchParams(parsed).unknown_actor).toBe(
+				'true',
+			);
+			expect(
+				serializeAuditLogsListSearchParams(parseAuditLogsListSearchParams({}))
+					.unknown_actor,
+			).toBeUndefined();
+		});
+
+		test('the « (unknown) » bucket filters on a null actor, not on its name', () => {
+			expect(
+				selectAuditActorFilter({ userId: null, name: '(unknown)' }, {}),
+			).toEqual({ q: undefined, unknownActor: true });
+		});
+
+		test('clicking the active bucket clears the filter', () => {
+			expect(
+				selectAuditActorFilter(
+					{ userId: null, name: '(unknown)' },
+					{ unknownActor: true },
+				),
+			).toEqual({ q: undefined, unknownActor: undefined });
+		});
+
+		test('a known actor is still searched by name', () => {
+			expect(
+				selectAuditActorFilter(
+					{ userId: 'a1', name: 'Ada Lovelace' },
+					{ unknownActor: true },
+				),
+			).toEqual({ q: 'Ada Lovelace', unknownActor: undefined });
+		});
+
+		test('typing a search clears the actor-facet filter', () => {
+			expect(selectAuditSearchFilter('ada')).toEqual({
+				q: 'ada',
+				unknownActor: undefined,
+			});
+		});
+	});
+
 	describe('cursor reset scope', () => {
 		test('changes on any filter change', () => {
 			const base = parseAuditLogsListSearchParams({
@@ -166,6 +215,11 @@ describe('audit log list search params', () => {
 						category: 'auth',
 						sensitivity: 'sensitive',
 					}),
+				),
+			).not.toBe(resetKey);
+			expect(
+				buildAuditLogsCursorResetKey(
+					parseAuditLogsListSearchParams({ unknown_actor: 'true' }),
 				),
 			).not.toBe(resetKey);
 		});

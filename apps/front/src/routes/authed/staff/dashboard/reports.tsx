@@ -263,6 +263,8 @@ const Reports = () => {
 			<ReportsSecondaryCharts
 				period={period}
 				signInsQuery={signInsQuery}
+				signIns={signIns}
+				signInsDelta={signInsDelta}
 				signInsPoints={signInsPoints}
 				topOrganisationsQuery={topOrganisationsQuery}
 				locale={locale}

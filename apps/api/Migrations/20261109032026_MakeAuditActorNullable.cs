@@ -39,6 +39,15 @@ namespace PublyApp.Api.Migrations
                 name: "FK_audit_logs_users_user_id",
                 table: "audit_logs");
 
+            // A rollback restores a schema where every audit row has an
+            // actor: the old column was NOT NULL and its FK pointed at
+            // users.id. Rows written by this feature for an unknown account
+            // have no actor, so they cannot satisfy either constraint.
+            // Delete them first — the previous schema has no place for them,
+            // and keeping them would make the ALTER and the FK below fail.
+            migrationBuilder.Sql(
+                "DELETE FROM audit_logs WHERE user_id IS NULL;");
+
             migrationBuilder.AlterColumn<Guid>(
                 name: "user_id",
                 table: "audit_logs",

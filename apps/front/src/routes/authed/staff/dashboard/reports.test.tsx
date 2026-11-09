@@ -192,8 +192,6 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-ghost-tag': 'No data yet',
 	'dashboard-ghost-card-events-per-day':
 		'One bar per day: the volume of audit events.',
-	'dashboard-ghost-card-signins-per-day':
-		'The successful sign-ins curve will be drawn here, day by day.',
 	'dashboard-ghost-card-top-orgs':
 		'The most active organisations will be ranked here.',
 	'dashboard-ghost-card-type-share':
@@ -440,6 +438,9 @@ describe('staff dashboard reports', () => {
 			within(signins).getByRole('img', { name: 'Line chart' }),
 		).toBeTruthy();
 		expect(within(signins).getByText('360')).toBeTruthy();
+		// The chart hero shows the total AND its delta, exactly like the
+		// events chart on the same screen.
+		expect(within(signins).getByText('+20%')).toBeTruthy();
 	});
 
 	test('a served but empty period is an empty state, never the ghost (#2339 fix9 ME-2)', () => {

@@ -313,6 +313,18 @@ public sealed class AcceptInvitation {
 			cancellationToken
 		);
 
+		// Accepting the invitation just minted the session the user lands in,
+		// so it is also their first sign-in: count it like PasswordLogin does.
+		// (The existing-account path above reuses the caller's session, so it
+		// is not a new sign-in.)
+		await auditLogService.LogAsync(
+			new CreateAuditLogArgs(
+				UserId: user.GetRequiredId(),
+				Action: AuditActions.LoginSucceeded
+			),
+			cancellationToken
+		);
+
 		return TypedResults.Ok(new InvitationAccepted {
 			UserId = user.GetRequiredId(),
 			TenantId = invitation.TenantId,
