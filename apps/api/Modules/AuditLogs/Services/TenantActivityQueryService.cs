@@ -162,7 +162,7 @@ public class TenantActivityQueryService : ITenantActivityQueryService {
 				// historical actor visible when possible. Resolved off
 				// the GLOBAL user id stored in audit_logs.user_id — not
 				// an account id.
-				on (Guid?)a.UserId equals u.Id
+				on a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
 			select new AuditLogListItem {

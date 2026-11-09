@@ -15927,7 +15927,10 @@
         "type": "object",
         "properties": {
           "userId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "uuid"
           },
           "name": {
@@ -15943,7 +15946,6 @@
       "AuditLogDetail": {
         "required": [
           "id",
-          "userId",
           "userName",
           "userEmail",
           "action",
@@ -15956,7 +15958,11 @@
             "format": "uuid"
           },
           "userId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Null when the event has no known actor (an unknown-account attempt).",
             "format": "uuid"
           },
           "userName": {
@@ -16029,7 +16035,6 @@
       "AuditLogListItem": {
         "required": [
           "id",
-          "userId",
           "userName",
           "userEmail",
           "action",
@@ -16042,7 +16047,11 @@
             "format": "uuid"
           },
           "userId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Null when the event has no known actor (an unknown-account attempt).",
             "format": "uuid"
           },
           "userName": {

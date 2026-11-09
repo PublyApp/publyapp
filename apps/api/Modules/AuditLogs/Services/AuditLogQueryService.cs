@@ -52,7 +52,7 @@ public sealed record AuditLogActionCount(
 );
 
 public sealed record AuditLogActorCount(
-	Guid UserId,
+	Guid? UserId,
 	string Name,
 	int Count
 );
@@ -75,7 +75,8 @@ public sealed record AuditLogListCounts(
 
 public record AuditLogListItem {
 	public required Guid Id { get; init; }
-	public required Guid UserId { get; init; }
+	/// <summary>Null when the event has no known actor (an unknown-account attempt).</summary>
+	public Guid? UserId { get; init; }
 	public required string UserName { get; init; }
 	public required string UserEmail { get; init; }
 	public required string Action { get; init; }
@@ -86,7 +87,8 @@ public record AuditLogListItem {
 
 public record AuditLogDetail {
 	public required Guid Id { get; init; }
-	public required Guid UserId { get; init; }
+	/// <summary>Null when the event has no known actor (an unknown-account attempt).</summary>
+	public Guid? UserId { get; init; }
 	public required string UserName { get; init; }
 	public required string UserEmail { get; init; }
 	public required string Action { get; init; }
@@ -223,14 +225,14 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				.IgnoreQueryFilters()
 				// Audit rows outlive soft-deleted users; keep
 				// the historical actor visible when possible.
-				on (Guid?)a.UserId equals u.Id
+				on a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
 			select new AuditLogListItem {
 				Id = a.Id ?? Guid.Empty,
 				UserId = a.UserId,
 				UserName = u == null
-					? "(deleted user)"
+					? (a.UserId == null ? "(unknown)" : "(deleted user)")
 					: u.FirstName != null
 						|| u.LastName != null
 						? ((u.FirstName ?? "")
@@ -316,7 +318,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var actorRows = await (
 			from auditLog in logs
 			join user in this._DbContext.User.IgnoreQueryFilters()
-				on (Guid?)auditLog.UserId equals user.Id into userJoin
+				on auditLog.UserId equals user.Id into userJoin
 			from user in userJoin.DefaultIfEmpty()
 			group auditLog by new {
 				auditLog.UserId,
@@ -336,7 +338,7 @@ public class AuditLogQueryService : IAuditLogQueryService {
 		var actors = new List<AuditLogActorCount>();
 		foreach (var row in actorRows) {
 			// Same display name as the list rows (deleted actor, name, else email).
-			var name = "(deleted user)";
+			var name = row.UserId is null ? "(unknown)" : "(deleted user)";
 			if (row.Email is not null) {
 				name = row.FirstName is not null || row.LastName is not null
 					? ((row.FirstName ?? "") + " " + (row.LastName ?? "")).Trim()
@@ -375,14 +377,14 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				.IgnoreQueryFilters()
 				// Audit rows outlive soft-deleted users; keep
 				// the historical actor visible when possible.
-				on (Guid?)a.UserId equals u.Id
+				on a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
 			select new AuditLogDetail {
 				Id = a.Id ?? Guid.Empty,
 				UserId = a.UserId,
 				UserName = u == null
-					? "(deleted user)"
+					? (a.UserId == null ? "(unknown)" : "(deleted user)")
 					: u.FirstName != null
 						|| u.LastName != null
 						? ((u.FirstName ?? "")
@@ -471,13 +473,13 @@ public class AuditLogQueryService : IAuditLogQueryService {
 				.IgnoreQueryFilters()
 				// Audit rows outlive soft-deleted users; keep
 				// the historical actor visible when possible.
-				on (Guid?)a.UserId equals u.Id
+				on a.UserId equals u.Id
 				into userJoin
 			from u in userJoin.DefaultIfEmpty()
 			select new AuditLogExportItem {
 				Id = a.Id ?? Guid.Empty,
 				UserName = u == null
-					? "(deleted user)"
+					? (a.UserId == null ? "(unknown)" : "(deleted user)")
 					: u.FirstName != null
 						|| u.LastName != null
 						? ((u.FirstName ?? "")

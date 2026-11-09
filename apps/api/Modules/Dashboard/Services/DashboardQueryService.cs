@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
+using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Dashboard.Services;
@@ -43,6 +44,14 @@ public interface IDashboardQueryService {
 		GetDashboardSeriesArgs args,
 		CancellationToken cancellationToken = default);
 
+	Task<IReadOnlyList<DashboardSeriesPoint>> GetSignInSeriesAsync(
+		GetDashboardSeriesArgs args,
+		CancellationToken cancellationToken = default);
+
+	Task<IReadOnlyList<DashboardSeriesPoint>> GetFailedSignInSeriesAsync(
+		GetDashboardSeriesArgs args,
+		CancellationToken cancellationToken = default);
+
 	Task<IReadOnlyList<TopOrganisationItem>> FindTopOrganisationsAsync(
 		FindTopOrganisationsArgs args,
 		CancellationToken cancellationToken = default);
@@ -56,10 +65,47 @@ public class DashboardQueryService : IDashboardQueryService {
 		this._DbContext = dbContext;
 	}
 
-	public async Task<IReadOnlyList<DashboardSeriesPoint>>
+	public Task<IReadOnlyList<DashboardSeriesPoint>>
 		GetAuditEventSeriesAsync(
 		GetDashboardSeriesArgs args,
 		CancellationToken cancellationToken = default
+	) {
+		return this._GetDailySeriesAsync(args, action: null, cancellationToken);
+	}
+
+	public Task<IReadOnlyList<DashboardSeriesPoint>>
+		GetSignInSeriesAsync(
+		GetDashboardSeriesArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		return this._GetDailySeriesAsync(
+			args,
+			AuditActions.LoginSucceeded,
+			cancellationToken
+		);
+	}
+
+	public Task<IReadOnlyList<DashboardSeriesPoint>>
+		GetFailedSignInSeriesAsync(
+		GetDashboardSeriesArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		return this._GetDailySeriesAsync(
+			args,
+			AuditActions.LoginFailed,
+			cancellationToken
+		);
+	}
+
+	/// <summary>
+	/// One UTC-day series over the audit log, optionally narrowed to a single
+	/// action. Zero-filled on purpose: a day with no event is a real 0.
+	/// </summary>
+	private async Task<IReadOnlyList<DashboardSeriesPoint>>
+		_GetDailySeriesAsync(
+		GetDashboardSeriesArgs args,
+		string? action,
+		CancellationToken cancellationToken
 	) {
 		var endExclusive = args.EndDate.AddDays(1);
 
@@ -72,6 +118,7 @@ public class DashboardQueryService : IDashboardQueryService {
 				&& auditLog.Id != null
 				&& auditLog.CreatedAt >= args.StartDate
 				&& auditLog.CreatedAt < endExclusive
+				&& (action == null || auditLog.Action == action)
 			group auditLog by auditLog.CreatedAt.Date into grouped
 			select new {
 				Day = grouped.Key,
@@ -84,7 +131,6 @@ public class DashboardQueryService : IDashboardQueryService {
 			countsByDay[row.Day] = row.Count;
 		}
 
-		// Zero-filled on purpose: a day with no event is a real 0, not a gap.
 		var points = new List<DashboardSeriesPoint>();
 		for (var day = args.StartDate; day <= args.EndDate; day = day.AddDays(1)) {
 			points.Add(new DashboardSeriesPoint {

@@ -191,6 +191,116 @@ public sealed class GetDashboardSeriesForStaffSpec
 
 	[Fact]
 	public async Task
+		ItShouldCountSignInsOnTheirUtcDayWithinInclusiveBounds() {
+		var token =
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var staffUserId =
+			await this._StaffUserIdAsync();
+
+		// Both window bounds are inclusive. The two neighbours and every
+		// failed sign-in do not belong to this series.
+		foreach (var createdAt in new[] {
+			new DateTime(2020, 10, 1, 0, 0, 0, DateTimeKind.Utc),
+			new DateTime(2020, 10, 1, 9, 15, 0, DateTimeKind.Utc),
+			new DateTime(2020, 10, 2, 23, 59, 59, DateTimeKind.Utc),
+			new DateTime(2020, 9, 30, 23, 59, 59, DateTimeKind.Utc),
+			new DateTime(2020, 10, 3, 0, 0, 0, DateTimeKind.Utc),
+		}) {
+			await AuditLogTestHelper.SeedAuditLogAsync(
+				this._Fixture.Factory,
+				staffUserId,
+				AuditActions.LoginSucceeded,
+				createdAt: createdAt
+			);
+		}
+		await AuditLogTestHelper.SeedAuditLogAsync(
+			this._Fixture.Factory,
+			staffUserId,
+			AuditActions.LoginFailed,
+			createdAt: new DateTime(
+				2020, 10, 1, 10, 0, 0, DateTimeKind.Utc
+			)
+		);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetDashboardSeriesForStaffSpec._GetUrl(
+				"sign_ins",
+				"2020-10-01",
+				"2020-10-02"
+			)
+		).WithSessionToken(token);
+
+		using var response =
+			await this._Http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<SeriesResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		result.Metric.Should().Be("sign_ins");
+		result.Points.Select(point => point.Value)
+			.Should()
+			.Equal(2, 1);
+	}
+
+	[Fact]
+	public async Task
+		ItShouldCountFailedSignInsOnTheirUtcDay() {
+		var token =
+			await this._AuthClient.LoginAsStaffAdminAsync();
+		var staffUserId =
+			await this._StaffUserIdAsync();
+
+		await AuditLogTestHelper.SeedAuditLogAsync(
+			this._Fixture.Factory,
+			staffUserId,
+			AuditActions.LoginFailed,
+			createdAt: new DateTime(
+				2020, 11, 5, 8, 0, 0, DateTimeKind.Utc
+			)
+		);
+		await AuditLogTestHelper.SeedAuditLogAsync(
+			this._Fixture.Factory,
+			staffUserId,
+			AuditActions.LoginSucceeded,
+			createdAt: new DateTime(
+				2020, 11, 6, 8, 0, 0, DateTimeKind.Utc
+			)
+		);
+
+		var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetDashboardSeriesForStaffSpec._GetUrl(
+				"failed_sign_ins",
+				"2020-11-05",
+				"2020-11-06"
+			)
+		).WithSessionToken(token);
+
+		using var response =
+			await this._Http.SendAsync(request);
+
+		response.StatusCode.Should()
+			.Be(HttpStatusCode.OK);
+
+		var result = await response.Content
+			.ReadFromJsonAsync<SeriesResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+
+		result.Metric.Should().Be("failed_sign_ins");
+		result.Points.Select(point => point.Value)
+			.Should()
+			.Equal(1, 0);
+	}
+
+	[Fact]
+	public async Task
 		ItShouldAcceptAWindowSpanning366ElapsedDays() {
 		var token =
 			await this._AuthClient.LoginAsStaffAdminAsync();

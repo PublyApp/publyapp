@@ -18,7 +18,7 @@ public class AuditLogActionCountItem {
 }
 
 public class AuditLogActorCountItem {
-	public Guid UserId { get; set; }
+	public Guid? UserId { get; set; }
 	public string Name { get; set; } = string.Empty;
 	public int Count { get; set; }
 }

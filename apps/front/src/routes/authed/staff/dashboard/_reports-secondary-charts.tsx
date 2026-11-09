@@ -3,21 +3,28 @@ import type { UseQueryResult } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { StateSurface } from '~/components/ui/state-surface';
 
-import type { FindTopOrganisationsForStaffResponse } from '@org/client-ts/models/index';
+import type {
+	FindTopOrganisationsForStaffResponse,
+	GetDashboardSeriesForStaffResponse,
+} from '@org/client-ts/models/index';
 
 import { GhostAxis, GhostHBars, GhostLine } from './_chart-ghost';
-import { HorizontalBars } from './_dashboard-charts';
+import { ChartTable, HorizontalBars, LineChart } from './_dashboard-charts';
 import { periodLabelKey, type DashboardPeriod } from './_dashboard-filters';
-import { UNKNOWN_VALUE } from './_dashboard-format';
+import { UNKNOWN_VALUE, formatCount } from './_dashboard-format';
 import { ChartCard } from './_dashboard-ui';
 
-/** The sign-ins ghost and the top-organisations ranking. */
+/** The sign-ins curve and the top-organisations ranking. */
 export const ReportsSecondaryCharts = ({
 	period,
+	signInsQuery,
+	signInsPoints,
 	topOrganisationsQuery,
 	locale,
 }: {
 	period: DashboardPeriod;
+	signInsQuery: UseQueryResult<GetDashboardSeriesForStaffResponse, Error>;
+	signInsPoints: ReadonlyArray<{ label: string; value: number }>;
 	topOrganisationsQuery: UseQueryResult<
 		FindTopOrganisationsForStaffResponse,
 		Error
@@ -26,6 +33,13 @@ export const ReportsSecondaryCharts = ({
 }) => {
 	const { t } = useTranslation('common');
 	const topOrganisations = topOrganisationsQuery.data?.items ?? [];
+	let signInsTotal: number | undefined;
+	if (signInsQuery.data?.points?.length) {
+		signInsTotal = 0;
+		for (const point of signInsPoints) {
+			signInsTotal += point.value;
+		}
+	}
 
 	return (
 		<div className="grid gap-4 md:grid-cols-2">
@@ -34,17 +48,46 @@ export const ReportsSecondaryCharts = ({
 				label={t('dashboard-card-signins-per-day')}
 				icon={<IconTrendingUp />}
 				note={`${t('dashboard-note-signins')} · ${t(periodLabelKey(period))}`}
-				hero={UNKNOWN_VALUE}
-				series={{
-					status: 'unavailable',
-					sentence: t('dashboard-ghost-card-signins-per-day'),
-					ghost: (
-						<>
-							<GhostLine />
-							<GhostAxis />
-						</>
-					),
-				}}
+				hero={
+					signInsTotal === undefined ? (
+						<span className="text-muted-foreground">{UNKNOWN_VALUE}</span>
+					) : (
+						formatCount(signInsTotal, locale)
+					)
+				}
+				series={
+					signInsQuery.data
+						? {
+								status: 'ready',
+								chart: (
+									<LineChart
+										points={signInsPoints}
+										locale={locale}
+										label={t('dashboard-chart-line')}
+									/>
+								),
+								table: (
+									<ChartTable
+										head={[t('dashboard-col-date'), t('dashboard-kpi-signins')]}
+										rows={signInsPoints.map((point) => [
+											point.label,
+											formatCount(point.value, locale),
+										])}
+									/>
+								),
+							}
+						: {
+								status: 'unavailable',
+								sentence: t('dashboard-ghost-card-signins-per-day'),
+								ghost: (
+									<>
+										<GhostLine />
+										<GhostAxis />
+									</>
+								),
+							}
+				}
+				query={signInsQuery}
 			/>
 
 			<ChartCard

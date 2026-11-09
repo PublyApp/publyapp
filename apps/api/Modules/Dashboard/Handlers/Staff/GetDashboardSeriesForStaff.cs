@@ -12,14 +12,24 @@ namespace PublyApp.Api.Modules.Dashboard.Handlers.Staff;
 
 public static class DashboardMetrics {
 	public const string AuditEvents = "audit_events";
+	public const string SignIns = "sign_ins";
+	public const string FailedSignIns = "failed_sign_ins";
 	public const string ActiveTenants = "active_tenants";
+
+	/// <summary>The metrics the endpoint actually serves.</summary>
+	public static readonly string[] Available = [
+		DashboardMetrics.AuditEvents,
+		DashboardMetrics.SignIns,
+		DashboardMetrics.FailedSignIns,
+	];
 
 	public const string ActiveTenantsUnavailable =
 		"active_tenants is not available: organisations store only their "
 		+ "current status, activation is not audited, and lifecycle audit "
 		+ "writes are best-effort, so a past daily count cannot be computed "
 		+ "from stored data without inventing values. "
-		+ "Use metric=audit_events.";
+		+ "Use metric=audit_events, metric=sign_ins or "
+		+ "metric=failed_sign_ins.";
 }
 
 public class GetDashboardSeriesForStaffQuery
@@ -43,12 +53,14 @@ public class GetDashboardSeriesForStaffQueryValidator
 				}
 
 				var normalized = metric.Trim();
-				if (string.Equals(
-					normalized,
-					DashboardMetrics.AuditEvents,
-					StringComparison.OrdinalIgnoreCase
-				)) {
-					return;
+				foreach (var available in DashboardMetrics.Available) {
+					if (string.Equals(
+						normalized,
+						available,
+						StringComparison.OrdinalIgnoreCase
+					)) {
+						return;
+					}
 				}
 
 				if (string.Equals(
@@ -66,7 +78,7 @@ public class GetDashboardSeriesForStaffQueryValidator
 				context.AddFailure(
 					"metric",
 					"metric must be one of: "
-					+ DashboardMetrics.AuditEvents
+					+ string.Join(", ", DashboardMetrics.Available)
 				);
 			});
 	}
@@ -102,15 +114,36 @@ public sealed class GetDashboardSeriesForStaff {
 			);
 		}
 
-		var points =
-			await dashboardQueryService.GetAuditEventSeriesAsync(
-				new GetDashboardSeriesArgs(start, end),
+		// The validator already restricted the value to a served metric.
+		var metric = DashboardMetrics.Available.First(available =>
+			string.Equals(
+				available,
+				query.Metric?.Trim(),
+				StringComparison.OrdinalIgnoreCase
+			)
+		);
+		var args = new GetDashboardSeriesArgs(start, end);
+
+		var points = metric switch {
+			DashboardMetrics.SignIns =>
+				await dashboardQueryService.GetSignInSeriesAsync(
+					args,
+					cancellationToken
+				),
+			DashboardMetrics.FailedSignIns =>
+				await dashboardQueryService.GetFailedSignInSeriesAsync(
+					args,
+					cancellationToken
+				),
+			_ => await dashboardQueryService.GetAuditEventSeriesAsync(
+				args,
 				cancellationToken
-			);
+			),
+		};
 
 		return TypedResults.Ok(
 			new GetDashboardSeriesForStaffResponse {
-				Metric = DashboardMetrics.AuditEvents,
+				Metric = metric,
 				StartDate = start.ToString(
 					"yyyy-MM-dd",
 					CultureInfo.InvariantCulture

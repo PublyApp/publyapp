@@ -92,7 +92,7 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("user_agent");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
@@ -2513,8 +2513,7 @@ namespace PublyApp.Api.Migrations
                     b.HasOne("PublyApp.Api.Modules.Users.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("User");
                 });
