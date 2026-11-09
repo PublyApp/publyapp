@@ -6,7 +6,7 @@ const Skeleton = ({ className, ...props }: React.ComponentProps<'div'>) => {
 		<div
 			data-slot="skeleton"
 			className={cn(
-				'animate-pulse rounded-[var(--publy-radius-control)] bg-muted',
+				'animate-pulse rounded-[var(--publy-radius-control)] bg-foreground/10',
 				className,
 			)}
 			{...props}
