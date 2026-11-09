@@ -69,9 +69,9 @@ export const AuditLogActor = ({ auditLog }: { auditLog: AuditLogDetail }) => {
 
 	let displayName: string;
 	if (isUnknownAccount) {
-		displayName = t('history-unknown-account');
+		displayName = t('common:history-unknown-account');
 	} else if (isDeletedUser) {
-		displayName = t('history-deleted-user');
+		displayName = t('common:history-deleted-user');
 	} else {
 		displayName = auditLog.userName || '-';
 	}

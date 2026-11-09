@@ -9,8 +9,8 @@ vi.mock('react-i18next', () => ({
 		t: (key: string) => {
 			const translations = {
 				'common:user': 'User',
-				'history-unknown-account': 'Unknown account',
-				'history-deleted-user': 'Deleted user',
+				'common:history-unknown-account': 'Unknown account',
+				'common:history-deleted-user': 'Deleted user',
 				'actor-avatar-label': 'Actor',
 			} as const;
 			return translations[key as keyof typeof translations] ?? key;

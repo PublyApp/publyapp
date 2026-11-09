@@ -11,10 +11,7 @@ import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
 /** The series the staff dashboard endpoint serves (#2348, #2354). The
  * `active_tenants` metric answers 422: organisations store their current
  * status only, so no honest past daily count exists. */
-export type StaffDashboardMetric =
-	| 'audit_events'
-	| 'sign_ins'
-	| 'failed_sign_ins';
+type StaffDashboardMetric = 'audit_events' | 'sign_ins' | 'failed_sign_ins';
 
 export type StaffDashboardSeriesVariables = {
 	metric: StaffDashboardMetric;
