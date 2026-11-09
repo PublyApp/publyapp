@@ -1726,6 +1726,8 @@
 	"history-day-yesterday": "Hier",
 	"history-day-unknown": "Date inconnue",
 	"history-system": "Système",
+	"history-unknown-account": "Compte inconnu",
+	"history-deleted-user": "Utilisateur supprimé",
 	"history-sensitive": "Sensible",
 	"history-open": "Ouvrir",
 	"history-events_one": "{{count}} événement · conservé {{days}} jours",

@@ -27,6 +27,8 @@ export type HistoryEvent = {
 	at: Date | null;
 	/** `null` is the system: the API returns no user for a machine event. */
 	actorName: string | null;
+	/** Null when the event has no known actor (an unknown-account attempt). */
+	userId: string | null;
 	/** The technical audit action key (`tenant.suspended`). */
 	action: string | null;
 	ipAddress: string | null;

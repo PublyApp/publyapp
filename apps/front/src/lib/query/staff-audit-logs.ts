@@ -43,6 +43,8 @@ export type StaffAuditLogExportInput = {
 
 export type StaffAuditLogRow = {
 	id: string;
+	/** Null when the event has no known actor (an unknown-account attempt). */
+	userId: string | null;
 	action: string | null;
 	userName: string | null;
 	userEmail: string | null;
@@ -187,6 +189,7 @@ export const toStaffAuditLogRows = (
 
 		rows.push({
 			id,
+			userId: normalizeNullableString(item.userId),
 			action: normalizeNullableString(item.action),
 			userName: normalizeNullableString(item.userName),
 			userEmail: normalizeNullableString(item.userEmail),

@@ -63,6 +63,7 @@ const toHistoryEvents = (
 		id: row.id,
 		at: row.createdAt,
 		actorName: row.userName,
+		userId: row.userId,
 		action: row.action,
 		ipAddress: row.ipAddress,
 		targetId: row.targetId,
@@ -95,8 +96,8 @@ const countAuditCategories = (
 
 /** The panel's per-actor counters, from the API's actor facets (already
  * ranked by volume, so the panel needs no client-side sort). Each entry is a
- * filter: a known actor is searched by name, the « (unknown) » bucket on the
- * events without an actor. */
+ * filter: a known actor is searched by name, the unknown-account bucket on
+ * the events without an actor. */
 const buildActorPanelGroup = (
 	counts: AuditLogListCounts | null | undefined,
 	t: (key: string) => string,
@@ -112,10 +113,19 @@ const buildActorPanelGroup = (
 				return [];
 			}
 			const userId = actor.userId ?? null;
+			// Translate the synthetic API labels for unknown/deleted actors.
+			let label: string;
+			if (userId === null) {
+				label = t('common:history-unknown-account');
+			} else if (name === '(deleted user)') {
+				label = t('common:history-deleted-user');
+			} else {
+				label = name;
+			}
 			return [
 				{
 					key: `actor:${actor.userId ?? name}`,
-					label: name,
+					label,
 					icon: <IconUser />,
 					count: actor.count ?? 0,
 					active: userId === null && search.unknownActor === true,

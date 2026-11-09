@@ -44,6 +44,7 @@ const event = (overrides: Partial<HistoryEvent>): HistoryEvent => ({
 	id: 'log-1',
 	at: NOW,
 	actorName: 'Ada Admin',
+	userId: 'user-1',
 	action: 'tenant.suspended',
 	ipAddress: '10.0.0.1',
 	targetId: '0197b8f0-3333-7ccc-8ccc-cccccccccccc',

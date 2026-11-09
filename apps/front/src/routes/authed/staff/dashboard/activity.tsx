@@ -61,6 +61,7 @@ const toHistoryEvents = (
 			id: row.id,
 			at: row.createdAt,
 			actorName: row.userName,
+			userId: row.userId,
 			action: row.action,
 			ipAddress: row.ipAddress,
 			targetId: row.targetId,
