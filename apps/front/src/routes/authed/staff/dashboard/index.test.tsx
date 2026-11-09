@@ -159,6 +159,8 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-kpi-pending-invitations': 'Pending invitations',
 	'dashboard-card-growth': 'Organisation growth',
 	'dashboard-note-growth': 'Active organisations per day',
+	'dashboard-note-growth-since': 'History recorded since {{date}}',
+	'dashboard-empty-growth': 'No history in this period.',
 	'dashboard-card-status': 'Organisations by status',
 	'dashboard-note-status': 'Lifecycle status of every organisation',
 	'dashboard-card-heatmap': 'Platform activity',
@@ -202,8 +204,6 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-invitations-revoked': 'Revoked',
 	'tenant-member-count': '{{count}} members',
 	'dashboard-ghost-tag': 'No data yet',
-	'dashboard-ghost-card-growth':
-		'The active-organisations curve will be drawn here, day by day.',
 	'dashboard-ghost-card-heatmap':
 		'Each square will become one day of platform activity.',
 	'dashboard-ghost-card-status':
@@ -313,7 +313,10 @@ const withData = () => {
 			value,
 		}));
 	mocks.seriesQuery.data = { points: points(30, 160) };
-	mocks.growthQuery.data = { points: points(30, 31) };
+	mocks.growthQuery.data = {
+		points: points(30, 31),
+		recordedSince: addIsoDays(today, -29),
+	};
 	mocks.previousSeriesQuery.data = { points: points(30, 148) };
 	mocks.heatmapQuery.data = { points: points(365, 12) };
 };
@@ -494,6 +497,36 @@ describe('staff dashboard overview', () => {
 		expect(within(growth).getByText('Organisations')).toBeTruthy();
 		// One row per day of the window, each carrying that day's count.
 		expect(within(growth).getAllByText('31')).toHaveLength(30);
+	});
+
+	test('draws only the days the history covers, with the recorded-since note (#2349)', () => {
+		withData();
+		const today = todayIso();
+		const days = Array.from({ length: 30 }, (_, index) => ({
+			date: addIsoDays(today, -(29 - index)),
+			value: 31,
+		}));
+		// History starts ten days ago: the twenty days before it are unknown,
+		// not a measured 0, so the series drops them.
+		mocks.growthQuery.data = {
+			points: days,
+			recordedSince: addIsoDays(today, -9),
+		};
+		render(<Overview />);
+
+		const growth = screen.getByTestId('staff-dashboard-growth');
+		expect(within(growth).getByText(/History recorded since/)).toBeTruthy();
+
+		fireEvent.click(within(growth).getByRole('button', { name: 'Table' }));
+		expect(within(growth).getAllByText('31')).toHaveLength(10);
+	});
+
+	test('shows the shared empty state when the window predates the history (#2349)', () => {
+		withData();
+		mocks.growthQuery.data = { points: [], recordedSince: todayIso() };
+		render(<Overview />);
+
+		expect(screen.getByTestId('staff-dashboard-growth-empty')).toBeTruthy();
 	});
 
 	test('draws the real heatmap and the audit-events delta from the series endpoint', () => {

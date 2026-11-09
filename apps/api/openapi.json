@@ -17902,6 +17902,13 @@
           "endDate": {
             "type": "string"
           },
+          "recordedSince": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The first day the series is measured from, for the metrics backed by a\nrecorded history (`active_tenants`): the days before it are not\nmeasured values and must not be shown as 0 (#2349). `null` for the\naudit-log metrics, which cover the whole window."
+          },
           "points": {
             "type": "array",
             "items": {

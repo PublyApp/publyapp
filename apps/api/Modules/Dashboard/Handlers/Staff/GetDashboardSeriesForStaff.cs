@@ -69,6 +69,16 @@ public sealed class GetDashboardSeriesForStaffResponse {
 	public required string Metric { get; init; }
 	public required string StartDate { get; init; }
 	public required string EndDate { get; init; }
+
+	/// <summary>
+	/// The first day the series is measured from (the earliest recorded
+	/// transition), for the metrics backed by a recorded history
+	/// (<c>active_tenants</c>). The days before it are not measured values and
+	/// must not be shown as 0 (#2349). <c>null</c> for the audit-log metrics,
+	/// which cover the whole window.
+	/// </summary>
+	public string? RecordedSince { get; init; }
+
 	public required IReadOnlyList<DashboardSeriesPoint> Points {
 		get; init;
 	}
@@ -105,27 +115,41 @@ public sealed class GetDashboardSeriesForStaff {
 		);
 		var args = new GetDashboardSeriesArgs(start, end);
 
-		var points = metric switch {
-			DashboardMetrics.SignIns =>
-				await dashboardQueryService.GetSignInSeriesAsync(
+		IReadOnlyList<DashboardSeriesPoint> points;
+		string? recordedSince = null;
+		switch (metric) {
+			case DashboardMetrics.SignIns:
+				points = await dashboardQueryService.GetSignInSeriesAsync(
 					args,
 					cancellationToken
-				),
-			DashboardMetrics.FailedSignIns =>
-				await dashboardQueryService.GetFailedSignInSeriesAsync(
+				);
+				break;
+			case DashboardMetrics.FailedSignIns:
+				points = await dashboardQueryService.GetFailedSignInSeriesAsync(
 					args,
 					cancellationToken
-				),
-			DashboardMetrics.ActiveTenants =>
-				await dashboardQueryService.GetActiveTenantSeriesAsync(
+				);
+				break;
+			case DashboardMetrics.ActiveTenants: {
+					var series =
+						await dashboardQueryService.GetActiveTenantSeriesAsync(
+							args,
+							cancellationToken
+						);
+					points = series.Points;
+					recordedSince = series.RecordedSince?.ToString(
+						"yyyy-MM-dd",
+						CultureInfo.InvariantCulture
+					);
+					break;
+				}
+			default:
+				points = await dashboardQueryService.GetAuditEventSeriesAsync(
 					args,
 					cancellationToken
-				),
-			_ => await dashboardQueryService.GetAuditEventSeriesAsync(
-				args,
-				cancellationToken
-			),
-		};
+				);
+				break;
+		}
 
 		return TypedResults.Ok(
 			new GetDashboardSeriesForStaffResponse {
@@ -138,6 +162,7 @@ public sealed class GetDashboardSeriesForStaff {
 					"yyyy-MM-dd",
 					CultureInfo.InvariantCulture
 				),
+				RecordedSince = recordedSince,
 				Points = points,
 			}
 		);

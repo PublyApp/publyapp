@@ -13,12 +13,13 @@ namespace PublyApp.Api.Migrations
     /// the status changes go through tracked entities, <c>ExecuteUpdateAsync</c> and
     /// raw <c>UPDATE</c> statements (single and bulk actions), and a trigger covers
     /// all of them — plus any future path — in the same transaction as the change.
+    /// Why a trigger, what it covers and how to verify it exists:
+    /// docs/records/2026-11-09-decision-tenant-status-history-trigger.md.
     ///
-    /// Backfill: every existing organisation gets one row dated at its creation, with
-    /// the status it has today. History before this migration is APPROXIMATE: a tenant
-    /// that is suspended today is treated as suspended since creation, so the past
-    /// curve is flatter than the real one. Only transitions recorded from now on are
-    /// exact.
+    /// Baseline: every organisation that exists at migration time gets ONE row at
+    /// <c>now()</c> carrying the status it holds at that instant. Nothing is dated
+    /// before the migration: the days before it are not served as measured values
+    /// (the API exposes <c>recordedSince</c>, the earliest recorded transition).
     /// </summary>
     public partial class AddTenantStatusHistory : Migration
     {
@@ -41,11 +42,19 @@ namespace PublyApp.Api.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_tenant_status_history_occurred_at_id",
+                table: "tenant_status_history",
+                columns: new[] { "occurred_at", "id" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_tenant_status_history_tenant_id_occurred_at",
                 table: "tenant_status_history",
                 columns: new[] { "tenant_id", "occurred_at" });
 
             // 10 Pending / 20 Active / 30 Suspended / 40 Deleted (soft delete).
+            // clock_timestamp(), not now(): now() is the TRANSACTION start, so two
+            // transitions written in one transaction would share an occurred_at and
+            // lose their order (#2349 MEDIUM-2).
             migrationBuilder.Sql(
                 """
                 CREATE FUNCTION record_tenant_status_history() RETURNS trigger AS $$
@@ -56,32 +65,43 @@ namespace PublyApp.Api.Migrations
                         RETURN NEW;
                     END IF;
 
-                    INSERT INTO tenant_status_history (tenant_id, status, occurred_at, created_at)
+                    -- Hard delete is terminal: the tenant leaves the curve instead of
+                    -- keeping its last status forever (no FK cleans these rows).
+                    IF TG_OP = 'DELETE' THEN
+                        INSERT INTO tenant_status_history
+                            (tenant_id, status, occurred_at, created_at)
+                        VALUES
+                            (OLD.id, 40, clock_timestamp(), clock_timestamp());
+                        RETURN OLD;
+                    END IF;
+
+                    INSERT INTO tenant_status_history
+                        (tenant_id, status, occurred_at, created_at)
                     VALUES (
                         NEW.id,
                         CASE WHEN NEW.is_deleted THEN 40 ELSE NEW.status END,
-                        now(),
-                        now()
+                        clock_timestamp(),
+                        clock_timestamp()
                     );
                     RETURN NEW;
                 END;
                 $$ LANGUAGE plpgsql;
 
                 CREATE TRIGGER tenants_record_status_history
-                AFTER INSERT OR UPDATE OF status, is_deleted ON tenants
+                AFTER INSERT OR UPDATE OF status, is_deleted OR DELETE ON tenants
                 FOR EACH ROW EXECUTE FUNCTION record_tenant_status_history();
                 """);
 
-            // Approximate history for organisations that predate the trigger: the
-            // creation date is the only point we can honestly place, so each tenant
-            // starts at creation with the status it holds today.
+            // Baseline for organisations that predate the trigger: one row at
+            // migration time with the status they hold now. Dated now(), never
+            // created_at — history before this migration is not invented.
             migrationBuilder.Sql(
                 """
                 INSERT INTO tenant_status_history (tenant_id, status, occurred_at, created_at)
                 SELECT id,
                        CASE WHEN is_deleted THEN 40 ELSE status END,
-                       created_at,
-                       created_at
+                       now(),
+                       now()
                 FROM tenants;
                 """);
         }

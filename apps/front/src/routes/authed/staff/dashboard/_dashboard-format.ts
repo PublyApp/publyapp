@@ -90,15 +90,20 @@ export const seriesTotal = (
 	return total;
 };
 
-/** The API's daily points as the shared charts' labelled series. */
+/** The API's daily points as the shared charts' labelled series. When the API
+ * reports the first day its history is measured from (`recordedSince`), the
+ * days before it are dropped: they are unknown, not a measured 0 (#2349). */
 export const toSeriesPoints = (
 	points:
 		| ReadonlyArray<{ date?: string | null; value?: number | null }>
 		| null
 		| undefined,
 	locale: string,
+	since?: string | null,
 ): { label: string; value: number }[] =>
-	(points ?? []).map((point) => ({
-		label: formatDayMonth(new Date(`${point.date ?? ''}T12:00:00Z`), locale),
-		value: point.value ?? 0,
-	}));
+	(points ?? [])
+		.filter((point) => !since || (point.date ?? '') >= since)
+		.map((point) => ({
+			label: formatDayMonth(new Date(`${point.date ?? ''}T12:00:00Z`), locale),
+			value: point.value ?? 0,
+		}));

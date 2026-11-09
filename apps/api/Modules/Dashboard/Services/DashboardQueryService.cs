@@ -31,6 +31,16 @@ public sealed class DashboardSeriesPoint {
 }
 
 /// <summary>
+/// The active-organisations series, plus the day the lifecycle history starts:
+/// <c>null</c> when nothing was ever recorded, otherwise the UTC day of the
+/// earliest transition. Days before it are not measured values (#2349).
+/// </summary>
+public sealed record ActiveTenantSeries(
+	IReadOnlyList<DashboardSeriesPoint> Points,
+	DateTime? RecordedSince
+);
+
+/// <summary>
 /// One organisation in the ranking, with the number of audit events in the
 /// window attributed to it.
 /// </summary>
@@ -53,7 +63,7 @@ public interface IDashboardQueryService {
 		GetDashboardSeriesArgs args,
 		CancellationToken cancellationToken = default);
 
-	Task<IReadOnlyList<DashboardSeriesPoint>> GetActiveTenantSeriesAsync(
+	Task<ActiveTenantSeries> GetActiveTenantSeriesAsync(
 		GetDashboardSeriesArgs args,
 		CancellationToken cancellationToken = default);
 
@@ -106,13 +116,24 @@ public class DashboardQueryService : IDashboardQueryService {
 	/// Organisations active at the end of each UTC day, from the lifecycle
 	/// history written by the <c>tenants_record_status_history</c> trigger.
 	/// Zero-filled on purpose: a day where nothing changed still has a count.
+	/// The days before <see cref="ActiveTenantSeries.RecordedSince"/> are not
+	/// measured values — the caller must not present them as such.
 	/// </summary>
-	public async Task<IReadOnlyList<DashboardSeriesPoint>>
+	public async Task<ActiveTenantSeries>
 		GetActiveTenantSeriesAsync(
 		GetDashboardSeriesArgs args,
 		CancellationToken cancellationToken = default
 	) {
 		var endExclusive = args.EndDate.AddDays(1);
+
+		// The first recorded transition is the day history starts. The baseline
+		// row of the migration is dated then, never at the tenant's creation.
+		var recordedSince = await this._DbContext.TenantStatusHistory
+			.AsNoTracking()
+			.MinAsync(
+				history => (DateTime?)history.OccurredAt,
+				cancellationToken
+			);
 
 		// Every transition up to the end of the window, oldest first. Rows
 		// before the window are replayed too: they are what the first day's
@@ -166,7 +187,7 @@ public class DashboardQueryService : IDashboardQueryService {
 			});
 		}
 
-		return points;
+		return new ActiveTenantSeries(points, recordedSince);
 	}
 
 	/// <summary>

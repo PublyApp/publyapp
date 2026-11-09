@@ -17,12 +17,17 @@ namespace PublyApp.Api.Modules.Tenants.Entities;
 /// </summary>
 /// <remarks>
 /// <c>tenant_id</c> deliberately carries no foreign key, like
-/// <c>audit_logs.target_id</c>: this is a log keyed by an id, tenants are only
-/// soft-deleted (the id never disappears), and the pagination specs rewrite
-/// <c>tenants.id</c>, which a plain FK would reject.
+/// <c>audit_logs.target_id</c>: this is a log keyed by an id, and hard deletes
+/// write a terminal row through the trigger's DELETE arm instead of relying on
+/// a cascade. The trade-off (a rewritten <c>tenants.id</c> mis-attributes past
+/// rows) is recorded in
+/// docs/records/2026-11-09-decision-tenant-status-history-trigger.md.
 /// </remarks>
 [Table("tenant_status_history")]
 [Index(nameof(TenantStatusHistory.TenantId), nameof(TenantStatusHistory.OccurredAt))]
+// The series query reads every transition up to the window's end, ordered by
+// (occurred_at, id): an index led by tenant_id cannot serve it (#2349 MEDIUM-1).
+[Index(nameof(TenantStatusHistory.OccurredAt), nameof(TenantStatusHistory.Id))]
 public class TenantStatusHistory : INoTenantEntity {
 	[Key]
 	[Column("id")]
@@ -35,8 +40,9 @@ public class TenantStatusHistory : INoTenantEntity {
 	public TenantLifecycleStatus Status { get; set; }
 
 	/// <summary>
-	/// When the transition happened (UTC). Equal to <c>CreatedAt</c> for rows
-	/// the trigger writes; the backfill reuses the tenant's creation date.
+	/// When the transition happened (UTC), equal to <c>CreatedAt</c>. The
+	/// migration's baseline row for a pre-existing tenant is dated at migration
+	/// time, never at the tenant's creation: the past is not invented.
 	/// </summary>
 	[Column("occurred_at")]
 	public DateTime OccurredAt { get; set; }
