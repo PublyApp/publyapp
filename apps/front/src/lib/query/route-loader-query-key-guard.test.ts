@@ -44,6 +44,14 @@ const EXPECTED_EXEMPTION_FILES = {
 	'routes/authed/tenant/settings/integrations.tsx': 1,
 };
 
+// The route-keyed closed-drawer skips (`CLOSED_DRAWER_FILES`), one per named
+// binding: `<route> <file>#<binding>`.
+const EXPECTED_CLOSED_DRAWER = [
+	'/_authed-layout/staff/tenants/$tenantId/roles/$roleId/members routes/authed/staff/tenants/$tenantId/roles/$roleId/_assign-members-state-hook.ts#useStaffTenantUsersQuery',
+	'/_authed-layout/tenant/posts/drafts routes/authed/tenant/posts/_destination-chips.tsx#useTenantPermissions',
+	'/_authed-layout/tenant/posts/drafts routes/authed/tenant/posts/_publish-on-block.tsx#useTenantPermissions',
+];
+
 const countByFile = (sites: readonly string[]) => {
 	const counts = new Map<string, number>();
 	for (const site of sites) {
@@ -57,7 +65,8 @@ describe('route-loader <-> page query guard', () => {
 	// The guard itself: the REAL route modules, both directions, no violation,
 	// and the exemption inventory is exactly the plan's list.
 	test('every authenticated route warms what its page renders and renders what it warms (route-loader query-key guard)', async () => {
-		const { violations, routes, loaderKeys, exemptions } = await scanRoutes();
+		const { violations, routes, loaderKeys, exemptions, closedDrawer } =
+			await scanRoutes();
 		expect(
 			routes,
 			'the guard must have visited authenticated routes — a scan that finds none is a vacuous pass',
@@ -69,6 +78,9 @@ describe('route-loader <-> page query guard', () => {
 		expect(violations, 'route loader <-> page violations').toEqual([]);
 		expect(exemptions).toHaveLength(14);
 		expect(countByFile(exemptions)).toEqual(EXPECTED_EXEMPTION_FILES);
+		// The route-keyed closed-drawer skips are a second exemption surface:
+		// pinned here too, so adding one is a conscious edit of this list.
+		expect(closedDrawer).toEqual(EXPECTED_CLOSED_DRAWER);
 	});
 
 	describe('fixtures (red/green proof)', () => {
@@ -120,6 +132,26 @@ describe('route-loader <-> page query guard', () => {
 			const violations = await violationsFor('unresolvable-key.tsx');
 			expect(violations).toHaveLength(1);
 			expect(violations[0]).toContain('cannot be statically resolved');
+		});
+
+		test('dead-literal: a literal the spec never returns is not a warmed key', async () => {
+			const violations = await violationsFor('dead-literal.tsx');
+			expect(violations).toHaveLength(1);
+			expect(violations[0]).toContain(
+				'the page renders query factory ../tests/fixtures/route-loader-guard/lib/query/fake-staff-users#fakeStaffUsersQueryOptions but the route loader',
+			);
+		});
+
+		test('conditional-spec: both branches of a returned spec count (union)', async () => {
+			expect(await violationsFor('conditional-spec.tsx')).toEqual([]);
+		});
+
+		test('opaque-loader-call: an imported helper called in a loader fails loud', async () => {
+			const violations = await violationsFor('opaque-loader-call.tsx');
+			expect(violations).toHaveLength(1);
+			expect(violations[0]).toContain(
+				"loader body calls imported 'warmElsewhere'",
+			);
 		});
 
 		test('child-route: the walk stops at a child route, both routes are green', async () => {

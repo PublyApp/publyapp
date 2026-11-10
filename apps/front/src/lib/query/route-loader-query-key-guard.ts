@@ -31,6 +31,12 @@ import { ts } from 'ts-morph';
 // spelling of the same file agree). A *literal* identity is the JSON text of a
 // static string array.
 //
+// Loader keys come from the spec function's RETURNED value(s) only (for
+// `.spec`, the `spec` property), never from a literal that is merely declared.
+// A conditional return takes the UNION of both branches: a branch-gated entry
+// is still a key the loader may warm. A loader body that calls any other
+// imported binding is a violation (it could warm a key the guard cannot see).
+//
 // Bespoke guard admission (docs/guides/test-conventions.md): the six
 // conditions are in the PR body (#2340). Retirement: when TanStack Router can
 // express "preload every query a route renders", or the loaders move to a
@@ -166,21 +172,20 @@ const parseFile = async (absolutePath: string): Promise<ParsedFile> => {
 
 const collectFiles = async (dir: string): Promise<string[]> => {
 	const entries = await readdir(dir, { withFileTypes: true });
-	const files: string[] = [];
-
-	for (const entry of entries) {
-		const absolutePath = path.join(dir, entry.name);
-		if (entry.isDirectory()) {
-			files.push(...(await collectFiles(absolutePath)));
-			continue;
-		}
-		if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
-			files.push(absolutePath);
-		}
-	}
-
-	return files;
+	const nested = await Promise.all(
+		entries.map(async (entry): Promise<string[]> => {
+			const absolutePath = path.join(dir, entry.name);
+			if (entry.isDirectory()) {
+				return collectFiles(absolutePath);
+			}
+			return entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')
+				? [absolutePath]
+				: [];
+		}),
+	);
+	return nested.flat();
 };
+
 // ---------------------------------------------------------------------------
 // Import binding resolution
 // ---------------------------------------------------------------------------
@@ -508,9 +513,6 @@ export const collectLoaderKeySites = (
 	return { identities, errors };
 };
 
-// TEMPORARY (#2340, removed in Task 10): the old heuristic cannot resolve a
-// loader's spec call, so it would report the helper and every `<domain>Queries`
-// spec function as opaque. Task 10 replaces this whole function with real spec
 // ---------------------------------------------------------------------------
 // Loader value resolution
 // ---------------------------------------------------------------------------
@@ -738,29 +740,45 @@ const APP_SHELL_PAGE_FILES = [
 	'routes/__root.tsx',
 ];
 
-/** Route-scoped rule (Task 10 note, captain 10/11): files that a route reaches
- * only through a component mounted inside a closed drawer (or a hook whose
- * query is `enabled` only once the drawer is open). The `lib/**` hooks
- * they call are NOT page queries of that route, because nothing renders them
- * until the drawer opens (the page's own spec cannot warm them without
- * warming data the page never reads). Another route that renders the same file
- * at mount (the post edit page) is unaffected — the rule is keyed by route id,
- * never by a marker on the shared file. Each entry must be in the route's page
- * graph, otherwise the rule is stale and fails. */
-const CLOSED_DRAWER_FILES = new Map<string, readonly string[]>([
+/** Route-scoped rule (Task 10 note, captain 10/11): named `lib/**` bindings,
+ * called in files that a route reaches only through a component mounted inside
+ * a closed drawer (or a hook whose query is `enabled` only once the drawer is
+ * open), are NOT page queries of that route: nothing renders them until the
+ * drawer opens, and the page's own spec cannot warm them without warming data
+ * the page never reads. Another route that renders the same file at mount (the
+ * post edit page) is unaffected — the rule is keyed by route id, never by a
+ * marker on the shared file. Only the NAMED bindings are skipped, so any other
+ * `lib/**` query added to those files still counts. Each entry must be in the
+ * route's page graph and its binding imported there, otherwise the rule is
+ * stale and fails; every entry is listed in `GuardResult.closedDrawer`, which
+ * the test pins like the markers. */
+const CLOSED_DRAWER_FILES = new Map<
+	string,
+	readonly { file: string; bindings: readonly string[] }[]
+>([
 	[
 		'/_authed-layout/tenant/posts/drafts',
 		[
-			'routes/authed/tenant/posts/_publish-on-block.tsx',
-			'routes/authed/tenant/posts/_destination-chips.tsx',
+			{
+				file: 'routes/authed/tenant/posts/_publish-on-block.tsx',
+				bindings: ['useTenantPermissions'],
+			},
+			{
+				file: 'routes/authed/tenant/posts/_destination-chips.tsx',
+				bindings: ['useTenantPermissions'],
+			},
 		],
 	],
-	// The assign drawer's candidate query is `enabled: isOpen`: the members
-	// page spec does not warm it (the users page spec warms it behind `?assign=1`).
+	// Same rule, second instance (plan amendment): the assign drawer's
+	// candidate query is `enabled: isOpen`; the members page spec does not warm
+	// it (the users page spec warms it behind `?assign=1`).
 	[
 		'/_authed-layout/staff/tenants/$tenantId/roles/$roleId/members',
 		[
-			'routes/authed/staff/tenants/$tenantId/roles/$roleId/_assign-members-state-hook.ts',
+			{
+				file: 'routes/authed/staff/tenants/$tenantId/roles/$roleId/_assign-members-state-hook.ts',
+				bindings: ['useStaffTenantUsersQuery'],
+			},
 		],
 	],
 ]);
@@ -1003,6 +1021,8 @@ interface ExemptionState {
 	consumed: Set<string>;
 	/** `file:line` of each consumed marker — the exemption inventory. */
 	inventory: Set<string>;
+	/** `<route> <file>#<binding>` of each closed-drawer skip in force. */
+	closedDrawer: Set<string>;
 	violations: Set<string>;
 }
 
@@ -1140,7 +1160,7 @@ interface PageKey {
 
 const collectPageKeys = async (
 	pageFiles: readonly ParsedFile[],
-	skipLibCallsIn: ReadonlySet<string>,
+	skipLibCalls: ReadonlyMap<string, ReadonlySet<string>>,
 	pinnedModules: ReadonlySet<string>,
 	state: ExemptionState,
 ): Promise<{ keys: PageKey[]; errors: string[] }> => {
@@ -1183,7 +1203,7 @@ const collectPageKeys = async (
 				binding.exportedName === 'default' ||
 				!isLibModule(binding.module) ||
 				pinnedModules.has(binding.module) ||
-				skipLibCallsIn.has(file.relativePath)
+				skipLibCalls.get(file.relativePath)?.has(name)
 			) {
 				continue;
 			}
@@ -1224,83 +1244,207 @@ const findPreloadCalls = (body: ts.Node): ts.CallExpression[] => {
 	return calls;
 };
 
-/** Every `{ options: <factory>, variables }` entry the spec function can
- * return — followed through local calls and relative imports (a spec that
- * composes another). `options` must be a bare identifier bound to a `lib/**`
- * factory; anything else is a violation. */
-const collectSpecEntries = async (
-	specFile: ParsedFile,
-	declaration: ts.VariableDeclaration | ts.FunctionDeclaration,
-	depth: number,
-	visited: Set<string>,
-): Promise<{ identities: QueryKeyIdentity[]; errors: string[] }> => {
-	const identities: QueryKeyIdentity[] = [];
-	const errors: string[] = [];
-	const root = declarationNode(declaration);
-	if (!root) {
-		return { identities, errors };
-	}
-	const pending: Promise<{
-		identities: QueryKeyIdentity[];
-		errors: string[];
-	}>[] = [];
+interface SpecResult {
+	identities: QueryKeyIdentity[];
+	errors: string[];
+}
 
+const stripWrappers = (expression: ts.Expression): ts.Expression => {
+	let node = unwrapParentheses(expression);
+	while (
+		ts.isAsExpression(node) ||
+		ts.isSatisfiesExpression(node) ||
+		ts.isNonNullExpression(node)
+	) {
+		node = unwrapParentheses(node.expression);
+	}
+	return node;
+};
+
+/** The expressions a function returns (`=> expr` or every `return expr` of its
+ * own body, nested functions excluded). */
+const returnedExpressions = (root: ts.Node): ts.Expression[] => {
+	let fn: ts.Node | undefined = root;
+	if (ts.isVariableDeclaration(fn)) {
+		fn = fn.initializer;
+	}
+	if (
+		!fn ||
+		!(
+			ts.isArrowFunction(fn) ||
+			ts.isFunctionExpression(fn) ||
+			ts.isFunctionDeclaration(fn)
+		) ||
+		!fn.body
+	) {
+		return [];
+	}
+	if (!ts.isBlock(fn.body)) {
+		return [fn.body];
+	}
+	const returned: ts.Expression[] = [];
 	const visit = (node: ts.Node): void => {
+		if (ts.isFunctionLike(node)) {
+			return;
+		}
+		if (ts.isReturnStatement(node) && node.expression) {
+			returned.push(node.expression);
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(fn.body);
+	return returned;
+};
+
+/** A `const name = …` declared inside the function (nested functions excluded). */
+const localConstInitializer = (
+	root: ts.Node,
+	name: string,
+): ts.Expression | undefined => {
+	let found: ts.Expression | undefined;
+	const visit = (node: ts.Node): void => {
+		if (found || (ts.isFunctionLike(node) && node !== root)) {
+			return;
+		}
 		if (
-			ts.isObjectLiteralExpression(node) &&
-			objectProperty(node, 'options') &&
-			objectProperty(node, 'variables')
+			ts.isVariableDeclaration(node) &&
+			ts.isIdentifier(node.name) &&
+			node.name.text === name &&
+			node.initializer
 		) {
-			const property = objectProperty(node, 'options');
-			let initializer: ts.Expression | undefined;
-			if (property && ts.isPropertyAssignment(property)) {
-				initializer = property.initializer;
-			} else if (property && ts.isShorthandPropertyAssignment(property)) {
-				initializer = property.name;
-			}
-			const at = `${specFile.relativePath}:${lineOf(specFile, node)}`;
-			if (!initializer || !ts.isIdentifier(initializer)) {
-				errors.push(
-					`${at}: spec entry \`options\` must be a bare lib/query factory identifier — the guard cannot resolve it`,
-				);
-			} else {
-				const binding = specFile.bindings.get(initializer.text);
-				if (binding && isLibModule(binding.module)) {
-					identities.push({
-						kind: 'factory',
-						module: binding.module,
-						name: binding.exportedName,
-					});
-				} else {
-					errors.push(
-						`${at}: spec entry \`options: ${initializer.text}\` is not imported from a lib/** module — a loader may only warm query-options factories`,
-					);
-				}
-			}
-		} else if (
-			ts.isCallExpression(node) &&
-			ts.isIdentifier(node.expression) &&
-			depth < MAX_REACH_DEPTH
-		) {
-			pending.push(
-				followSpecCall(
-					specFile,
-					node.expression.text,
-					declaration,
-					depth,
-					visited,
-				),
-			);
+			found = node.initializer;
+			return;
 		}
 		ts.forEachChild(node, visit);
 	};
 	visit(root);
+	return found;
+};
 
-	for (const nested of await Promise.all(pending)) {
-		identities.push(...nested.identities);
-		errors.push(...nested.errors);
+/** The `{ options: <factory>, variables }` entries a spec function RETURNS —
+ * resolved from its returned value(s) only (for `.spec`, the `spec` property),
+ * through local consts and calls in returned-value position (same file or a
+ * relative import, depth-bounded). A leftover literal that is never returned
+ * is not a key the loader warms.
+ *
+ * Conditional returns (`cond ? a : b`) take the UNION of both branches: a
+ * branch-gated entry is still a key the loader may warm, so the page must
+ * read it (or carry a marker). `options` must be a bare identifier bound to a
+ * `lib/**` factory; any other shape is a violation. */
+const collectSpecEntries = async (
+	specFile: ParsedFile,
+	declaration: ts.VariableDeclaration | ts.FunctionDeclaration,
+	pick: string | undefined,
+	depth: number,
+	visited: Set<string>,
+): Promise<SpecResult> => {
+	const result: SpecResult = { identities: [], errors: [] };
+	const root = declarationNode(declaration);
+	if (!root) {
+		return result;
 	}
-	return { identities, errors };
+	const at = (node: ts.Node) =>
+		`${specFile.relativePath}:${lineOf(specFile, node)}`;
+
+	const resolve = async (
+		raw: ts.Expression,
+		wanted: string | undefined,
+		hops: number,
+	): Promise<void> => {
+		const node = stripWrappers(raw);
+		if (ts.isConditionalExpression(node)) {
+			await resolve(node.whenTrue, wanted, hops);
+			await resolve(node.whenFalse, wanted, hops);
+		} else if (ts.isIdentifier(node)) {
+			const initializer = localConstInitializer(root, node.text);
+			if (initializer && hops < MAX_REACH_DEPTH * 4) {
+				await resolve(initializer, wanted, hops + 1);
+			} else if (node.text !== 'undefined') {
+				result.errors.push(
+					`${at(node)}: spec value '${node.text}' is not a const of the spec function — the guard cannot resolve it`,
+				);
+			}
+		} else if (ts.isObjectLiteralExpression(node)) {
+			if (
+				!wanted &&
+				objectProperty(node, 'options') &&
+				objectProperty(node, 'variables')
+			) {
+				collectEntry(node);
+				return;
+			}
+			for (const property of node.properties) {
+				if (ts.isShorthandPropertyAssignment(property)) {
+					if (!wanted || property.name.text === wanted) {
+						await resolve(property.name, undefined, hops);
+					}
+				} else if (ts.isPropertyAssignment(property)) {
+					if (
+						!wanted ||
+						(ts.isIdentifier(property.name) && property.name.text === wanted)
+					) {
+						await resolve(property.initializer, undefined, hops);
+					}
+				} else if (ts.isSpreadAssignment(property) && !wanted) {
+					await resolve(property.expression, undefined, hops);
+				} else if (!wanted) {
+					result.errors.push(
+						`${at(property)}: spec object member cannot be resolved — the guard reads only plain properties`,
+					);
+				}
+			}
+		} else if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+			if (depth < MAX_REACH_DEPTH) {
+				const nested = await followSpecCall(
+					specFile,
+					node.expression.text,
+					declaration,
+					wanted,
+					depth,
+					visited,
+				);
+				result.identities.push(...nested.identities);
+				result.errors.push(...nested.errors);
+			}
+		} else {
+			result.errors.push(
+				`${at(node)}: a returned spec value is a ${ts.SyntaxKind[node.kind]} — the guard cannot resolve it`,
+			);
+		}
+	};
+
+	const collectEntry = (node: ts.ObjectLiteralExpression): void => {
+		const property = objectProperty(node, 'options');
+		let initializer: ts.Expression | undefined;
+		if (property && ts.isPropertyAssignment(property)) {
+			initializer = property.initializer;
+		} else if (property && ts.isShorthandPropertyAssignment(property)) {
+			initializer = property.name;
+		}
+		if (!initializer || !ts.isIdentifier(initializer)) {
+			result.errors.push(
+				`${at(node)}: spec entry \`options\` must be a bare lib/query factory identifier — the guard cannot resolve it`,
+			);
+			return;
+		}
+		const binding = specFile.bindings.get(initializer.text);
+		if (binding && isLibModule(binding.module)) {
+			result.identities.push({
+				kind: 'factory',
+				module: binding.module,
+				name: binding.exportedName,
+			});
+		} else {
+			result.errors.push(
+				`${at(node)}: spec entry \`options: ${initializer.text}\` is not imported from a lib/** module — a loader may only warm query-options factories`,
+			);
+		}
+	};
+
+	for (const returned of returnedExpressions(root)) {
+		await resolve(returned, pick, 0);
+	}
+	return result;
 };
 
 /** A spec composed from another spec function: a same-file declaration or a
@@ -1309,9 +1453,10 @@ const followSpecCall = async (
 	specFile: ParsedFile,
 	callee: string,
 	current: ts.Node,
+	pick: string | undefined,
 	depth: number,
 	visited: Set<string>,
-): Promise<{ identities: QueryKeyIdentity[]; errors: string[] }> => {
+): Promise<SpecResult> => {
 	const empty = { identities: [], errors: [] };
 	const binding = specFile.bindings.get(callee);
 	let target: ParsedFile = specFile;
@@ -1338,12 +1483,60 @@ const followSpecCall = async (
 	if (!declaration || declaration === current) {
 		return empty;
 	}
-	const key = `${target.absolutePath}#${callee}`;
+	const key = `${target.absolutePath}#${callee}#${pick ?? ''}`;
 	if (visited.has(key)) {
 		return empty;
 	}
 	visited.add(key);
-	return collectSpecEntries(target, declaration, depth + 1, visited);
+	return collectSpecEntries(target, declaration, pick, depth + 1, visited);
+};
+
+// Imported bindings a loader body may call: the preload helper (its spec
+// argument is resolved by `collectPreloadKeys`) and pure parse/build helpers
+// that hand variables to the spec without warming anything. Any other call to
+// an imported binding could warm a key the guard cannot see: a violation.
+const SAFE_LOADER_CALLEES = new Set<string>([
+	'preloadRouteQueries',
+	// Read the cache / build variables only; they never fetch or warm.
+	'resolveWorkspaceTenantIdFromCache',
+	'buildAuditActionCatalog',
+]);
+// Re-parses the validated URL search into the typed variables (pure).
+const SAFE_SEARCH_PARSER = /^parse[A-Za-z0-9]*SearchParams$/;
+
+const collectOpaqueLoaderCalls = (
+	body: ts.Node,
+	file: ParsedFile,
+): string[] => {
+	const specCalls = new Set<ts.Node>();
+	for (const call of findPreloadCalls(body)) {
+		let argument = call.arguments[1];
+		if (argument) {
+			argument = unwrapParentheses(argument);
+			if (ts.isPropertyAccessExpression(argument)) {
+				argument = unwrapParentheses(argument.expression);
+			}
+			specCalls.add(argument);
+		}
+	}
+	const issues: string[] = [];
+	const visit = (node: ts.Node): void => {
+		if (
+			ts.isCallExpression(node) &&
+			ts.isIdentifier(node.expression) &&
+			file.bindings.has(node.expression.text) &&
+			!SAFE_LOADER_CALLEES.has(node.expression.text) &&
+			!SAFE_SEARCH_PARSER.test(node.expression.text) &&
+			!specCalls.has(node)
+		) {
+			issues.push(
+				`${file.relativePath}:${lineOf(file, node)}: loader body calls imported '${node.expression.text}' — an opaque helper that could warm query keys the guard cannot see; only preloadRouteQueries, queryClient warming methods and the listed pure helpers are analysable`,
+			);
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(body);
+	return issues;
 };
 
 const collectPreloadKeys = async (
@@ -1361,8 +1554,10 @@ const collectPreloadKeys = async (
 			continue;
 		}
 		argument = unwrapParentheses(argument);
-		// `auditLogsQueries(...).spec`: the spec function still builds the keys.
+		// `auditLogsQueries(...).spec`: only the returned `spec` value is read.
+		let pick: string | undefined;
 		if (ts.isPropertyAccessExpression(argument)) {
+			pick = argument.name.text;
 			argument = unwrapParentheses(argument.expression);
 		}
 		if (
@@ -1409,8 +1604,9 @@ const collectPreloadKeys = async (
 		const entries = await collectSpecEntries(
 			specFile,
 			declaration,
+			pick,
 			0,
-			new Set([`${specFile.absolutePath}#${name}`]),
+			new Set([`${specFile.absolutePath}#${name}#${pick ?? ''}`]),
 		);
 		identities.push(...entries.identities);
 		errors.push(...entries.errors);
@@ -1435,6 +1631,8 @@ export interface GuardResult {
 	loaderKeys: number;
 	/** `file:line` of every `preload-exempt` marker a visited call consumed. */
 	exemptions: string[];
+	/** The route-keyed closed-drawer skips in force (`CLOSED_DRAWER_FILES`). */
+	closedDrawer: string[];
 }
 
 const routeIdOf = (routeCall: ts.CallExpression): string | undefined => {
@@ -1472,6 +1670,7 @@ const checkRoute = async (
 			);
 			loaderKeys.push(...legacy.identities, ...preload.identities);
 			violations.push(
+				...collectOpaqueLoaderCalls(resolved.body, resolved.definitionFile),
 				...legacy.errors.map((error) => `${routeFile.relativePath}: ${error}`),
 				...preload.errors,
 			);
@@ -1496,12 +1695,25 @@ const checkRoute = async (
 		}
 	}
 
-	const closedDrawerFiles = new Set(CLOSED_DRAWER_FILES.get(routeId) ?? []);
-	for (const relative of closedDrawerFiles) {
-		if (!pageFiles.some((file) => file.relativePath === relative)) {
+	const pageFileByPath = new Map(
+		pageFiles.map((file) => [file.relativePath, file]),
+	);
+	const closedDrawer = new Map<string, ReadonlySet<string>>();
+	for (const { file: relative, bindings } of CLOSED_DRAWER_FILES.get(routeId) ??
+		[]) {
+		const pageFile = pageFileByPath.get(relative);
+		const missing = pageFile
+			? bindings.filter((name) => !pageFile.bindings.has(name))
+			: bindings;
+		if (!pageFile || missing.length > 0) {
 			violations.push(
-				`${routeFile.relativePath}: closed-drawer rule for '${relative}' is stale — the route's page graph no longer reaches it`,
+				`${routeFile.relativePath}: closed-drawer rule for '${relative}' (${missing.join(', ')}) is stale — the route's page graph no longer reaches it`,
 			);
+			continue;
+		}
+		closedDrawer.set(relative, new Set(bindings));
+		for (const name of bindings) {
+			state.closedDrawer.add(`${routeId} ${relative}#${name}`);
 		}
 	}
 
@@ -1517,7 +1729,7 @@ const checkRoute = async (
 	);
 	const { keys: pageKeys, errors } = await collectPageKeys(
 		pageFiles,
-		closedDrawerFiles,
+		closedDrawer,
 		pinnedModules,
 		state,
 	);
@@ -1552,6 +1764,7 @@ export const scanRoutes = async (
 		markers: new Map(),
 		consumed: new Set(),
 		inventory: new Set(),
+		closedDrawer: new Set(),
 		violations,
 	};
 	const visitedPageFiles = new Map<string, ParsedFile>();
@@ -1612,5 +1825,6 @@ export const scanRoutes = async (
 		routes,
 		loaderKeys: allLoaderKeys.size,
 		exemptions: [...state.inventory].sort(),
+		closedDrawer: [...state.closedDrawer].sort(),
 	};
 };
