@@ -838,7 +838,7 @@ export const toStaffTenantRoleMemberAssignmentMap = (
 	return map;
 };
 
-const staffTenantRolesQueryOptions = buildStaffQueryOptions<
+export const staffTenantRolesQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantRolesAsStaffResult,
 	StaffTenantRolesQueryVariables
@@ -961,7 +961,7 @@ export const staffTenantRoleDetailsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffTenantRolePermissionKeysQueryOptions = buildStaffQueryOptions<
+export const staffTenantRolePermissionKeysQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantRolePermissionsAsStaffResult,
 	StaffTenantRolePermissionKeysQueryVariables
@@ -1036,7 +1036,7 @@ export const staffTenantPermissionCatalogQueryOptions = buildStaffQueryOptions<
  * (page/limit), not cursor — mirrors `FindStaffRoleUsers` (the
  * staff-roles precedent this endpoint was intentionally modeled on).
  */
-const staffTenantRoleMembersQueryOptions = buildStaffQueryOptions<
+export const staffTenantRoleMembersQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantRoleUsersAsStaffResult,
 	StaffTenantRoleMembersQueryVariables

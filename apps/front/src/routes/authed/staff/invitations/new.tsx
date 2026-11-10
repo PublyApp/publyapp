@@ -23,12 +23,16 @@ import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { Input } from '~/components/ui/input';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	invalidateStaffInvitations,
 	useBulkCreateStaffInvitationsMutation,
 	type StaffInvitationInput,
 } from '~/lib/query/staff-invitations';
-import { useStaffRolesQuery } from '~/lib/query/staff-roles';
+import {
+	staffRolesQueryOptions,
+	useStaffRolesQuery,
+} from '~/lib/query/staff-roles';
 
 import {
 	getFailureMessage,
@@ -125,6 +129,15 @@ const InvitationRoleField = ({
 	);
 };
 
+/** The page's role picker list, declared once: the loader warms the unfiltered
+ * first page and the page adds the search the user types on top of it. */
+const invitationNewQueries = () => ({
+	roles: {
+		options: staffRolesQueryOptions,
+		variables: { limit: 20, sortId: 'name', sortOrder: 'asc' as const },
+	},
+});
+
 const NewStaffInvitationsRoute = () => {
 	const navigate = Route.useNavigate();
 	const { t, i18n } = useTranslation(['staff-invitations', 'common']);
@@ -171,10 +184,9 @@ const NewStaffInvitationsRoute = () => {
 		name: 'invitations',
 	}) as StaffInvitationInput[] | undefined;
 
+	const queries = invitationNewQueries();
 	const rolesQuery = useStaffRolesQuery({
-		limit: 20,
-		sortId: 'name',
-		sortOrder: 'asc',
+		...queries.roles.variables,
 		q: deferredRoleSearch || undefined,
 	});
 	const queryClient = useQueryClient();
@@ -431,6 +443,9 @@ export const Route = createFileRoute('/_authed-layout/staff/invitations/new')({
 			},
 			{ kind: 'label', labelKey: 'common:new-invitation' },
 		],
+	},
+	loader: ({ context }) => {
+		preloadRouteQueries(context.queryClient, invitationNewQueries());
 	},
 	component: NewStaffInvitationsRoute,
 });

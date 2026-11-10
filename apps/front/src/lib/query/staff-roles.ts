@@ -492,7 +492,7 @@ export const staffRoleDetailsQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffRolePermissionKeysQueryOptions = buildStaffQueryOptions<
+export const staffRolePermissionKeysQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindStaffRolePermissionsResult,
 	StaffRolePermissionKeysQueryVariables
@@ -514,7 +514,7 @@ const staffRolePermissionKeysQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffPermissionCatalogQueryOptions = buildStaffQueryOptions<
+export const staffPermissionCatalogQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	StaffGetResponse,
 	StaffPermissionCatalogQueryVariables

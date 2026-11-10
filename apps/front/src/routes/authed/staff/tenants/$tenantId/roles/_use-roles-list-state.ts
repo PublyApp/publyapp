@@ -18,17 +18,18 @@ import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
+import {
+	ROLES_DEFAULT_SIZE,
+	ROLES_DEFAULT_SORT,
+	tenantRolesListQueries,
+} from './_queries';
 import { makeTenantRoleColumns } from './_role-columns';
 import {
 	parseStaffTenantRolesViewMode,
-	toStaffTenantRoleTypeFilterString,
 	type StaffTenantRolesSearchParams,
 	type StaffTenantRolesViewMode,
 	type StaffTenantRoleTypeFilter,
 } from './_roles-search-params';
-
-const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
-const DEFAULT_SIZE = 100;
 
 type UseStaffTenantRolesListArgs = {
 	tenantId: string;
@@ -180,23 +181,19 @@ export const useStaffTenantRolesList = ({
 	const controller = useTableController({
 		search,
 		onSearchChange,
-		defaultSort: DEFAULT_SORT,
-		defaultSize: DEFAULT_SIZE,
+		defaultSort: ROLES_DEFAULT_SORT,
+		defaultSize: ROLES_DEFAULT_SIZE,
 		cursorResetKey: `${tenantId}:${search.is_full_access ?? ''}`,
 	});
-	const detailsQuery = useStaffTenantDetailsQuery(
-		{ tenantId },
-		{ enabled: tenantId.length > 0 },
-	);
+	const queries = tenantRolesListQueries({ tenantId, search });
+	const detailsQuery = useStaffTenantDetailsQuery(queries.details.variables, {
+		enabled: tenantId.length > 0,
+	});
 	const rolesQuery = useStaffTenantRolesQuery(
 		{
-			tenantId,
-			q: controller.apiVariables.q,
-			sortId: controller.apiVariables.sortId,
-			sortOrder: controller.apiVariables.sortOrder,
+			...queries.roles.variables,
+			// The cursor lives in React state: the loader warms the first page.
 			cursor: controller.apiVariables.cursor,
-			size: controller.apiVariables.size,
-			isFullAccess: toStaffTenantRoleTypeFilterString(search.is_full_access),
 		},
 		{
 			enabled: tenantId.length > 0,

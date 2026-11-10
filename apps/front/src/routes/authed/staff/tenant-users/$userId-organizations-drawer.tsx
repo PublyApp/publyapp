@@ -65,6 +65,7 @@ export const LinkCompaniesDrawerHost = ({
 	// shared `DrawerForm` submit wrapper, so an empty field map is enough.
 	const methods = useForm<Record<string, never>>();
 
+	// preload-exempt: search-as-you-type picker inside a click-opened drawer
 	// The picker only fetches while open — an idle drawer never hits /staff/tenants.
 	const pickerQuery = useGlobalTenantUsersPickerQuery(
 		{ q: search || undefined, size: PICKER_PAGE_SIZE },

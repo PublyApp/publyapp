@@ -2,10 +2,23 @@ import { IconActivity } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { useStaffAuditLogsQuery } from '~/lib/query/staff-audit-logs';
-import { useStaffDashboardSeriesQuery } from '~/lib/query/staff-dashboard';
-import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
-import { useStaffTenantsQuery } from '~/lib/query/staff-tenants';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
+import {
+	staffAuditLogsQueryOptions,
+	useStaffAuditLogsQuery,
+} from '~/lib/query/staff-audit-logs';
+import {
+	staffDashboardSeriesQueryOptions,
+	useStaffDashboardSeriesQuery,
+} from '~/lib/query/staff-dashboard';
+import {
+	staffInvitationsQueryOptions,
+	useStaffInvitationsQuery,
+} from '~/lib/query/staff-invitations';
+import {
+	staffTenantsQueryOptions,
+	useStaffTenantsQuery,
+} from '~/lib/query/staff-tenants';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
@@ -34,6 +47,80 @@ import { OverviewLists } from './_overview-lists';
 /** The five-row glance the two list cards show (the prototype's « cinq »). */
 const CARD_ROW_COUNT = 5;
 
+/** The overview's URL state: both filters are optional, so a bare
+ * `/staff/dashboard` link stays valid. */
+type OverviewSearch = {
+	period?: DashboardPeriod;
+	scope?: OrganisationScope;
+};
+
+/** The nine queries the overview renders, declared once: the loader warms them
+ * and the page reads the same variables (so the window the loader fetched is
+ * the window the page observes). */
+const dashboardOverviewQueries = ({ search }: { search: OverviewSearch }) => {
+	const period: DashboardPeriod = search.period ?? '30d';
+	const scope: OrganisationScope = search.scope ?? 'all';
+	// One period, one window: every card of this screen — the audit-list
+	// facets, the KPI, its sparkline and the delta — reads these exact days,
+	// today included (B MA-1).
+	const { startDate, endDate } = dashboardWindow(period);
+
+	return {
+		// The counts and the status donut describe the whole platform: the
+		// « Organisations » filter must not reach them, or « Actives » would read
+		// 0 as soon as « Suspendues uniquement » is picked (B3).
+		counts: { options: staffTenantsQueryOptions, variables: { size: 1 } },
+		// Only « Dernières organisations » follows the filter.
+		latestTenants: {
+			options: staffTenantsQueryOptions,
+			variables: {
+				size: CARD_ROW_COUNT,
+				sortId: 'created_at',
+				sortOrder: 'desc' as const,
+				status: scope === 'all' ? undefined : scope,
+			},
+		},
+		pendingInvitations: {
+			options: staffInvitationsQueryOptions,
+			variables: { size: CARD_ROW_COUNT, status: 'pending' },
+		},
+		// The outcome facets must come from an UNFILTERED invitations query: the
+		// API computes them over the status-filtered set, so reusing the pending
+		// one would report accepted/expired/revoked as structural zeros (B2).
+		invitationOutcomes: {
+			options: staffInvitationsQueryOptions,
+			variables: { size: 1 },
+		},
+		audit: {
+			options: staffAuditLogsQueryOptions,
+			variables: { size: 1, startDate, endDate },
+		},
+		// « Croissance des organisations » is the active-organisations curve: the
+		// same window as every other card, from the lifecycle history (#2349).
+		growth: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: { metric: 'active_tenants' as const, startDate, endDate },
+		},
+		// The KPI delta and its sparkline need the same window twice: the current
+		// one and the one before it.
+		series: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: { metric: 'audit_events' as const, startDate, endDate },
+		},
+		previousSeries: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: { metric: 'audit_events' as const, ...previousPeriod(period) },
+		},
+		// The heatmap is the platform's last year, not the page's period: the
+		// prototype fills the card with as many weeks as the API allows (366
+		// days).
+		heatmap: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: { metric: 'audit_events' as const, ...heatmapWindow() },
+		},
+	};
+};
+
 const HEATMAP_SCALE = [
 	'var(--publy-chart-empty)',
 	'var(--publy-chart-seq-1)',
@@ -49,10 +136,7 @@ const Overview = () => {
 	const navigate = Route.useNavigate();
 	const period: DashboardPeriod = search.period ?? '30d';
 	const scope: OrganisationScope = search.scope ?? 'all';
-	// One period, one window: every card of this screen — the audit-list
-	// facets, the KPI, its sparkline and the delta — reads these exact days,
-	// today included (B MA-1).
-	const { startDate, endDate } = dashboardWindow(period);
+	const queries = dashboardOverviewQueries({ search });
 
 	const onSearchChange = (next: {
 		period?: DashboardPeriod;
@@ -61,55 +145,23 @@ const Overview = () => {
 		void navigate({ search: { ...search, ...next }, replace: true });
 	};
 
-	// The counts and the status donut describe the whole platform: the
-	// « Organisations » filter must not reach them, or « Actives » would read 0
-	// as soon as « Suspendues uniquement » is picked (B3).
-	const countsQuery = useStaffTenantsQuery({ size: 1 });
-	// Only « Dernières organisations » follows the filter.
-	const latestTenantsQuery = useStaffTenantsQuery({
-		size: CARD_ROW_COUNT,
-		sortId: 'created_at',
-		sortOrder: 'desc',
-		status: scope === 'all' ? undefined : scope,
-	});
-	const pendingInvitationsQuery = useStaffInvitationsQuery({
-		size: CARD_ROW_COUNT,
-		status: 'pending',
-	});
-	// The outcome facets must come from an UNFILTERED invitations query: the
-	// API computes them over the status-filtered set, so reusing the pending
-	// one would report accepted/expired/revoked as structural zeros (B2).
-	const invitationOutcomesQuery = useStaffInvitationsQuery({ size: 1 });
-	const auditQuery = useStaffAuditLogsQuery({ size: 1, startDate, endDate });
-
-	// « Croissance des organisations » is the active-organisations curve: the
-	// same window as every other card, from the lifecycle history (#2349).
-	const growthQuery = useStaffDashboardSeriesQuery({
-		metric: 'active_tenants',
-		startDate,
-		endDate,
-	});
-
-	// The KPI delta and its sparkline need the same window twice: the current
-	// one and the one before it.
-	const currentWindow = {
-		metric: 'audit_events' as const,
-		startDate,
-		endDate,
-	};
-	const previousWindow = {
-		metric: 'audit_events' as const,
-		...previousPeriod(period),
-	};
-	const seriesQuery = useStaffDashboardSeriesQuery(currentWindow);
-	const previousSeriesQuery = useStaffDashboardSeriesQuery(previousWindow);
-
-	// The heatmap is the platform's last year, not the page's period: the
-	// prototype fills the card with as many weeks as the API allows (366 days).
-	const heatmapQuery = useStaffDashboardSeriesQuery({
-		metric: 'audit_events',
-		...heatmapWindow(),
-	});
+	const countsQuery = useStaffTenantsQuery(queries.counts.variables);
+	const latestTenantsQuery = useStaffTenantsQuery(
+		queries.latestTenants.variables,
+	);
+	const pendingInvitationsQuery = useStaffInvitationsQuery(
+		queries.pendingInvitations.variables,
+	);
+	const invitationOutcomesQuery = useStaffInvitationsQuery(
+		queries.invitationOutcomes.variables,
+	);
+	const auditQuery = useStaffAuditLogsQuery(queries.audit.variables);
+	const growthQuery = useStaffDashboardSeriesQuery(queries.growth.variables);
+	const seriesQuery = useStaffDashboardSeriesQuery(queries.series.variables);
+	const previousSeriesQuery = useStaffDashboardSeriesQuery(
+		queries.previousSeries.variables,
+	);
+	const heatmapQuery = useStaffDashboardSeriesQuery(queries.heatmap.variables);
 
 	for (const queryError of [
 		countsQuery.error,
@@ -252,18 +304,18 @@ const Overview = () => {
 	);
 };
 
-/** The overview's URL state: both filters are optional, so a bare
- * `/staff/dashboard` link stays valid. */
-type OverviewSearch = {
-	period?: DashboardPeriod;
-	scope?: OrganisationScope;
-};
-
 export const Route = createFileRoute('/_authed-layout/staff/dashboard/')({
 	validateSearch: (search: Record<string, unknown>): OverviewSearch => ({
 		period: parseDashboardPeriod(search.period),
 		scope: parseOrganisationScope(search.scope),
 	}),
 	staticData: { crumbs: () => [{ kind: 'label', labelKey: 'nav-dashboard' }] },
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			dashboardOverviewQueries({ search: deps }),
+		);
+	},
 	component: Overview,
 });

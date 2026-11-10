@@ -12,12 +12,17 @@ import {
 	DetailGrid,
 	DetailMain,
 } from '~/components/ui/detail-layout';
-import { useStaffTenantUsersQuery } from '~/lib/query/staff-tenant-users';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
+import {
+	staffTenantUsersQueryOptions,
+	useStaffTenantUsersQuery,
+} from '~/lib/query/staff-tenant-users';
 import {
 	invalidateStaffTenants,
 	selectStaffTenantCrumbName,
 	STAFF_TENANT_DETAILS_QUERY_KEY,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
 	toStaffTenantDetails,
 	useDeleteStaffTenantMutation,
 	useReactivateStaffTenantMutation,
@@ -27,6 +32,7 @@ import {
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
+import { tenantUsersPreviewVariables } from './$tenantId/_queries';
 import { TenantDangerZone } from './$tenantId/_tenant-danger-zone';
 import {
 	TenantDetailsError,
@@ -47,6 +53,29 @@ const TENANT_STATUS_SUSPENDED = 'Suspended';
 
 type PendingLifecycleAction = 'suspend' | 'reactivate' | 'delete' | null;
 
+/** The page's queries, declared once: the loader warms them and the page reads
+ * the same variables. `owners` feeds the stat row and owners card, `users` the
+ * five-row preview card. */
+const tenantDetailsQueries = ({ tenantId }: { tenantId: string }) => ({
+	details: {
+		options: staffTenantDetailsQueryOptions,
+		variables: { tenantId },
+	},
+	owners: {
+		options: staffTenantUsersQueryOptions,
+		variables: {
+			tenantId,
+			size: 50,
+			sortId: 'created_at',
+			sortOrder: 'desc' as const,
+		},
+	},
+	users: {
+		options: staffTenantUsersQueryOptions,
+		variables: tenantUsersPreviewVariables(tenantId),
+	},
+});
+
 const StaffTenantDetailsPage = () => {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
@@ -60,19 +89,13 @@ const StaffTenantDetailsPage = () => {
 	const reactivateMutation = useReactivateStaffTenantMutation();
 	const deleteMutation = useDeleteStaffTenantMutation();
 
-	const query = useStaffTenantDetailsQuery(
-		{ tenantId },
-		{ enabled: tenantId.length > 0 },
-	);
-	const ownersQuery = useStaffTenantUsersQuery(
-		{
-			tenantId,
-			size: 50,
-			sortId: 'created_at',
-			sortOrder: 'desc',
-		},
-		{ enabled: tenantId.length > 0 },
-	);
+	const queries = tenantDetailsQueries({ tenantId });
+	const query = useStaffTenantDetailsQuery(queries.details.variables, {
+		enabled: tenantId.length > 0,
+	});
+	const ownersQuery = useStaffTenantUsersQuery(queries.owners.variables, {
+		enabled: tenantId.length > 0,
+	});
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
@@ -265,6 +288,12 @@ export const Route = createFileRoute('/_authed-layout/staff/tenants/$tenantId')(
 					select: selectStaffTenantCrumbName,
 				},
 			],
+		},
+		loader: ({ context, params }) => {
+			preloadRouteQueries(
+				context.queryClient,
+				tenantDetailsQueries({ tenantId: params.tenantId }),
+			);
 		},
 		component: StaffTenantDetailsPage,
 	},

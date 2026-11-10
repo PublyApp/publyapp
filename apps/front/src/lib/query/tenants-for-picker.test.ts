@@ -1,9 +1,16 @@
-import { describe, expect, test } from 'vitest';
+/**
+ * @vitest-environment jsdom
+ */
+import { QueryClient } from '@tanstack/react-query';
+import { beforeEach, describe, expect, test } from 'vitest';
+import { SELECTED_TENANT_STORAGE_KEY } from '~/lib/session/selected-tenant-storage';
 
 import {
 	isActiveTenantForPicker,
 	isSuspendedTenantForPicker,
 	resolveWorkspaceTenant,
+	resolveWorkspaceTenantIdFromCache,
+	tenantsForPickerQueryOptions,
 	toTenantsForPickerData,
 	type TenantsForPickerData,
 } from './tenants-for-picker';
@@ -124,5 +131,45 @@ describe('resolveWorkspaceTenant', () => {
 
 	test('stays unresolved when multiple actives and no valid selection', () => {
 		expect(resolveWorkspaceTenant(activeData, null)).toBeUndefined();
+	});
+});
+
+describe('resolveWorkspaceTenantIdFromCache', () => {
+	const buildQueryClient = (): QueryClient =>
+		new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+	beforeEach(() => {
+		window.localStorage.clear();
+	});
+
+	test('returns null on a cold cache', () => {
+		expect(resolveWorkspaceTenantIdFromCache(buildQueryClient())).toBeNull();
+	});
+
+	test('returns the persisted selection id when the picker is cached', () => {
+		const queryClient = buildQueryClient();
+		queryClient.setQueryData(
+			tenantsForPickerQueryOptions.queryKey({}),
+			activeData,
+		);
+		window.localStorage.setItem(SELECTED_TENANT_STORAGE_KEY, 't-2');
+
+		expect(resolveWorkspaceTenantIdFromCache(queryClient)).toBe('t-2');
+	});
+
+	test('returns the single active tenant when nothing is persisted', () => {
+		const queryClient = buildQueryClient();
+		queryClient.setQueryData(tenantsForPickerQueryOptions.queryKey({}), {
+			tenants: [
+				{ id: 't-1', name: 'Acme', code: 'acme', status: 'Active' },
+				{ id: 't-3', name: 'Global', code: 'gl', status: 'Suspended' },
+			],
+			activeCount: 1,
+			totalCount: 2,
+			hasDeletedTenants: false,
+			hasSuspendedTenants: true,
+		} satisfies TenantsForPickerData);
+
+		expect(resolveWorkspaceTenantIdFromCache(queryClient)).toBe('t-1');
 	});
 });

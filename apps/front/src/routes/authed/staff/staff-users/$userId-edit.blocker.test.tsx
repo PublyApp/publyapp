@@ -79,6 +79,16 @@ vi.mock('~/lib/query/staff-users', () => {
 	let assignedRoles: ReturnType<typeof settledQuery> | null = null;
 
 	return {
+		// The route's query spec reads the factory object; this suite never runs
+		// the loader, so the stub is never called.
+		staffUserDetailsQueryOptions: {
+			queryKey: () => ['staffUserDetailsQueryOptions'],
+			fetcher: () => Promise.resolve({}),
+		},
+		staffUserRolesQueryOptions: {
+			queryKey: () => ['staffUserRolesQueryOptions'],
+			fetcher: () => Promise.resolve({}),
+		},
 		STAFF_USERS_QUERY_KEY: ['staff-users'],
 		STAFF_USER_DETAILS_QUERY_KEY: ['staff-users', 'detail'],
 		STAFF_USER_ROLES_QUERY_KEY: ['staff-users', 'detail', 'roles'],
@@ -111,6 +121,12 @@ vi.mock('~/lib/query/staff-roles', () => {
 	let catalogue: ReturnType<typeof settledQuery> | null = null;
 
 	return {
+		// The route's query spec reads the factory object; this suite never runs
+		// the loader, so the stub is never called.
+		staffRolesQueryOptions: {
+			queryKey: () => ['staffRolesQueryOptions'],
+			fetcher: () => Promise.resolve({}),
+		},
 		useStaffRolesQuery: () =>
 			(catalogue ??= settledQuery({
 				data: [

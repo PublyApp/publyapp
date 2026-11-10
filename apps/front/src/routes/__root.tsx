@@ -601,6 +601,7 @@ export const RoutedShell = ({ children }: { children: React.ReactNode }) => {
 	// cookie (PR #997: the 404 stays genuine).
 	const surfaceRedirectCodeQueryKey =
 		getSurfaceRedirectCodeQueryKey(sessionSurface);
+	// preload-exempt: root session gate, a hover must never run session validation (PR #997)
 	const surfaceSessionState = useQuery<string | null>({
 		queryKey: surfaceRedirectCodeQueryKey,
 		queryFn: async ({ signal }): Promise<string | null> => {

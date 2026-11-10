@@ -1,5 +1,5 @@
 import { createUntypedString } from '@microsoft/kiota-abstractions';
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import {
@@ -166,6 +166,21 @@ export const buildUpdateTenantSettingsGeneralBody = (
 	return body;
 };
 
+export const tenantSettingsGeneralQueryOptions = {
+	queryKey: ({ tenantId }: { tenantId: string | null }): QueryKey => [
+		'tenant',
+		...TENANT_SETTINGS_GENERAL_QUERY_KEY,
+		tenantId,
+	],
+	fetcher: (variables: { tenantId: string | null }) => {
+		if (!variables.tenantId) {
+			throw new Error('tenantId is required for tenant settings general query');
+		}
+
+		return fetchTenantSettingsGeneral(variables.tenantId);
+	},
+};
+
 /**
  * The tenant's general settings. `tenantId` comes from the resolved
  * workspace tenant (see `useResolvedWorkspaceTenantId`); the hook is
@@ -173,16 +188,8 @@ export const buildUpdateTenantSettingsGeneralBody = (
  */
 export const useTenantSettingsGeneralQuery = (tenantId: string | null) =>
 	useQuery({
-		queryKey: ['tenant', ...TENANT_SETTINGS_GENERAL_QUERY_KEY, tenantId],
-		queryFn: () => {
-			if (!tenantId) {
-				throw new Error(
-					'tenantId is required for tenant settings general query',
-				);
-			}
-
-			return fetchTenantSettingsGeneral(tenantId);
-		},
+		queryKey: tenantSettingsGeneralQueryOptions.queryKey({ tenantId }),
+		queryFn: () => tenantSettingsGeneralQueryOptions.fetcher({ tenantId }),
 		enabled: tenantId !== null,
 	});
 

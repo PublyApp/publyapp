@@ -7,15 +7,21 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { useOffsetPageClamp } from '~/components/table/offset-pagination';
 import { useRowSelection } from '~/components/table/use-row-selection';
-import { useTableController } from '~/components/table/use-table-controller';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import {
+	buildTableApiVariables,
+	useTableController,
+} from '~/components/table/use-table-controller';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
+import {
+	staffRoleUsersQueryOptions,
 	toStaffRoleUserRows,
 	useStaffRoleUsersQuery,
 } from '~/lib/query/staff-role-users';
 import {
 	selectStaffRoleCrumbName,
 	staffRoleCrumbQuery,
+	staffRoleDetailsQueryOptions,
 	toStaffRoleDetails,
 	useStaffRoleDetailsQuery,
 } from '~/lib/query/staff-roles';
@@ -45,6 +51,34 @@ const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DASH = '—';
 const DEFAULT_SIZE = 100;
 
+/** The page's two queries, declared once: the loader warms them and the page
+ * reads the same variables. The page index lives in React state, so the loader
+ * warms the first page (decision 4). */
+const staffRoleUsersQueries = ({
+	roleId,
+	search,
+}: {
+	roleId: string;
+	search: TableSearchParams;
+}) => {
+	const { q, sortId, sortOrder, size } = buildTableApiVariables(
+		search,
+		DEFAULT_SORT,
+		DEFAULT_SIZE,
+	);
+
+	return {
+		roleDetails: {
+			options: staffRoleDetailsQueryOptions,
+			variables: { roleId },
+		},
+		users: {
+			options: staffRoleUsersQueryOptions,
+			variables: { roleId, q, sortId, sortOrder, pageIndex: 0, size },
+		},
+	};
+};
+
 const StaffRoleUsersPage = () => {
 	const navigate = Route.useNavigate();
 	const { roleId } = Route.useParams();
@@ -67,15 +101,13 @@ const StaffRoleUsersPage = () => {
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
 	});
-	const detailQuery = useStaffRoleDetailsQuery({ roleId });
+	const queries = staffRoleUsersQueries({ roleId, search });
+	const detailQuery = useStaffRoleDetailsQuery(queries.roleDetails.variables);
 	const usersQuery = useStaffRoleUsersQuery(
 		{
-			roleId,
-			q: controller.search.committed,
-			sortId: controller.sort.id,
-			sortOrder: controller.sort.order,
+			...queries.users.variables,
+			// The page index lives in React state: the loader warms page 0.
 			pageIndex,
-			size: controller.size,
 		},
 		{ enabled: roleId.length > 0 },
 	);
@@ -320,5 +352,15 @@ export const Route = createFileRoute(
 	},
 	validateSearch: (search) =>
 		validateTableSearchParams(search as TableSearchParamInput),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			staffRoleUsersQueries({
+				roleId: params.roleId,
+				search: parseTableSearchParams(deps as TableSearchParamInput),
+			}),
+		);
+	},
 	component: StaffRoleUsersPage,
 });

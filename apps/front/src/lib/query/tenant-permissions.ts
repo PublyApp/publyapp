@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { QueryKey } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 
 /**
@@ -76,6 +77,17 @@ const fetchTenantPermissions = async (
 	return result ?? {};
 };
 
+export const tenantPermissionsQueryOptions = {
+	queryKey: ({ tenantId }: { tenantId: string | null }): QueryKey => [
+		'tenant',
+		...TENANT_PERMISSIONS_QUERY_KEY,
+		tenantId,
+	],
+	fetcher: (variables: { tenantId: string | null }) =>
+		fetchTenantPermissions(variables.tenantId as string),
+	staleTime: Infinity,
+};
+
 /** Session-stable (staleTime Infinity, refetchOnWindowFocus false — same
  * contract as `useCurrentUserQuery`, auth.ts): permissions change only via
  * rare role-admin actions outside the composer flow.
@@ -88,10 +100,10 @@ export const useTenantPermissions = (
 	tenantId: string | null,
 ): TenantPermissions => {
 	const query = useQuery({
-		queryKey: ['tenant', ...TENANT_PERMISSIONS_QUERY_KEY, tenantId],
-		queryFn: () => fetchTenantPermissions(tenantId as string),
+		queryKey: tenantPermissionsQueryOptions.queryKey({ tenantId }),
+		queryFn: () => tenantPermissionsQueryOptions.fetcher({ tenantId }),
 		enabled: tenantId !== null,
-		staleTime: Infinity,
+		staleTime: tenantPermissionsQueryOptions.staleTime,
 		refetchOnWindowFocus: false,
 	});
 

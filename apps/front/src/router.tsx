@@ -70,7 +70,15 @@ type MutationHandlerSource = {
 	meta?: MutationHandlerMeta;
 };
 
-type AuthedErrorBackstopSource = Pick<MutationHandlerSource, 'meta'>;
+/**
+ * Backstop source shape shared by `Query`/`Mutation` — both expose a `.meta`
+ * getter that mirrors their options' `meta`. `getObserversCount` exists on
+ * `Query` only; a `Mutation` has no observers.
+ */
+type AuthedErrorBackstopSource = {
+	meta?: MutationHandlerMeta & { routePreload?: boolean };
+	getObserversCount?: () => number;
+};
 
 const displayNonSilentMutationIntent = (
 	intent: Parameters<typeof displayMutationFeedback>[0],
@@ -107,6 +115,22 @@ export const handleAuthedQueryError = (
 	source?: AuthedErrorBackstopSource,
 ): void => {
 	if (source?.meta?.skipAuthedErrorBackstop) {
+		return;
+	}
+
+	// A route preload is speculative (spec §8): a 401 it earns while NOTHING
+	// renders the query must not clear the session. The click still does. The
+	// marker alone cannot decide: a click that lands while the preload is in
+	// flight reuses the preload's fetch (`Query.fetch` returns the retryer's
+	// promise without replacing `options`), so `Query.meta` still carries the
+	// marker when the 401 lands. The observer count is the real signal — the
+	// page's `useQuery` subscribes to the same `Query`. If the response beats
+	// that mount, the query settles in `error` with no data and
+	// `shouldLoadOnMount` refetches with the page's own marker-free options.
+	if (
+		source?.meta?.routePreload === true &&
+		source.getObserversCount?.() === 0
+	) {
 		return;
 	}
 
@@ -178,6 +202,10 @@ export const getRouter = () => {
 		routeTree,
 		context: { queryClient },
 		defaultPreload: 'intent',
+		// Freshness belongs to TanStack Query (spec §4.2.4): a warm query cache must
+		// not be re-fetched just because the router's preload cache is stale, and a
+		// stale query must not be hidden by a router-side cache.
+		defaultPreloadStaleTime: 0,
 		// TanStack Start reads `ssr.nonce` once, while it creates the router
 		// (before the request handler runs), to stamp its hydration/stream
 		// scripts. The per-request nonce must therefore exist here; server.ts

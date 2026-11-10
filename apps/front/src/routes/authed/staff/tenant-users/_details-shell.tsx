@@ -24,6 +24,7 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
+import { globalTenantUserQueries } from './_queries';
 import { formatGlobalTenantUserStatusLabel } from './_tenant-user-status-label';
 
 /**
@@ -93,8 +94,9 @@ export const TenantUserDetailsShell = ({
 	children: ReactNode;
 }) => {
 	const { t } = useTranslation('common');
+	const queries = globalTenantUserQueries({ userId });
 	const detailsQuery = useGlobalTenantUserDetailsQuery(
-		{ userId },
+		queries.details.variables,
 		{ enabled: userId.length > 0 },
 	);
 

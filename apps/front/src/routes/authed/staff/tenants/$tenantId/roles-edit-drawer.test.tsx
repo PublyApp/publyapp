@@ -93,6 +93,16 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-roles', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub stays inert.
+	staffTenantRolesQueryOptions: {
+		queryKey: () => ['staffTenantRolesQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
+	staffTenantPermissionCatalogQueryOptions: {
+		queryKey: () => ['staffTenantPermissionCatalogQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	toStaffTenantRoleRows: () => mocks.rows,
 	useStaffTenantRolesQuery: () => ({
 		data: { data: mocks.rows, nextCursor: null },
@@ -134,6 +144,12 @@ vi.mock('~/lib/query/staff-tenant-roles', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub stays inert.
+	staffTenantDetailsQueryOptions: {
+		queryKey: () => ['staffTenantDetailsQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 	toStaffTenantDetails: () => ({
 		id: TENANT_ID,

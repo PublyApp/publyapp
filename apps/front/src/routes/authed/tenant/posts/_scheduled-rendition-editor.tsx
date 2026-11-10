@@ -40,6 +40,7 @@ export const ScheduledRenditionEditor = ({
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
 	const translateResponseMessage = useResponseMessageTranslator();
+	// preload-exempt: fetches the rendition of the row selected on the page
 	const query = useTenantPublicationRenditionQuery({
 		publicationId: row.publicationId,
 		tenantId,

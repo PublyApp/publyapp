@@ -14,6 +14,7 @@ import type {
 	FindDeadLettersResponse,
 	FindJobQueueItemsResponse,
 	FindSystemJobDefinitionsResponse,
+	GetScopeAuthDataTenant,
 	JobQueueItemDetail,
 	JobQueueListItem,
 	RequeueDeadLetterForStaffBody,
@@ -148,6 +149,10 @@ export const STAFF_DEAD_LETTERS_QUERY_KEY = [
 export const STAFF_SYSTEM_JOBS_QUERY_KEY = [
 	...STAFF_JOBS_QUERY_KEY,
 	'system-jobs',
+];
+const STAFF_JOB_PERMISSIONS_QUERY_KEY = [
+	...STAFF_JOBS_QUERY_KEY,
+	'permissions',
 ];
 
 const STAFF_JOB_QUEUE_DETAILS_QUERY_KEY = [
@@ -401,6 +406,28 @@ export const staffSystemJobDefinitionDetailsQueryOptions =
 		},
 		{ clientAccessor: getClientManager() },
 	);
+
+export const staffJobPermissionsQueryOptions = buildStaffQueryOptions<
+	ApiClient,
+	GetScopeAuthDataTenant,
+	Record<string, never>
+>(
+	{
+		queryKeyFn: () => [...STAFF_JOB_PERMISSIONS_QUERY_KEY],
+		fetcher: async (client) => {
+			const result = await client.auth.scopeAuthData.get({
+				queryParameters: { scope: 'staff' },
+			});
+
+			if (!result) {
+				throw new Error('scope auth data result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
 
 export const requeueDeadLetterMutationOptions = buildStaffMutationOptions<
 	ApiClient,

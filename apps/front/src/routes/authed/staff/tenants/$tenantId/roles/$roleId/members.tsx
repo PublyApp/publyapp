@@ -1,8 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 
 import { RoleMembersTab } from '../_role-members-tab';
 import { staffTenantRoleCrumbsBase } from './_crumbs';
 import { useStaffTenantRoleDetailsContext } from './_details-context';
+import { roleMembersQueries } from './_queries';
 
 const StaffTenantRoleMembersSection = () => {
 	const { tenantId, roleId, role, onSessionExpired } =
@@ -27,6 +29,15 @@ export const Route = createFileRoute(
 			...staffTenantRoleCrumbsBase(params),
 			{ kind: 'label', labelKey: 'common:members' },
 		],
+	},
+	loader: ({ context, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			roleMembersQueries({
+				tenantId: params.tenantId,
+				roleId: params.roleId,
+			}),
+		);
 	},
 	component: StaffTenantRoleMembersSection,
 });

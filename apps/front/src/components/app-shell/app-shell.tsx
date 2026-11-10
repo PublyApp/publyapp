@@ -183,6 +183,7 @@ const AuthedWorkspaceShell = ({
 	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 	const [isPanelMotionReady, setIsPanelMotionReady] = useState(false);
 	const isTenantSurface = getShellScope(pathname) === 'tenant';
+	// preload-exempt: the shell mounts the workspace picker itself (observer present) and the /tenant layout spec declares it
 	const workspaceTenantId = useResolvedWorkspaceTenantId({
 		enabled: isTenantSurface,
 	});
@@ -194,6 +195,7 @@ const AuthedWorkspaceShell = ({
 	// lie of a loading state, and every gate stays independently enforced
 	// server-side anyway. The facade re-reads the same picker resolver under
 	// the identical `enabled` contract (shared query cache).
+	// preload-exempt: session-stable shell chrome (staleTime/gcTime Infinity), fetched once per workspace tenant
 	const tenantPermissions = useTenantSurfacePermissions(isTenantSurface);
 	const railItems = getRailItemsForPath(pathname, {
 		allowedPermissions:

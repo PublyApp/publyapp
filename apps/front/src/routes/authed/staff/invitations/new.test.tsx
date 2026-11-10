@@ -194,6 +194,12 @@ vi.mock('~/lib/query/staff-invitations', () => ({
 }));
 
 vi.mock('~/lib/query/staff-roles', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub is never called.
+	staffRolesQueryOptions: {
+		queryKey: () => ['staffRolesQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	useStaffRolesQuery: mocks.useStaffRolesQuery,
 }));
 

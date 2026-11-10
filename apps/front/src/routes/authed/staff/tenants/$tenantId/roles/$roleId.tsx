@@ -5,10 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
-import { staffTenantRoleDetailsQueryOptions } from '~/lib/query/staff-tenant-roles';
-import { staffTenantDetailsQueryOptions } from '~/lib/query/staff-tenants';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
@@ -22,6 +20,7 @@ import {
 	RoleDetailsLoading,
 	TenantRoleDetailsError,
 } from './$roleId/_details-error-views';
+import { roleDetailsQueries } from './$roleId/_queries';
 import {
 	classifyRoleDetailsFailure,
 	type RoleDetailsErrorSurface,
@@ -228,27 +227,14 @@ const StaffTenantRoleDetailsPage = () => {
 };
 
 /**
- * #851 round 2 — the route's own loader-error surface. The awaited loader
- * rejects on 404/403/500 (`queryClient.query` surfaces the Kiota problem
- * pipeline), and without this boundary a loader throw short-circuits the
- * route render and the parent `_authed-layout` boundary takes over — moving
- * 404/500 UX off the route's own designed views onto generic ones.
- *
- * It resolves the failure through the SAME classifier the page body's error
- * path uses (`classifyRoleDetailsFailure`) and reuses the route's existing
- * error views verbatim:
- *
- * - 404 (or malformed-id 400) → `MissingTenantRoleView`
- * - 403 → `View403`
- * - any other recognizable API failure (500, network) →
- *   `TenantRoleDetailsError` + `TenantRetryActions`, whose retry
- *   invalidates the router so the loader (and the query cache it warmed)
- *   re-runs
- * - 401 → `LogoutRedirect`, matching the page body's own 401 handling and
- *   the repo-wide "only 401 logs out" invariant
- * - anything UNCLASSIFIABLE (no API-failure shape at all — a programming
- *   error, not a server answer) is RETHROWN so the parent layout boundary
- *   owns it loudly instead of being masked behind a "not found" view.
+ * The route's last-resort error surface for a **render-time throw**. The
+ * loader never awaits and never rejects (it warms the query cache
+ * fire-and-forget, and the page body classifies every API failure), so the
+ * branches below are not reachable from the loader: this boundary exists only
+ * so a programming error is not silently reshaped into a "not found" view by
+ * the generic parent surface. It reuses the route's existing error views
+ * through the same classifier as the page body (`classifyRoleDetailsFailure`)
+ * and rethrows an unclassifiable error to the parent layout boundary.
  */
 const RoleRouteErrorBoundary = ({
 	error,
@@ -301,68 +287,15 @@ export const Route = createFileRoute(
 	},
 	validateSearch: (search) =>
 		parseRoleDetailsSearchParams(search as RoleDetailsSearchParamInput),
-	loader: async ({ context, params }) => {
-		// #851 round 3 (A3 fix): the migration from ensureQueryData to
-		// query({staleTime:'static'}) eliminated the background revalidation of
-		// cached loader data that ensureQueryData provided via prefetchQuery.
-		// To preserve that behavior, we now use query() for the initial fetch
-		// (which propagates errors to the error boundary) followed by
-		// prefetchQuery() to trigger background revalidation of stale cached
-		// data — matching the old ensureQueryData semantics.
-		//
-		// prefetchQuery() is deprecated in @tanstack/react-query 5.102+; the
-		// migration per the deprecation notice is query().catch(noop). We keep
-		// the .catch() handler to log background failures as warnings.
-		const fetchTenantDetails = () =>
-			context.queryClient.query({
-				queryKey: staffTenantDetailsQueryOptions.queryKey({
-					tenantId: params.tenantId,
-				}),
-				queryFn: () =>
-					staffTenantDetailsQueryOptions.fetcher({
-						tenantId: params.tenantId,
-					}),
-			});
-		const fetchRoleDetails = () =>
-			context.queryClient.query({
-				queryKey: staffTenantRoleDetailsQueryOptions.queryKey({
-					tenantId: params.tenantId,
-					roleId: params.roleId,
-				}),
-				queryFn: () =>
-					staffTenantRoleDetailsQueryOptions.fetcher({
-						tenantId: params.tenantId,
-						roleId: params.roleId,
-					}),
-			});
-
-		// #851 round 3 (A3 fix): the awaited initial fetch settles both keys.
-		// Errors propagate to the error boundary; only this fetch is owned by
-		// the route's errorComponent.
-		await Promise.all([fetchTenantDetails(), fetchRoleDetails()]);
-
-		// #851 round 3 (A3 fix): background revalidation of the cached data the
-		// initial query() just settled. With the default `staleTime: 0`, that
-		// data is immediately stale, so these fire-and-forget query() calls
-		// each issue a background refetch — exactly the behaviour ensureQueryData
-		// provided via prefetchQuery before the #851 migration. Errors are
-		// logged as warnings (they do not block the initial render).
-		void fetchTenantDetails().catch((error: unknown) => {
-			logger.warn(
-				'Role details loader: background revalidation failed for tenant details fetch',
-				{ tenantId: params.tenantId, error },
-			);
-		});
-		void fetchRoleDetails().catch((error: unknown) => {
-			logger.warn(
-				'Role details loader: background revalidation failed for role details fetch',
-				{
-					tenantId: params.tenantId,
-					roleId: params.roleId,
-					error,
-				},
-			);
-		});
+	loader: ({ context, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			roleDetailsQueries({
+				tenantId: params.tenantId,
+				roleId: params.roleId,
+				locale: context.locale,
+			}),
+		);
 	},
 	pendingComponent: RoleDetailsLoading,
 	errorComponent: RoleRouteErrorBoundary,

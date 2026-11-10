@@ -209,6 +209,12 @@ vi.mock('~/components/field', () => ({
 }));
 
 vi.mock('~/lib/query/staff-roles', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub is never called.
+	staffPermissionCatalogQueryOptions: {
+		queryKey: () => ['staffPermissionCatalogQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	invalidateStaffRoles: (queryClient: {
 		invalidateQueries: (options: { queryKey: unknown[] }) => Promise<void>;
 	}) => queryClient.invalidateQueries({ queryKey: ['staff', 'staff-roles'] }),

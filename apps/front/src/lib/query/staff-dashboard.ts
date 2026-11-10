@@ -30,7 +30,7 @@ export type StaffDashboardTopOrganisationsVariables = {
 /** @internal Unscoped — `scopedKey('staff', …)` builds the invalidation key. */
 const STAFF_DASHBOARD_QUERY_KEY = ['staff-dashboard'] as const;
 
-const staffDashboardSeriesQueryOptions = buildStaffQueryOptions<
+export const staffDashboardSeriesQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetDashboardSeriesForStaffResponse,
 	StaffDashboardSeriesVariables
@@ -56,32 +56,33 @@ const staffDashboardSeriesQueryOptions = buildStaffQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const staffDashboardTopOrganisationsQueryOptions = buildStaffQueryOptions<
-	ApiClient,
-	FindTopOrganisationsForStaffResponse,
-	StaffDashboardTopOrganisationsVariables
->(
-	{
-		queryKeyFn: () => [...STAFF_DASHBOARD_QUERY_KEY, 'top-organisations'],
-		fetcher: async (client, variables) => {
-			const result = await client.staff.dashboard.topOrganisations.get({
-				queryParameters: {
-					startDate: variables.startDate,
-					endDate: variables.endDate,
-					size:
-						variables.size === undefined ? undefined : String(variables.size),
-				},
-			});
+export const staffDashboardTopOrganisationsQueryOptions =
+	buildStaffQueryOptions<
+		ApiClient,
+		FindTopOrganisationsForStaffResponse,
+		StaffDashboardTopOrganisationsVariables
+	>(
+		{
+			queryKeyFn: () => [...STAFF_DASHBOARD_QUERY_KEY, 'top-organisations'],
+			fetcher: async (client, variables) => {
+				const result = await client.staff.dashboard.topOrganisations.get({
+					queryParameters: {
+						startDate: variables.startDate,
+						endDate: variables.endDate,
+						size:
+							variables.size === undefined ? undefined : String(variables.size),
+					},
+				});
 
-			if (!result) {
-				throw new Error('staff dashboard top organisations result was empty');
-			}
+				if (!result) {
+					throw new Error('staff dashboard top organisations result was empty');
+				}
 
-			return result;
+				return result;
+			},
 		},
-	},
-	{ clientAccessor: getClientManager() },
-);
+		{ clientAccessor: getClientManager() },
+	);
 
 export const useStaffDashboardSeriesQuery = (
 	variables: StaffDashboardSeriesVariables,

@@ -117,9 +117,15 @@ vi.mock('~/lib/query/staff-audit-logs', async (importOriginal) => {
 	return { ...actual, useStaffAuditLogsQuery };
 });
 
-vi.mock('~/lib/query/staff-dashboard', () => ({
-	useStaffDashboardSeriesQuery,
-}));
+vi.mock('~/lib/query/staff-dashboard', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('~/lib/query/staff-dashboard')>();
+
+	return {
+		...actual,
+		useStaffDashboardSeriesQuery,
+	};
+});
 
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,

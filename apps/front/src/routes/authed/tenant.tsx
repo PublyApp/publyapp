@@ -10,9 +10,11 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { SimpleLayout } from '~/layouts/simple-layout';
 import { useSelectedTenantId } from '~/lib/hooks/use-selected-tenant-id';
-import { useTenantsForPickerQuery } from '~/lib/query/tenants-for-picker';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	resolveWorkspaceTenant,
+	tenantsForPickerQueryOptions,
+	useTenantsForPickerQuery,
 	type TenantsForPickerData,
 	type TenantForPickerRow,
 } from '~/lib/query/tenants-for-picker';
@@ -25,6 +27,12 @@ import {
 	TenantPortalLoadingState,
 } from './tenant/_tenant-picker-states';
 import { TenantPortalPickerView } from './tenant/_tenant-picker-view';
+
+/** The layout's only query, tenant-independent: the loader warms the picker that
+ * `resolveWorkspaceTenantIdFromCache` reads for every child hover. */
+const tenantPortalQueries = () => ({
+	picker: { options: tenantsForPickerQueryOptions, variables: {} },
+});
 
 /**
  * Non-JSX resolver adapter: keeps the `isSuccess` branch outside the portal
@@ -236,5 +244,8 @@ export const Route = createFileRoute('/_authed-layout/tenant')({
 	// inside the AppShell; an unresolved child redirects back to `/tenant`
 	// so the bare picker stays the single unresolved surface.
 	staticData: { crumbs: () => [] },
+	loader: ({ context }) => {
+		preloadRouteQueries(context.queryClient, tenantPortalQueries());
+	},
 	component: TenantPortalRoute,
 });

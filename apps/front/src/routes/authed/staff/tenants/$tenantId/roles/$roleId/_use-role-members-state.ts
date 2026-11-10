@@ -10,10 +10,12 @@ import { useStaffTenantDetailsQuery } from '~/lib/query/staff-tenants';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import { makeRoleMemberColumns } from '../_role-member-columns';
+import {
+	ROLE_MEMBERS_DEFAULT_SIZE,
+	ROLE_MEMBERS_DEFAULT_SORT,
+	roleUsersQueries,
+} from './_queries';
 import type { RoleMembersSearchParams } from './_role-members-search';
-
-const MEMBERS_DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
-const MEMBERS_DEFAULT_SIZE = 20;
 
 type UseStaffTenantRoleMembersArgs = {
 	tenantId: string;
@@ -53,19 +55,20 @@ export const useStaffTenantRoleMembers = ({
 	const membersController = useTableController({
 		search,
 		onSearchChange: onMembersSearchChange,
-		defaultSort: MEMBERS_DEFAULT_SORT,
-		defaultSize: MEMBERS_DEFAULT_SIZE,
+		defaultSort: ROLE_MEMBERS_DEFAULT_SORT,
+		defaultSize: ROLE_MEMBERS_DEFAULT_SIZE,
 	});
 
+	const queries = roleUsersQueries({ tenantId, roleId, search });
 	const tenantQuery = useStaffTenantDetailsQuery(
-		{ tenantId },
+		queries.tenantDetails.variables,
 		{ enabled: tenantId.length > 0 },
 	);
 	// Hoisted locals keep raw query flags out of the chained-query gates.
 	const tenantQueryIsPending = tenantQuery.isPending;
 	const tenantQueryIsError = tenantQuery.isError;
 	const detailQuery = useStaffTenantRoleDetailsQuery(
-		{ tenantId, roleId },
+		queries.roleDetails.variables,
 		{
 			enabled:
 				tenantId.length > 0 &&
@@ -78,13 +81,9 @@ export const useStaffTenantRoleMembers = ({
 	const detailQueryIsError = detailQuery.isError;
 	const membersQuery = useStaffTenantRoleMembersQuery(
 		{
-			tenantId,
-			roleId,
-			q: membersController.search.committed,
-			sortId: membersController.sort.id,
-			sortOrder: membersController.sort.order,
+			...queries.roleMembers.variables,
+			// The page index lives in React state: the loader warms page 0.
 			pageIndex: membersPageIndex,
-			size: membersController.size,
 		},
 		{
 			enabled:

@@ -6,8 +6,16 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { ListPage } from '~/components/list/list-page';
 import type { ListFiltersValue } from '~/components/list/list-types';
 import { DataTableCursorFooter } from '~/components/table/data-table';
-import { useTableController } from '~/components/table/use-table-controller';
 import {
+	resolveSize,
+	useTableController,
+} from '~/components/table/use-table-controller';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
+import {
+	staffDeadLettersQueryOptions,
+	staffJobPermissionsQueryOptions,
+	staffJobQueueQueryOptions,
+	staffSystemJobDefinitionsQueryOptions,
 	toStaffSystemJobDefinitionRows,
 	useStaffSystemJobDefinitionsQuery,
 } from '~/lib/query/staff-jobs';
@@ -34,6 +42,7 @@ import {
 	parseStaffJobsListSearchParams,
 	serializeStaffJobsListSearchParams,
 	type StaffJobsListSearchParamInput,
+	type StaffJobsListSearchParams,
 } from './_list-search-params';
 import { useStaffJobPermissions } from './_permissions';
 import { SystemCronDialog } from './_system-cron-dialog';
@@ -44,6 +53,49 @@ const DEFAULT_SIZE = 100;
 
 const splitFilter = (value: string | undefined): string[] =>
 	value ? value.split(',') : [];
+
+/** The page's four queries, declared once: the loader warms them and the page
+ * reads the same variables. The loader takes the first page (no cursor,
+ * decision 4). `useJobsOverview` reads each of the three lists' whole-collection
+ * counts (`size: 1`), so those three keys (this list's own included) are pinned. */
+const staffSystemJobsQueries = ({
+	search,
+}: {
+	search: StaffJobsListSearchParams;
+}) => {
+	const enabledFilters = splitFilter(search.isEnabled);
+	// The API takes one boolean, so two selected values mean "no server
+	// filter"; the generic list still applies both (i.e. everything).
+	const serverEnabled =
+		enabledFilters.length === 1 ? enabledFilters[0] : undefined;
+
+	return {
+		systemJobs: {
+			options: staffSystemJobDefinitionsQueryOptions,
+			variables: {
+				q: search.q,
+				isEnabled: serverEnabled,
+				size: resolveSize(search, DEFAULT_SIZE),
+			},
+		},
+		systemJobsOverview: {
+			options: staffSystemJobDefinitionsQueryOptions,
+			variables: { size: 1 },
+		},
+		queue: {
+			options: staffJobQueueQueryOptions,
+			variables: { size: 1 },
+		},
+		deadLetters: {
+			options: staffDeadLettersQueryOptions,
+			variables: { size: 1 },
+		},
+		permissions: {
+			options: staffJobPermissionsQueryOptions,
+			variables: {},
+		},
+	};
+};
 
 const StaffJobsSystemJobsPage = () => {
 	const { t, i18n } = useTranslation(['staff-jobs', 'common']);
@@ -79,15 +131,12 @@ const StaffJobsSystemJobsPage = () => {
 	});
 
 	const enabledFilters = splitFilter(search.isEnabled);
-	// The API takes one boolean, so two selected values mean "no server
-	// filter"; the generic list still applies both (i.e. everything).
-	const serverEnabled =
-		enabledFilters.length === 1 ? enabledFilters[0] : undefined;
+	const queries = staffSystemJobsQueries({ search });
 	const query = useStaffSystemJobDefinitionsQuery({
-		q: search.q,
-		isEnabled: serverEnabled,
+		...queries.systemJobs.variables,
+		// The cursor lives in React state, never in URL search (decision 4): the
+		// loader warms the first page, the page adds its own cursor.
 		cursor: controller.apiVariables.cursor,
-		size: controller.apiVariables.size,
 	});
 	const rows = toStaffSystemJobDefinitionRows(query.data?.data);
 	const overview = useJobsOverview();
@@ -262,5 +311,18 @@ export const Route = createFileRoute('/_authed-layout/staff/jobs/system-jobs')({
 		serializeStaffJobsListSearchParams(
 			parseStaffJobsListSearchParams(search as StaffJobsListSearchParamInput),
 		),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			staffSystemJobsQueries({
+				// `validateSearch` stores the wire shape (CSV filters); the page
+				// re-parses it, so the loader does too.
+				search: parseStaffJobsListSearchParams(
+					deps as StaffJobsListSearchParamInput,
+				),
+			}),
+		);
+	},
 	component: StaffJobsSystemJobsPage,
 });

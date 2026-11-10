@@ -166,7 +166,7 @@ const useStaffCounterSection = <TData, TVariables extends QueryArgumentRecord>(
 	const queryClient = useQueryClient();
 	const pageIsWholeCollection =
 		pageVariables !== undefined && !carriesListFilter(pageVariables);
-	// oxlint-disable-next-line publy/route-query-preload -- the page's own list, preloaded by its own route; this module is the shared panel, not a Route.
+	// preload-exempt: the importing page's own list, warmed by that page's loader
 	const pageQuery = useQuery({
 		queryKey:
 			pageVariables === undefined
@@ -175,7 +175,7 @@ const useStaffCounterSection = <TData, TVariables extends QueryArgumentRecord>(
 		queryFn: () => options.fetcher(pageVariables ?? counterVariables),
 		enabled: pageIsWholeCollection,
 	});
-	// oxlint-disable-next-line publy/route-query-preload -- side-panel counters, secondary data never route-preloaded.
+	// preload-exempt: side-panel count for a filtered list, secondary data
 	const counterQuery = useQuery({
 		queryKey: staffTeamCountQueryKey(section),
 		queryFn: () => options.fetcher(counterVariables),

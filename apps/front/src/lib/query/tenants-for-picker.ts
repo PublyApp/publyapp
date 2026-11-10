@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { useState } from 'react';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import { readSelectedTenantId } from '~/lib/session/selected-tenant-storage';
@@ -138,13 +139,35 @@ export const toTenantsForPickerData = (
 	};
 };
 
+export const tenantsForPickerQueryOptions = {
+	queryKey: (_variables: Record<string, never>): QueryKey => [
+		...TENANTS_FOR_PICKER_QUERY_KEY,
+	],
+	fetcher: async (_variables: Record<string, never>) => {
+		const client = getClientManager().getOrCreateTenantScopeClient();
+		const result = await client.auth.tenantsForPicker.get();
+		return toTenantsForPickerData(result);
+	},
+};
+
 export const useTenantsForPickerQuery = (options: { enabled?: boolean } = {}) =>
 	useQuery({
-		queryKey: [...TENANTS_FOR_PICKER_QUERY_KEY],
-		queryFn: async () => {
-			const client = getClientManager().getOrCreateTenantScopeClient();
-			const result = await client.auth.tenantsForPicker.get();
-			return toTenantsForPickerData(result);
-		},
+		queryKey: tenantsForPickerQueryOptions.queryKey({}),
+		queryFn: () => tenantsForPickerQueryOptions.fetcher({}),
 		enabled: options.enabled,
 	});
+
+/** Non-React tenant resolution for a route loader: the same picker rows and the
+ * same persisted selection the page hook reads. `null` when the picker has not
+ * loaded yet — a loader then warms nothing. */
+export const resolveWorkspaceTenantIdFromCache = (
+	queryClient: QueryClient,
+): string | null => {
+	const data = queryClient.getQueryData<TenantsForPickerData>(
+		tenantsForPickerQueryOptions.queryKey({}),
+	);
+	if (data === undefined) {
+		return null;
+	}
+	return resolveWorkspaceTenant(data, readSelectedTenantId())?.id ?? null;
+};

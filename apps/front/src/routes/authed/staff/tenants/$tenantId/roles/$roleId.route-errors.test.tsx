@@ -18,33 +18,40 @@ import {
 	waitFor,
 } from '@testing-library/react';
 /**
- * #851 round 2 — loader-blocking and loader-failure integration guards.
+ * #851 round 2 / #2340 — the role-detail route's API-failure surfaces.
  *
- * `breadcrumb-loader.test.tsx` proves the trail paints once the first
- * settled frame lands; its mock fetchers resolve immediately, so it cannot
- * distinguish an awaited loader from a fire-and-forget one. These specs pin
- * BOTH remaining contracts against a router that mounts the production
- * route's real option objects:
+ * The loader no longer awaits (#2340): it preloads the page's queries
+ * fire-and-forget and swallows their failures, so the PAGE BODY is what
+ * classifies an API failure and renders the route's designed views. These
+ * specs pin that contract against a router that mounts the production
+ * route's real option objects.
  *
- * 1. The awaited loader BLOCKS the first paint of the page body on a cold
- *    deep link: while a hand-held role fetch is still pending, the route's
- *    own body (`staff-tenant-role-details-page`) is absent (the router is
- *    still showing the pending surface); when the fetch is released, the body
- *    mounts with both entity names already in TanStack Query's cache — no
- *    breadcrumb entity skeleton is ever painted.
- * 2. A loader rejection keeps the failure ON this route: the route's own
- *    `errorComponent` reuses the route's existing error views (404 →
- *    `MissingTenantRoleView`, 403 → `View403`, 500/network →
- *    `TenantRoleDetailsError` + retry), classified by the same helper the
- *    page body uses; the user is never logged out for 404/403/500, and the
- *    generic parent-layout surfaces (`view-404`) stay out of the picture.
+ * A TENANT failure renders the tenant views every sibling tenant tab uses
+ * (`TenantDetailsError`, owner-ratified 10/11):
+ *
+ * - tenant 404 / malformed-id 400 → `MissingTenantView`
+ * - tenant 403 → `View403`
+ * - tenant 500/network → `staff-tenant-details-error`
+ *
+ * A ROLE failure keeps the route's own views:
+ *
+ * - role 404 (or malformed-id 400) → `MissingTenantRoleView`
+ * - role 403 → `View403`
+ * - role 500/network → `TenantRoleDetailsError` with a retry that re-runs the fetch
+ * - 401 → `LogoutRedirect`
+ * - 404/403/500 never log the user out, and the generic parent-layout
+ *   surfaces (`view-404`) stay out of the picture.
+ *
+ * The blocking contract an awaited loader used to provide is gone by design:
+ * navigation never waits for data (spec §4.2.2), and `$roleId.preload.test.tsx`
+ * proves the hover warms the cache instead.
  *
  * What is real here: the production route's `loader`, `pendingComponent`,
  * `errorComponent`, `staticData.crumbs` and page component, the shell's trail
  * derivation via `EntityCrumb`, and TanStack Query's cache shared between the
- * loader's `ensureQueryData` and the crumb/page queries. What is mocked: only
- * the Kiota transport (the same fake-client pattern as
- * `breadcrumb-loader.test.tsx`), react-i18next, and the logout side effect.
+ * loader's preload and the crumb/page queries. What is mocked: only the Kiota
+ * transport (the same fake-client pattern as `breadcrumb-loader.test.tsx`),
+ * react-i18next, and the logout side effect.
  */
 import type { JSX } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -154,13 +161,20 @@ const ROLE_PAYLOAD = {
 };
 
 /** The wire shape the Kiota problem pipeline throws for an API problem. */
-const problemFor = (status: number) =>
-	({
+const problemFor = (status: number, translationKey?: string) => {
+	const problem = {
 		status,
 		title: `HTTP ${status}`,
 		detail: `problem-${status}`,
 		responseStatusCode: status,
-	}) satisfies FakeResponse;
+	};
+
+	if (translationKey !== undefined) {
+		return { ...problem, translationKey };
+	}
+
+	return problem;
+};
 
 const AppShellHost = (): JSX.Element => (
 	<AppShell mode="authed" pathname={DETAILS_URL}>
@@ -207,22 +221,12 @@ const buildRouter = (queryClient: QueryClient) => {
 		widenOptions<Parameters<typeof createRouter>[0]>({
 			routeTree,
 			history: createMemoryHistory({ initialEntries: [DETAILS_URL] }),
-			context: { queryClient },
+			context: { queryClient, locale: 'en' },
 		}),
 	);
 
 	return { router, roleDetailsRouteId: indexRoute.id };
 };
-
-/** Reads the production role-details route's own match `status` from the
- * live router state. A match's `status` is `'pending'` while its loader is still
- * awaited and flips to `'success'` only once the loader resolves — exactly what
- * the awaited loader buys (and what a fire-and-forget loader defeats). */
-const findRoleDetailsMatchStatus = (
-	router: ReturnType<typeof createRouter>,
-	routeId: string,
-): string | undefined =>
-	router.state.matches.find((match) => match.routeId === routeId)?.status;
 
 const renderRouteAtDetailsUrl = async (): Promise<{
 	queryClient: QueryClient;
@@ -246,7 +250,7 @@ const renderRouteAtDetailsUrl = async (): Promise<{
 	return { queryClient, router };
 };
 
-describe('breadcrumb-loader (#851 round 2)', () => {
+describe('role-details failure surfaces (#851 round 2 / #2340)', () => {
 	afterEach(() => {
 		cleanup();
 		vi.restoreAllMocks();
@@ -254,88 +258,7 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 		mocks.logout.mockClear();
 	});
 
-	/**
-	 * The blocking contract, discriminated from fire-and-forget: the mocked
-	 * role fetcher resolves ONLY when this test releases it by hand. Under
-	 * the awaited loader, `ensureQueryData` keeps the route's own match in its
-	 * loader `status: 'pending'` — the shell paints (trail skeleton visible)
-	 * but the route body never mounts while the fetch is still held. A
-	 * fire-and-forget loader returns synchronously, so the match's loader
-	 * settles to `status: 'success'` immediately and the body mounts while the
-	 * fetch is still pending.
-	 *
-	 * We witness the loader's `await` directly off the live match `status`
-	 * (the honest, render-frame-independent signal) rather than a soft
-	 * `waitFor` over the DOM — reading the body's absence on the wrong frame
-	 * is exactly what let this test pass under the mutation before.
-	 */
-	test('a held role fetch blocks the page body until release, then paints with both names cached', async () => {
-		let releaseRoleFetch: (() => void) | undefined;
-		const roleFetchHeld = new Promise<void>((resolve) => {
-			releaseRoleFetch = resolve;
-		});
-
-		mocks.respond.mockImplementation(async (call) => {
-			if (pathEndsWith(call, 'byTenantId', 'get')) {
-				return TENANT_PAYLOAD;
-			}
-			if (pathEndsWith(call, 'byRoleId', 'get')) {
-				await roleFetchHeld;
-
-				return ROLE_PAYLOAD;
-			}
-			return {};
-		});
-
-		const queryClient = new QueryClient({
-			defaultOptions: { queries: { retry: false } },
-		});
-		const { router, roleDetailsRouteId } = buildRouter(queryClient);
-
-		render(
-			<QueryClientProvider client={queryClient}>
-				<RouterProvider router={router} />
-			</QueryClientProvider>,
-		);
-
-		// While the loader's awaited fetch is still pending the route's own
-		// match stays in loader `status: 'pending'` — the shell is live (trail
-		// painted, the held role crumb still a skeleton) but the route body
-		// must NOT be mounted.
-		await waitFor(() => {
-			expect(findRoleDetailsMatchStatus(router, roleDetailsRouteId)).toBe(
-				'pending',
-			);
-		});
-		expect(
-			screen.getAllByTestId('app-shell-breadcrumb-entity-skeleton').length,
-		).toBeGreaterThan(0);
-		expect(screen.queryByTestId('staff-tenant-role-details-page')).toBeNull();
-
-		releaseRoleFetch?.();
-
-		await waitFor(() => {
-			expect(findRoleDetailsMatchStatus(router, roleDetailsRouteId)).toBe(
-				'success',
-			);
-		});
-		await waitFor(() => {
-			expect(screen.getByTestId('staff-tenant-role-details-page')).toBeTruthy();
-		});
-
-		// The body's first settled frame finds both entity names already in
-		// TanStack Query's cache the loader warmed, so no entity skeleton ever
-		// rendered.
-		const nav = screen.getByRole('navigation', { name: 'nav-breadcrumb' });
-
-		expect(nav.textContent).toContain('Acme Corporation');
-		expect(nav.textContent).toContain('Approvers');
-		expect(
-			screen.queryByTestId('app-shell-breadcrumb-entity-skeleton'),
-		).toBeNull();
-	});
-
-	test('a 404 loader rejection renders the route MissingTenantRoleView without logging out', async () => {
+	test('a tenant 404 API failure renders the tenant not-found view without logging out', async () => {
 		mocks.respond.mockImplementation(async (call) => {
 			if (pathEndsWith(call, 'byTenantId', 'get')) {
 				throw problemFor(404);
@@ -348,14 +271,78 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 
 		await renderRouteAtDetailsUrl();
 
+		// The page body's own tenant error view classifies a 404 as "tenant not
+		// found" (the role cannot exist under a missing tenant).
 		expect(
-			screen.getByTestId('staff-tenant-role-details-not-found'),
+			await screen.findByTestId('staff-tenant-details-not-found'),
 		).toBeTruthy();
 		expect(screen.queryByTestId('view-404')).toBeNull();
 		expect(mocks.logout).not.toHaveBeenCalled();
 	});
 
-	test('a 403 loader rejection renders the route forbidden view without logging out', async () => {
+	// Owner decision 10/11: a tenant failure on this route shows the same
+	// tenant error view as every sibling tenant tab, not the route boundary's
+	// role-flavoured view. These three cases pin the tenant 403/500/400
+	// surfaces the awaited loader used to intercept.
+	test('a tenant 403 API failure renders the tenant forbidden view without logging out', async () => {
+		mocks.respond.mockImplementation(async (call) => {
+			if (pathEndsWith(call, 'byTenantId', 'get')) {
+				throw problemFor(403);
+			}
+			if (pathEndsWith(call, 'byRoleId', 'get')) {
+				return ROLE_PAYLOAD;
+			}
+			return {};
+		});
+
+		await renderRouteAtDetailsUrl();
+
+		expect(await screen.findByTestId('view-403')).toBeTruthy();
+		expect(mocks.logout).not.toHaveBeenCalled();
+	});
+
+	test('a tenant 500 API failure renders the tenant error view, not the role retry view', async () => {
+		mocks.respond.mockImplementation(async (call) => {
+			if (pathEndsWith(call, 'byTenantId', 'get')) {
+				throw problemFor(500);
+			}
+			if (pathEndsWith(call, 'byRoleId', 'get')) {
+				return ROLE_PAYLOAD;
+			}
+			return {};
+		});
+
+		await renderRouteAtDetailsUrl();
+
+		const tenantError = await screen.findByTestId('staff-tenant-details-error');
+		expect(tenantError.textContent).toContain('tenant-details-error-title');
+		expect(screen.queryByTestId('staff-tenant-role-details-error')).toBeNull();
+		expect(mocks.logout).not.toHaveBeenCalled();
+	});
+
+	test('a tenant malformed-id 400 renders the tenant not-found view, not the role not-found view', async () => {
+		mocks.respond.mockImplementation(async (call) => {
+			if (pathEndsWith(call, 'byTenantId', 'get')) {
+				throw problemFor(400, 'malformed-id');
+			}
+			if (pathEndsWith(call, 'byRoleId', 'get')) {
+				return ROLE_PAYLOAD;
+			}
+			return {};
+		});
+
+		await renderRouteAtDetailsUrl();
+
+		expect(
+			await screen.findByTestId('staff-tenant-details-not-found'),
+		).toBeTruthy();
+		expect(
+			screen.queryByTestId('staff-tenant-role-details-not-found'),
+		).toBeNull();
+		expect(mocks.logout).not.toHaveBeenCalled();
+	});
+
+	test('a 403 API failure renders the route forbidden view without logging out', async () => {
 		mocks.respond.mockImplementation(async (call) => {
 			if (pathEndsWith(call, 'byRoleId', 'get')) {
 				throw problemFor(403);
@@ -368,11 +355,11 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 
 		await renderRouteAtDetailsUrl();
 
-		expect(screen.getByTestId('view-403')).toBeTruthy();
+		expect(await screen.findByTestId('view-403')).toBeTruthy();
 		expect(mocks.logout).not.toHaveBeenCalled();
 	});
 
-	test('a 500 loader rejection renders TenantRoleDetailsError with a retry that re-runs the fetch', async () => {
+	test('a 500 API failure renders TenantRoleDetailsError with a retry that re-runs the fetch', async () => {
 		let failRoleFetch = true;
 		mocks.respond.mockImplementation(async (call) => {
 			if (pathEndsWith(call, 'byRoleId', 'get')) {
@@ -390,7 +377,9 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 
 		await renderRouteAtDetailsUrl();
 
-		expect(screen.getByTestId('staff-tenant-role-details-error')).toBeTruthy();
+		expect(
+			await screen.findByTestId('staff-tenant-role-details-error'),
+		).toBeTruthy();
 		expect(mocks.logout).not.toHaveBeenCalled();
 
 		failRoleFetch = false;
@@ -412,10 +401,10 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 		).toBeNull();
 	});
 
-	// A3b: the 401 → logout chain must survive the ensureQueryData → queryClient.query
-	// migration. The route's errorComponent must route a 401 loader rejection to
-	// LogoutRedirect — the repo-wide "only 401 logs out" invariant.
-	test('a 401 loader rejection routes to LogoutRedirect (401→logout invariant preserved)', async () => {
+	// A3b / #2340: the 401 → logout chain must survive the awaited-loader →
+	// fire-and-forget preload migration. The page body must route a 401 API
+	// failure to LogoutRedirect — the repo-wide "only 401 logs out" invariant.
+	test('a 401 API failure routes to LogoutRedirect (401→logout invariant preserved)', async () => {
 		mocks.respond.mockImplementation(async (call) => {
 			if (pathEndsWith(call, 'byTenantId', 'get')) {
 				throw problemFor(401);
@@ -429,7 +418,7 @@ describe('breadcrumb-loader (#851 round 2)', () => {
 		await renderRouteAtDetailsUrl();
 
 		// 401 must trigger logout, not render a not-found/forbidden/retry view
-		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
+		expect(await screen.findByTestId('logout-redirect')).toBeTruthy();
 		expect(
 			screen.queryByTestId('staff-tenant-role-details-not-found'),
 		).toBeNull();

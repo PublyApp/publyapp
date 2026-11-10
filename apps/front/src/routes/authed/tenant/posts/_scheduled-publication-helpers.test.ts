@@ -126,6 +126,18 @@ describe('buildUpcomingPublicationWindow', () => {
 		expect(spanMs).toBe(API_MAX_WINDOW_MS);
 	});
 
+	test('builds the same window for two instants of the same minute so a loader and its page share a query key', () => {
+		const first = buildUpcomingPublicationWindow(
+			new Date('2026-08-31T18:00:10.000Z'),
+		);
+		const second = buildUpcomingPublicationWindow(
+			new Date('2026-08-31T18:00:10.250Z'),
+		);
+
+		expect(second.from.toISOString()).toBe(first.from.toISOString());
+		expect(second.to.toISOString()).toBe(first.to.toISOString());
+	});
+
 	test('returns a fresh Date instance on each call so the caller can mutate it safely', () => {
 		const first = buildUpcomingPublicationWindow(NOW);
 		const second = buildUpcomingPublicationWindow(NOW);

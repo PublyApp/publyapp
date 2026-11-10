@@ -35,6 +35,7 @@ export const EntityCrumb = ({
 	params: Record<string, string>;
 }) => {
 	const { queryKey, queryFn } = spec.query(params);
+	// preload-exempt: the key is the page's own *DetailsQueryOptions key, warmed by that page's loader
 	const query = useQuery({
 		queryKey: [...queryKey],
 		queryFn,

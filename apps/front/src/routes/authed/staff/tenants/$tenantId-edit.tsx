@@ -9,10 +9,12 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Form, FormPageLayout } from '~/components/field';
 import QueryDisplay from '~/components/query-display';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	invalidateStaffTenants,
 	selectStaffTenantCrumbName,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 	useUpdateStaffTenantMutation,
@@ -57,6 +59,15 @@ import {
 } from './_tenantId-edit-types';
 import { getWebsiteHostname } from './tenant-organization-profile-fields';
 
+/** The page's one query, declared once: the loader warms it and the page reads
+ * the same variables. */
+const tenantEditQueries = ({ tenantId }: { tenantId: string }) => ({
+	details: {
+		options: staffTenantDetailsQueryOptions,
+		variables: { tenantId },
+	},
+});
+
 const StaffTenantEditRoute = () => {
 	const { tenantId } = Route.useParams() as { tenantId: string };
 	const { t, i18n } = useTranslation('common');
@@ -65,7 +76,7 @@ const StaffTenantEditRoute = () => {
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const hasSavedRef = useRef(false);
 	const detailsQuery = useStaffTenantDetailsQuery(
-		{ tenantId },
+		tenantEditQueries({ tenantId }).details.variables,
 		{ enabled: tenantId.length > 0 },
 	);
 	const updateTenant = useUpdateStaffTenantMutation();
@@ -317,6 +328,12 @@ export const Route = createFileRoute(
 			},
 			{ kind: 'label', labelKey: 'common:edit' },
 		],
+	},
+	loader: ({ context, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			tenantEditQueries({ tenantId: params.tenantId }),
+		);
 	},
 	component: StaffTenantEditRoute,
 });

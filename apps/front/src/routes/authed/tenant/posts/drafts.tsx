@@ -7,23 +7,71 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
+import { buildTableApiVariables } from '~/components/table/use-table-controller';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { PageHeader } from '~/components/ui/product-page';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	invalidateTenantPosts,
+	tenantPostsQueryOptions,
 	useDeleteTenantPostMutation,
 	useTenantPostsQuery,
 	toTenantPostRows,
 	type TenantPostRow,
 } from '~/lib/query/tenant-posts';
+import { tenantProjectsQueryOptions } from '~/lib/query/tenant-projects';
+import { tenantPublishTargetsQueryOptions } from '~/lib/query/tenant-publish-targets';
+import {
+	resolveWorkspaceTenantIdFromCache,
+	tenantsForPickerQueryOptions,
+} from '~/lib/query/tenants-for-picker';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
+import {
+	parseTenantPostListSearchParams,
+	type TenantPostListSearchParams,
+} from '~/lib/url-state/tenant-post-list-helpers';
 import { formatDateTime } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { CreatePostDrawer } from './_create-post-drawer';
-import { useTenantPostList } from './_use-tenant-post-list';
+import {
+	TENANT_POST_LIST_DEFAULT_SIZE,
+	TENANT_POST_LIST_DEFAULT_SORT,
+	useTenantPostList,
+} from './_use-tenant-post-list';
+
+/** The page's queries, declared once: the loader warms them and the page reads
+ * the same variables. The loader takes the first page (no cursor, decision 4).
+ * The create drawer mounts the projects and the publish targets (no project
+ * picked yet) even while closed; its permission gate only mounts once the
+ * drawer opens, so it is not warmed here. */
+const postDraftsQueries = ({
+	tenantId,
+	search,
+}: {
+	tenantId: string;
+	search: TenantPostListSearchParams;
+}) => ({
+	posts: {
+		options: tenantPostsQueryOptions,
+		variables: {
+			...buildTableApiVariables(
+				search,
+				TENANT_POST_LIST_DEFAULT_SORT,
+				TENANT_POST_LIST_DEFAULT_SIZE,
+			),
+			tenantId,
+		},
+	},
+	projects: { options: tenantProjectsQueryOptions, variables: { tenantId } },
+	publishTargets: {
+		options: tenantPublishTargetsQueryOptions,
+		variables: { tenantId, projectId: null },
+	},
+	picker: { options: tenantsForPickerQueryOptions, variables: {} },
+});
 
 /**
  * Honest read-only drafts section: no posts API exists, so the page is a
@@ -32,13 +80,16 @@ import { useTenantPostList } from './_use-tenant-post-list';
 const TenantPostsDraftsPage = () => {
 	const { t, i18n } = useTranslation(['posts', 'common']);
 	const navigate = Route.useNavigate();
-	const { controller, tenantId } = useTenantPostList(
+	const search = parseTenantPostListSearchParams(
 		Route.useSearch() as TableSearchParamInput,
-		navigate,
 	);
+	const { controller, tenantId } = useTenantPostList(search, navigate);
+	const queries = postDraftsQueries({ tenantId: tenantId ?? '', search });
 	const query = useTenantPostsQuery({
-		...controller.apiVariables,
-		tenantId: tenantId ?? '',
+		...queries.posts.variables,
+		// The cursor lives in React state, never in URL search (decision 4): the
+		// loader warms the first page, the page adds its own cursor.
+		cursor: controller.apiVariables.cursor,
 	});
 	const rows = toTenantPostRows(query.data);
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -202,6 +253,20 @@ export const Route = createFileRoute('/_authed-layout/tenant/posts/drafts')({
 			{ kind: 'label', labelKey: 'drafts' },
 		],
 		i18nNamespaces: ['posts'],
+	},
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) => {
+		const tenantId = resolveWorkspaceTenantIdFromCache(context.queryClient);
+		if (tenantId === null) {
+			return;
+		}
+		preloadRouteQueries(
+			context.queryClient,
+			postDraftsQueries({
+				tenantId,
+				search: parseTenantPostListSearchParams(deps as TableSearchParamInput),
+			}),
+		);
 	},
 	component: TenantPostsDraftsPage,
 });

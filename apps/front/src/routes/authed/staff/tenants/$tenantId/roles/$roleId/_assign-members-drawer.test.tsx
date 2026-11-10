@@ -124,6 +124,12 @@ vi.mock('~/lib/query/staff-tenant-roles', () => ({
 // actually sent — a conflated fixture (same string for both) would make that
 // assertion vacuously pass either way.
 vi.mock('~/lib/query/staff-tenant-users', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub stays inert.
+	staffTenantUsersQueryOptions: {
+		queryKey: () => ['staffTenantUsersQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	useStaffTenantUsersQuery: mocks.useStaffTenantUsersQuery,
 	toStaffTenantUserRows: (
 		items:

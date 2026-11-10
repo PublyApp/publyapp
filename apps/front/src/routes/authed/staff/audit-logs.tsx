@@ -15,15 +15,27 @@ import QueryDisplay, {
 	type QueryDisplayQuery,
 } from '~/components/query-display';
 import { DataTableCursorFooter } from '~/components/table/data-table';
-import { useTableController } from '~/components/table/use-table-controller';
+import {
+	buildTableApiVariables,
+	useTableController,
+} from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
 import {
+	preloadRouteQueries,
+	type RouteQuerySpecEntry,
+} from '~/lib/query/route-preload';
+import {
+	staffAuditLogActionsQueryOptions,
+	staffAuditLogsQueryOptions,
 	toStaffAuditLogRows,
 	useAuditLogActionsQuery,
 	useStaffAuditLogsQuery,
 } from '~/lib/query/staff-audit-logs';
 
-import type { AuditLogListCounts } from '@org/client-ts/models/index';
+import type {
+	AuditLogListCounts,
+	GetAuditLogActionsResponse,
+} from '@org/client-ts/models/index';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
@@ -36,6 +48,7 @@ import {
 	buildAuditActionCatalog,
 	buildAuditLogFilters,
 	resolveAuditLogSelection,
+	type AuditActionCatalog,
 } from './audit-logs/_audit-log-history-filters';
 import { AuditLogStatCards } from './audit-logs/_audit-log-stat-cards';
 import {
@@ -55,6 +68,53 @@ import { LocalizedDateInput } from './audit-logs/_localized-date-input';
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 const TEST_ID = 'staff-audit-logs-history';
+
+/** The page's two queries, declared once: the loader warms them and the page
+ * reads the same variables. The loader takes the first page (no cursor,
+ * decision 4). `catalog` is the action registry the page's own selection
+ * resolves categories against; the loader reads the cached one, and when the
+ * registry is cold it re-runs this spec once the registry lands, so a filtered
+ * URL still warms the key the page will actually read. */
+const auditLogsQueries = ({
+	search,
+	catalog,
+}: {
+	search: AuditLogsListSearchParams;
+	catalog: AuditActionCatalog;
+}) => {
+	const selection = resolveAuditLogSelection({
+		catalog,
+		categories: parseAuditLogCategories(search.category),
+		sensitivity: search.sensitivity === 'sensitive',
+		startDate: search.period
+			? auditLogPeriodStart(search.period)
+			: search.startDate,
+		endDate: search.period ? undefined : search.endDate,
+	});
+
+	const actions = {
+		options: staffAuditLogActionsQueryOptions,
+		variables: {},
+	};
+	const logs = {
+		options: staffAuditLogsQueryOptions,
+		variables: {
+			...buildTableApiVariables(search, DEFAULT_SORT, DEFAULT_SIZE),
+			unknownActor: search.unknownActor,
+			actions: selection.actions?.split(','),
+			startDate: selection.startDate,
+			endDate: selection.endDate,
+		},
+	};
+
+	// An impossible selection never reads `logs` (the page disables it), so the
+	// loader must not warm the unfiltered entry either.
+	const spec: Record<string, RouteQuerySpecEntry> = selection.impossible
+		? { actions }
+		: { actions, logs };
+
+	return { actions, logs, spec };
+};
 
 const toHistoryEvents = (
 	rows: ReturnType<typeof toStaffAuditLogRows>,
@@ -232,17 +292,13 @@ const StaffAuditLogsPage = () => {
 		endDate: search.period ? undefined : search.endDate,
 	});
 
+	const queries = auditLogsQueries({ search, catalog });
 	const query = useStaffAuditLogsQuery(
 		{
-			q: search.q,
-			unknownActor: search.unknownActor,
-			actions: selection.actions?.split(','),
-			startDate: selection.startDate,
-			endDate: selection.endDate,
-			sortId: controller.apiVariables.sortId,
-			sortOrder: controller.apiVariables.sortOrder,
+			...queries.logs.variables,
+			// The cursor lives in React state, never in URL search (decision 4):
+			// the loader warms the first page, the page adds its own cursor.
 			cursor: controller.apiVariables.cursor,
-			size: controller.apiVariables.size,
 		},
 		{ enabled: !selection.impossible },
 	);
@@ -494,5 +550,53 @@ export const Route = createFileRoute('/_authed-layout/staff/audit-logs')({
 		serializeAuditLogsListSearchParams(
 			parseAuditLogsListSearchParams(search as AuditLogsListSearchParamInput),
 		),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) => {
+		// The category filter resolves to action names through the action
+		// registry; the page reads it from its own query, the loader from the
+		// cache. `validateSearch` stores the wire shape (CSV filters); the page
+		// re-parses it, so the loader does too.
+		const search = parseAuditLogsListSearchParams(
+			deps as AuditLogsListSearchParamInput,
+		);
+		const { queryClient } = context;
+		const cached = queryClient.getQueryData<GetAuditLogActionsResponse>(
+			staffAuditLogActionsQueryOptions.queryKey({}),
+		);
+
+		preloadRouteQueries(
+			queryClient,
+			auditLogsQueries({
+				search,
+				catalog: buildAuditActionCatalog(cached?.actions ?? []),
+			}).spec,
+		);
+
+		if (cached !== undefined) {
+			return;
+		}
+
+		// Cold registry: the filtered logs key is only known once it lands. Chain
+		// the logs warm behind it, never awaited (the first call above already
+		// started that fetch, so this one joins it); a failure is left to the
+		// page's own query, like the helper does.
+		void queryClient
+			.query({
+				queryKey: staffAuditLogActionsQueryOptions.queryKey({}),
+				queryFn: () => staffAuditLogActionsQueryOptions.fetcher({}),
+			})
+			.then((loaded) => {
+				preloadRouteQueries(
+					queryClient,
+					auditLogsQueries({
+						search,
+						catalog: buildAuditActionCatalog(
+							(loaded as GetAuditLogActionsResponse).actions ?? [],
+						),
+					}).spec,
+				);
+			})
+			.catch(() => {});
+	},
 	component: StaffAuditLogsPage,
 });

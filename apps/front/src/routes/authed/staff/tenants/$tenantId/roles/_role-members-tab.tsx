@@ -12,10 +12,13 @@ import {
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import { AssignMembersDrawer } from './$roleId/_assign-members-drawer';
+import {
+	ROLE_MEMBERS_DEFAULT_SIZE,
+	ROLE_MEMBERS_DEFAULT_SORT,
+	roleMembersQueries,
+} from './$roleId/_queries';
 import { makeRoleMemberColumns } from './_role-member-columns';
 
-const MEMBERS_DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
-const MEMBERS_DEFAULT_SIZE = 20;
 const EMPTY_SEARCH: TableSearchParams = {};
 
 export const RoleMembersTab = ({
@@ -36,18 +39,15 @@ export const RoleMembersTab = ({
 	const controller = useTableController({
 		search,
 		onSearchChange: setSearch,
-		defaultSort: MEMBERS_DEFAULT_SORT,
-		defaultSize: MEMBERS_DEFAULT_SIZE,
+		defaultSort: ROLE_MEMBERS_DEFAULT_SORT,
+		defaultSize: ROLE_MEMBERS_DEFAULT_SIZE,
 	});
+	const queries = roleMembersQueries({ tenantId, roleId, search });
 	const membersQuery = useStaffTenantRoleMembersQuery(
 		{
-			tenantId,
-			roleId,
-			q: controller.search.committed,
-			sortId: controller.sort.id,
-			sortOrder: controller.sort.order,
+			...queries.roleMembers.variables,
+			// The page index lives in React state: the loader warms page 0.
 			pageIndex,
-			size: controller.size,
 		},
 		{ enabled: tenantId.length > 0 && roleId.length > 0 },
 	);

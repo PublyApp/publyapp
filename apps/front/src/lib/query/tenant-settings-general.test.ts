@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 
 import {
 	buildUpdateTenantSettingsGeneralBody,
+	tenantSettingsGeneralQueryOptions,
 	toTenantSettingsGeneral,
 } from './tenant-settings-general';
 
@@ -152,5 +153,13 @@ describe('buildUpdateTenantSettingsGeneralBody', () => {
 		expect(buildUpdateTenantSettingsGeneralBody({ tenantId: 't-1' })).toEqual(
 			{},
 		);
+	});
+});
+
+describe('tenantSettingsGeneralQueryOptions', () => {
+	test('factory key is the key the hook built before extraction', () => {
+		expect(
+			tenantSettingsGeneralQueryOptions.queryKey({ tenantId: 'tenant-42' }),
+		).toEqual(['tenant', 'tenant-settings-general', 'tenant-42']);
 	});
 });

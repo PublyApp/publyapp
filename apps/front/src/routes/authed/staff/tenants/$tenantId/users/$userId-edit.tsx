@@ -7,6 +7,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	selectStaffTenantUserCrumbName,
 	staffTenantUserCrumbQuery,
@@ -46,6 +47,7 @@ import {
 	type TenantUserEditValues,
 } from './_edit-schema';
 import { applyTenantUserUpdateFailure } from './_edit-submit-handler';
+import { tenantUserQueries } from './_queries';
 
 const StaffTenantUserEditPage = () => {
 	const { tenantId, userId } = Route.useParams();
@@ -56,15 +58,15 @@ const StaffTenantUserEditPage = () => {
 	const [rootValidationError, setRootValidationError] = useState('');
 	const hasSavedRef = useRef(false);
 
-	const tenantQuery = useStaffTenantDetailsQuery(
-		{ tenantId },
-		{ enabled: tenantId.length > 0 },
-	);
+	const queries = tenantUserQueries({ tenantId, userId });
+	const tenantQuery = useStaffTenantDetailsQuery(queries.details.variables, {
+		enabled: tenantId.length > 0,
+	});
 	// Hoisted locals keep raw query flags out of the chained-query gate.
 	const tenantQueryIsPending = tenantQuery.isPending;
 	const tenantQueryIsError = tenantQuery.isError;
 	const detailsQuery = useStaffTenantUserDetailsQuery(
-		{ tenantId, userId },
+		queries.userDetails.variables,
 		{
 			enabled:
 				tenantId.length > 0 &&
@@ -281,6 +283,15 @@ export const Route = createFileRoute(
 			},
 			{ kind: 'label', labelKey: 'common:edit' },
 		],
+	},
+	loader: ({ context, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			tenantUserQueries({
+				tenantId: params.tenantId,
+				userId: params.userId,
+			}),
+		);
 	},
 	component: StaffTenantUserEditPage,
 });

@@ -6,10 +6,18 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { ListPage } from '~/components/list/list-page';
 import type { ListFiltersValue } from '~/components/list/list-types';
 import { DataTableCursorFooter } from '~/components/table/data-table';
-import { useTableController } from '~/components/table/use-table-controller';
+import {
+	resolveSize,
+	useTableController,
+} from '~/components/table/use-table-controller';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	invalidateStaffJobsQueries,
 	staffDeadLetterDetailsQueryOptions,
+	staffDeadLettersQueryOptions,
+	staffJobPermissionsQueryOptions,
+	staffJobQueueQueryOptions,
+	staffSystemJobDefinitionsQueryOptions,
 	toStaffDeadLetterRows,
 	useStaffDeadLettersQuery,
 	useStaffRequeueDeadLetterMutation,
@@ -46,6 +54,7 @@ import {
 	parseStaffJobsListSearchParams,
 	serializeStaffJobsListSearchParams,
 	type StaffJobsListSearchParamInput,
+	type StaffJobsListSearchParams,
 } from './_list-search-params';
 import { useStaffJobPermissions } from './_permissions';
 
@@ -54,6 +63,44 @@ const DEFAULT_SIZE = 100;
 
 const splitFilter = (value: string | undefined): string[] =>
 	value ? value.split(',') : [];
+
+/** The page's queries, declared once: the loader warms them and the page reads
+ * the same variables. The loader takes the first page (no cursor, decision 4).
+ * The row-drawer detail query is not here: it is enabled only while a row is
+ * open. `overviewDeadLetters`, `queue` and `systemJobs` feed `useJobsOverview`,
+ * which reads each one's whole-collection counts (`size: 1`). */
+const deadLetterQueries = ({
+	search,
+}: {
+	search: StaffJobsListSearchParams;
+}) => ({
+	deadLetters: {
+		options: staffDeadLettersQueryOptions,
+		variables: {
+			q: search.q,
+			externalStateStatus: search.externalStateStatus,
+			jobType: search.jobType,
+			tenantId: search.tenantId,
+			size: resolveSize(search, DEFAULT_SIZE),
+		},
+	},
+	overviewDeadLetters: {
+		options: staffDeadLettersQueryOptions,
+		variables: { size: 1 },
+	},
+	queue: {
+		options: staffJobQueueQueryOptions,
+		variables: { size: 1 },
+	},
+	systemJobs: {
+		options: staffSystemJobDefinitionsQueryOptions,
+		variables: { size: 1 },
+	},
+	permissions: {
+		options: staffJobPermissionsQueryOptions,
+		variables: {},
+	},
+});
 
 const StaffJobsDeadLetterPage = () => {
 	const { t, i18n } = useTranslation(['staff-jobs', 'common']);
@@ -87,13 +134,12 @@ const StaffJobsDeadLetterPage = () => {
 		cursorResetKey: buildStaffJobsCursorResetKey(search),
 	});
 
+	const queries = deadLetterQueries({ search });
 	const query = useStaffDeadLettersQuery({
-		q: search.q,
-		externalStateStatus: search.externalStateStatus,
-		jobType: search.jobType,
-		tenantId: search.tenantId,
+		...queries.deadLetters.variables,
+		// The cursor lives in React state, never in URL search (decision 4): the
+		// loader warms the first page, the page adds its own cursor.
 		cursor: controller.apiVariables.cursor,
-		size: controller.apiVariables.size,
 	});
 	const rows = toStaffDeadLetterRows(query.data?.data);
 	const overview = useJobsOverview();
@@ -320,6 +366,7 @@ const StaffJobsDeadLetterPage = () => {
 /** Detail fetch is only meaningful while a row is open — keep it disabled
  * otherwise so opening the dashboard never fans out one request per row. */
 const useStaffDeadLetterDetailQuery = (deadLetterId: string | undefined) => {
+	// preload-exempt: enabled only while a row drawer is open
 	return useQuery({
 		queryKey: staffDeadLetterDetailsQueryOptions.queryKey({
 			deadLetterId: deadLetterId ?? '',
@@ -342,5 +389,18 @@ export const Route = createFileRoute('/_authed-layout/staff/jobs/dead-letter')({
 		serializeStaffJobsListSearchParams(
 			parseStaffJobsListSearchParams(search as StaffJobsListSearchParamInput),
 		),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			deadLetterQueries({
+				// `validateSearch` stores the wire shape (CSV filters); the page
+				// re-parses it, so the loader does too.
+				search: parseStaffJobsListSearchParams(
+					deps as StaffJobsListSearchParamInput,
+				),
+			}),
+		);
+	},
 	component: StaffJobsDeadLetterPage,
 });

@@ -35,6 +35,7 @@ import {
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { PermissionMatrix } from './_permission-matrix';
+import { rolePermissionCatalogQuery } from './_queries';
 import {
 	isRoleFormField,
 	toStringArray,
@@ -70,9 +71,9 @@ export const RoleFormDrawer = ({
 	const { t: tRoles } = useTranslation('staff-tenant-roles');
 	const queryClient = useQueryClient();
 
-	const catalogQuery = useStaffTenantPermissionCatalogQuery({
-		language: i18n.language,
-	});
+	const catalogQuery = useStaffTenantPermissionCatalogQuery(
+		rolePermissionCatalogQuery(i18n.language).variables,
+	);
 
 	// Hoisted locals keep raw query flags out of render-flow conditionals.
 	const createRole = useCreateStaffTenantRoleMutation();

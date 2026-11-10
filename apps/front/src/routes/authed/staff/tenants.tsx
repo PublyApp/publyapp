@@ -8,8 +8,14 @@ import type { ListFiltersValue } from '~/components/list/list-types';
 import { DataTableCursorFooter } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
-import { useTableController } from '~/components/table/use-table-controller';
 import {
+	buildTableApiVariables,
+	resolveSort,
+	useTableController,
+} from '~/components/table/use-table-controller';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
+import {
+	staffTenantsQueryOptions,
 	toStaffTenantRows,
 	useStaffTenantsQuery,
 } from '~/lib/query/staff-tenants';
@@ -42,6 +48,33 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 const SERVER_SORT_IDS = new Set(['name', 'status', 'created_at', 'updated_at']);
+
+/** The page's list query, declared once: the loader warms it and the page reads
+ * the same variables. The loader takes the first page (no cursor, decision 4). */
+const staffTenantsQueries = ({
+	search,
+}: {
+	search: TenantListSearchParams;
+}) => {
+	// The API only sorts four ids; any other column sorts the loaded page
+	// client-side, so the request keeps a valid server order.
+	const sort = resolveSort(search, DEFAULT_SORT);
+	const serverSort = SERVER_SORT_IDS.has(sort.id);
+
+	return {
+		tenants: {
+			options: staffTenantsQueryOptions,
+			variables: {
+				...buildTableApiVariables(search, DEFAULT_SORT, DEFAULT_SIZE),
+				// The API filters by status server-side, so a status filter reaches
+				// matching organisations on later pages instead of only the loaded one.
+				status: serializeTenantStatusFilter(search.status),
+				sortId: serverSort ? sort.id : 'created_at',
+				sortOrder: serverSort ? sort.order : 'desc',
+			},
+		},
+	};
+};
 
 const StaffTenantsPage = () => {
 	const { t, i18n } = useTranslation('common');
@@ -76,18 +109,12 @@ const StaffTenantsPage = () => {
 		].join('|'),
 	});
 
-	// The API only sorts four ids; any other column sorts the loaded page
-	// client-side, so the request keeps a valid server order.
-	const sortState = controller.sort;
-	const serverSort = SERVER_SORT_IDS.has(sortState.id);
-	const statusFilter = serializeTenantStatusFilter(search.status);
+	const queries = staffTenantsQueries({ search });
 	const query = useStaffTenantsQuery({
-		...controller.apiVariables,
-		// The API filters by status server-side, so a status filter reaches
-		// matching organisations on later pages instead of only the loaded one.
-		status: statusFilter,
-		sortId: serverSort ? sortState.id : 'created_at',
-		sortOrder: serverSort ? sortState.order : 'desc',
+		...queries.tenants.variables,
+		// The cursor lives in React state, never in URL search (decision 4): the
+		// loader warms the first page, the page adds its own cursor.
+		cursor: controller.apiVariables.cursor,
 	});
 	const rows = toStaffTenantRows(query.data?.data);
 	const selection = useRowSelection(rows.map((row) => row.id));
@@ -149,8 +176,8 @@ const StaffTenantsPage = () => {
 			defaultColumns={[...DEFAULT_TENANT_COLUMNS]}
 			lockedColumn="name"
 			sorting={
-				sortState
-					? [{ id: sortState.id, desc: sortState.order === 'desc' }]
+				controller.sort
+					? [{ id: controller.sort.id, desc: controller.sort.order === 'desc' }]
 					: []
 			}
 			onSortingChange={(next) =>
@@ -284,5 +311,16 @@ export const Route = createFileRoute('/_authed-layout/staff/tenants')({
 		serializeTenantListSearchParams(
 			parseTenantListSearchParams(search as TenantListSearchParamInput),
 		),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			staffTenantsQueries({
+				// `validateSearch` stores the wire shape (CSV filters); the page
+				// re-parses it, so the loader does too.
+				search: parseTenantListSearchParams(deps as TenantListSearchParamInput),
+			}),
+		);
+	},
 	component: StaffTenantsPage,
 });

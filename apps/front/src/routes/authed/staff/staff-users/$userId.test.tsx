@@ -191,6 +191,16 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-users', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub is never called.
+	staffUserDetailsQueryOptions: {
+		queryKey: () => ['staffUserDetailsQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
+	staffUserRolesQueryOptions: {
+		queryKey: () => ['staffUserRolesQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	STAFF_USERS_QUERY_KEY: ['staff-users'],
 	STAFF_USER_DETAILS_QUERY_KEY: ['staff-users', 'detail'],
 	invalidateStaffUsers: (queryClient: {

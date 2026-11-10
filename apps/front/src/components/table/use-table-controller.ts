@@ -57,6 +57,25 @@ type ApiVariables = {
 	size: number;
 };
 
+/** The list query's variables for a given URL search state. A route loader
+ * omits `cursor`: it warms the first page only (decision 4). */
+export const buildTableApiVariables = (
+	search: TableSearchParams,
+	defaultSort: SortState,
+	defaultSize: number,
+	cursor?: string,
+): ApiVariables => {
+	const sort = resolveSort(search, defaultSort);
+
+	return {
+		q: search.q,
+		sortId: sort.id,
+		sortOrder: sort.order,
+		size: resolveSize(search, defaultSize),
+		cursor,
+	};
+};
+
 export type UseTableControllerOptions = {
 	search: TableSearchParams;
 	onSearchChange: (next: TableSearchParams) => void;
@@ -199,12 +218,11 @@ export const useTableController = (
 			onNextPage: cursorPagination.advance,
 			onPreviousPage: cursorPagination.retreat,
 		},
-		apiVariables: {
-			q: search.q,
-			sortId: sort.id,
-			sortOrder: sort.order,
-			cursor: cursorPagination.cursor,
+		apiVariables: buildTableApiVariables(
+			search,
+			sort,
 			size,
-		},
+			cursorPagination.cursor,
+		),
 	};
 };

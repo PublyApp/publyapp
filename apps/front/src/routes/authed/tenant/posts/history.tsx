@@ -5,19 +5,31 @@ import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
+import { buildTableApiVariables } from '~/components/table/use-table-controller';
 import { PageHeader } from '~/components/ui/product-page';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	POSTS_PUBLISH,
 	SOCIAL_ACCOUNTS_PUBLISH,
+	tenantPermissionsQueryOptions,
 	useTenantPermissions,
 } from '~/lib/query/tenant-permissions';
 import {
 	invalidateTenantPublications,
+	tenantPublicationsQueryOptions,
 	toTenantPublicationRows,
 	useTenantPublicationsQuery,
 	type TenantPublicationRow,
 } from '~/lib/query/tenant-publications';
+import {
+	resolveWorkspaceTenantIdFromCache,
+	tenantsForPickerQueryOptions,
+} from '~/lib/query/tenants-for-picker';
 import type { TableSearchParamInput } from '~/lib/url-state/table-search-params';
+import {
+	parseTenantPostListSearchParams,
+	type TenantPostListSearchParams,
+} from '~/lib/url-state/tenant-post-list-helpers';
 import { formatInZone } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
@@ -27,7 +39,11 @@ import {
 	MutedWhenSuperseded,
 	ScheduledPublicationCustomized,
 } from './_scheduled-publication-display';
-import { useTenantPostList } from './_use-tenant-post-list';
+import {
+	TENANT_POST_LIST_DEFAULT_SIZE,
+	TENANT_POST_LIST_DEFAULT_SORT,
+	useTenantPostList,
+} from './_use-tenant-post-list';
 
 /** While any publication is in progress the list refreshes itself on this
  * cadence (query invalidation, so the worker-driven transitions surface
@@ -37,17 +53,47 @@ const IN_PROGRESS_POLL_MS = 5_000;
 /** Keep polling briefly while publish-now waits for worker pickup. */
 const SCHEDULED_IN_FLIGHT_WINDOW_MS = 60_000;
 
+/** The page's queries, declared once: the loader warms them and the page reads
+ * the same variables. The loader takes the first page (no cursor, decision 4). */
+const postHistoryQueries = ({
+	tenantId,
+	search,
+}: {
+	tenantId: string;
+	search: TenantPostListSearchParams;
+}) => {
+	const variables = buildTableApiVariables(
+		search,
+		TENANT_POST_LIST_DEFAULT_SORT,
+		TENANT_POST_LIST_DEFAULT_SIZE,
+	);
+
+	return {
+		publications: {
+			options: tenantPublicationsQueryOptions,
+			variables: { ...variables, limit: variables.size, tenantId },
+		},
+		permissions: {
+			options: tenantPermissionsQueryOptions,
+			variables: { tenantId },
+		},
+		picker: { options: tenantsForPickerQueryOptions, variables: {} },
+	};
+};
+
 const TenantPostsHistoryPage = () => {
 	const { t, i18n } = useTranslation(['posts', 'common']);
 	const navigate = Route.useNavigate();
-	const { controller, tenantId } = useTenantPostList(
+	const search = parseTenantPostListSearchParams(
 		Route.useSearch() as TableSearchParamInput,
-		navigate,
 	);
+	const { controller, tenantId } = useTenantPostList(search, navigate);
+	const queries = postHistoryQueries({ tenantId: tenantId ?? '', search });
 	const query = useTenantPublicationsQuery({
-		...controller.apiVariables,
-		limit: controller.apiVariables.size,
-		tenantId: tenantId ?? '',
+		...queries.publications.variables,
+		// The cursor lives in React state, never in URL search (decision 4): the
+		// loader warms the first page, the page adds its own cursor.
+		cursor: controller.apiVariables.cursor,
 	});
 	const rows = toTenantPublicationRows(query.data);
 	const { hasPermission } = useTenantPermissions(tenantId);
@@ -204,6 +250,20 @@ export const Route = createFileRoute('/_authed-layout/tenant/posts/history')({
 			{ kind: 'label', labelKey: 'history' },
 		],
 		i18nNamespaces: ['posts'],
+	},
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) => {
+		const tenantId = resolveWorkspaceTenantIdFromCache(context.queryClient);
+		if (tenantId === null) {
+			return;
+		}
+		preloadRouteQueries(
+			context.queryClient,
+			postHistoryQueries({
+				tenantId,
+				search: parseTenantPostListSearchParams(deps as TableSearchParamInput),
+			}),
+		);
 	},
 	component: TenantPostsHistoryPage,
 });

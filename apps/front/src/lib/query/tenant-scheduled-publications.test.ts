@@ -1,6 +1,8 @@
 import { QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
+import type { FindScheduledPublicationsResponse } from '@org/client-ts/models/index';
+
 const mocks = vi.hoisted(() => ({
 	getOrCreateClient: vi.fn(),
 }));
@@ -196,5 +198,107 @@ describe('scheduledPublicationsQueryOptions', () => {
 			},
 		});
 		expect(result).toEqual({ data: [], nextCursor: null });
+	});
+});
+
+describe('scheduledPublicationsInfiniteQueryOptions', () => {
+	const variables = {
+		tenantId: 'tenant-1',
+		from: new Date('2026-08-01T00:00:00.000Z'),
+		to: new Date('2026-08-31T23:59:59.999Z'),
+		statuses: ['scheduled', 'paused'],
+		limit: 100,
+	};
+
+	const pageWithCursor = (nextCursor: string | null) =>
+		({ nextCursor }) as FindScheduledPublicationsResponse;
+
+	test('key is the array the hook built before extraction', async () => {
+		const { scheduledPublicationsInfiniteQueryOptions } =
+			await requireScheduledPublicationsModule();
+
+		expect(
+			scheduledPublicationsInfiniteQueryOptions.queryKey(variables),
+		).toEqual([
+			'tenant',
+			'tenant-scheduled-publications',
+			'tenant-1',
+			{
+				from: '2026-08-01T00:00:00.000Z',
+				to: '2026-08-31T23:59:59.999Z',
+				status: 'scheduled,paused',
+				limit: '100',
+			},
+			0,
+		]);
+		expect(
+			scheduledPublicationsInfiniteQueryOptions.queryKey({
+				...variables,
+				restartKey: 3,
+			}),
+		).toEqual([
+			'tenant',
+			'tenant-scheduled-publications',
+			'tenant-1',
+			{
+				from: '2026-08-01T00:00:00.000Z',
+				to: '2026-08-31T23:59:59.999Z',
+				status: 'scheduled,paused',
+				limit: '100',
+			},
+			3,
+		]);
+	});
+
+	test('fetcher narrows pageParam to the string cursor', async () => {
+		const { scheduledPublicationsInfiniteQueryOptions } =
+			await requireScheduledPublicationsModule();
+		const get = vi.fn().mockResolvedValue({ data: [], nextCursor: null });
+		mocks.getOrCreateClient.mockReturnValue({
+			posts: { publications: { get } },
+		});
+
+		await scheduledPublicationsInfiniteQueryOptions.fetcher(
+			variables,
+			undefined,
+		);
+		await scheduledPublicationsInfiniteQueryOptions.fetcher(
+			variables,
+			'cursor-2',
+		);
+
+		expect(get).toHaveBeenNthCalledWith(1, {
+			queryParameters: {
+				from: '2026-08-01T00:00:00.000Z',
+				to: '2026-08-31T23:59:59.999Z',
+				status: 'scheduled,paused',
+				limit: '100',
+			},
+		});
+		expect(get).toHaveBeenNthCalledWith(2, {
+			queryParameters: {
+				from: '2026-08-01T00:00:00.000Z',
+				to: '2026-08-31T23:59:59.999Z',
+				status: 'scheduled,paused',
+				cursor: 'cursor-2',
+				limit: '100',
+			},
+		});
+	});
+
+	test('getNextPageParam walks cursors and stops on the end or a recycled cursor', async () => {
+		const { scheduledPublicationsInfiniteQueryOptions } =
+			await requireScheduledPublicationsModule();
+		const { getNextPageParam } = scheduledPublicationsInfiniteQueryOptions;
+
+		expect(getNextPageParam(pageWithCursor('c2'), [], undefined, [])).toBe(
+			'c2',
+		);
+		expect(
+			getNextPageParam(pageWithCursor(null), [], undefined, []),
+		).toBeUndefined();
+		expect(
+			getNextPageParam(pageWithCursor('c1'), [], undefined, ['c1']),
+		).toBeUndefined();
 	});
 });

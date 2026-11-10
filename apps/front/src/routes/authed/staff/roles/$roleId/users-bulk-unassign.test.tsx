@@ -85,6 +85,12 @@ vi.mock('sonner', () => ({
 }));
 
 vi.mock('~/lib/query/staff-role-users', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub is never called.
+	staffRoleUsersQueryOptions: {
+		queryKey: () => ['staffRoleUsersQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	toStaffRoleUserRows: mocks.toRows,
 	useStaffRoleUsersQuery: mocks.useUsersQuery,
 	useBulkUnassignStaffRoleUsersMutation: mocks.useBulkUnassign,
@@ -102,6 +108,12 @@ vi.mock('~/lib/query/staff-roles', async (importOriginal) => {
 	);
 
 	return {
+		// The route's query spec reads the factory object; this suite never runs
+		// the loader, so the stub is never called.
+		staffRoleDetailsQueryOptions: {
+			queryKey: () => ['staffRoleDetailsQueryOptions'],
+			fetcher: () => Promise.resolve({}),
+		},
 		STAFF_ROLES_QUERY_KEY: ['staff-roles'],
 		invalidateStaffRoles: mocks.invalidateStaffRoles,
 		selectStaffRoleCrumbName: () => undefined,

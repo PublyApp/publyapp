@@ -198,7 +198,7 @@ const toUntypedSegments = (segments: string[]) =>
 
 // ── Query options ──────────────────────────────────────────────────
 
-const tenantPostsQueryOptions = buildTenantQueryOptions<
+export const tenantPostsQueryOptions = buildTenantQueryOptions<
 	ApiClient,
 	FindPostsForTenantResponse,
 	TenantPostsQueryVariables

@@ -8,6 +8,7 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Form, FormActionBar, FormPageLayout } from '~/components/field';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	useUpdateStaffUserMutation,
 	useUpdateStaffUserRolesMutation,
@@ -20,6 +21,7 @@ import { ChangeStaffUserEmailDialog } from './_change-email-dialog';
 import { EditAccessSection } from './_edit-access-section';
 import { EditIdentitySection } from './_edit-identity-section';
 import { staffUserEditHasUnsavedChanges } from './_edit-nav-guard';
+import { staffUserEditQueries } from './_edit-queries';
 import {
 	computeActionBarStatus,
 	submitStaffUserEdit,
@@ -289,6 +291,12 @@ export const Route = createFileRoute(
 			...staffUserCrumbsBase(params),
 			{ kind: 'label', labelKey: 'common:edit' },
 		],
+	},
+	loader: ({ context, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			staffUserEditQueries({ userId: params.userId }),
+		);
 	},
 	component: StaffUserEditPage,
 });

@@ -15,6 +15,8 @@ import {
 	formatTenantUserStatusLabel,
 } from '~/routes/authed/staff/tenants/$tenantId/_tenant-details-shell';
 
+import { tenantUsersPreviewVariables } from './_queries';
+
 export const UsersPreviewCard = ({
 	tenant,
 	t,
@@ -22,12 +24,9 @@ export const UsersPreviewCard = ({
 	tenant: StaffTenantDetails;
 	t: (key: string) => string;
 }) => {
-	const usersQuery = useStaffTenantUsersQuery({
-		tenantId: tenant.id,
-		size: 5,
-		sortId: 'created_at',
-		sortOrder: 'desc',
-	});
+	const usersQuery = useStaffTenantUsersQuery(
+		tenantUsersPreviewVariables(tenant.id),
+	);
 	const rows = toStaffTenantUserRows(usersQuery.data?.data);
 	// `QueryDisplay` reads emptiness from `data`; the API returns a page object,
 	// so hand it the row list — the same predicate the hand-written ladder used.

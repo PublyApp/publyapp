@@ -326,6 +326,39 @@ vi.mock('~/lib/query/staff-tenant-roles', () => ({
 		revision: mocks.permissionKeysCacheRevision,
 	}),
 	toStaffTenantRolePermissionKeys: mocks.toStaffTenantRolePermissionKeys,
+	// #2340: the route's query spec references all five factories.
+	staffTenantPermissionCatalogQueryOptions: {
+		queryKey: (variables: { language?: string }) => [
+			'staff',
+			'permissions',
+			'scopes',
+			'tenant',
+			variables.language,
+		],
+		fetcher: async () => ({}),
+	},
+	staffTenantRoleMembersQueryOptions: {
+		queryKey: (variables: { tenantId: string; roleId: string }) => [
+			'staff',
+			'staff-tenants',
+			'roles',
+			'members',
+			variables.tenantId,
+			variables.roleId,
+		],
+		fetcher: async () => ({}),
+	},
+	staffTenantRolePermissionKeysQueryOptions: {
+		queryKey: (variables: { tenantId: string; roleId: string }) => [
+			'staff',
+			'staff-tenants',
+			'roles',
+			'permission-keys',
+			variables.tenantId,
+			variables.roleId,
+		],
+		fetcher: async () => ({}),
+	},
 	useStaffTenantRoleMembersQuery: mocks.useStaffTenantRoleMembersQuery,
 	toStaffTenantRoleMemberRows: mocks.toStaffTenantRoleMemberRows,
 	useDeleteStaffTenantRoleMutation: mocks.useDeleteStaffTenantRoleMutation,
@@ -1463,47 +1496,52 @@ describe('staff tenant role details route', () => {
 		).toBe(false);
 	});
 
-	// #851: the route loader awaits both entity queries through
-	// context.queryClient.ensureQueryData so the first paint already has the
-	// tenant and role names for a full breadcrumb trail. These specs pin
-	// the loader wiring on Route.options directly (this suite mounts the
-	// component without a router, so the loader itself stays inert here).
-	describe('#851 awaited route loader', () => {
+	// #2340: the route loader preloads the page's queries fire-and-forget
+	// (`preloadRouteQueries` + the `roleDetailsQueries` spec); it never awaits.
+	// These specs pin the loader wiring on Route.options directly (this suite
+	// mounts the component without a router, so the loader itself stays inert
+	// here). The end-to-end hover/click contract lives in
+	// `$roleId.preload.test.tsx`.
+	describe('#2340 route loader preload', () => {
 		const loaderArgs = {
 			params: {
 				tenantId: '11111111-1111-1111-1111-111111111111',
 				roleId: '22222222-2222-2222-2222-222222222222',
 			},
-			context: { queryClient: new QueryClient() },
+			context: { queryClient: new QueryClient(), locale: 'en' },
 		};
 
-		test('awaits tenant and role queries through query({ staleTime: static })', async () => {
+		test('warms the tenant and role details queries without awaiting', async () => {
 			const loader = Route.options.loader as
 				| ((args: {
 						params: { tenantId: string; roleId: string };
-						context: { queryClient: QueryClient };
-				  }) => Promise<void>)
+						context: { queryClient: QueryClient; locale: string };
+				  }) => void)
 				| undefined;
 			if (!loader) {
-				throw new Error('expected the #851 awaited route loader');
+				throw new Error('expected the #2340 route preload loader');
 			}
 
-			await loader(loaderArgs);
+			// Fire-and-forget: the loader must hand back nothing. An awaited
+			// loader passes the fetcher assertions below identically, so this
+			// assertion is what actually pins the non-blocking contract.
+			expect(loader(loaderArgs)).toBeUndefined();
 
-			expect(
-				mocks.staffTenantRoleDetailsFetcher.mock.calls.length,
-			).toBeGreaterThan(0);
-			expect(mocks.staffTenantDetailsFetcher).toHaveBeenCalledWith(
-				expect.objectContaining({
-					tenantId: '11111111-1111-1111-1111-111111111111',
-				}),
-			);
-			expect(mocks.staffTenantRoleDetailsFetcher).toHaveBeenCalledWith(
-				expect.objectContaining({
-					tenantId: '11111111-1111-1111-1111-111111111111',
-					roleId: '22222222-2222-2222-2222-222222222222',
-				}),
-			);
+			await waitFor(() => {
+				expect(mocks.staffTenantDetailsFetcher).toHaveBeenCalledWith(
+					expect.objectContaining({
+						tenantId: '11111111-1111-1111-1111-111111111111',
+					}),
+				);
+			});
+			await waitFor(() => {
+				expect(mocks.staffTenantRoleDetailsFetcher).toHaveBeenCalledWith(
+					expect.objectContaining({
+						tenantId: '11111111-1111-1111-1111-111111111111',
+						roleId: '22222222-2222-2222-2222-222222222222',
+					}),
+				);
+			});
 		});
 
 		test('declares the pending skeleton as its pendingComponent', () => {

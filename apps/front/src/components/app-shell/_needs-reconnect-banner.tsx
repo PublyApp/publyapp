@@ -14,7 +14,9 @@ import {
  * message plus a link to the Integrations page. */
 export const NeedsReconnectBanner = ({ tenantId }: { tenantId: string }) => {
 	const { t } = useTranslation('settings');
+	// preload-exempt: app-shell widget on a resolved workspace tenant; the layout has no loader and Integrations declares the same factory
 	const accountsQuery = useSocialAccountsQuery({ tenantId });
+	// preload-exempt: session-stable permission gate (staleTime Infinity), fetched once per workspace tenant
 	const canManage = useCanManageSocialAccounts();
 
 	return (

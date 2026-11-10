@@ -14,6 +14,7 @@ import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-feedback/mutation-toast';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	invalidateGlobalTenantUsers,
 	toGlobalTenantUserDetails,
@@ -30,6 +31,7 @@ import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-fai
 
 import { tenantUserDetailsCrumbs } from './_crumbs';
 import { TenantUserDetailsShell } from './_details-shell';
+import { globalTenantUserQueries } from './_queries';
 
 const getIdentitySchema = (t: (key: string) => string) =>
 	z.object({
@@ -62,6 +64,12 @@ export const Route = createFileRoute(
 		i18nNamespaces: ['common'],
 		crumbs: tenantUserDetailsCrumbs,
 	},
+	loader: ({ context, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			globalTenantUserQueries({ userId: params.userId }),
+		);
+	},
 	component: TenantUserGeneralTabPage,
 });
 
@@ -84,7 +92,10 @@ const IdentityEditSection = ({ userId }: { userId: string }) => {
 	const { formState, reset, setError } = methods;
 
 	// Same key as the shell's query — served from cache, no second request.
-	const detailsQuery = useGlobalTenantUserDetailsQuery({ userId });
+	const queries = globalTenantUserQueries({ userId });
+	const detailsQuery = useGlobalTenantUserDetailsQuery(
+		queries.details.variables,
+	);
 	const user = useMemo(
 		() => toGlobalTenantUserDetails(detailsQuery.data),
 		[detailsQuery.data],

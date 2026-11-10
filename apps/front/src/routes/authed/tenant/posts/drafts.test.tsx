@@ -59,7 +59,8 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-vi.mock('~/lib/query/tenant-posts', () => ({
+vi.mock('~/lib/query/tenant-posts', async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	useTenantPostsQuery: mocks.useTenantPostsQuery,
 	useDeleteTenantPostMutation: mocks.useDeleteTenantPostMutation,
 	toTenantPostRows: vi.fn(() => []),
@@ -74,7 +75,8 @@ vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => false,
 }));
 
-vi.mock('~/lib/query/tenants-for-picker', () => ({
+vi.mock('~/lib/query/tenants-for-picker', async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	useResolvedWorkspaceTenantId: () => '11111111-1111-1111-1111-111111111111',
 }));
 

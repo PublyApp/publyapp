@@ -31,6 +31,7 @@ import {
 	rememberStaffRoleNames,
 } from '../_staff-role-options';
 import { rememberPristineStaffUserEditValues } from './_edit-nav-guard';
+import { staffUserEditQueries } from './_edit-queries';
 import {
 	ROLE_PAGE_SIZE,
 	getStaffUserEditSchema,
@@ -67,12 +68,12 @@ export const useEditFormData = (userId: string): UseEditFormDataReturn => {
 	const isRoleSearchSettled = roleSearch.trim() === deferredRoleSearch;
 	const knownRoleNamesRef = useRef(new Map<string, string>());
 
-	const detailsQuery = useStaffUserDetailsQuery(
-		{ userId },
-		{ enabled: userId.length > 0 },
-	);
+	const queries = staffUserEditQueries({ userId });
+	const detailsQuery = useStaffUserDetailsQuery(queries.details.variables, {
+		enabled: userId.length > 0,
+	});
 	const assignedRolesQuery = useStaffUserRolesQuery(
-		{ userId },
+		queries.userRoles.variables,
 		{ enabled: userId.length > 0 },
 	);
 	const rolePagination = useCursorPagination({
@@ -82,9 +83,9 @@ export const useEditFormData = (userId: string): UseEditFormDataReturn => {
 		scopeKey: `${userId}:${deferredRoleSearch}`,
 	});
 	const rolesQuery = useStaffRolesQuery({
-		limit: ROLE_PAGE_SIZE,
-		sortId: 'name',
-		sortOrder: 'asc',
+		...queries.roles.variables,
+		// The role search and cursor live in React state: the loader warms the
+		// first, unfiltered page.
 		q: deferredRoleSearch || undefined,
 		cursor: rolePagination.cursor,
 	});

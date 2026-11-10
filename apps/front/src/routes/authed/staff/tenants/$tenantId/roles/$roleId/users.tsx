@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	selectStaffTenantRoleCrumbName,
 	staffTenantRoleCrumbQuery,
@@ -29,6 +30,7 @@ import {
 	TenantMissingSlot,
 	TenantRoleMembersError,
 } from './_members-error-views';
+import { roleUsersQueries } from './_queries';
 import {
 	parseRoleMembersSearchParams,
 	serializeRoleMembersSearchParams,
@@ -227,5 +229,17 @@ export const Route = createFileRoute(
 	},
 	validateSearch: (search) =>
 		parseRoleMembersSearchParams(search as RoleMembersSearchParamInput),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			roleUsersQueries({
+				tenantId: params.tenantId,
+				roleId: params.roleId,
+				// `deps` is already parsed by `validateSearch`: do not parse twice.
+				search: deps,
+			}).spec,
+		);
+	},
 	component: StaffTenantRoleMembersPage,
 });

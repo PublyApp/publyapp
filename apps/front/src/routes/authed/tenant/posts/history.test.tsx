@@ -29,7 +29,8 @@ const mocks = vi.hoisted(() => ({
 	canPublish: true,
 }));
 
-vi.mock('~/lib/query/tenant-publications', () => ({
+vi.mock('~/lib/query/tenant-publications', async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	useTenantPublicationsQuery: () => ({
 		data: { payload: 'publications' },
 		isPending: false,
@@ -55,7 +56,8 @@ vi.mock('~/lib/query/tenant-publications', () => ({
 	}),
 }));
 
-vi.mock('~/lib/query/tenant-permissions', () => ({
+vi.mock('~/lib/query/tenant-permissions', async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	POSTS_PUBLISH: 'tenant.posts.publish',
 	SOCIAL_ACCOUNTS_PUBLISH: 'tenant.socialaccounts.publish',
 	useTenantPermissions: () => ({
@@ -91,7 +93,8 @@ vi.mock('@tanstack/react-router', () => ({
 	),
 }));
 
-vi.mock('~/lib/query/tenants-for-picker', () => ({
+vi.mock('~/lib/query/tenants-for-picker', async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	useResolvedWorkspaceTenantId: () => '11111111-1111-1111-1111-111111111111',
 }));
 

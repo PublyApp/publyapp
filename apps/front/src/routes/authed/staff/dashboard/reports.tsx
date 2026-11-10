@@ -3,8 +3,14 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { historyCategory } from '~/components/history/history-actions';
-import { useStaffAuditLogsQuery } from '~/lib/query/staff-audit-logs';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
+	staffAuditLogsQueryOptions,
+	useStaffAuditLogsQuery,
+} from '~/lib/query/staff-audit-logs';
+import {
+	staffDashboardSeriesQueryOptions,
+	staffDashboardTopOrganisationsQueryOptions,
 	useStaffDashboardSeriesQuery,
 	useStaffDashboardTopOrganisationsQuery,
 } from '~/lib/query/staff-dashboard';
@@ -89,58 +95,96 @@ const seriesDelta = (
 			}
 		: undefined;
 
+/** The report's URL state: the period is optional, so a bare link stays
+ * valid. */
+type ReportsSearch = { period?: DashboardPeriod };
+
+/** The nine queries the report renders, declared once: the loader warms them
+ * and the page reads the same variables. */
+const dashboardReportsQueries = ({ search }: { search: ReportsSearch }) => {
+	const period: DashboardPeriod = search.period ?? '30d';
+	// The same window the overview's cards read (B MA-1).
+	const { startDate, endDate } = dashboardWindow(period);
+	const previous = previousPeriod(period);
+
+	return {
+		audit: {
+			options: staffAuditLogsQueryOptions,
+			variables: { size: 1, startDate, endDate },
+		},
+		// `impersonation.started` is emitted by the impersonation service, so this
+		// figure is real.
+		impersonations: {
+			options: staffAuditLogsQueryOptions,
+			variables: {
+				size: 1,
+				startDate,
+				endDate,
+				actions: ['impersonation.started'],
+			},
+		},
+		series: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: { metric: 'audit_events' as const, startDate, endDate },
+		},
+		previousSeries: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: { metric: 'audit_events' as const, ...previous },
+		},
+		signIns: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: { metric: 'sign_ins' as const, startDate, endDate },
+		},
+		previousSignIns: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: { metric: 'sign_ins' as const, ...previous },
+		},
+		failedSignIns: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: { metric: 'failed_sign_ins' as const, startDate, endDate },
+		},
+		previousFailedSignIns: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: { metric: 'failed_sign_ins' as const, ...previous },
+		},
+		topOrganisations: {
+			options: staffDashboardTopOrganisationsQueryOptions,
+			variables: { startDate, endDate, size: 5 },
+		},
+	};
+};
+
 const Reports = () => {
 	const { t, i18n } = useTranslation('common');
 	const locale = i18n.language;
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 	const period: DashboardPeriod = search.period ?? '30d';
-	// The same window the overview's cards read (B MA-1).
-	const { startDate, endDate } = dashboardWindow(period);
+	const queries = dashboardReportsQueries({ search });
+	const { startDate } = queries.audit.variables;
 	const [shouldLogout, setShouldLogout] = useState(false);
 
-	const auditQuery = useStaffAuditLogsQuery({ size: 1, startDate, endDate });
-	// `impersonation.started` is emitted by the impersonation service, so this
-	// figure is real.
-	const impersonationsQuery = useStaffAuditLogsQuery({
-		size: 1,
-		startDate,
-		endDate,
-		actions: ['impersonation.started'],
-	});
-
-	const seriesQuery = useStaffDashboardSeriesQuery({
-		metric: 'audit_events',
-		startDate,
-		endDate,
-	});
-	const previousSeriesQuery = useStaffDashboardSeriesQuery({
-		metric: 'audit_events',
-		...previousPeriod(period),
-	});
-	const signInsQuery = useStaffDashboardSeriesQuery({
-		metric: 'sign_ins',
-		startDate,
-		endDate,
-	});
-	const previousSignInsQuery = useStaffDashboardSeriesQuery({
-		metric: 'sign_ins',
-		...previousPeriod(period),
-	});
-	const failedSignInsQuery = useStaffDashboardSeriesQuery({
-		metric: 'failed_sign_ins',
-		startDate,
-		endDate,
-	});
-	const previousFailedSignInsQuery = useStaffDashboardSeriesQuery({
-		metric: 'failed_sign_ins',
-		...previousPeriod(period),
-	});
-	const topOrganisationsQuery = useStaffDashboardTopOrganisationsQuery({
-		startDate,
-		endDate,
-		size: 5,
-	});
+	const auditQuery = useStaffAuditLogsQuery(queries.audit.variables);
+	const impersonationsQuery = useStaffAuditLogsQuery(
+		queries.impersonations.variables,
+	);
+	const seriesQuery = useStaffDashboardSeriesQuery(queries.series.variables);
+	const previousSeriesQuery = useStaffDashboardSeriesQuery(
+		queries.previousSeries.variables,
+	);
+	const signInsQuery = useStaffDashboardSeriesQuery(queries.signIns.variables);
+	const previousSignInsQuery = useStaffDashboardSeriesQuery(
+		queries.previousSignIns.variables,
+	);
+	const failedSignInsQuery = useStaffDashboardSeriesQuery(
+		queries.failedSignIns.variables,
+	);
+	const previousFailedSignInsQuery = useStaffDashboardSeriesQuery(
+		queries.previousFailedSignIns.variables,
+	);
+	const topOrganisationsQuery = useStaffDashboardTopOrganisationsQuery(
+		queries.topOrganisations.variables,
+	);
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
@@ -263,10 +307,6 @@ const Reports = () => {
 	);
 };
 
-/** The report's URL state: the period is optional, so a bare link stays
- * valid. */
-type ReportsSearch = { period?: DashboardPeriod };
-
 export const Route = createFileRoute('/_authed-layout/staff/dashboard/reports')(
 	{
 		validateSearch: (search: Record<string, unknown>): ReportsSearch => ({
@@ -277,6 +317,13 @@ export const Route = createFileRoute('/_authed-layout/staff/dashboard/reports')(
 				{ kind: 'label', labelKey: 'nav-dashboard', to: '/staff/dashboard' },
 				{ kind: 'label', labelKey: 'nav-dashboard-reports' },
 			],
+		},
+		loaderDeps: ({ search }) => search,
+		loader: ({ context, deps }) => {
+			preloadRouteQueries(
+				context.queryClient,
+				dashboardReportsQueries({ search: deps }),
+			);
 		},
 		component: Reports,
 	},

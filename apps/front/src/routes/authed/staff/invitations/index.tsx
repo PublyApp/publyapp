@@ -8,8 +8,15 @@ import type { ListFiltersValue } from '~/components/list/list-types';
 import { DataTableCursorFooter } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
-import { useTableController } from '~/components/table/use-table-controller';
-import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
+import {
+	buildTableApiVariables,
+	useTableController,
+} from '~/components/table/use-table-controller';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
+import {
+	staffInvitationsQueryOptions,
+	useStaffInvitationsQuery,
+} from '~/lib/query/staff-invitations';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 import { formatDateTime } from '~/utils/format-time';
 
@@ -48,6 +55,22 @@ import { InvitationRowActions } from './table-columns';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
+
+/** The page's list query, declared once: the loader warms it and the page reads
+ * the same variables. The loader takes the first page (no cursor, decision 4). */
+const staffInvitationsQueries = ({
+	search,
+}: {
+	search: InvitationListSearchParams;
+}) => ({
+	invitations: {
+		options: staffInvitationsQueryOptions,
+		variables: {
+			...buildTableApiVariables(search, DEFAULT_SORT, DEFAULT_SIZE),
+			status: search.status,
+		},
+	},
+});
 
 const countInvitationRoles = (rows: StaffInvitationRow[]) => {
 	const counts: Record<string, number> = {};
@@ -88,10 +111,12 @@ const StaffInvitationsPage = () => {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: search.status ?? '',
 	});
+	const queries = staffInvitationsQueries({ search });
 	const listVariables = {
-		...controller.apiVariables,
-		q: search.q,
-		status: search.status,
+		...queries.invitations.variables,
+		// The cursor lives in React state, never in URL search (decision 4): the
+		// loader warms the first page, the page adds its own cursor.
+		cursor: controller.apiVariables.cursor,
 	};
 	const query = useStaffInvitationsQuery(listVariables);
 	// The overview publishes these variables as the counter only while they
@@ -296,6 +321,13 @@ const StaffInvitationsPage = () => {
 export const Route = createFileRoute('/_authed-layout/staff/invitations')({
 	validateSearch: (search) =>
 		parseInvitationListSearchParams(search as InvitationListSearchParamInput),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			staffInvitationsQueries({ search: deps }),
+		);
+	},
 	staticData: {
 		i18nNamespaces: ['staff-invitations'],
 		pageOwnsSecondaryPanel: true,

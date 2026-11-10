@@ -7,6 +7,7 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { Button } from '~/components/ui/button';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	selectStaffTenantCrumbName,
 	staffTenantCrumbQuery,
@@ -20,6 +21,7 @@ import {
 	TenantDetailsLoading,
 	TenantDetailsPageShell,
 } from './_tenant-details-shell';
+import { tenantRolesQueries } from './roles/_queries';
 import { RoleBulkActions } from './roles/_role-bulk-actions';
 import {
 	getRoleFormValues,
@@ -284,5 +286,18 @@ export const Route = createFileRoute(
 				search as StaffTenantRolesSearchParamInput,
 			),
 		),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			tenantRolesQueries({
+				tenantId: params.tenantId,
+				search: parseStaffTenantRolesSearchParams(
+					deps as StaffTenantRolesSearchParamInput,
+				),
+				locale: context.locale,
+			}),
+		);
+	},
 	component: StaffTenantRolesPage,
 });

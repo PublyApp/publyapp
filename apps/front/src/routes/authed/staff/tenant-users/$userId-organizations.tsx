@@ -8,7 +8,10 @@ import QueryDisplay from '~/components/query-display';
 import { DataTable } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
-import { useTableController } from '~/components/table/use-table-controller';
+import {
+	buildTableApiVariables,
+	useTableController,
+} from '~/components/table/use-table-controller';
 import {
 	BulkActionsMenu,
 	BulkActionsTrigger,
@@ -20,7 +23,9 @@ import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-feedback/mutation-toast';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
+	globalTenantUserCompaniesQueryOptions,
 	invalidateGlobalTenantUsers,
 	toGlobalTenantUserBulkUnlinkSummary,
 	toGlobalTenantUserCompanyRows,
@@ -44,6 +49,7 @@ import { LinkCompaniesDrawerHost } from './$userId-organizations-drawer';
 import { tenantUserDetailsCrumbs } from './_crumbs';
 import { TenantUserDetailsShell } from './_details-shell';
 import { buildOrganizationColumns } from './_organizations-columns';
+import { globalTenantUserQueries } from './_queries';
 
 // react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const TenantUserOrganizationsTabPage = () => {
@@ -65,12 +71,60 @@ export const Route = createFileRoute(
 	},
 	validateSearch: (search) =>
 		validateTableSearchParams(search as TableSearchParamInput),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			globalTenantUserOrganizationsQueries({
+				userId: params.userId,
+				search: parseTableSearchParams(deps as TableSearchParamInput),
+			}),
+		);
+	},
 	component: TenantUserOrganizationsTabPage,
 });
 
 const DEFAULT_SORT = { id: 'tenant_name', order: 'asc' as const };
 // Locked parity default (docs/records/2026-07-29-spec-front-parity-contract.md).
 const DEFAULT_SIZE = 100;
+
+const companyCountVariables = (userId: string) => ({
+	userId,
+	sortId: DEFAULT_SORT.id,
+	sortOrder: DEFAULT_SORT.order,
+	size: 1,
+});
+
+/** The tab's queries, declared once: the loader warms them and the page reads
+ * the same variables. The shell's details, the header's company count
+ * (`size: 1`) and the table's first page (the cursor lives in React state,
+ * decision 4). The drawer's tenant picker is not here: it is a search-as-you-type
+ * query inside a click-opened drawer. */
+const globalTenantUserOrganizationsQueries = ({
+	userId,
+	search,
+}: {
+	userId: string;
+	search: TableSearchParams;
+}) => {
+	const { q, sortId, sortOrder, size } = buildTableApiVariables(
+		search,
+		DEFAULT_SORT,
+		DEFAULT_SIZE,
+	);
+
+	return {
+		...globalTenantUserQueries({ userId }),
+		companyCount: {
+			options: globalTenantUserCompaniesQueryOptions,
+			variables: companyCountVariables(userId),
+		},
+		companies: {
+			options: globalTenantUserCompaniesQueryOptions,
+			variables: { userId, q, sortId, sortOrder, size },
+		},
+	};
+};
 
 type OrganizationRow = ReturnType<typeof toGlobalTenantUserCompanyRows>[number];
 
@@ -107,12 +161,9 @@ const OrganizationsTabContent = ({ userId }: { userId: string }) => {
 // react-doctor-disable-next-line react-doctor/no-multi-component-file -- pre-existing develop multi-component route file; surfaced by the #1554 merge only because it mechanically updated this file's imports. Not introduced by this lane. Follow-up: split into single-component route files.
 const CompanyCountLabel = ({ userId }: { userId: string }) => {
 	const { t } = useTranslation('common');
-	const query = useGlobalTenantUserCompaniesQuery({
-		userId,
-		sortId: DEFAULT_SORT.id,
-		sortOrder: DEFAULT_SORT.order,
-		size: 1,
-	});
+	const query = useGlobalTenantUserCompaniesQuery(
+		companyCountVariables(userId),
+	);
 
 	return (
 		<QueryDisplay query={query} variant="discreet">
@@ -149,13 +200,12 @@ const OrganizationsTable = ({ userId }: { userId: string }) => {
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
 	});
+	const queries = globalTenantUserOrganizationsQueries({ userId, search });
 	const query = useGlobalTenantUserCompaniesQuery({
-		userId,
-		q: controller.apiVariables.q,
-		sortId: controller.apiVariables.sortId,
-		sortOrder: controller.apiVariables.sortOrder,
+		...queries.companies.variables,
+		// The cursor lives in React state, never in URL search (decision 4): the
+		// loader warms the first page, the page adds its own cursor.
 		cursor: controller.apiVariables.cursor,
-		size: controller.apiVariables.size,
 	});
 	const rows = useMemo(
 		() => toGlobalTenantUserCompanyRows(query.data?.data),

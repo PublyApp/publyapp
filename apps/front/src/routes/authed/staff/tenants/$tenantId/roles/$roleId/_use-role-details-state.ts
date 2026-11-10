@@ -22,15 +22,13 @@ import {
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import type { RoleDetailsSearchParams } from '../_role-details-search';
+import { roleDetailsQueries } from './_queries';
 import {
 	getActiveRoleSection,
 	isRoleSectionPathname,
 	roleSectionPathname,
 	type RoleSection,
 } from './_sections';
-
-// Members shown in the Overview avatar stack / preview before "View all".
-const MEMBERS_PREVIEW_LIMIT = 5;
 
 type UseStaffTenantRoleDetailsArgs = {
 	tenantId: string;
@@ -164,53 +162,42 @@ export const useStaffTenantRoleDetails = ({
 		withResolver: true,
 	});
 
+	// One declaration of the five variable sets, shared with the route loader
+	// (`_queries.ts`): a loader that warms them and a page that reads them can
+	// never drift apart.
+	const queries = roleDetailsQueries({ tenantId, roleId, locale });
 	const tenantQuery = useStaffTenantDetailsQuery(
-		{ tenantId },
-		{ enabled: tenantId.length > 0 },
-	);
-	const detailQuery = useStaffTenantRoleDetailsQuery(
-		{ tenantId, roleId },
+		queries.tenantDetails.variables,
 		{
-			enabled:
-				tenantId.length > 0 &&
-				roleId.length > 0 &&
-				!tenantQuery.isPending &&
-				!tenantQuery.isError,
+			enabled: tenantId.length > 0,
+		},
+	);
+	const roleEnabled =
+		tenantId.length > 0 &&
+		roleId.length > 0 &&
+		!tenantQuery.isPending &&
+		!tenantQuery.isError;
+	const detailQuery = useStaffTenantRoleDetailsQuery(
+		queries.roleDetails.variables,
+		{
+			enabled: roleEnabled,
 		},
 	);
 	const permissionKeysQuery = useStaffTenantRolePermissionKeysQuery(
-		{ tenantId, roleId },
-		{
-			enabled:
-				tenantId.length > 0 &&
-				roleId.length > 0 &&
-				!tenantQuery.isPending &&
-				!tenantQuery.isError,
-		},
+		queries.rolePermissionKeys.variables,
+		{ enabled: roleEnabled },
 	);
 	// Overview only needs the leading members (avatar stack + first-4 preview).
 	// It uses the same canonical offset-paginated endpoint as the full Members tab.
 	const membersQuery = useStaffTenantRoleMembersQuery(
+		queries.roleMembers.variables,
 		{
-			tenantId,
-			roleId,
-			pageIndex: 0,
-			size: MEMBERS_PREVIEW_LIMIT,
-			sortId: 'created_at',
-			sortOrder: 'desc',
-		},
-		{
-			enabled:
-				activeSection === 'overview' &&
-				tenantId.length > 0 &&
-				roleId.length > 0 &&
-				!tenantQuery.isPending &&
-				!tenantQuery.isError,
+			enabled: roleEnabled && activeSection === 'overview',
 		},
 	);
-	const permissionCatalogQuery = useStaffTenantPermissionCatalogQuery({
-		language: locale,
-	});
+	const permissionCatalogQuery = useStaffTenantPermissionCatalogQuery(
+		queries.permissionCatalog.variables,
+	);
 	const deleteRole = useDeleteStaffTenantRoleMutation();
 	const tenant = toStaffTenantDetails(tenantQuery.data);
 	const role = toStaffTenantRoleDetails(detailQuery.data);

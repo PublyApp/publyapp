@@ -6,14 +6,19 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StateSurface } from '~/components/ui/state-surface';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
-import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import {
+	resolveWorkspaceTenantIdFromCache,
+	useResolvedWorkspaceTenantId,
+} from '~/lib/query/tenants-for-picker';
 
 import {
 	TenantReadOnlyCardError,
 	TenantReadOnlyCardSkeleton,
 } from '../_read-only-query-slots';
 import { ReadOnlyBadge, WorkspacePageHeader } from '../_workspace-page-parts';
+import { CALENDAR_PAGE_SIZE, postCalendarQueries } from './_queries';
 import { ScheduledPublicationAgenda } from './_scheduled-publication-agenda';
 import { buildVisibleMonthWindow } from './_scheduled-publication-helpers';
 import { useScheduledPublicationAllPages } from './_use-scheduled-publication-all-pages';
@@ -26,7 +31,7 @@ const TenantPostsCalendarPage = () => {
 		useScheduledPublicationAllPages({
 			tenantId: tenantId ?? '',
 			window: window_,
-			initialSize: 100,
+			initialSize: CALENDAR_PAGE_SIZE,
 		});
 	if (shouldLogout) {
 		return <LogoutRedirect />;
@@ -101,6 +106,13 @@ export const Route = createFileRoute('/_authed-layout/tenant/posts/')({
 			{ kind: 'label', labelKey: 'calendar' },
 		],
 		i18nNamespaces: ['posts'],
+	},
+	loader: ({ context }) => {
+		const tenantId = resolveWorkspaceTenantIdFromCache(context.queryClient);
+		if (tenantId === null) {
+			return;
+		}
+		preloadRouteQueries(context.queryClient, postCalendarQueries({ tenantId }));
 	},
 	component: TenantPostsCalendarPage,
 });

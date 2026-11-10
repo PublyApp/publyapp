@@ -5,7 +5,10 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { ListPage } from '~/components/list/list-page';
 import type { ListFiltersValue } from '~/components/list/list-types';
 import { DataTableCursorFooter } from '~/components/table/data-table';
-import { useTableController } from '~/components/table/use-table-controller';
+import {
+	resolveSize,
+	useTableController,
+} from '~/components/table/use-table-controller';
 import {
 	Drawer,
 	DrawerBody,
@@ -15,7 +18,11 @@ import {
 	DrawerTitle,
 } from '~/components/ui/drawer';
 import { DetailRow } from '~/components/ui/product-page';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
+	staffDeadLettersQueryOptions,
+	staffJobQueueQueryOptions,
+	staffSystemJobDefinitionsQueryOptions,
 	toStaffJobQueueRows,
 	useStaffJobQueueQuery,
 	type StaffJobQueueRow,
@@ -47,10 +54,44 @@ import {
 	parseStaffJobsListSearchParams,
 	serializeStaffJobsListSearchParams,
 	type StaffJobsListSearchParamInput,
+	type StaffJobsListSearchParams,
 } from './_list-search-params';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
+
+/** The page's three list queries, declared once: the loader warms them and the
+ * page reads the same variables. The loader takes the first page (no cursor,
+ * decision 4). `useJobsOverview` reads each of the three lists' whole-collection
+ * counts (`size: 1`), so those three keys (this list's own included) are pinned. */
+const staffJobQueueQueries = ({
+	search,
+}: {
+	search: StaffJobsListSearchParams;
+}) => ({
+	queue: {
+		options: staffJobQueueQueryOptions,
+		variables: {
+			q: search.q,
+			status: search.status,
+			jobType: search.jobType,
+			tenantId: search.tenantId,
+			size: resolveSize(search, DEFAULT_SIZE),
+		},
+	},
+	queueOverview: {
+		options: staffJobQueueQueryOptions,
+		variables: { size: 1 },
+	},
+	deadLetters: {
+		options: staffDeadLettersQueryOptions,
+		variables: { size: 1 },
+	},
+	systemJobs: {
+		options: staffSystemJobDefinitionsQueryOptions,
+		variables: { size: 1 },
+	},
+});
 
 const splitFilter = (value: string | undefined): string[] =>
 	value ? value.split(',') : [];
@@ -79,13 +120,12 @@ const StaffJobsQueuePage = () => {
 		cursorResetKey: buildStaffJobsCursorResetKey(search),
 	});
 
+	const queries = staffJobQueueQueries({ search });
 	const query = useStaffJobQueueQuery({
-		q: search.q,
-		status: search.status,
-		jobType: search.jobType,
-		tenantId: search.tenantId,
+		...queries.queue.variables,
+		// The cursor lives in React state, never in URL search (decision 4): the
+		// loader warms the first page, the page adds its own cursor.
 		cursor: controller.apiVariables.cursor,
-		size: controller.apiVariables.size,
 	});
 	const rows = toStaffJobQueueRows(query.data?.data);
 	const overview = useJobsOverview();
@@ -290,5 +330,18 @@ export const Route = createFileRoute('/_authed-layout/staff/jobs/')({
 		serializeStaffJobsListSearchParams(
 			parseStaffJobsListSearchParams(search as StaffJobsListSearchParamInput),
 		),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			staffJobQueueQueries({
+				// `validateSearch` stores the wire shape (CSV filters); the page
+				// re-parses it, so the loader does too.
+				search: parseStaffJobsListSearchParams(
+					deps as StaffJobsListSearchParamInput,
+				),
+			}),
+		);
+	},
 	component: StaffJobsQueuePage,
 });

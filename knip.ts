@@ -146,6 +146,10 @@ const config: KnipConfig = {
 			// `pgrep`/`pkill` are gone: the E2E signal spec now identifies its
 			// child tree by exact PID (a ready file plus process.kill(pid, 0))
 			// instead of matching argv text across the whole host.
+			// route-loader-guard fixtures are read as plain files by the guard
+			// test (route-loader-query-key-guard.test.ts), never imported, so knip
+			// cannot trace them. Whole-folder ignore: they are guard inputs, not code.
+			ignore: ['tests/fixtures/route-loader-guard/**'],
 			ignoreBinaries: ['openssl', 'ss'],
 			// #1758: server.ts imports the built server bundle through the
 			// `#server-build` package-imports alias so tsconfig.server.json can

@@ -15,6 +15,10 @@ export type ScheduledPublicationDateGroup = {
  * strictly <= 32 days so the server never 422s. */
 const PAST_GRACE_MS = 24 * 60 * 60 * 1_000;
 const FUTURE_HORIZON_MS = 31 * 24 * 60 * 60 * 1_000;
+/** The window is anchored on the start of the current minute: it is part of
+ * the query key, so a route loader and the page it warms (built a few
+ * milliseconds apart) must agree on it to share one cache entry. */
+const WINDOW_ANCHOR_MS = 60 * 1_000;
 
 export const buildUpcomingPublicationWindow = (
 	now: Date,
@@ -26,9 +30,11 @@ export const buildUpcomingPublicationWindow = (
 	// 32 days — the API rejects only `> 32` days, never `== 32`. A row due
 	// seconds before the page opens sits inside FromUtc; an old scheduled row
 	// more than 24h in the past stays out.
+	const anchor =
+		Math.floor(now.valueOf() / WINDOW_ANCHOR_MS) * WINDOW_ANCHOR_MS;
 	return {
-		from: new Date(now.valueOf() - PAST_GRACE_MS),
-		to: new Date(now.valueOf() + FUTURE_HORIZON_MS),
+		from: new Date(anchor - PAST_GRACE_MS),
+		to: new Date(anchor + FUTURE_HORIZON_MS),
 	};
 };
 

@@ -97,6 +97,12 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('~/lib/query/staff-role-users', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub is never called.
+	staffRoleUsersQueryOptions: {
+		queryKey: () => ['staffRoleUsersQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	toStaffRoleUserRows: (rows: unknown[] | null | undefined) => rows ?? [],
 	useStaffRoleUsersQuery: mocks.useStaffRoleUsersQuery,
 }));

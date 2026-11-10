@@ -11,6 +11,7 @@ import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publi
 
 import { TenantReadOnlyCardError } from '../_read-only-query-slots';
 import type { ComposerImage } from './_destination-media-field';
+import { CUSTOMIZABLE_STATUSES, SCHEDULED_PAGE_SIZE } from './_queries';
 import {
 	ScheduledPublicationCustomized,
 	ScheduledPublicationStatus,
@@ -21,12 +22,6 @@ import { ScheduledRenditionEditor } from './_scheduled-rendition-editor';
 import type { SegmentDraft } from './_segment-draft';
 import type { PublishSelection } from './_use-publish-selection';
 import { useScheduledPublicationAllPages } from './_use-scheduled-publication-all-pages';
-
-/** A destination can still be customized until it is published: scheduled,
- * paused and failed rows (a failed one is fixed by customizing, then retrying). */
-const CUSTOMIZABLE_STATUSES = ['scheduled', 'paused', 'failed'];
-
-const SCHEDULED_PAGE_SIZE = 100;
 
 /** The destinations this post is already scheduled to (one row each, a
  * replaced publication left out): each can be customized after scheduling.
