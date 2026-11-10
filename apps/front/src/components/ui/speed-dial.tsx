@@ -131,7 +131,7 @@ export const SpeedDial = ({
 										ACTION_LOOK[state],
 									)}
 								>
-									<span className="rounded-[var(--publy-radius-small-control)] bg-popover px-3 py-2 text-sm font-medium whitespace-nowrap text-popover-foreground shadow-[var(--effect-popover)]">
+									<span className="rounded-[var(--publy-radius-small-control)] bg-popover-surface px-3 py-2 text-sm font-medium whitespace-nowrap text-popover-foreground shadow-[var(--effect-popover)]">
 										{action.label}
 									</span>
 									<span className="flex size-11 shrink-0 items-center justify-center rounded-[var(--publy-radius-control)] bg-card text-foreground shadow-[var(--effect-raised-control)]">

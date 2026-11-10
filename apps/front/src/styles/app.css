@@ -2,6 +2,29 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+/* Shared visual language (#2360): colours, radii and raised/popover effects
+   come from @radandevist/radan-ui (`--radan-ui-*`). The `--background`,
+   `--publy-*` and `--effect-*` names below are thin aliases onto it, so there
+   is one VALUE per token; only tokens radan-ui does not define keep a value
+   of their own. */
+@import '@radandevist/radan-ui/theme.css';
+
+/* Upstream bug in @radandevist/radan-ui 0.1.1: theme.css declares
+   `--radan-ui-card-foreground` twice in :root and the second one is
+   `var(--radan-ui-card-foreground)`, a self-cycle that makes the variable
+   invalid in LIGHT mode. Re-declare it here, right after the import. Remove
+   this block once radan-ui ships the fix. `:not(.dark)` keeps it from
+   out-ranking radan-ui's own `.dark` value (same specificity, later source). */
+:root:not(.dark) {
+	--radan-ui-card-foreground: var(--radan-ui-ink);
+	/* One deliberate PublyApp override of a radan-ui value: muted text one
+	   step darker than radan-ui's #71717a / #7f7f7f so it clears AA 4.5:1 on
+	   every surface (radan-ui's value measures 4.32:1 on the card #f2f2f2 and,
+	   in dark, 4.42:1 on #18181b, 3.96:1 on #222226). Dark counterpart lives
+	   in html.dark below. Pinned by marketing-contrast.test.ts. */
+	--radan-ui-muted-foreground: #6b6b73;
+}
+
 /* The landing page. Scoped under its own `.publy-landing` root class and
    inert on every other route. */
 @import './landing.css';
@@ -114,35 +137,12 @@
 @theme inline {
 	--font-sans: var(--publy-font-sans);
 	--font-mono: var(--publy-font-mono);
-	--color-background: var(--background);
-	--color-foreground: var(--foreground);
-	--color-card: var(--card);
-	--color-card-foreground: var(--card-foreground);
-	--color-popover: var(--popover);
-	--color-popover-foreground: var(--popover-foreground);
-	--color-popover-surface: var(--popover-surface);
-	--color-primary: var(--primary);
+	/* Every other `--color-*` / `--radius-*` / `--shadow-*` Tailwind token comes
+	   from radan-ui's own @theme block (imported above): one definition each.
+	   What stays here is PublyApp-only. */
 	--color-primary-active: var(--publy-primary-active);
-	--color-primary-foreground: var(--primary-foreground);
-	--color-secondary: var(--secondary);
-	--color-secondary-foreground: var(--secondary-foreground);
-	--color-muted: var(--muted);
-	--color-muted-foreground: var(--muted-foreground);
-	--color-accent: var(--accent);
-	--color-accent-foreground: var(--accent-foreground);
-	--color-destructive: var(--destructive);
 	--color-success: var(--publy-success);
 	--color-warning: var(--publy-warning);
-	--color-ring: var(--ring);
-	--color-input: var(--input);
-	--color-border: var(--border);
-	--radius-sm: calc(var(--radius) * 0.6);
-	--radius-md: calc(var(--radius) * 0.8);
-	--radius-lg: var(--radius);
-	--radius-xl: calc(var(--radius) * 1.4);
-	--radius-2xl: calc(var(--radius) * 1.8);
-	--radius-3xl: calc(var(--radius) * 2.2);
-	--radius-4xl: calc(var(--radius) * 2.6);
 	--radius-small: var(--publy-radius-sm);
 	--radius-medium: var(--publy-radius-md);
 	--radius-large: var(--publy-radius-control);
@@ -150,33 +150,35 @@
 
 :root {
 	color-scheme: light;
-	--background: var(--publy-background);
-	--foreground: var(--publy-foreground);
-	--card: var(--publy-card);
-	--card-foreground: var(--publy-foreground);
-	--popover: var(--popover-surface);
-	--popover-foreground: var(--publy-foreground);
-	--primary: var(--publy-primary);
-	--primary-foreground: var(--publy-primary-foreground);
-	--secondary: var(--publy-surface-muted);
-	--secondary-foreground: var(--publy-foreground-secondary);
-	--muted: var(--publy-muted);
-	--muted-foreground: var(--publy-foreground-muted);
-	--accent: var(--publy-surface-muted);
-	--accent-foreground: var(--publy-foreground);
-	--destructive: var(--publy-danger);
-	--border: var(--publy-border);
-	--input: var(--publy-input-border);
-	--ring: var(--publy-focus-ring);
-	--radius: 0.625rem;
+	/* shadcn-style names, kept because components and tests read them with
+	   var(--background) etc. Pure aliases onto radan-ui. */
+	--background: var(--radan-ui-background);
+	--foreground: var(--radan-ui-foreground);
+	--card: var(--radan-ui-card);
+	--card-foreground: var(--radan-ui-card-foreground);
+	--popover: var(--radan-ui-popover);
+	--popover-foreground: var(--radan-ui-popover-foreground);
+	--primary: var(--radan-ui-primary);
+	--primary-foreground: var(--radan-ui-primary-foreground);
+	--secondary: var(--radan-ui-secondary);
+	--secondary-foreground: var(--radan-ui-secondary-foreground);
+	--muted: var(--radan-ui-muted);
+	--muted-foreground: var(--radan-ui-muted-foreground);
+	--accent: var(--radan-ui-accent);
+	--accent-foreground: var(--radan-ui-accent-foreground);
+	--destructive: var(--radan-ui-destructive);
+	--border: var(--radan-ui-border);
+	--input: var(--radan-ui-input-border);
+	--ring: var(--radan-ui-ring);
+	--radius: var(--radan-ui-radius);
 	--publy-font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
 	--publy-font-mono:
 		'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
 		'Liberation Mono', 'Courier New', monospace;
-	--publy-primary: #fecd00;
+	--publy-primary: var(--radan-ui-primary);
 	--publy-primary-active: #d9aa00;
 	--publy-primary-soft: #fffbeb;
-	--publy-primary-foreground: #423600;
+	--publy-primary-foreground: var(--radan-ui-primary-foreground);
 	/* Text colour for content painted on --publy-primary-soft (chips, the
 	   'primary' status pill tone) — distinct from --publy-primary-foreground,
 	   which is the text colour for the *solid* primary button fill and pairs
@@ -190,53 +192,52 @@
 	   page (`--publy-background`/`--publy-surface`) and from Tailwind's
 	   `--muted` fill; `--publy-input-border` keeps the field hairline one
 	   step lighter than the general border. */
-	--publy-background: #f7f7f7;
-	--publy-surface: #f7f7f7;
-	--publy-card: #f2f2f2;
-	--publy-surface-raised: #f6f6f6;
-	--publy-surface-muted: #f2f2f2;
-	--publy-surface-hover: #f2f2f2;
-	--publy-surface-active: #ffffff;
-	--publy-muted: #f7f7f7;
+	--publy-background: var(--radan-ui-background);
+	--publy-surface: var(--radan-ui-background);
+	--publy-card: var(--radan-ui-card);
+	--publy-surface-raised: var(--radan-ui-sidebar);
+	--publy-surface-muted: var(--radan-ui-secondary);
+	--publy-surface-hover: var(--radan-ui-secondary);
+	--publy-surface-active: var(--radan-ui-sidebar-accent);
+	--publy-muted: var(--radan-ui-muted);
 	--publy-table-header: #fcfcfd;
-	--publy-foreground: #18181b;
-	--publy-foreground-secondary: #3f3f46;
-	/* Deliberate gap from Shopkart (#71717a / #7f7f7f): one step darker in
-	   each theme so muted text clears AA 4.5:1 on every surface (page, card,
-	   popover, secondary, raised), not just the page. */
-	--publy-foreground-muted: #6b6b73;
+	--publy-foreground: var(--radan-ui-foreground);
+	--publy-foreground-secondary: var(--radan-ui-foreground-secondary);
+	/* Muted text: radan-ui's variable, which this file overrides (see the
+	   import at the top) so it clears AA 4.5:1 on every surface. */
+	--publy-foreground-muted: var(--radan-ui-muted-foreground);
 	--publy-foreground-subtle: #a1a1aa;
 	--publy-disabled: #d4d4d8;
-	--publy-border: #e3e3e3;
+	--publy-border: var(--radan-ui-border);
 	--publy-border-strong: #d4d4d8;
-	--publy-input-border: #e4e4e7;
+	--publy-input-border: var(--radan-ui-input-border);
 	/* Dashed drop-zone hairline: Shopkart's `--input` — darker than the field
 	   hairline so a dashed surface reads as a target in both themes. */
-	--publy-dropzone-border: #414141;
+	--publy-dropzone-border: var(--radan-ui-input);
 	--publy-row-border: #f1f1f3;
 	/* #2292: the focus indicator is the near-black foreground in light mode
 	   and the light grey border in dark — both far above the 3:1 floor
 	   (see focus-ring-contrast.test.ts). The pre-redesign amber existed only
 	   to lift #ca8a04 over that floor and is retired with it. */
-	--publy-focus-ring: #18181b;
-	--publy-danger: #dc2626;
+	--publy-focus-ring: var(--radan-ui-ring);
+	--publy-danger: var(--radan-ui-destructive);
 	--publy-danger-soft: rgba(220, 38, 38, 0.08);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.1);
 	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.2);
-	--publy-success: #047857;
-	--publy-warning: #b45309;
-	--publy-chip-active-border: #bbf7d0;
-	--publy-chip-active-bg: #dcfce7;
-	--publy-chip-active-text: #166534;
-	--publy-chip-invited-border: #bae6fd;
-	--publy-chip-invited-bg: #f0f9ff;
-	--publy-chip-invited-text: #0369a1;
-	--publy-chip-suspended-border: #fecdd3;
-	--publy-chip-suspended-bg: #fff1f2;
-	--publy-chip-suspended-text: #be123c;
-	--publy-chip-pending-border: #fde68a;
-	--publy-chip-pending-bg: #fef3c7;
-	--publy-chip-pending-text: #92400e;
+	--publy-success: var(--radan-ui-status-success);
+	--publy-warning: var(--radan-ui-status-warning);
+	--publy-chip-active-border: var(--radan-ui-status-resolved-border);
+	--publy-chip-active-bg: var(--radan-ui-status-resolved-background);
+	--publy-chip-active-text: var(--radan-ui-status-resolved-foreground);
+	--publy-chip-invited-border: var(--radan-ui-status-open-border);
+	--publy-chip-invited-bg: var(--radan-ui-status-open-background);
+	--publy-chip-invited-text: var(--radan-ui-status-open-foreground);
+	--publy-chip-suspended-border: var(--radan-ui-status-breached-border);
+	--publy-chip-suspended-bg: var(--radan-ui-status-breached-background);
+	--publy-chip-suspended-text: var(--radan-ui-status-breached-foreground);
+	--publy-chip-pending-border: var(--radan-ui-status-pending-border);
+	--publy-chip-pending-bg: var(--radan-ui-status-pending-background);
+	--publy-chip-pending-text: var(--radan-ui-status-pending-foreground);
 	/* Floating selection bar: inverted pill chrome (dark pill on light theme,
 	   light pill on dark theme — see html.dark for the counterpart values). */
 	--publy-selection-bar-bg: #09090b;
@@ -275,15 +276,15 @@
 	--publy-chart-empty: #f1f1f3;
 	--publy-chart-grid: #ececee;
 	--publy-chart-track: #f4f4f5;
-	--publy-radius-sm: 0.375rem;
-	--publy-radius-md: 0.5rem;
+	--publy-radius-sm: calc(var(--radan-ui-radius) * 0.6);
+	--publy-radius-md: calc(var(--radan-ui-radius) * 0.8);
 	--publy-radius-button: var(--publy-radius-control);
-	--publy-radius-card: var(--publy-radius-control);
+	--publy-radius-card: var(--radan-ui-card-radius);
 	--publy-radius-chip: 8px;
 	--publy-radius-small-control: 10px;
 	--publy-radius-medium-control: 12px;
 	--publy-radius-circular: 999px;
-	--publy-radius-control: 14px;
+	--publy-radius-control: var(--radan-ui-control-radius);
 	/* Dropdown/context menu items (conventions.md spec.json radii.menuItem). */
 	--publy-radius-menu-item: 9px;
 	--publy-radius-input: 10px;
@@ -357,7 +358,7 @@
 	--publy-z-menu: 100;
 	--publy-z-select: 110;
 	--publy-z-toast: 120;
-	--publy-shadow-ring: 0 0 0 1px var(--publy-border);
+	--publy-shadow-ring: var(--radan-ui-effect-raised-control);
 	--publy-shadow-menu:
 		0 12px 32px rgba(24, 24, 27, 0.14), 0 2px 6px rgba(24, 24, 27, 0.06);
 	--publy-shadow-modal: 0 24px 64px rgba(24, 24, 27, 0.28);
@@ -366,20 +367,16 @@
 	/* Shopkart OS / Gray UI effects (#2292). A raised control's edge is ONE
 	   1 px ring — never a visible border plus an inset bevel, which is what
 	   drew the second line under the list search field. */
-	--effect-raised-control: 0 0 0 1px var(--border);
-	--effect-primary-raised: 0 0 0 1px rgb(120 96 0 / 30%);
+	--effect-raised-control: var(--radan-ui-effect-raised-control);
+	--effect-primary-raised: var(--radan-ui-effect-primary-raised);
 	/* "Net" menus and popovers: a solid popover surface, no border. */
-	--popover-surface: #ffffff;
-	--effect-popover:
-		0 0 0 1px rgb(0 0 0 / 6%), 0 4px 8px -2px rgb(0 0 0 / 6%),
-		0 12px 24px -6px rgb(0 0 0 / 12%);
+	--popover-surface: var(--radan-ui-popover-surface);
+	--effect-popover: var(--radan-ui-effect-popover);
 	--publy-shadow-selection-bar:
 		0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.15);
 	--publy-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 	--publy-motion-fast: 120ms;
 	--publy-motion-medium: 240ms;
-	--accent: var(--publy-primary);
-	--accent-foreground: var(--publy-primary-foreground);
 	/* Role icon-tile tone palette (F13/F3): named so the per-`data-tone`
 	   component rules below can reference them instead of repeating the
 	   literal hex values, which lets token-theme-parity (not a bespoke
@@ -425,34 +422,16 @@
 
 html.dark {
 	color-scheme: dark;
-	/* The shop yellow and its label are theme-invariant by owner decision
-	   (#2292): the reference keeps #FECD00 / #423600 in both themes. */
-	--publy-primary: #fecd00;
 	--publy-primary-active: #c49700;
 	--publy-primary-soft: #2a2400;
-	--publy-primary-foreground: #423600;
 	--publy-primary-soft-foreground: #fbbf24;
 	--publy-marketing-eyebrow-accent: #d97706;
-	--publy-background: #18181b;
-	--publy-surface: #18181b;
-	--publy-card: #1f1f23;
-	--publy-surface-raised: #18181b;
-	--publy-surface-muted: #222226;
-	--publy-surface-hover: #222226;
-	--publy-surface-active: #27272a;
-	--publy-muted: #1f1f23;
-	--publy-focus-ring: #d4d4d8;
-	--publy-foreground: #feffff;
-	--publy-foreground-secondary: #d4d4d8;
-	--publy-foreground-muted: #898989;
+	--radan-ui-muted-foreground: #898989;
 	--publy-foreground-subtle: #71717a;
 	--publy-disabled: #52525b;
 	--publy-table-header: #212124;
 	--publy-row-border: #27272a;
-	--publy-border: #323234;
 	--publy-border-strong: rgba(255, 255, 255, 0.15);
-	--publy-input-border: #27272a;
-	--publy-dropzone-border: #646a7a;
 	--publy-danger-soft: rgba(220, 38, 38, 0.16);
 	--publy-destructive-soft: rgba(220, 38, 38, 0.2);
 	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.3);
@@ -472,14 +451,6 @@ html.dark {
 	--publy-shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.5);
 	--publy-shadow-drawer: -16px 0 40px rgba(0, 0, 0, 0.35);
 	--publy-shadow-input: 0 1px 2px rgba(0, 0, 0, 0.3);
-	/* Restated, not inherited: the dark ring is the same translucent dark
-	   yellow, and stating it here keeps the token-theme-parity guard's
-	   contract ("every colour-valued :root token has a dark counterpart")
-	   literal instead of allowlisted. */
-	--effect-primary-raised: 0 0 0 1px rgb(120 96 0 / 30%);
-	--popover-surface: #1f1f23;
-	--effect-popover:
-		0 0 0 1px rgb(255 255 255 / 8%), 0 12px 24px -6px rgb(0 0 0 / 60%);
 	/* The selection-bar pill itself inverts per theme (light pill on this
 	   dark theme — see --publy-selection-bar-bg below), so its drop shadow
 	   needs more contrast than the light-mode value to read against a dark
@@ -489,9 +460,6 @@ html.dark {
 	--publy-danger-zone-ring: rgba(159, 18, 57, 0.55);
 	--publy-danger-zone-border: #4c0519;
 	--publy-danger-zone-heading: #fb7185;
-	--publy-danger: #f87171;
-	--publy-success: #34d399;
-	--publy-warning: #fbbf24;
 	--publy-chart-1: #0284c7;
 	--publy-chart-2: #ea580c;
 	--publy-chart-3: #8b5cf6;
@@ -516,18 +484,6 @@ html.dark {
 	--publy-alert-success-bg: rgba(4, 120, 87, 0.18);
 	--publy-alert-success-border: rgba(4, 120, 87, 0.36);
 	--publy-alert-success-text: #34d399;
-	--publy-chip-active-border: #226344;
-	--publy-chip-active-bg: #123524;
-	--publy-chip-active-text: #86efac;
-	--publy-chip-invited-border: #075985;
-	--publy-chip-invited-bg: #082f49;
-	--publy-chip-invited-text: #38bdf8;
-	--publy-chip-suspended-border: #9f1239;
-	--publy-chip-suspended-bg: #4c0519;
-	--publy-chip-suspended-text: #fb7185;
-	--publy-chip-pending-border: #78551b;
-	--publy-chip-pending-bg: #382b12;
-	--publy-chip-pending-text: #fcd34d;
 	--publy-selection-bar-bg: #f4f4f5;
 	--publy-selection-bar-fg: #18181b;
 	--publy-selection-bar-border: rgba(212, 212, 216, 0.8);
