@@ -178,7 +178,12 @@ describe('#2340 staff audit-logs route preload', () => {
 		expect(countCallsByPath(mocks.respond, ...LOGS_PATH)).toBe(1);
 	});
 
-	test('a category filter with a cold action registry does not warm the logs', async () => {
+	test('a category filter with a cold action registry warms the filtered logs once the registry lands', async () => {
+		mocks.respond.mockImplementation((call) =>
+			call.path.includes('actions')
+				? { actions: ['auth.login', 'auth.logout', 'tenant.created'] }
+				: {},
+		);
 		const { queryClient } = renderPreloadScenario({
 			destination: destinationFor({ category: 'auth' }),
 			linkLabel: LINK_LABEL,
@@ -186,14 +191,30 @@ describe('#2340 staff audit-logs route preload', () => {
 		const link = await screen.findByRole('link', { name: LINK_LABEL });
 
 		fireEvent.mouseEnter(link);
+		// The logs warm is chained behind the registry, never awaited by the loader.
 		await waitFor(() => {
 			expect(countCallsByPath(mocks.respond, ...ACTIONS_PATH)).toBe(1);
+			expect(countCallsByPath(mocks.respond, ...LOGS_PATH)).toBe(1);
 		});
 		await waitFor(() => {
 			expect(queryClient.isFetching()).toBe(0);
 		});
 
-		expect(countCallsByPath(mocks.respond, ...LOGS_PATH)).toBe(0);
-		expect(preloadedQueries(queryClient)).toHaveLength(1);
+		const warmed = preloadedQueries(queryClient);
+		expect(warmed).toHaveLength(2);
+		const snapshot = warmedSnapshot(warmed);
+
+		fireEvent.click(link);
+		await waitFor(() => {
+			expect(screen.getByTestId('staff-audit-logs-history')).toBeTruthy();
+		});
+
+		// The page reads the exact filtered key the chained warm wrote: no refetch.
+		for (const query of warmed) {
+			expect(query.getObserversCount()).toBeGreaterThan(0);
+			expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));
+		}
+		expect(countCallsByPath(mocks.respond, ...LOGS_PATH)).toBe(1);
+		expect(countCallsByPath(mocks.respond, ...ACTIONS_PATH)).toBe(1);
 	});
 });

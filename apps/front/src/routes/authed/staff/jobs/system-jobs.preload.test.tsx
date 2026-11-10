@@ -5,6 +5,7 @@ import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
 	countCallsByPath,
+	expectFilteredHoverClickReusesWarmedKeys,
 	type FakeClientCall,
 	type FakeResponse,
 	type PreloadDestination,
@@ -97,7 +98,7 @@ describe('#2340 staff system-jobs route preload', () => {
 		fireEvent.mouseEnter(link);
 
 		await waitFor(() => {
-			expect(countCallsByPath(mocks.respond, ...SYSTEM_JOBS_PATH)).toBe(1);
+			expect(countCallsByPath(mocks.respond, ...SYSTEM_JOBS_PATH)).toBe(2);
 			expect(countCallsByPath(mocks.respond, ...QUEUE_PATH)).toBe(1);
 			expect(countCallsByPath(mocks.respond, ...DEAD_LETTERS_PATH)).toBe(1);
 			expect(countCallsByPath(mocks.respond, ...PERMISSIONS_PATH)).toBe(1);
@@ -107,7 +108,7 @@ describe('#2340 staff system-jobs route preload', () => {
 		});
 
 		const warmed = preloadedQueries(queryClient);
-		expect(warmed).toHaveLength(4);
+		expect(warmed).toHaveLength(5);
 		expect(warmed.every((query) => query.state.data !== undefined)).toBe(true);
 		expect(screen.queryByTestId('staff-jobs-system-table')).toBeNull();
 	});
@@ -140,5 +141,16 @@ describe('#2340 staff system-jobs route preload', () => {
 			expect(query.getObserversCount()).toBeGreaterThan(0);
 			expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));
 		}
+	});
+
+	test('a filtered URL warms the key the page reads for that URL', async () => {
+		await expectFilteredHoverClickReusesWarmedKeys({
+			destination: widenOptions<PreloadDestination>({
+				...destination,
+				linkSearch: { is_enabled: 'true' },
+			}),
+			linkLabel: LINK_LABEL,
+			pageTestId: 'staff-jobs-system-table',
+		});
 	});
 });

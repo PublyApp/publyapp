@@ -5,6 +5,7 @@ import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
 	countCallsByPath,
+	expectFilteredHoverClickReusesWarmedKeys,
 	type FakeClientCall,
 	type FakeResponse,
 	type PreloadDestination,
@@ -17,9 +18,9 @@ import { Route as StaffJobsQueueRoute } from '~/routes/authed/staff/jobs/queue';
 
 /**
  * #2340 — the real staff jobs queue (the `/staff/jobs` index) preloads its
- * three page queries from the route's own query spec (see
+ * page queries from the route's own query spec (see
  * `staff-users.preload.test.tsx` for the harness rationale). Hover warms the
- * queue list plus the two sibling `size: 1` counter lists once; the click
+ * queue list plus the three `size: 1` counter lists once; the click
  * paints them from cache.
  */
 const mocks = vi.hoisted(() => ({
@@ -86,7 +87,7 @@ describe('#2340 staff jobs queue route preload', () => {
 		mocks.respond.mockReset();
 	});
 
-	test('hovering the link warms the three page queries exactly once', async () => {
+	test('hovering the link warms the page queries exactly once', async () => {
 		const { queryClient } = renderPreloadScenario({
 			destination,
 			linkLabel: LINK_LABEL,
@@ -98,7 +99,7 @@ describe('#2340 staff jobs queue route preload', () => {
 		fireEvent.mouseEnter(link);
 
 		await waitFor(() => {
-			expect(countCallsByPath(mocks.respond, ...QUEUE_PATH)).toBe(1);
+			expect(countCallsByPath(mocks.respond, ...QUEUE_PATH)).toBe(2);
 			expect(countCallsByPath(mocks.respond, ...DEAD_LETTERS_PATH)).toBe(1);
 			expect(countCallsByPath(mocks.respond, ...SYSTEM_JOBS_PATH)).toBe(1);
 		});
@@ -107,7 +108,7 @@ describe('#2340 staff jobs queue route preload', () => {
 		});
 
 		const warmed = preloadedQueries(queryClient);
-		expect(warmed).toHaveLength(3);
+		expect(warmed).toHaveLength(4);
 		expect(warmed.every((query) => query.state.data !== undefined)).toBe(true);
 		expect(screen.queryByTestId('staff-jobs-queue-table')).toBeNull();
 	});
@@ -121,7 +122,7 @@ describe('#2340 staff jobs queue route preload', () => {
 
 		fireEvent.mouseEnter(link);
 		await waitFor(() => {
-			expect(countCallsByPath(mocks.respond, ...QUEUE_PATH)).toBe(1);
+			expect(countCallsByPath(mocks.respond, ...QUEUE_PATH)).toBe(2);
 		});
 		await waitFor(() => {
 			expect(queryClient.isFetching()).toBe(0);
@@ -140,5 +141,16 @@ describe('#2340 staff jobs queue route preload', () => {
 			expect(query.getObserversCount()).toBeGreaterThan(0);
 			expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));
 		}
+	});
+
+	test('a filtered URL warms the key the page reads for that URL', async () => {
+		await expectFilteredHoverClickReusesWarmedKeys({
+			destination: widenOptions<PreloadDestination>({
+				...destination,
+				linkSearch: { status: 'pending' },
+			}),
+			linkLabel: LINK_LABEL,
+			pageTestId: 'staff-jobs-queue-table',
+		});
 	});
 });

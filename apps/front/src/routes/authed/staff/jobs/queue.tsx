@@ -62,8 +62,8 @@ const DEFAULT_SIZE = 100;
 
 /** The page's three list queries, declared once: the loader warms them and the
  * page reads the same variables. The loader takes the first page (no cursor,
- * decision 4). The two sibling lists feed `useJobsOverview`, which reads each
- * one's whole-collection counts (`size: 1`), so their variables are pinned. */
+ * decision 4). `useJobsOverview` reads each of the three lists' whole-collection
+ * counts (`size: 1`), so those three keys (this list's own included) are pinned. */
 const staffJobQueueQueries = ({
 	search,
 }: {
@@ -78,6 +78,10 @@ const staffJobQueueQueries = ({
 			tenantId: search.tenantId,
 			size: resolveSize(search, DEFAULT_SIZE),
 		},
+	},
+	queueOverview: {
+		options: staffJobQueueQueryOptions,
+		variables: { size: 1 },
 	},
 	deadLetters: {
 		options: staffDeadLettersQueryOptions,

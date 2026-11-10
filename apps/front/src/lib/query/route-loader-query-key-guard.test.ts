@@ -603,6 +603,10 @@ const collectLoaderKeySites = (
 const isPreloadCallee = (callee: string): boolean =>
 	callee === 'preloadRouteQueries' ||
 	callee === 'resolveWorkspaceTenantIdFromCache' ||
+	// Tasks 4-6: loaders re-parse the validated search and build the audit
+	// action catalog before handing variables to the spec (pure, no key warming).
+	callee === 'buildAuditActionCatalog' ||
+	/^parse[A-Za-z0-9]*SearchParams$/.test(callee) ||
 	/^[a-z][A-Za-z0-9]*Queries$/.test(callee);
 
 /** In strict mode (loader with queryClient access), a bare call to an opaque

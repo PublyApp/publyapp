@@ -738,6 +738,9 @@ const isPreloadCallee = (callee: string): boolean =>
 ```
 
 and in `collectStrictModeOpaqueCalls`: `if (!localNames.has(callee) && !GLOBAL_CALLEE_ALLOWLIST.has(callee) && !isPreloadCallee(callee))`.
+Tasks 4–6 add to the same TEMPORARY allowlist (fix round D): `buildAuditActionCatalog` and
+`/^parse[A-Za-z0-9]*SearchParams$/` (the loaders re-parse the validated search before building the spec).
+Task 10's deletion of `isPreloadCallee` removes them too.
 Record it in the PR body as a deliberate, bounded weakening restored and strengthened by Task 10.
 
 **Tests:** replace the revalidation test with `$roleId.preload.test.tsx`: mount the real route options
@@ -885,8 +888,8 @@ hook built before.
 |---|---|
 | `auditLogsQueries` | `logs` → `staffAuditLogsQueryOptions`; `actions` → `staffAuditLogActionsQueryOptions` |
 | `staffInvitationsQueries` | `invitations` → `staffInvitationsQueryOptions` |
-| `staffJobQueueQueries` | `queue` → `staffJobQueueQueryOptions`; `deadLetters` → `staffDeadLettersQueryOptions`; `systemJobs` → `staffSystemJobDefinitionsQueryOptions` |
-| `staffSystemJobsQueries` | same three as `staffJobQueueQueries` **plus** `permissions` → `staffJobPermissionsQueryOptions` |
+| `staffJobQueueQueries` | `queue` → `staffJobQueueQueryOptions`; `queueOverview` → `staffJobQueueQueryOptions` (`size: 1`, read by `useJobsOverview`); `deadLetters` → `staffDeadLettersQueryOptions`; `systemJobs` → `staffSystemJobDefinitionsQueryOptions` |
+| `staffSystemJobsQueries` | `systemJobs`, `systemJobsOverview` (`size: 1`), `queue`, `deadLetters` (the sibling lists at `size: 1`) **plus** `permissions` → `staffJobPermissionsQueryOptions` |
 | `staffRolesQueries` | `roles` → `staffRolesQueryOptions` |
 | `staffUsersQueries` | `users` → `staffUsersQueryOptions` (plus the `status` filter variable) |
 | `staffTenantsQueries` | `tenants` → `staffTenantsQueryOptions` |
@@ -1384,7 +1387,7 @@ mechanism: the existing scanner, one new direction + comment parsing, no new dep
 fixtures above; (6) retirement condition: the guard retires when TanStack Router can express
 "preload every query a route renders" natively, or when the loaders move to a generated manifest.
 
-- [ ] **Step 1:** move the scanner to the module, inject `routesDir`, delete the Task-2 `isPreloadCallee`
+- [ ] **Step 1:** move the scanner to the module, inject `routesDir`, delete the Task-2 `isPreloadCallee` (including its fix-round-D additions: `buildAuditActionCatalog`, `parse*SearchParams`)
   allowlist, `callsPreloadRouteQueries`, `routesWithPreloadSpecs` and its `routesWithLoaderKeys +
   routesWithPreloadSpecs` canary (`+`) term, and `collectStrictModeOpaqueCalls`, add the layout route +
   app-shell page set, add the

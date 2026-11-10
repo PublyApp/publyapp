@@ -56,8 +56,8 @@ const splitFilter = (value: string | undefined): string[] =>
 
 /** The page's four queries, declared once: the loader warms them and the page
  * reads the same variables. The loader takes the first page (no cursor,
- * decision 4). The two sibling lists feed `useJobsOverview`, which reads each
- * one's whole-collection counts (`size: 1`), so their variables are pinned. */
+ * decision 4). `useJobsOverview` reads each of the three lists' whole-collection
+ * counts (`size: 1`), so those three keys (this list's own included) are pinned. */
 const staffSystemJobsQueries = ({
 	search,
 }: {
@@ -77,6 +77,10 @@ const staffSystemJobsQueries = ({
 				isEnabled: serverEnabled,
 				size: resolveSize(search, DEFAULT_SIZE),
 			},
+		},
+		systemJobsOverview: {
+			options: staffSystemJobDefinitionsQueryOptions,
+			variables: { size: 1 },
 		},
 		queue: {
 			options: staffJobQueueQueryOptions,

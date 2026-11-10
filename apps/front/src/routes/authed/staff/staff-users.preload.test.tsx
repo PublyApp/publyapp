@@ -5,6 +5,7 @@ import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
 	countCallsByPath,
+	expectFilteredHoverClickReusesWarmedKeys,
 	type FakeClientCall,
 	type FakeResponse,
 	type PreloadDestination,
@@ -149,5 +150,16 @@ describe('#2340 staff-users route preload', () => {
 			// …and its fresh data was reused: no refetch on mount.
 			expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));
 		}
+	});
+
+	test('a filtered URL warms the key the page reads for that URL', async () => {
+		await expectFilteredHoverClickReusesWarmedKeys({
+			destination: widenOptions<PreloadDestination>({
+				...destination,
+				linkSearch: { status: 'active' },
+			}),
+			linkLabel: LINK_LABEL,
+			pageTestId: 'staff-users-table',
+		});
 	});
 });

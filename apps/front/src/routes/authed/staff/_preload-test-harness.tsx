@@ -9,7 +9,8 @@ import {
 	Outlet,
 	RouterProvider,
 } from '@tanstack/react-router';
-import { render } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { expect } from 'vitest';
 
 /**
  * #2340 — shared harness for the staff routes' `*.preload.test.tsx` files.
@@ -228,3 +229,41 @@ export const countCallsByPath = (
 		const call = args[0] as FakeClientCall | undefined;
 		return call !== undefined && pathEndsWith(call, ...suffix);
 	}).length;
+
+/** Hover a link whose URL carries a filter, then click it: every key the loader
+ * warmed must be the very key the page observes (no refetch). A loader that
+ * dropped the filter warms the unfiltered key, which the filtered page never
+ * observes, so this fails. */
+export const expectFilteredHoverClickReusesWarmedKeys = async ({
+	destination,
+	linkLabel,
+	pageTestId,
+}: {
+	destination: PreloadDestination;
+	linkLabel: string;
+	pageTestId: string;
+}) => {
+	const { queryClient } = renderPreloadScenario({ destination, linkLabel });
+	const link = await screen.findByRole('link', { name: linkLabel });
+
+	fireEvent.mouseEnter(link);
+	await waitFor(() => {
+		expect(preloadedQueries(queryClient).length).toBeGreaterThan(0);
+	});
+	await waitFor(() => {
+		expect(queryClient.isFetching()).toBe(0);
+	});
+
+	const warmed = preloadedQueries(queryClient);
+	const snapshot = warmedSnapshot(warmed);
+
+	fireEvent.click(link);
+	await waitFor(() => {
+		expect(screen.getByTestId(pageTestId)).toBeTruthy();
+	});
+
+	for (const query of warmed) {
+		expect(query.getObserversCount()).toBeGreaterThan(0);
+		expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));
+	}
+};

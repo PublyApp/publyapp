@@ -72,8 +72,9 @@ const TEST_ID = 'staff-audit-logs-history';
 /** The page's two queries, declared once: the loader warms them and the page
  * reads the same variables. The loader takes the first page (no cursor,
  * decision 4). `catalog` is the action registry the page's own selection
- * resolves categories against; the loader reads the cached one so a filtered
- * URL warms the key the page will actually read. */
+ * resolves categories against; the loader reads the cached one, and when the
+ * registry is cold it re-runs this spec once the registry lands, so a filtered
+ * URL still warms the key the page will actually read. */
 const auditLogsQueries = ({
 	search,
 	catalog,
@@ -553,23 +554,49 @@ export const Route = createFileRoute('/_authed-layout/staff/audit-logs')({
 	loader: ({ context, deps }) => {
 		// The category filter resolves to action names through the action
 		// registry; the page reads it from its own query, the loader from the
-		// cache (an empty registry warms only the unfiltered key).
-		const actionsData =
-			context.queryClient.getQueryData<GetAuditLogActionsResponse>(
-				staffAuditLogActionsQueryOptions.queryKey({}),
-			);
+		// cache. `validateSearch` stores the wire shape (CSV filters); the page
+		// re-parses it, so the loader does too.
+		const search = parseAuditLogsListSearchParams(
+			deps as AuditLogsListSearchParamInput,
+		);
+		const { queryClient } = context;
+		const cached = queryClient.getQueryData<GetAuditLogActionsResponse>(
+			staffAuditLogActionsQueryOptions.queryKey({}),
+		);
 
 		preloadRouteQueries(
-			context.queryClient,
+			queryClient,
 			auditLogsQueries({
-				// `validateSearch` stores the wire shape (CSV filters); the page
-				// re-parses it, so the loader does too.
-				search: parseAuditLogsListSearchParams(
-					deps as AuditLogsListSearchParamInput,
-				),
-				catalog: buildAuditActionCatalog(actionsData?.actions ?? []),
+				search,
+				catalog: buildAuditActionCatalog(cached?.actions ?? []),
 			}).spec,
 		);
+
+		if (cached !== undefined) {
+			return;
+		}
+
+		// Cold registry: the filtered logs key is only known once it lands. Chain
+		// the logs warm behind it, never awaited (the first call above already
+		// started that fetch, so this one joins it); a failure is left to the
+		// page's own query, like the helper does.
+		void queryClient
+			.query({
+				queryKey: staffAuditLogActionsQueryOptions.queryKey({}),
+				queryFn: () => staffAuditLogActionsQueryOptions.fetcher({}),
+			})
+			.then((loaded) => {
+				preloadRouteQueries(
+					queryClient,
+					auditLogsQueries({
+						search,
+						catalog: buildAuditActionCatalog(
+							(loaded as GetAuditLogActionsResponse).actions ?? [],
+						),
+					}).spec,
+				);
+			})
+			.catch(() => {});
 	},
 	component: StaffAuditLogsPage,
 });
