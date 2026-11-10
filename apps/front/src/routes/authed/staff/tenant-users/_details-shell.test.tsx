@@ -108,6 +108,12 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('~/lib/query/staff-global-tenant-users', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub is never called.
+	globalTenantUserDetailsQueryOptions: {
+		queryKey: () => ['globalTenantUserDetailsQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	toGlobalTenantUserDetails: (
 		data:
 			| {

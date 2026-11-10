@@ -91,6 +91,20 @@ vi.mock('~/lib/query/staff-roles', async (importOriginal) => {
 		await importOriginal<typeof import('~/lib/query/staff-roles')>();
 
 	return {
+		// The route's query spec reads the factory object; this suite never runs
+		// the loader, so the stub is never called.
+		staffRoleDetailsQueryOptions: {
+			queryKey: () => ['staffRoleDetailsQueryOptions'],
+			fetcher: () => Promise.resolve({}),
+		},
+		staffRolePermissionKeysQueryOptions: {
+			queryKey: () => ['staffRolePermissionKeysQueryOptions'],
+			fetcher: () => Promise.resolve({}),
+		},
+		staffPermissionCatalogQueryOptions: {
+			queryKey: () => ['staffPermissionCatalogQueryOptions'],
+			fetcher: () => Promise.resolve({}),
+		},
 		toAssignedStaffPermissionGroups: vi.fn(() => []),
 		// #980: the real mapper derives the fallback style, so the identity-tile
 		// tests below exercise the production mapping path, not a mock.
@@ -102,6 +116,12 @@ vi.mock('~/lib/query/staff-roles', async (importOriginal) => {
 });
 
 vi.mock('~/lib/query/staff-role-users', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub is never called.
+	staffRoleUsersQueryOptions: {
+		queryKey: () => ['staffRoleUsersQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	toStaffRoleUserRows: vi.fn(
 		(users: unknown[] | null | undefined) => users ?? [],
 	),

@@ -9,9 +9,12 @@ import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	invalidateStaffUsers,
 	removeStaffUserDetails,
+	staffUserDetailsQueryOptions,
+	staffUserRolesQueryOptions,
 	toStaffUserDetails,
 	useDeleteStaffUserMutation,
 	useReactivateStaffUserMutation,
@@ -41,6 +44,19 @@ import {
 import type { StaffUserOverviewContextValue } from './$userId/_overview-context';
 import { StaffUserDetailsError } from './_user-details-error';
 
+/** The page's two queries, declared once: the loader warms them and the page
+ * reads the same variables. */
+const staffUserQueries = ({ userId }: { userId: string }) => ({
+	details: {
+		options: staffUserDetailsQueryOptions,
+		variables: { userId },
+	},
+	userRoles: {
+		options: staffUserRolesQueryOptions,
+		variables: { userId },
+	},
+});
+
 const StaffUserDetailsPage = () => {
 	const { userId } = Route.useParams();
 	const { t, i18n } = useTranslation(['staff-users', 'common']);
@@ -59,14 +75,13 @@ const StaffUserDetailsPage = () => {
 	});
 	const activeSection = getActiveSection(pathname);
 
-	const detailQuery = useStaffUserDetailsQuery(
-		{ userId },
-		{ enabled: userId.length > 0 },
-	);
-	const rolesQuery = useStaffUserRolesQuery(
-		{ userId },
-		{ enabled: userId.length > 0 },
-	);
+	const queries = staffUserQueries({ userId });
+	const detailQuery = useStaffUserDetailsQuery(queries.details.variables, {
+		enabled: userId.length > 0,
+	});
+	const rolesQuery = useStaffUserRolesQuery(queries.userRoles.variables, {
+		enabled: userId.length > 0,
+	});
 	const user = toStaffUserDetails(detailQuery.data);
 
 	// Hoisted so the fatal-error gates read plain locals, not query flags —
@@ -269,6 +284,12 @@ export const Route = createFileRoute(
 		// declare its own trail. The overview base is the correct value for
 		// this route's own path.
 		crumbs: staffUserCrumbsBase,
+	},
+	loader: ({ context, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			staffUserQueries({ userId: params.userId }),
+		);
 	},
 	component: StaffUserDetailsPage,
 });

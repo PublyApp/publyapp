@@ -13,13 +13,18 @@ import {
 	DetailGrid,
 	DetailMain,
 } from '~/components/ui/detail-layout';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
+	staffRoleUsersQueryOptions,
 	useStaffRoleUsersQuery,
 	toStaffRoleUserRows,
 } from '~/lib/query/staff-role-users';
 import {
 	selectStaffRoleCrumbName,
+	staffPermissionCatalogQueryOptions,
 	staffRoleCrumbQuery,
+	staffRoleDetailsQueryOptions,
+	staffRolePermissionKeysQueryOptions,
 	type StaffPermissionCatalog,
 	toStaffRoleDetails,
 	useStaffPermissionCatalogQuery,
@@ -55,18 +60,48 @@ const parseStaffRoleDetailsSearchParams = (
 			: undefined,
 });
 
+/** The page's four queries, declared once: the loader warms them and the page
+ * reads the same variables. */
+const staffRoleQueries = ({
+	roleId,
+	locale,
+}: {
+	roleId: string;
+	locale: string;
+}) => ({
+	roleDetails: {
+		options: staffRoleDetailsQueryOptions,
+		variables: { roleId },
+	},
+	permissionKeys: {
+		options: staffRolePermissionKeysQueryOptions,
+		variables: { roleId },
+	},
+	permissionCatalog: {
+		options: staffPermissionCatalogQueryOptions,
+		variables: { language: locale },
+	},
+	users: {
+		options: staffRoleUsersQueryOptions,
+		variables: { roleId, size: 5 },
+	},
+});
+
 const StaffRoleDetailsPage = () => {
 	const { roleId } = Route.useParams();
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
 	const { t, i18n } = useTranslation('common');
 
-	const detailQuery = useStaffRoleDetailsQuery({ roleId });
-	const permissionKeysQuery = useStaffRolePermissionKeysQuery({ roleId });
-	const permissionCatalogQuery = useStaffPermissionCatalogQuery({
-		language: i18n.language,
-	});
-	const usersQuery = useStaffRoleUsersQuery({ roleId, size: 5 });
+	const queries = staffRoleQueries({ roleId, locale: i18n.language });
+	const detailQuery = useStaffRoleDetailsQuery(queries.roleDetails.variables);
+	const permissionKeysQuery = useStaffRolePermissionKeysQuery(
+		queries.permissionKeys.variables,
+	);
+	const permissionCatalogQuery = useStaffPermissionCatalogQuery(
+		queries.permissionCatalog.variables,
+	);
+	const usersQuery = useStaffRoleUsersQuery(queries.users.variables);
 	// Mapped before the early returns so the system-role guard below can read
 	// the loaded role without mapping it twice.
 	const details = toStaffRoleDetails(detailQuery.data);
@@ -365,5 +400,11 @@ export const Route = createFileRoute('/_authed-layout/staff/roles/$roleId')({
 	},
 	validateSearch: (search) =>
 		parseStaffRoleDetailsSearchParams(search as Record<string, unknown>),
+	loader: ({ context, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			staffRoleQueries({ roleId: params.roleId, locale: context.locale }),
+		);
+	},
 	component: StaffRoleDetailsPage,
 });

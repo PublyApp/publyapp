@@ -21,10 +21,12 @@ import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-feedback/mutation-toast';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	invalidateStaffInvitations,
 	selectStaffInvitationCrumbName,
 	staffInvitationCrumbQuery,
+	staffInvitationDetailsQueryOptions,
 	useRevokeStaffInvitationMutation,
 	useResendStaffInvitationMutation,
 	useStaffInvitationDetailsQuery,
@@ -391,6 +393,19 @@ const InvitationDetailsCard = ({
 	);
 };
 
+/** The page's detail query, declared once: the loader warms it and the page
+ * reads the same variables. */
+const invitationDetailsQueries = ({
+	invitationId,
+}: {
+	invitationId: string;
+}) => ({
+	details: {
+		options: staffInvitationDetailsQueryOptions,
+		variables: { invitationId },
+	},
+});
+
 const StaffInvitationDetailsRoute = () => {
 	const { invitationId } = Route.useParams();
 
@@ -415,6 +430,12 @@ export const Route = createFileRoute(
 			},
 		],
 	},
+	loader: ({ context, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			invitationDetailsQueries({ invitationId: params.invitationId }),
+		);
+	},
 	component: StaffInvitationDetailsRoute,
 });
 
@@ -424,9 +445,8 @@ export const StaffInvitationDetailsPage = ({
 	invitationId: string;
 }) => {
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const detailQuery = useStaffInvitationDetailsQuery({
-		invitationId,
-	});
+	const queries = invitationDetailsQueries({ invitationId });
+	const detailQuery = useStaffInvitationDetailsQuery(queries.details.variables);
 
 	// Hoisted so the fatal-error gate reads a plain local, not a query flag.
 	const detailError = detailQuery.error;

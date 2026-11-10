@@ -15,9 +15,11 @@ import { Card } from '~/components/ui/card';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { IconColorPicker } from '~/components/ui/icon-color-picker';
 import { LoadingSpinner } from '~/components/ui/loading-spinner';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	invalidateStaffRoles,
 	useCreateStaffRoleMutation,
+	staffPermissionCatalogQueryOptions,
 	useStaffPermissionCatalogQuery,
 } from '~/lib/query/staff-roles';
 
@@ -179,6 +181,15 @@ const NewStaffRoleForm = ({
 	);
 };
 
+/** The page's permission catalog, declared once: the loader warms it and the
+ * page reads the same variables. */
+const roleNewQueries = ({ locale }: { locale: string }) => ({
+	permissionCatalog: {
+		options: staffPermissionCatalogQueryOptions,
+		variables: { language: locale },
+	},
+});
+
 const NewStaffRoleRoute = () => {
 	const navigate = Route.useNavigate();
 	const queryClient = useQueryClient();
@@ -210,9 +221,10 @@ const NewStaffRoleRoute = () => {
 		withResolver: true,
 	});
 
-	const permissionsQuery = useStaffPermissionCatalogQuery({
-		language: i18n.language,
-	});
+	const queries = roleNewQueries({ locale: i18n.language });
+	const permissionsQuery = useStaffPermissionCatalogQuery(
+		queries.permissionCatalog.variables,
+	);
 	const createRole = useCreateStaffRoleMutation();
 
 	const permissionOptions = useMemo(
@@ -343,6 +355,12 @@ export const Route = createFileRoute('/_authed-layout/staff/roles/new')({
 		// #980: the shared role-style picker reads its labels from the
 		// scope-neutral `staff-tenant-roles` catalogue.
 		i18nNamespaces: ['staff-tenant-roles'],
+	},
+	loader: ({ context }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			roleNewQueries({ locale: context.locale }),
+		);
 	},
 	component: NewStaffRoleRoute,
 });

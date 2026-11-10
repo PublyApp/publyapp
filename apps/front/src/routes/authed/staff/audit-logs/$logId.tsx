@@ -10,9 +10,11 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { View403 } from '~/components/error-views/View403';
 import QueryDisplay from '~/components/query-display';
 import { Skeleton } from '~/components/ui/skeleton';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	selectStaffAuditLogCrumbName,
 	staffAuditLogCrumbQuery,
+	staffAuditLogDetailsQueryOptions,
 	useStaffAuditLogDetailsQuery,
 } from '~/lib/query/staff-audit-logs';
 
@@ -26,6 +28,15 @@ import {
 	AuditLogDetailSection,
 	AuditLogPayload,
 } from './_audit-log-detail-parts';
+
+/** The page's detail query, declared once: the loader warms it and the page
+ * reads the same variables. */
+const auditLogDetailsQueries = ({ logId }: { logId: string }) => ({
+	details: {
+		options: staffAuditLogDetailsQueryOptions,
+		variables: { logId },
+	},
+});
 
 const NOT_FOUND_TRANSLATION_KEY = 'malformed-id';
 const AUDIT_LOGS_LIST_PATH = '/staff/audit-logs';
@@ -136,6 +147,12 @@ export const Route = createFileRoute('/_authed-layout/staff/audit-logs/$logId')(
 				},
 			],
 		},
+		loader: ({ context, params }) => {
+			preloadRouteQueries(
+				context.queryClient,
+				auditLogDetailsQueries({ logId: params.logId }),
+			);
+		},
 		component: StaffAuditLogDetailsRoute,
 	},
 );
@@ -144,10 +161,10 @@ export const Route = createFileRoute('/_authed-layout/staff/audit-logs/$logId')(
 const StaffAuditLogDetailsPage = ({ logId }: { logId: string }) => {
 	const { t, i18n } = useTranslation(['staff-audit-logs', 'common']);
 	const locale = i18n?.language ?? 'en';
-	const detailQuery = useStaffAuditLogDetailsQuery(
-		{ logId },
-		{ enabled: logId.length > 0 },
-	);
+	const queries = auditLogDetailsQueries({ logId });
+	const detailQuery = useStaffAuditLogDetailsQuery(queries.details.variables, {
+		enabled: logId.length > 0,
+	});
 
 	// Hoisted so the fatal-error gate reads a plain local, not a query flag.
 	const detailError = detailQuery.error;

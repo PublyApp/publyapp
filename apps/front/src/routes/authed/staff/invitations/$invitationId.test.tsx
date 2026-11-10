@@ -84,6 +84,12 @@ vi.mock('react-i18next', () => ({
 }));
 
 vi.mock('~/lib/query/staff-invitations', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub is never called.
+	staffInvitationDetailsQueryOptions: {
+		queryKey: () => ['staffInvitationDetailsQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	useStaffInvitationDetailsQuery: mocks.useStaffInvitationDetailsQuery,
 	useStaffInvitationLinkMutation: mocks.useStaffInvitationLinkMutation,
 	useResendStaffInvitationMutation: mocks.useResendStaffInvitationMutation,
