@@ -12,22 +12,37 @@ import QueryDisplay, {
 	type QueryDisplayQuery,
 } from '~/components/query-display';
 import { DataTableCursorFooter } from '~/components/table/data-table';
-import { useTableController } from '~/components/table/use-table-controller';
+import {
+	buildTableApiVariables,
+	useTableController,
+} from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
 import {
+	preloadRouteQueries,
+	type RouteQuerySpecEntry,
+} from '~/lib/query/route-preload';
+import {
+	staffAuditLogActionsQueryOptions,
+	staffAuditLogsQueryOptions,
 	toStaffAuditLogRows,
 	useAuditLogActionsQuery,
 	useStaffAuditLogsQuery,
 } from '~/lib/query/staff-audit-logs';
-import { useStaffTenantsQuery } from '~/lib/query/staff-tenants';
+import {
+	staffTenantsQueryOptions,
+	useStaffTenantsQuery,
+	type StaffTenantsQueryVariables,
+} from '~/lib/query/staff-tenants';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
+import type { GetAuditLogActionsResponse } from '@org/client-ts/models/index';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import {
 	buildAuditActionCatalog,
 	buildAuditLogFilters,
 	resolveAuditLogSelection,
+	type AuditActionCatalog,
 } from '../audit-logs/_audit-log-history-filters';
 import {
 	auditLogPeriodStart,
@@ -37,6 +52,7 @@ import {
 	serializeAuditLogCategories,
 	serializeAuditLogsListSearchParams,
 	type AuditLogsListSearchParamInput,
+	type AuditLogsListSearchParams,
 } from '../audit-logs/_list-search-params';
 
 /** The dashboard feed is a glance, not the full log: one page of the same
@@ -44,6 +60,48 @@ import {
 const ACTIVITY_FEED_SIZE = 50;
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const TEST_ID = 'staff-dashboard-activity';
+
+/** The page's three queries, declared once: the loader warms them and the page
+ * reads the same variables. The loader takes the first page (no cursor).
+ * `catalog` is the action registry the page's own selection resolves
+ * categories against; the loader reads the cached one and, when it is cold,
+ * re-runs this spec once the registry lands. */
+const dashboardActivityQueries = ({
+	search,
+	catalog,
+}: {
+	search: AuditLogsListSearchParams;
+	catalog: AuditActionCatalog;
+}) => {
+	const selection = resolveAuditLogSelection({
+		catalog,
+		categories: parseAuditLogCategories(search.category),
+		sensitivity: search.sensitivity === 'sensitive',
+		startDate: search.period ? auditLogPeriodStart(search.period) : undefined,
+	});
+
+	const tenants = {
+		options: staffTenantsQueryOptions,
+		variables: { size: 100 } satisfies StaffTenantsQueryVariables,
+	};
+	const actions = { options: staffAuditLogActionsQueryOptions, variables: {} };
+	const audit = {
+		options: staffAuditLogsQueryOptions,
+		variables: {
+			...buildTableApiVariables(search, DEFAULT_SORT, ACTIVITY_FEED_SIZE),
+			actions: selection.actions?.split(','),
+			startDate: selection.startDate,
+		},
+	};
+
+	// An impossible selection never reads `audit` (the page disables it), so the
+	// loader must not warm the unfiltered entry either.
+	const spec: Record<string, RouteQuerySpecEntry> = selection.impossible
+		? { tenants, actions }
+		: { tenants, actions, audit };
+
+	return { tenants, actions, audit, selection, spec };
+};
 
 /** The audit list carries only `targetId`; the dashboard resolves it against
  * the tenants it knows so the row can name its object (« a suspendu Vanilla
@@ -78,8 +136,10 @@ const toHistoryEvents = (
  * (`publy/prefer-query-display` only checks JSX-returning functions; same
  * shape as `_staff-list-team.tsx`'s counter hook).
  */
-const useTenantNameMap = (): ReadonlyMap<string, string> => {
-	const tenantNamesQuery = useStaffTenantsQuery({ size: 100 });
+const useTenantNameMap = (
+	variables: StaffTenantsQueryVariables,
+): ReadonlyMap<string, string> => {
+	const tenantNamesQuery = useStaffTenantsQuery(variables);
 	return useMemo(() => {
 		const map = new Map<string, string>();
 		for (const tenant of tenantNamesQuery.data?.data ?? []) {
@@ -129,26 +189,19 @@ const Activity = () => {
 		[catalogQuery.data],
 	);
 	const categories = parseAuditLogCategories(search.category);
-	const selection = resolveAuditLogSelection({
-		catalog,
-		categories,
-		sensitivity: search.sensitivity === 'sensitive',
-		startDate: search.period ? auditLogPeriodStart(search.period) : undefined,
-	});
+	const queries = dashboardActivityQueries({ search, catalog });
+	const { selection } = queries;
 	const query = useStaffAuditLogsQuery(
 		{
-			q: search.q,
-			actions: selection.actions?.split(','),
-			startDate: selection.startDate,
-			sortId: controller.apiVariables.sortId,
-			sortOrder: controller.apiVariables.sortOrder,
+			...queries.audit.variables,
+			// The cursor lives in React state, never in URL search: the loader
+			// warms the first page, the page adds its own cursor.
 			cursor: controller.apiVariables.cursor,
-			size: controller.apiVariables.size,
 		},
 		{ enabled: !selection.impossible },
 	);
 
-	const tenantNames = useTenantNameMap();
+	const tenantNames = useTenantNameMap(queries.tenants.variables);
 
 	const queryError = query.error;
 	if (queryError !== null && shouldLogoutForFailure(queryError)) {
@@ -311,6 +364,51 @@ export const Route = createFileRoute(
 			{ kind: 'label', labelKey: 'nav-dashboard-activity' },
 		],
 		i18nNamespaces: ['staff-audit-logs'],
+	},
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) => {
+		// `validateSearch` stores the wire shape (CSV filters); the page re-parses
+		// it, so the loader does too.
+		const search = parseAuditLogsListSearchParams(
+			deps as AuditLogsListSearchParamInput,
+		);
+		const { queryClient } = context;
+		const cached = queryClient.getQueryData<GetAuditLogActionsResponse>(
+			staffAuditLogActionsQueryOptions.queryKey({}),
+		);
+
+		preloadRouteQueries(
+			queryClient,
+			dashboardActivityQueries({
+				search,
+				catalog: buildAuditActionCatalog(cached?.actions ?? []),
+			}).spec,
+		);
+
+		if (cached !== undefined) {
+			return;
+		}
+
+		// Cold registry: the filtered feed key is only known once it lands. Chain
+		// the warm behind it, never awaited (the first call above already started
+		// that fetch, so this one joins it); a failure is left to the page.
+		void queryClient
+			.query({
+				queryKey: staffAuditLogActionsQueryOptions.queryKey({}),
+				queryFn: () => staffAuditLogActionsQueryOptions.fetcher({}),
+			})
+			.then((loaded) => {
+				preloadRouteQueries(
+					queryClient,
+					dashboardActivityQueries({
+						search,
+						catalog: buildAuditActionCatalog(
+							(loaded as GetAuditLogActionsResponse).actions ?? [],
+						),
+					}).spec,
+				);
+			})
+			.catch(() => {});
 	},
 	component: Activity,
 });

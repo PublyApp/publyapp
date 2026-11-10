@@ -113,10 +113,16 @@ vi.mock('~/lib/query/staff-audit-logs', async (importOriginal) => {
 	};
 });
 
-vi.mock('~/lib/query/staff-dashboard', () => ({
-	useStaffDashboardSeriesQuery,
-	useStaffDashboardTopOrganisationsQuery,
-}));
+vi.mock('~/lib/query/staff-dashboard', async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import('~/lib/query/staff-dashboard')>();
+
+	return {
+		...actual,
+		useStaffDashboardSeriesQuery,
+		useStaffDashboardTopOrganisationsQuery,
+	};
+});
 
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: mocks.shouldLogoutForFailure,
