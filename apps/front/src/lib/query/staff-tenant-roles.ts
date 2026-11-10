@@ -1068,7 +1068,7 @@ export const staffTenantRoleMembersQueryOptions = buildStaffQueryOptions<
  * mutation) even though the wire call is a POST — it is a read, not a
  * command, exactly like the sibling staff-roles resolve endpoint.
  */
-export const staffTenantRoleMemberAssignmentResolutionQueryOptions =
+const staffTenantRoleMemberAssignmentResolutionQueryOptions =
 	buildStaffQueryOptions<
 		ApiClient,
 		ResolveTenantRoleUserAssignmentsAsStaffResult,

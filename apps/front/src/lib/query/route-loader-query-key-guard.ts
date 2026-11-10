@@ -333,7 +333,7 @@ export type QueryKeyIdentity =
 	| { kind: 'factory'; module: string; name: string }
 	| { kind: 'literal'; value: string };
 
-export const identityToString = (identity: QueryKeyIdentity): string =>
+const identityToString = (identity: QueryKeyIdentity): string =>
 	identity.kind === 'factory'
 		? `factory ${identity.module}#${identity.name}`
 		: `literal ${JSON.stringify(identity.value)}`;

@@ -23,7 +23,7 @@ import { TenantStatusObject } from '@org/client-ts/models/index';
  * was scoped to (`getOrCreateClient(tenantId)` prefixes the call path with it).
  */
 export const TENANT_ID = 'tenant-preload-1';
-export const PICKER = ['auth', 'tenantsForPicker', 'get'] as const;
+const PICKER = ['auth', 'tenantsForPicker', 'get'] as const;
 
 export const PICKER_RESPONSE = {
 	tenants: [{ id: TENANT_ID, name: 'Vanilla Coast', status: 'active' }],
@@ -52,7 +52,7 @@ export const requestTenantIds = (
 
 /** The picker data the loader resolves the tenant from (a fresh cache entry, as
  * the app shell's own picker query leaves it). */
-export const seedPicker = (queryClient: QueryClient): void => {
+const seedPicker = (queryClient: QueryClient): void => {
 	queryClient.setQueryData(tenantsForPickerQueryOptions.queryKey({}), {
 		...PICKER_RESPONSE,
 		tenants: PICKER_RESPONSE.tenants.map((tenant) => ({

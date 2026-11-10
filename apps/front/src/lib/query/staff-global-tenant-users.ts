@@ -353,7 +353,7 @@ const bulkUnlinkGlobalTenantUserCompaniesMutationOptions =
 		{ clientAccessor: getClientManager() },
 	);
 
-export const globalTenantUsersPickerQueryOptions = buildStaffQueryOptions<
+const globalTenantUsersPickerQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantsAsStaffResponse,
 	GlobalTenantUsersPickerQueryVariables

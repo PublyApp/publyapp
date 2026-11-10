@@ -92,7 +92,7 @@ export const assignCandidatesQuery = (
 	};
 };
 
-export const roleMembersListQuery = ({
+const roleMembersListQuery = ({
 	tenantId,
 	roleId,
 	search,
