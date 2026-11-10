@@ -13,8 +13,11 @@
    `--radan-ui-card-foreground` twice in :root and the second one is
    `var(--radan-ui-card-foreground)`, a self-cycle that makes the variable
    invalid in LIGHT mode. Re-declare it here, right after the import. Remove
-   this block once radan-ui ships the fix. `:not(.dark)` keeps it from
-   out-ranking radan-ui's own `.dark` value (same specificity, later source). */
+   this block once radan-ui ships the fix. Dark mode is protected because
+   `:root:not(.dark)` simply does not match while the `dark` class is on
+   <html> (ui-store.ts and __root.tsx put it on documentElement; it must stay
+   there). A plain `:root` rule would match in both themes and, being later in
+   the source, would beat radan-ui's `.dark` value. */
 :root:not(.dark) {
 	--radan-ui-card-foreground: var(--radan-ui-ink);
 	/* One deliberate PublyApp override of a radan-ui value: muted text one
@@ -143,6 +146,11 @@
 	--color-primary-active: var(--publy-primary-active);
 	--color-success: var(--publy-success);
 	--color-warning: var(--publy-warning);
+	/* radan-ui's own `--color-input` is its input TEXT colour;
+	   PublyApp's `bg-input/50` fills and `border-input` hairlines have always
+	   meant the field hairline, so this one Tailwind name is re-defined here
+	   (this block comes after the import, so it wins). */
+	--color-input: var(--radan-ui-input-border);
 	--radius-small: var(--publy-radius-sm);
 	--radius-medium: var(--publy-radius-md);
 	--radius-large: var(--publy-radius-control);
@@ -221,9 +229,21 @@
 	   to lift #ca8a04 over that floor and is retired with it. */
 	--publy-focus-ring: var(--radan-ui-ring);
 	--publy-danger: var(--radan-ui-destructive);
-	--publy-danger-soft: rgba(220, 38, 38, 0.08);
-	--publy-destructive-soft: rgba(220, 38, 38, 0.1);
-	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.2);
+	--publy-danger-soft: color-mix(
+		in srgb,
+		var(--radan-ui-destructive) 8%,
+		transparent
+	);
+	--publy-destructive-soft: color-mix(
+		in srgb,
+		var(--radan-ui-destructive) 10%,
+		transparent
+	);
+	--publy-destructive-soft-hover: color-mix(
+		in srgb,
+		var(--radan-ui-destructive) 20%,
+		transparent
+	);
 	--publy-success: var(--radan-ui-status-success);
 	--publy-warning: var(--radan-ui-status-warning);
 	--publy-chip-active-border: var(--radan-ui-status-resolved-border);
@@ -308,18 +328,38 @@
 	--publy-auth-shot-bg: #1f1f23;
 	--publy-auth-shot-border: rgba(255, 255, 255, 0.08);
 	--publy-auth-shot-stripe: rgba(255, 255, 255, 0.04);
-	--publy-alert-danger-bg: rgba(220, 38, 38, 0.06);
-	--publy-alert-danger-border: rgba(220, 38, 38, 0.2);
-	--publy-alert-danger-text: #b91c1c;
+	/* #2360: danger / success / info follow radan-ui's roles (tints are
+	   alpha mixes of the same base). Warning's background and border stay
+	   PublyApp's own: radan-ui has no warning surface (its `pending` tone is a
+	   different amber), only the text maps to `status-warning`. */
+	--publy-alert-danger-bg: color-mix(
+		in srgb,
+		var(--radan-ui-destructive) 6%,
+		transparent
+	);
+	--publy-alert-danger-border: color-mix(
+		in srgb,
+		var(--radan-ui-destructive) 20%,
+		transparent
+	);
+	--publy-alert-danger-text: var(--radan-ui-destructive);
 	--publy-alert-warning-bg: #fffbeb;
 	--publy-alert-warning-border: #fde68a;
-	--publy-alert-warning-text: #b45309;
-	--publy-alert-info-bg: #f0f9ff;
-	--publy-alert-info-border: #bae6fd;
-	--publy-alert-info-text: #0369a1;
-	--publy-alert-success-bg: rgba(4, 120, 87, 0.06);
-	--publy-alert-success-border: rgba(4, 120, 87, 0.2);
-	--publy-alert-success-text: #047857;
+	--publy-alert-warning-text: var(--radan-ui-status-warning);
+	--publy-alert-info-bg: var(--radan-ui-status-open-background);
+	--publy-alert-info-border: var(--radan-ui-status-open-border);
+	--publy-alert-info-text: var(--radan-ui-status-open-foreground);
+	--publy-alert-success-bg: color-mix(
+		in srgb,
+		var(--radan-ui-status-success) 6%,
+		transparent
+	);
+	--publy-alert-success-border: color-mix(
+		in srgb,
+		var(--radan-ui-status-success) 20%,
+		transparent
+	);
+	--publy-alert-success-text: var(--radan-ui-status-success);
 	--publy-shell-rail-width: 49px;
 	--publy-shell-panel-width: 272px;
 	--publy-shell-topbar-height: 64px;
@@ -432,9 +472,21 @@ html.dark {
 	--publy-table-header: #212124;
 	--publy-row-border: #27272a;
 	--publy-border-strong: rgba(255, 255, 255, 0.15);
-	--publy-danger-soft: rgba(220, 38, 38, 0.16);
-	--publy-destructive-soft: rgba(220, 38, 38, 0.2);
-	--publy-destructive-soft-hover: rgba(220, 38, 38, 0.3);
+	--publy-danger-soft: color-mix(
+		in srgb,
+		var(--radan-ui-destructive) 16%,
+		transparent
+	);
+	--publy-destructive-soft: color-mix(
+		in srgb,
+		var(--radan-ui-destructive) 20%,
+		transparent
+	);
+	--publy-destructive-soft-hover: color-mix(
+		in srgb,
+		var(--radan-ui-destructive) 30%,
+		transparent
+	);
 	/* Raised (not base) surface, so a translucent overlay panel (drawer,
 	   confirm dialog, select/dropdown popup) reads as tonally elevated above
 	   the page instead of matching it 1:1 (--publy-background is also
@@ -472,18 +524,34 @@ html.dark {
 	--publy-chart-seq-2: #0369a1;
 	--publy-chart-seq-3: #0ea5e9;
 	--publy-chart-seq-4: #38bdf8;
-	--publy-alert-danger-bg: rgba(220, 38, 38, 0.16);
-	--publy-alert-danger-border: rgba(220, 38, 38, 0.32);
-	--publy-alert-danger-text: #f87171;
+	--publy-alert-danger-bg: color-mix(
+		in srgb,
+		var(--radan-ui-destructive) 16%,
+		transparent
+	);
+	--publy-alert-danger-border: color-mix(
+		in srgb,
+		var(--radan-ui-destructive) 32%,
+		transparent
+	);
+	--publy-alert-danger-text: var(--radan-ui-destructive);
 	--publy-alert-warning-bg: #451a03;
 	--publy-alert-warning-border: #92400e;
-	--publy-alert-warning-text: #fbbf24;
-	--publy-alert-info-bg: #082f49;
-	--publy-alert-info-border: #075985;
-	--publy-alert-info-text: #38bdf8;
-	--publy-alert-success-bg: rgba(4, 120, 87, 0.18);
-	--publy-alert-success-border: rgba(4, 120, 87, 0.36);
-	--publy-alert-success-text: #34d399;
+	--publy-alert-warning-text: var(--radan-ui-status-warning);
+	--publy-alert-info-bg: var(--radan-ui-status-open-background);
+	--publy-alert-info-border: var(--radan-ui-status-open-border);
+	--publy-alert-info-text: var(--radan-ui-status-open-foreground);
+	--publy-alert-success-bg: color-mix(
+		in srgb,
+		var(--radan-ui-status-success) 18%,
+		transparent
+	);
+	--publy-alert-success-border: color-mix(
+		in srgb,
+		var(--radan-ui-status-success) 36%,
+		transparent
+	);
+	--publy-alert-success-text: var(--radan-ui-status-success);
 	--publy-selection-bar-bg: #f4f4f5;
 	--publy-selection-bar-fg: #18181b;
 	--publy-selection-bar-border: rgba(212, 212, 216, 0.8);
