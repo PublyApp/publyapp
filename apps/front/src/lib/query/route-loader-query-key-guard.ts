@@ -346,7 +346,7 @@ export const identityKey = (identity: QueryKeyIdentity): string =>
 /** Result of resolving one `queryKey` expression to a static identity. */
 type ExtractedQueryKeyIdentity = {
 	identity?: QueryKeyIdentity;
-	error?: string;
+	problem?: string;
 };
 
 /** Static keys produced by a loader body, plus anything unresolvable. */
@@ -405,7 +405,7 @@ export const extractIdentity = (
 				continue;
 			}
 			return {
-				error: `queryKey array element ${ts.SyntaxKind[element.kind]} is not a statically known string literal (line ${line}) — cannot verify the loader key`,
+				problem: `queryKey array element ${ts.SyntaxKind[element.kind]} is not a statically known string literal (line ${line}) — cannot verify the loader key`,
 			};
 		}
 		return { identity: { kind: 'literal', value: JSON.stringify(parts) } };
@@ -423,7 +423,7 @@ export const extractIdentity = (
 	}
 
 	return {
-		error: `queryKey expression ${ts.SyntaxKind[node.kind]} (line ${line}) cannot be statically resolved — would silently widen the sanctioned-loader convention`,
+		problem: `queryKey expression ${ts.SyntaxKind[node.kind]} (line ${line}) cannot be statically resolved — would silently widen the sanctioned-loader convention`,
 	};
 };
 // ---------------------------------------------------------------------------
@@ -488,7 +488,7 @@ export const collectLoaderKeySites = (
 						identities.push(extracted.identity);
 					} else {
 						errors.push(
-							`${file.relativePath}:${lineOf(keyProperty.initializer)}: loader queryKey cannot be statically resolved: ${extracted.error}`,
+							`${file.relativePath}:${lineOf(keyProperty.initializer)}: loader queryKey cannot be statically resolved: ${extracted.problem}`,
 						);
 					}
 				}
@@ -524,7 +524,7 @@ type ResolvedLoader =
 			params: readonly ts.ParameterDeclaration[];
 			definitionFile: ParsedFile;
 	  }
-	| { error: string };
+	| { problem: string };
 
 const findLocalLoaderDeclaration = (
 	sourceFile: ts.SourceFile,
@@ -626,7 +626,7 @@ const resolveLoader = async (
 				return { ...resolved, definitionFile: file };
 			}
 			return {
-				error: `${file.relativePath}: loader '${node.text}' resolves to a local declaration that is not a function — cannot be statically analysed`,
+				problem: `${file.relativePath}: loader '${node.text}' resolves to a local declaration that is not a function — cannot be statically analysed`,
 			};
 		}
 
@@ -638,7 +638,7 @@ const resolveLoader = async (
 			);
 			if (!resolvedModule) {
 				return {
-					error: `${file.relativePath}: loader '${node.text}' is imported from '${binding.module}' which cannot be resolved to a file — a dynamic loader would install a permanent blind spot`,
+					problem: `${file.relativePath}: loader '${node.text}' is imported from '${binding.module}' which cannot be resolved to a file — a dynamic loader would install a permanent blind spot`,
 				};
 			}
 			const moduleFile = await parseFile(resolvedModule.absolutePath);
@@ -648,7 +648,7 @@ const resolveLoader = async (
 			);
 			if (!declaration) {
 				return {
-					error: `${file.relativePath}: imported loader '${node.text}' is not an exported declaration of '${binding.module}'`,
+					problem: `${file.relativePath}: imported loader '${node.text}' is not an exported declaration of '${binding.module}'`,
 				};
 			}
 			const resolved = loaderNodeBody(declaration);
@@ -668,17 +668,17 @@ const resolveLoader = async (
 				);
 			}
 			return {
-				error: `${file.relativePath}: imported loader '${node.text}' (${binding.module}) is not a statically analysable function`,
+				problem: `${file.relativePath}: imported loader '${node.text}' (${binding.module}) is not a statically analysable function`,
 			};
 		}
 
 		return {
-			error: `${file.relativePath}: loader '${node.text}' has no local declaration and no resolvable import — a dynamic loader would install a permanent blind spot`,
+			problem: `${file.relativePath}: loader '${node.text}' has no local declaration and no resolvable import — a dynamic loader would install a permanent blind spot`,
 		};
 	}
 
 	return {
-		error: `${file.relativePath}: loader value is a ${ts.SyntaxKind[node.kind]} — only inline functions, local declarations and imported named exports are statically analysable`,
+		problem: `${file.relativePath}: loader value is a ${ts.SyntaxKind[node.kind]} — only inline functions, local declarations and imported named exports are statically analysable`,
 	};
 };
 const findCreateFileRouteCall = (
@@ -843,7 +843,7 @@ const queryKeyInitializer = (
 
 interface QueryCallIdentity {
 	identity?: QueryKeyIdentity;
-	error?: string;
+	problem?: string;
 }
 
 /** Resolves one direct `useQuery`-family call to an identity or an error. */
@@ -858,7 +858,7 @@ const identityOfQueryCall = (
 		const initializer = queryKeyInitializer(argument);
 		if (!initializer) {
 			return {
-				error: `${where}: query call has no \`queryKey\` property the guard can read — cannot verify the loader warms it`,
+				problem: `${where}: query call has no \`queryKey\` property the guard can read — cannot verify the loader warms it`,
 			};
 		}
 		const extracted = extractIdentity(
@@ -870,10 +870,10 @@ const identityOfQueryCall = (
 		if (extracted.identity) {
 			return { identity: extracted.identity };
 		}
-		return { error: `${where}: ${extracted.error}` };
+		return { problem: `${where}: ${extracted.problem}` };
 	}
 	return {
-		error: `${where}: query call has no statically resolvable queryKey — the guard cannot verify the loader warms it`,
+		problem: `${where}: query call has no statically resolvable queryKey — the guard cannot verify the loader warms it`,
 	};
 };
 
@@ -915,8 +915,8 @@ const reachQueries = async (
 				const resolved = identityOfQueryCall(node, moduleFile, modulePath);
 				if (resolved.identity) {
 					result.identities.push(resolved.identity);
-				} else if (resolved.error) {
-					result.errors.push(resolved.error);
+				} else if (resolved.problem) {
+					result.errors.push(resolved.problem);
 				}
 			} else if (depth < MAX_REACH_DEPTH) {
 				const binding = moduleFile.bindings.get(callee);
@@ -1192,8 +1192,8 @@ const collectPageKeys = async (
 				const resolved = identityOfQueryCall(node, file, 'local');
 				if (resolved.identity) {
 					keys.push({ identity: resolved.identity, where });
-				} else if (resolved.error) {
-					errors.push(resolved.error);
+				} else if (resolved.problem) {
+					errors.push(resolved.problem);
 				}
 				continue;
 			}
@@ -1658,8 +1658,8 @@ const checkRoute = async (
 			loaderProperty.initializer,
 			2,
 		);
-		if ('error' in resolved) {
-			violations.push(resolved.error);
+		if ('problem' in resolved) {
+			violations.push(resolved.problem);
 		} else {
 			const legacy = collectLoaderKeySites(
 				resolved.body,

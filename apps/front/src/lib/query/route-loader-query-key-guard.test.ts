@@ -166,7 +166,7 @@ describe('route-loader <-> page query guard', () => {
 	// the guard that matters.
 
 	test('extractIdentity recognises a factory receiver as the query identity', () => {
-		const { identity, error } = extractIdentity(
+		const { identity, problem } = extractIdentity(
 			parseExpression(
 				'staffTenantDetailsQueryOptions.queryKey({ tenantId: "t1" })',
 			),
@@ -181,7 +181,7 @@ describe('route-loader <-> page query guard', () => {
 			]),
 			3,
 		);
-		expect(error).toBeUndefined();
+		expect(problem).toBeUndefined();
 		expect(identity).toEqual({
 			kind: 'factory',
 			module: 'lib/query/staff-tenants',
@@ -218,8 +218,8 @@ describe('route-loader <-> page query guard', () => {
 			7,
 		);
 		expect(extracted.identity).toBeUndefined();
-		expect(extracted.error).toContain('cannot be statically resolved');
-		expect(extracted.error).toContain('line 7');
+		expect(extracted.problem).toContain('cannot be statically resolved');
+		expect(extracted.problem).toContain('line 7');
 	});
 
 	test('collectLoaderKeySites reads keys from queryClient.query/ensureQueryData/prefetchQuery calls, nested included', () => {
