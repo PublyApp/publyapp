@@ -178,9 +178,10 @@ const collectFiles = async (dir: string): Promise<string[]> => {
 			if (entry.isDirectory()) {
 				return collectFiles(absolutePath);
 			}
-			return entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')
-				? [absolutePath]
-				: [];
+			if (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) {
+				return [absolutePath];
+			}
+			return [];
 		}),
 	);
 	return nested.flat();
