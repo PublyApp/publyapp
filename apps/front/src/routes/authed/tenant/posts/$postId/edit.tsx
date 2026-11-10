@@ -15,7 +15,10 @@ import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import { isCustomized } from '~/lib/publishing/destination-overrides';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
+import { tenantPermissionsQueryOptions } from '~/lib/query/tenant-permissions';
 import {
+	tenantPostDetailsQueryOptions,
 	useTenantPostDetailsQuery,
 	savePost,
 	invalidateTenantPosts,
@@ -25,12 +28,19 @@ import {
 	useDeleteTenantPostMutation,
 } from '~/lib/query/tenant-posts';
 import {
+	tenantProjectsQueryOptions,
 	useTenantProjectsQuery,
 	toTenantProjectItems,
 } from '~/lib/query/tenant-projects';
 import { invalidateTenantPublications } from '~/lib/query/tenant-publications';
+import { tenantPublishTargetsQueryOptions } from '~/lib/query/tenant-publish-targets';
+import { scheduledPublicationsInfiniteQueryOptions } from '~/lib/query/tenant-scheduled-publications';
 import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
-import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import {
+	resolveWorkspaceTenantIdFromCache,
+	tenantsForPickerQueryOptions,
+	useResolvedWorkspaceTenantId,
+} from '~/lib/query/tenants-for-picker';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -41,6 +51,8 @@ import { PostDangerZone } from '../_post-danger-zone';
 import { PostEditDestinations } from '../_post-edit-destinations';
 import { PostEditSideColumn } from '../_post-edit-side-column';
 import { PostSegmentsEditor } from '../_post-segments-editor';
+import { CUSTOMIZABLE_STATUSES, SCHEDULED_PAGE_SIZE } from '../_queries';
+import { buildUpcomingPublicationWindow } from '../_scheduled-publication-helpers';
 import { NO_SEGMENTS, reconcileSegmentDrafts } from '../_segment-draft';
 import { useDestinationOverrides } from '../_use-destination-overrides';
 import { usePublishSelection } from '../_use-publish-selection';
@@ -84,6 +96,47 @@ const resetFormFromDetails = (
 	});
 };
 
+/** The page's queries, declared once. The loader cannot know the post's project
+ * yet, so the publish targets are the unfiltered ones the page reads until the
+ * details land. The rendition of a selected row is `preload-exempt`. */
+const postEditQueries = ({
+	tenantId,
+	postId,
+}: {
+	tenantId: string;
+	postId: string;
+}) => {
+	const scheduleWindow = buildUpcomingPublicationWindow(new Date());
+
+	return {
+		postDetails: {
+			options: tenantPostDetailsQueryOptions,
+			variables: { postId, tenantId },
+		},
+		projects: { options: tenantProjectsQueryOptions, variables: { tenantId } },
+		publishTargets: {
+			options: tenantPublishTargetsQueryOptions,
+			variables: { tenantId, projectId: null },
+		},
+		scheduledPublications: {
+			options: scheduledPublicationsInfiniteQueryOptions,
+			variables: {
+				tenantId,
+				from: scheduleWindow.from,
+				to: scheduleWindow.to,
+				statuses: CUSTOMIZABLE_STATUSES,
+				limit: SCHEDULED_PAGE_SIZE,
+				restartKey: 0,
+			},
+		},
+		permissions: {
+			options: tenantPermissionsQueryOptions,
+			variables: { tenantId },
+		},
+		picker: { options: tenantsForPickerQueryOptions, variables: {} },
+	};
+};
+
 const TenantPostEditPage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 	const translateResponseMessage = useResponseMessageTranslator();
@@ -91,11 +144,12 @@ const TenantPostEditPage = () => {
 	const navigate = Route.useNavigate();
 	const qc = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
+	const queries = postEditQueries({ tenantId: tenantId ?? '', postId });
 	const detailsQuery = useTenantPostDetailsQuery(
-		{ postId, tenantId: tenantId ?? '' },
+		queries.postDetails.variables,
 		{ enabled: Boolean(tenantId && postId) },
 	);
-	const projectsQuery = useTenantProjectsQuery({ tenantId: tenantId ?? '' });
+	const projectsQuery = useTenantProjectsQuery(queries.projects.variables);
 	// Language-keyed resolver: schema + resolver built once per language, not
 	// once per render.
 	const resolver = useLanguageKeyedZodResolver<Values>(getSchema, [
@@ -391,6 +445,16 @@ export const Route = createFileRoute(
 			},
 		],
 		i18nNamespaces: ['posts'],
+	},
+	loader: ({ context, params }) => {
+		const tenantId = resolveWorkspaceTenantIdFromCache(context.queryClient);
+		if (tenantId === null) {
+			return;
+		}
+		preloadRouteQueries(
+			context.queryClient,
+			postEditQueries({ tenantId, postId: params.postId }),
+		);
 	},
 	component: TenantPostEditPage,
 });

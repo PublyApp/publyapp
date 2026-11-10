@@ -39,11 +39,16 @@ type RespondMock = { mock: { calls: readonly (readonly unknown[])[] } };
 export const requestTenantIds = (
 	respond: RespondMock,
 	...suffix: string[]
-): string[] =>
-	respond.mock.calls
-		.map((args) => args[0] as FakeClientCall)
-		.filter((call) => pathEndsWith(call, ...suffix))
-		.map((call) => call.path[0] ?? '');
+): string[] => {
+	const tenantIds: string[] = [];
+	for (const args of respond.mock.calls) {
+		const call = args[0] as FakeClientCall;
+		if (pathEndsWith(call, ...suffix)) {
+			tenantIds.push(call.path[0] ?? '');
+		}
+	}
+	return tenantIds;
+};
 
 /** The picker data the loader resolves the tenant from (a fresh cache entry, as
  * the app shell's own picker query leaves it). */

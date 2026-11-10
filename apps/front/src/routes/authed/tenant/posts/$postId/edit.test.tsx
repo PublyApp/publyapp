@@ -157,7 +157,8 @@ vi.mock('~/components/field', () => ({
 	}) => <div data-testid={testId}>{children}</div>,
 }));
 
-vi.mock('~/lib/query/tenant-posts', () => ({
+vi.mock('~/lib/query/tenant-posts', async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	useTenantPostDetailsQuery: mocks.useTenantPostDetailsQuery,
 	useDeleteTenantPostMutation: mocks.useDeleteTenantPostMutation,
 	savePost: mocks.savePost,
@@ -183,21 +184,28 @@ vi.mock('~/lib/query/tenant-posts', () => ({
 	selectTenantPostCrumbName: vi.fn(),
 }));
 
-vi.mock('~/lib/query/tenant-projects', () => ({
+vi.mock('~/lib/query/tenant-projects', async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	useTenantProjectsQuery: mocks.useTenantProjectsQuery,
 	toTenantProjectItems: vi.fn(() => []),
 }));
 
-vi.mock('~/lib/query/tenants-for-picker', () => ({
+vi.mock('~/lib/query/tenants-for-picker', async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	useResolvedWorkspaceTenantId: () => '11111111-1111-1111-1111-111111111111',
 }));
 
-vi.mock('~/lib/query/tenant-scheduled-publications', () => ({
-	invalidateTenantScheduledPublications:
-		mocks.invalidateTenantScheduledPublications,
-}));
+vi.mock(
+	'~/lib/query/tenant-scheduled-publications',
+	async (importOriginal) => ({
+		...(await importOriginal<object>()),
+		invalidateTenantScheduledPublications:
+			mocks.invalidateTenantScheduledPublications,
+	}),
+);
 
-vi.mock('~/lib/query/tenant-publications', () => ({
+vi.mock('~/lib/query/tenant-publications', async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	invalidateTenantPublications: mocks.invalidateTenantPublications,
 }));
 

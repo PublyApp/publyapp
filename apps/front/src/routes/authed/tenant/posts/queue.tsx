@@ -2,9 +2,14 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
+import {
+	resolveWorkspaceTenantIdFromCache,
+	useResolvedWorkspaceTenantId,
+} from '~/lib/query/tenants-for-picker';
 
 import { WorkspacePageHeader } from '../_workspace-page-parts';
+import { postQueueQueries, QUEUE_PAGE_SIZE, QUEUE_STATUSES } from './_queries';
 import {
 	buildUpcomingPublicationWindow,
 	nextPollingDelayMs,
@@ -12,15 +17,13 @@ import {
 import { ScheduledPublicationQueueTable } from './_scheduled-publication-queue-table';
 import { useScheduledPublicationPage } from './_use-scheduled-publication-page';
 
-const QUEUE_STATUSES = ['scheduled', 'in_progress', 'paused'] as const;
-
 const TenantPostsQueuePage = () => {
 	const { t } = useTranslation(['posts', 'common']);
 	const tenantId = useResolvedWorkspaceTenantId();
 	const page = useScheduledPublicationPage({
 		tenantId: tenantId ?? '',
 		createWindow: () => buildUpcomingPublicationWindow(new Date()),
-		initialSize: 20,
+		initialSize: QUEUE_PAGE_SIZE,
 		statuses: [...QUEUE_STATUSES],
 	});
 	const { rows, query } = page;
@@ -65,6 +68,13 @@ export const Route = createFileRoute('/_authed-layout/tenant/posts/queue')({
 			{ kind: 'label', labelKey: 'queue' },
 		],
 		i18nNamespaces: ['posts'],
+	},
+	loader: ({ context }) => {
+		const tenantId = resolveWorkspaceTenantIdFromCache(context.queryClient);
+		if (tenantId === null) {
+			return;
+		}
+		preloadRouteQueries(context.queryClient, postQueueQueries({ tenantId }));
 	},
 	component: TenantPostsQueuePage,
 });

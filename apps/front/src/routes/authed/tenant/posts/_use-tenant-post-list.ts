@@ -7,19 +7,19 @@
  */
 import { useTableController } from '~/components/table/use-table-controller';
 import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
-import type {
-	TableSearchParamInput,
-	TableSearchWireParams,
-} from '~/lib/url-state/table-search-params';
+import type { TableSearchWireParams } from '~/lib/url-state/table-search-params';
 import {
-	parseTenantPostListSearchParams,
 	serializeTenantPostListSearchParams,
+	type TenantPostListSearchParams,
 } from '~/lib/url-state/tenant-post-list-helpers';
 
-const DEFAULT_SORT = {
+/** The list defaults, shared with the route specs so the loader and the page
+ * build the very same request variables. */
+export const TENANT_POST_LIST_DEFAULT_SORT = {
 	id: 'updated_at',
 	order: 'desc' as const,
 } as const;
+export const TENANT_POST_LIST_DEFAULT_SIZE = 20;
 
 export type UseTenantPostListResult = {
 	controller: ReturnType<typeof useTableController>;
@@ -27,10 +27,9 @@ export type UseTenantPostListResult = {
 };
 
 export const useTenantPostList = (
-	search: TableSearchParamInput,
+	parsedSearch: TenantPostListSearchParams,
 	navigate: (opts: { search: TableSearchWireParams; replace: boolean }) => void,
 ): UseTenantPostListResult => {
-	const parsedSearch = parseTenantPostListSearchParams(search);
 	const onSearchChange = (next: {
 		q?: string;
 		sortId?: string;
@@ -46,8 +45,8 @@ export const useTenantPostList = (
 	const controller = useTableController({
 		search: parsedSearch,
 		onSearchChange,
-		defaultSort: DEFAULT_SORT,
-		defaultSize: 20,
+		defaultSort: TENANT_POST_LIST_DEFAULT_SORT,
+		defaultSize: TENANT_POST_LIST_DEFAULT_SIZE,
 	});
 	const tenantId = useResolvedWorkspaceTenantId();
 	return { controller, tenantId };
