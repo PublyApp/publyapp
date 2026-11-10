@@ -25,5 +25,10 @@
 		"tools/**/*.ts",
 		"../../packages/shared-ts/src/@types/**/*.d.ts"
 	],
-	"exclude": ["node_modules", "dist", ".output"]
+	"exclude": [
+		"node_modules",
+		"dist",
+		".output",
+		"tests/fixtures/route-loader-guard/**"
+	]
 }

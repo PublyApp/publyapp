@@ -40,6 +40,7 @@ import {
 
 export const AppShellUserMenu = () => {
 	const { t, i18n } = useTranslation('common');
+	// preload-exempt: session-stable current user (staleTime Infinity), fetched once when the shell mounts
 	const userQuery = useCurrentUserQuery();
 	const currentUser = toCurrentUser(userQuery.data);
 	const { logout, isLoggingOut } = useLogout();
