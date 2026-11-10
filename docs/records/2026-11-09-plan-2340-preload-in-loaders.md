@@ -1201,7 +1201,7 @@ read `from`/`to`/`statuses`/`limit` from the spec.
 
 | spec | entry → factory |
 |---|---|
-| `postDraftsQueries` | `posts` → `tenantPostsQueryOptions`; `projects` → `tenantProjectsQueryOptions`; `publishTargets` → `tenantPublishTargetsQueryOptions`; `permissions` → `tenantPermissionsQueryOptions`; `picker` → `tenantsForPickerQueryOptions` |
+| `postDraftsQueries` | `posts` → `tenantPostsQueryOptions`; `projects` → `tenantProjectsQueryOptions`; `publishTargets` → `tenantPublishTargetsQueryOptions`; `picker` → `tenantsForPickerQueryOptions`. **No `permissions` (captain, 10/11, Task 9 review):** on drafts the permission gate lives only inside the create drawer's portal, which is unmounted while closed, so the page does not read it at mount and the loader must not warm it (never warm a key the page won't read); `drafts.preload.test.tsx` pins this. |
 | `postHistoryQueries` | `publications` → `tenantPublicationsQueryOptions`; `permissions` → `tenantPermissionsQueryOptions`; `picker` → `tenantsForPickerQueryOptions` |
 | `postQueueQueries` | `scheduledPublications` → `scheduledPublicationsQueryOptions`; `picker` → `tenantsForPickerQueryOptions` |
 | `postCalendarQueries` | `scheduledPublications` → `scheduledPublicationsInfiniteQueryOptions`; `picker` → `tenantsForPickerQueryOptions` |
@@ -1524,3 +1524,5 @@ replaces the query's options with the passed ones (`query.js:78–83`, and retur
 promise first at `:351–359`), `Query.getObserversCount()` is public (`query.js:319`), and
 `queryCache.find({ queryKey, exact: true })` is the lookup the helper uses. `AbortSignal` is in the DOM
 lib the front tsconfig already includes.
+
+**Task 10 note (captain, 10/11, from the Task 9 review):** the drafts page graph reaches `useTenantPermissions` only through the create drawer (`_create-post-drawer.tsx` → `_publish-on-block.tsx` / `_destination-chips.tsx`), mounted on open. Task 10 must treat that call as **not a page query for the drafts route** (a route-scoped rule: a call reached only through a component rendered inside a closed portal / drawer that the route renders conditionally), **never** with a `preload-exempt` marker on the shared `_publish-on-block.tsx` — the edit route renders the same component at mount and does warm `permissions` (`$postId/edit.tsx`), so a marker there would silence a legitimately guarded call. Captain's call 11 now reads: `useTenantPermissions` is warmed by the history and edit specs; drafts excludes it as above.
