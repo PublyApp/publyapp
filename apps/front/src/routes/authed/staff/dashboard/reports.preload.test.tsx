@@ -111,12 +111,17 @@ describe('#2340 staff dashboard reports route preload', () => {
 		const previous = previousPeriod('90d');
 		const audit = requestQueryParameters(mocks.respond, ...AUDIT);
 		expect(audit).toContainEqual(
-			expect.objectContaining({ limit: '1', startDate: start }),
+			expect.objectContaining({
+				limit: '1',
+				startDate: start,
+				endDate: `${today}T23:59:59`,
+			}),
 		);
 		expect(audit).toContainEqual(
 			expect.objectContaining({
 				limit: '1',
 				startDate: start,
+				endDate: `${today}T23:59:59`,
 				actions: 'impersonation.started',
 			}),
 		);

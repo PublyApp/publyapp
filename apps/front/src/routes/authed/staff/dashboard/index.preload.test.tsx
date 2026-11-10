@@ -139,7 +139,11 @@ describe('#2340 staff dashboard overview route preload', () => {
 		const today = todayIso();
 		const start = periodStart('7d');
 		expect(requestQueryParameters(mocks.respond, ...AUDIT)).toContainEqual(
-			expect.objectContaining({ limit: '1', startDate: start }),
+			expect.objectContaining({
+				limit: '1',
+				startDate: start,
+				endDate: `${today}T23:59:59`,
+			}),
 		);
 		const series = requestQueryParameters(mocks.respond, ...SERIES);
 		expect(series).toContainEqual({
