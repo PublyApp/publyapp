@@ -1,7 +1,3 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 /**
  * @vitest-environment jsdom
  *
@@ -38,12 +34,10 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
+import { resolveThemeToken } from '~/styles/theme-token-test-support';
+
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { TenantPortalPickerView } from './_tenant-picker-view';
-
-const rootDir = path.dirname(fileURLToPath(import.meta.url));
-const appCssPath = path.resolve(rootDir, '../../../styles/app.css');
-const appCssSource = readFileSync(appCssPath, 'utf-8');
 
 type Rgb = { r: number; g: number; b: number };
 
@@ -79,26 +73,9 @@ const contrastRatio = (a: Rgb, b: Rgb): number => {
 	return (lighter + 0.05) / (darker + 0.05);
 };
 
-/** Pulls the Nth `--token: #hex;` declaration for a css custom property out
- * of app.css source, in source order (1st = :root/light, 2nd = html.dark). */
-const nthTokenHex = (token: string, occurrence: number): string => {
-	const pattern = new RegExp(`${token}:\\s*(#[0-9a-fA-F]{3,8})\\s*;`, 'g');
-	const matches = [...appCssSource.matchAll(pattern)];
-	const match = matches[occurrence];
-	if (!match) {
-		throw new Error(
-			`Expected occurrence ${occurrence} of ${token} in app.css, found ${matches.length}`,
-		);
-	}
-	return match[1];
-};
-
 const CONTRAST_FLOOR = 3.0;
 
-const THEMES = [
-	{ name: 'light', ringOccurrence: 0, surfaceOccurrence: 0 },
-	{ name: 'dark', ringOccurrence: 1, surfaceOccurrence: 1 },
-];
+const THEMES = [{ name: 'light' as const }, { name: 'dark' as const }];
 
 const PICKER_DATA: TenantsForPickerData = {
 	tenants: [
@@ -158,11 +135,9 @@ describe('tenant picker row focus indicator', () => {
 				/rgba?\(|hsla?\(|oklch\(|#[0-9a-fA-F]{3,8}/,
 			);
 
-			const ringHex = nthTokenHex('--publy-focus-ring', theme.ringOccurrence);
-			const surfaceHex = nthTokenHex(
-				'--publy-surface',
-				theme.surfaceOccurrence,
-			);
+			// #2360: both tokens alias radan-ui, so resolve through both sheets.
+			const ringHex = resolveThemeToken('--publy-focus-ring', theme.name);
+			const surfaceHex = resolveThemeToken('--publy-surface', theme.name);
 
 			const ratio = contrastRatio(parseHex(ringHex), parseHex(surfaceHex));
 

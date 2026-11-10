@@ -62,6 +62,7 @@ import {
 	EXCLUDED_DESCRIPTION_SELECTORS,
 	type DrawerDescriptionConsumer,
 } from './drawer-description-inventory';
+import { themeDeclarations } from './theme-token-test-support';
 
 const appCssPath = path.resolve(process.cwd(), 'src/styles/app.css');
 const requireFromFront = createRequire(
@@ -178,8 +179,17 @@ const readDeclarations = (
 	return declarations;
 };
 
-const LIGHT_DECLARATIONS = readDeclarations(':root');
-const DARK_DECLARATIONS = readDeclarations('html.dark');
+// #2360: PublyApp's colour tokens alias radan-ui's `--radan-ui-*` variables, so
+// the maps start from radan-ui's own :root/.dark (merged in cascade order by
+// the shared support module) and app.css's real parse is layered on top.
+const LIGHT_DECLARATIONS = new Map([
+	...themeDeclarations('light'),
+	...readDeclarations(':root'),
+]);
+const DARK_DECLARATIONS = new Map([
+	...themeDeclarations('dark'),
+	...readDeclarations('html.dark'),
+]);
 
 // Round 8 M5: tokens declared on a component rule rather than in
 // :root/html.dark (e.g. `--publy-toast-accent` on `.publy-toast`,

@@ -4,6 +4,12 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
+import {
+	radanThemeInlineDeclarations,
+	resolveThemeToken,
+	themeDeclarations,
+} from './theme-token-test-support';
+
 const rootDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)));
 const appCssPath = path.join(rootDir, 'app.css');
 const uiDir = path.resolve(rootDir, '../components/ui');
@@ -264,18 +270,17 @@ const discoveredConsumerPaths = collectSourceFiles(srcRootDir).filter(
 
 describe('focus-ring contrast (W4-GUARDS ui-F1; #823 scope: token math + fail-closed tripwires)', () => {
 	const appCssSource = readFileSync(appCssPath, 'utf8');
-	const rootBlock = extractBlock(appCssSource, /^:root\s*\{/);
-	const darkBlock = extractBlock(appCssSource, /^html\.dark\s*\{/);
-	const allDeclarations = new Map([
-		...extractDeclarations(rootBlock),
-		...extractDeclarations(darkBlock),
-	]);
 
 	// W5-PROOF: the real `@theme inline { --color-<name>: var(--<target>); }`
 	// map, so semantic colour names Tailwind actually generates utilities for
 	// are resolvable here.
 	const themeInlineBlock = extractBlock(appCssSource, /^@theme inline\s*\{/);
-	const themeColorDeclarations = extractDeclarations(themeInlineBlock);
+	// #2360: the ring/border/... colour map now lives in radan-ui's own
+	// `@theme inline`; PublyApp's block only adds what radan-ui lacks.
+	const themeColorDeclarations = new Map([
+		...radanThemeInlineDeclarations(),
+		...extractDeclarations(themeInlineBlock),
+	]);
 
 	// The `cva` variant definitions live in the sibling `*.variants.ts`
 	// modules (react-doctor rung 2, #1417): a component file exports only
@@ -405,15 +410,10 @@ describe('focus-ring contrast (W4-GUARDS ui-F1; #823 scope: token math + fail-cl
 	});
 
 	for (const theme of THEMES) {
-		const themeBlock = theme.name === 'light' ? rootBlock : darkBlock;
-		const themeDeclarations = extractDeclarations(themeBlock);
-		// Overlay theme-scoped overrides on top of root fallbacks (mirrors how
-		// html.dark actually cascades over :root in the browser).
-		const declarations = new Map([...allDeclarations, ...themeDeclarations]);
-		const surfaceHex = declarations.get(theme.surfaceToken);
-		if (surfaceHex === undefined) {
-			throw new Error(`Missing token for ${theme.name} theme`);
-		}
+		// #2360: radan-ui's `:root`/`.dark` and app.css's `:root`/`html.dark`,
+		// merged in cascade order per theme (see theme-token-test-support).
+		const declarations = themeDeclarations(theme.name);
+		const surfaceHex = resolveThemeToken(theme.surfaceToken, theme.name);
 		if (!HEX_PATTERN.test(surfaceHex)) {
 			throw new Error(
 				`Expected surface token to be a hex literal: ${surfaceHex}`,

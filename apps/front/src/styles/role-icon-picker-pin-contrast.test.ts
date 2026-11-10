@@ -8,6 +8,7 @@ import {
 	countExactSelectorRules,
 	resolveEffectiveDeclarations,
 } from './css-cascade-test-support';
+import { resolveThemeToken } from './theme-token-test-support';
 
 // #992 review follow-up: the pencil-pin affordance's fill/glyph tokens must
 // clear the repo's non-text contrast floor against the surface it sits on,
@@ -44,51 +45,13 @@ const NON_TEXT_CONTRAST_FLOOR = 3.0;
 
 type Rgb = { r: number; g: number; b: number };
 
-const extractBlock = (header: ':root' | 'html.dark'): string => {
-	const start = appCss.indexOf(`${header} {`);
-	if (start === -1) {
-		throw new Error(`Missing ${header} theme block`);
-	}
-
-	let depth = 0;
-	for (let index = start; index < appCss.length; index += 1) {
-		if (appCss[index] === '{') {
-			depth += 1;
-		} else if (appCss[index] === '}') {
-			depth -= 1;
-			if (depth === 0) {
-				return appCss.slice(start, index + 1);
-			}
-		}
-	}
-
-	throw new Error(`Unclosed ${header} theme block`);
-};
-
-const findHexToken = (block: string, token: string): string | undefined => {
-	const match = new RegExp(`${token}:\\s*(#[0-9a-fA-F]{6});`).exec(block);
-	return match?.[1];
-};
-
-/** `html.dark` only overrides the tokens that actually differ from `:root`
- * (mirrors the real cascade — an un-overridden token falls back to `:root`). */
+/** #2360: tokens may be aliases onto radan-ui; resolve through both sheets
+ * (`html.dark` falls back to `:root` exactly like the real cascade). */
 const resolveThemeHexToken = (
 	header: ':root' | 'html.dark',
 	token: string,
-): string => {
-	if (header === 'html.dark') {
-		const darkValue = findHexToken(extractBlock(header), token);
-		if (darkValue) {
-			return darkValue;
-		}
-	}
-
-	const rootValue = findHexToken(extractBlock(':root'), token);
-	if (!rootValue) {
-		throw new Error(`Missing hex token ${token}`);
-	}
-	return rootValue;
-};
+): string =>
+	resolveThemeToken(token, header === 'html.dark' ? 'dark' : 'light');
 
 const parseHex = (hex: string): Rgb => ({
 	r: Number.parseInt(hex.slice(1, 3), 16),

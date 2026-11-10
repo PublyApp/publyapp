@@ -16,6 +16,7 @@ import { MarketingShell } from '~/components/marketing/marketing-shell';
 import { renderMarketing } from '~/components/marketing/marketing.test-helper';
 
 import { resolveEffectiveDeclarations } from './css-cascade-test-support';
+import { resolveThemeToken } from './theme-token-test-support';
 
 const appCssPath = path.resolve(process.cwd(), 'src/styles/app.css');
 const appCssSource = readFileSync(appCssPath, 'utf8').replace(
@@ -25,45 +26,9 @@ const appCssSource = readFileSync(appCssPath, 'utf8').replace(
 
 const AA_NORMAL_TEXT = 4.5;
 
-const readTokens = (
-	source: string,
-	header: ':root' | 'html.dark',
-): Map<string, string> => {
-	const lines = source.split('\n');
-	const headerLine = lines.findIndex((line) => line.includes(header + ' {'));
-	if (headerLine === -1) {
-		throw new Error(`Theme block not found for ${header}`);
-	}
-
-	const tokens = new Map<string, string>();
-	for (let index = headerLine + 1; index < lines.length; index += 1) {
-		const line = lines[index];
-		if (line.includes('}') && line.trim().startsWith('}')) {
-			break;
-		}
-
-		const match = /(--publy-[\w-]+):\s*([^;]+);/.exec(line);
-		if (match) {
-			tokens.set(match[1], match[2].trim());
-		}
-	}
-
-	return tokens;
-};
-
-const LIGHT_TOKENS = readTokens(appCssSource, ':root');
-const DARK_TOKENS = readTokens(appCssSource, 'html.dark');
-
-const resolve = (name: string, theme: 'light' | 'dark'): string => {
-	const value =
-		theme === 'dark'
-			? (DARK_TOKENS.get(name) ?? LIGHT_TOKENS.get(name))
-			: LIGHT_TOKENS.get(name);
-	if (value === undefined) {
-		throw new Error(`Token ${name} is not declared for ${theme}`);
-	}
-	return value;
-};
+const resolve = (name: string, theme: 'light' | 'dark'): string =>
+	// #2360: PublyApp tokens alias radan-ui's, resolved through both sheets.
+	resolveThemeToken(name, theme);
 
 const toRgb = (value: string): [number, number, number] => {
 	const hex = /^#([0-9a-fA-F]{6})$/.exec(value.trim());

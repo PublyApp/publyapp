@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
+import { resolveThemeToken } from './theme-token-test-support';
+
 const rootDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)));
 const appCss = readFileSync(path.join(rootDir, 'app.css'), 'utf8');
 const SMALL_TEXT_CONTRAST_FLOOR = 4.5;
@@ -20,52 +22,12 @@ const AVATAR_BACKGROUND_TOKENS = [
 
 type Rgb = { r: number; g: number; b: number };
 
-const extractBlock = (header: ':root' | 'html.dark'): string => {
-	const start = appCss.indexOf(`${header} {`);
-	if (start === -1) {
-		throw new Error(`Missing ${header} theme block`);
-	}
-
-	let depth = 0;
-	for (let index = start; index < appCss.length; index += 1) {
-		if (appCss[index] === '{') {
-			depth += 1;
-		} else if (appCss[index] === '}') {
-			depth -= 1;
-			if (depth === 0) {
-				return appCss.slice(start, index + 1);
-			}
-		}
-	}
-
-	throw new Error(`Unclosed ${header} theme block`);
-};
-
-const findHexToken = (block: string, token: string): string | undefined => {
-	const match = new RegExp(`${token}:\\s*(#[0-9a-fA-F]{6});`).exec(block);
-	return match?.[1];
-};
-
-const extractHexToken = (block: string, token: string): string => {
-	const value = findHexToken(block, token);
-	if (!value) {
-		throw new Error(`Missing hex token ${token}`);
-	}
-	return value;
-};
-
 const resolveThemeHexToken = (
 	header: ':root' | 'html.dark',
 	token: string,
 ): string => {
-	if (header === 'html.dark') {
-		const darkValue = findHexToken(extractBlock(header), token);
-		if (darkValue) {
-			return darkValue;
-		}
-	}
-
-	return extractHexToken(extractBlock(':root'), token);
+	// #2360: tokens may be aliases onto radan-ui; resolve through both sheets.
+	return resolveThemeToken(token, header === 'html.dark' ? 'dark' : 'light');
 };
 
 const parseHex = (hex: string): Rgb => ({
@@ -102,9 +64,11 @@ describe('avatar fallback contrast', () => {
 	] as const)(
 		'keeps secondary foreground legible on the muted surface in the %s theme',
 		(_theme, header) => {
-			const block = extractBlock(header);
-			const foreground = extractHexToken(block, '--publy-foreground-secondary');
-			const background = extractHexToken(block, '--publy-surface-muted');
+			const foreground = resolveThemeHexToken(
+				header,
+				'--publy-foreground-secondary',
+			);
+			const background = resolveThemeHexToken(header, '--publy-surface-muted');
 
 			expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(
 				SMALL_TEXT_CONTRAST_FLOOR,
