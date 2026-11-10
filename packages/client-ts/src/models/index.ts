@@ -4459,6 +4459,7 @@ export function deserializeIntoGetDashboardSeriesForStaffResponse(getDashboardSe
         "endDate": n => { getDashboardSeriesForStaffResponse.endDate = n.getStringValue(); },
         "metric": n => { getDashboardSeriesForStaffResponse.metric = n.getStringValue(); },
         "points": n => { getDashboardSeriesForStaffResponse.points = n.getCollectionOfObjectValues<DashboardSeriesPoint>(createDashboardSeriesPointFromDiscriminatorValue); },
+        "recordedSince": n => { getDashboardSeriesForStaffResponse.recordedSince = n.getStringValue(); },
         "startDate": n => { getDashboardSeriesForStaffResponse.startDate = n.getStringValue(); },
     }
 }
@@ -6969,6 +6970,10 @@ export interface GetDashboardSeriesForStaffResponse extends AdditionalDataHolder
      * The points property
      */
     points?: DashboardSeriesPoint[] | null;
+    /**
+     * The first day the series is measured from (the earliest recordedtransition), for the metrics backed by a recorded history(`active_tenants`). The days before it are not measured values andmust not be shown as 0 (#2349). `null` for the audit-log metrics,which cover the whole window.
+     */
+    recordedSince?: string | null;
     /**
      * The startDate property
      */
@@ -9736,6 +9741,7 @@ export function serializeGetDashboardSeriesForStaffResponse(writer: Serializatio
     writer.writeStringValue("endDate", getDashboardSeriesForStaffResponse.endDate);
     writer.writeStringValue("metric", getDashboardSeriesForStaffResponse.metric);
     writer.writeCollectionOfObjectValues<DashboardSeriesPoint>("points", getDashboardSeriesForStaffResponse.points, serializeDashboardSeriesPoint);
+    writer.writeStringValue("recordedSince", getDashboardSeriesForStaffResponse.recordedSince);
     writer.writeStringValue("startDate", getDashboardSeriesForStaffResponse.startDate);
     writer.writeAdditionalData(getDashboardSeriesForStaffResponse.additionalData);
 }

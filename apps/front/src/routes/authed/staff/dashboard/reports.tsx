@@ -8,7 +8,6 @@ import {
 	useStaffDashboardSeriesQuery,
 	useStaffDashboardTopOrganisationsQuery,
 } from '~/lib/query/staff-dashboard';
-import { formatDayMonth } from '~/utils/format-time';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
@@ -19,7 +18,11 @@ import {
 	previousPeriod,
 	type DashboardPeriod,
 } from './_dashboard-filters';
-import { formatSignedPercent, seriesTotal } from './_dashboard-format';
+import {
+	formatSignedPercent,
+	seriesTotal,
+	toSeriesPoints,
+} from './_dashboard-format';
 import { ReportsFilters } from './_reports-filters';
 import { ReportsKpis } from './_reports-kpis';
 import { ReportsPrimaryCharts } from './_reports-primary-charts';
@@ -85,19 +88,6 @@ const seriesDelta = (
 				direction: current >= previous ? ('up' as const) : ('down' as const),
 			}
 		: undefined;
-
-/** The API's daily points as the shared charts' labelled series. */
-const toSeriesPoints = (
-	points:
-		| ReadonlyArray<{ date?: string | null; value?: number | null }>
-		| null
-		| undefined,
-	locale: string,
-) =>
-	(points ?? []).map((point) => ({
-		label: formatDayMonth(new Date(`${point.date ?? ''}T12:00:00Z`), locale),
-		value: point.value ?? 0,
-	}));
 
 const Reports = () => {
 	const { t, i18n } = useTranslation('common');

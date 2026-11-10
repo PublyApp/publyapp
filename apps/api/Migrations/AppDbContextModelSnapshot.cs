@@ -2186,6 +2186,39 @@ namespace PublyApp.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PublyApp.Api.Modules.Tenants.Entities.TenantStatusHistory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt", "Id");
+
+                    b.HasIndex("TenantId", "OccurredAt");
+
+                    b.ToTable("tenant_status_history");
+                });
+
             modelBuilder.Entity("PublyApp.Api.Modules.Uploads.Entities.UploadAsset", b =>
                 {
                     b.Property<Guid>("Id")

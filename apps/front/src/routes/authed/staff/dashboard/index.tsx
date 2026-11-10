@@ -82,9 +82,16 @@ const Overview = () => {
 	const invitationOutcomesQuery = useStaffInvitationsQuery({ size: 1 });
 	const auditQuery = useStaffAuditLogsQuery({ size: 1, startDate, endDate });
 
+	// « Croissance des organisations » is the active-organisations curve: the
+	// same window as every other card, from the lifecycle history (#2349).
+	const growthQuery = useStaffDashboardSeriesQuery({
+		metric: 'active_tenants',
+		startDate,
+		endDate,
+	});
+
 	// The KPI delta and its sparkline need the same window twice: the current
-	// one and the one before it. The only metric the series endpoint serves is
-	// `audit_events` (#2348); `active_tenants` answers 422 by design.
+	// one and the one before it.
 	const currentWindow = {
 		metric: 'audit_events' as const,
 		startDate,
@@ -113,6 +120,7 @@ const Overview = () => {
 		seriesQuery.error,
 		previousSeriesQuery.error,
 		heatmapQuery.error,
+		growthQuery.error,
 	]) {
 		if (queryError !== null && shouldLogoutForFailure(queryError)) {
 			return <LogoutRedirect />;
@@ -175,7 +183,11 @@ const Overview = () => {
 				locale={locale}
 			/>
 
-			<OverviewCharts countsQuery={countsQuery} locale={locale} />
+			<OverviewCharts
+				countsQuery={countsQuery}
+				growthQuery={growthQuery}
+				locale={locale}
+			/>
 
 			<ChartCard
 				testId="staff-dashboard-heatmap"

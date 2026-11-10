@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Dashboard.Services;
@@ -30,6 +31,16 @@ public sealed class DashboardSeriesPoint {
 }
 
 /// <summary>
+/// The active-organisations series, plus the day the lifecycle history starts:
+/// <c>null</c> when nothing was ever recorded, otherwise the UTC day of the
+/// earliest transition. Days before it are not measured values (#2349).
+/// </summary>
+public sealed record ActiveTenantSeries(
+	IReadOnlyList<DashboardSeriesPoint> Points,
+	DateTime? RecordedSince
+);
+
+/// <summary>
 /// One organisation in the ranking, with the number of audit events in the
 /// window attributed to it.
 /// </summary>
@@ -49,6 +60,10 @@ public interface IDashboardQueryService {
 		CancellationToken cancellationToken = default);
 
 	Task<IReadOnlyList<DashboardSeriesPoint>> GetFailedSignInSeriesAsync(
+		GetDashboardSeriesArgs args,
+		CancellationToken cancellationToken = default);
+
+	Task<ActiveTenantSeries> GetActiveTenantSeriesAsync(
 		GetDashboardSeriesArgs args,
 		CancellationToken cancellationToken = default);
 
@@ -95,6 +110,84 @@ public class DashboardQueryService : IDashboardQueryService {
 			AuditActions.LoginFailed,
 			cancellationToken
 		);
+	}
+
+	/// <summary>
+	/// Organisations active at the end of each UTC day, from the lifecycle
+	/// history written by the <c>tenants_record_status_history</c> trigger.
+	/// Zero-filled on purpose: a day where nothing changed still has a count.
+	/// The days before <see cref="ActiveTenantSeries.RecordedSince"/> are not
+	/// measured values — the caller must not present them as such.
+	/// </summary>
+	public async Task<ActiveTenantSeries>
+		GetActiveTenantSeriesAsync(
+		GetDashboardSeriesArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var endExclusive = args.EndDate.AddDays(1);
+
+		// The first recorded transition is the day history starts. The baseline
+		// row of the migration is dated then, never at the tenant's creation.
+		var recordedSince = await this._DbContext.TenantStatusHistory
+			.AsNoTracking()
+			.MinAsync(
+				history => (DateTime?)history.OccurredAt,
+				cancellationToken
+			);
+
+		// Every transition up to the end of the window, oldest first. Rows
+		// before the window are replayed too: they are what the first day's
+		// state is built from.
+		// ponytail: the whole history in memory (a few narrow rows per tenant).
+		// If it grows past ~100k rows, read a per-tenant baseline row before
+		// the window plus the window's rows only.
+		var transitions = await (
+			from history in this._DbContext.TenantStatusHistory
+				.AsNoTracking()
+			where history.OccurredAt < endExclusive
+			orderby history.OccurredAt, history.Id
+			select new {
+				history.TenantId,
+				history.Status,
+				history.OccurredAt,
+			}
+		).ToListAsync(cancellationToken);
+
+		var statusByTenant = new Dictionary<Guid, TenantLifecycleStatus>();
+		var activeCount = 0;
+		var cursor = 0;
+		var points = new List<DashboardSeriesPoint>();
+
+		for (var day = args.StartDate; day <= args.EndDate; day = day.AddDays(1)) {
+			var dayEnd = day.AddDays(1);
+			while (cursor < transitions.Count
+				&& transitions[cursor].OccurredAt < dayEnd
+			) {
+				var transition = transitions[cursor];
+				var wasActive = statusByTenant.TryGetValue(
+					transition.TenantId,
+					out var previous
+				) && previous == TenantLifecycleStatus.Active;
+				var isActive = transition.Status == TenantLifecycleStatus.Active;
+
+				if (wasActive != isActive) {
+					activeCount += isActive ? 1 : -1;
+				}
+
+				statusByTenant[transition.TenantId] = transition.Status;
+				cursor++;
+			}
+
+			points.Add(new DashboardSeriesPoint {
+				Date = day.ToString(
+					"yyyy-MM-dd",
+					CultureInfo.InvariantCulture
+				),
+				Value = activeCount,
+			});
+		}
+
+		return new ActiveTenantSeries(points, recordedSince);
 	}
 
 	/// <summary>
