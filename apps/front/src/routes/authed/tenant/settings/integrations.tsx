@@ -22,16 +22,26 @@ import { StateSurface } from '~/components/ui/state-surface';
 import { useCanManageSocialAccounts } from '~/lib/permissions/use-has-tenant-permission';
 import type { FediverseProvider } from '~/lib/query/mastodon-connect';
 import {
+	needsReconnectAccountsQueryOptions,
 	toNeedsReconnectAccounts,
 	useNeedsReconnectAccountsQuery,
 } from '~/lib/query/needs-reconnect-accounts';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
+	socialAccountsQueryOptions,
 	toSocialAccountRows,
 	useSocialAccountsQuery,
 	type SocialAccountRow,
 } from '~/lib/query/social-accounts';
-import { useTenantProjectsQuery } from '~/lib/query/tenant-projects';
-import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import {
+	tenantProjectsQueryOptions,
+	useTenantProjectsQuery,
+} from '~/lib/query/tenant-projects';
+import {
+	resolveWorkspaceTenantIdFromCache,
+	tenantsForPickerQueryOptions,
+	useResolvedWorkspaceTenantId,
+} from '~/lib/query/tenants-for-picker';
 import { formatDateTime } from '~/utils/format-time';
 
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
@@ -227,14 +237,32 @@ const PLACEHOLDER_ACCOUNT: SocialAccountRow = {
  * opens the real reconnect drawer here; the manage gate is the same real
  * permission check C4's handover note reserved for this lane.
  */
+/** The page's queries (the manage gate is `preload-exempt`). The page reads the
+ * social-accounts and projects keys with `tenantId ?? ''`; the loader only runs
+ * once a tenant resolved. */
+const tenantIntegrationsQueries = ({ tenantId }: { tenantId: string }) => ({
+	needsReconnect: {
+		options: needsReconnectAccountsQueryOptions,
+		variables: { tenantId },
+	},
+	socialAccounts: {
+		options: socialAccountsQueryOptions,
+		variables: { tenantId },
+	},
+	projects: { options: tenantProjectsQueryOptions, variables: { tenantId } },
+	picker: { options: tenantsForPickerQueryOptions, variables: {} },
+});
+
 const TenantSettingsIntegrationsPage = () => {
 	const { t, i18n } = useTranslation(['settings', 'common']);
+	// preload-exempt: session-stable permission gate mounted by the app shell, fetched once per workspace tenant
 	const canManage = useCanManageSocialAccounts();
 	const tenantId = useResolvedWorkspaceTenantId();
-	const socialAccountsQuery = useSocialAccountsQuery({
-		tenantId: tenantId ?? '',
-	});
-	const projectsQuery = useTenantProjectsQuery({ tenantId: tenantId ?? '' });
+	const queries = tenantIntegrationsQueries({ tenantId: tenantId ?? '' });
+	const socialAccountsQuery = useSocialAccountsQuery(
+		queries.socialAccounts.variables,
+	);
+	const projectsQuery = useTenantProjectsQuery(queries.projects.variables);
 	const needsReconnectQuery = useNeedsReconnectAccountsQuery(tenantId);
 	const needsReconnectAccounts = toNeedsReconnectAccounts(
 		needsReconnectQuery.data,
@@ -493,5 +521,15 @@ export const Route = createFileRoute(
 		i18nNamespaces: ['settings', 'social-accounts'],
 	},
 	validateSearch: validateMastodonCallbackSearch,
+	loader: ({ context }) => {
+		const tenantId = resolveWorkspaceTenantIdFromCache(context.queryClient);
+		if (tenantId === null) {
+			return;
+		}
+		preloadRouteQueries(
+			context.queryClient,
+			tenantIntegrationsQueries({ tenantId }),
+		);
+	},
 	component: TenantSettingsIntegrationsPage,
 });

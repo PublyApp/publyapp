@@ -15,14 +15,20 @@ import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-feedback/mutation-toast';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	invalidateTenantSettingsGeneralQuery,
+	tenantSettingsGeneralQueryOptions,
 	toTenantSettingsGeneral,
 	useTenantSettingsGeneralQuery,
 	useUpdateTenantSettingsGeneralMutation,
 	type TenantSettingsGeneralUpdateInput,
 } from '~/lib/query/tenant-settings-general';
-import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import {
+	resolveWorkspaceTenantIdFromCache,
+	tenantsForPickerQueryOptions,
+	useResolvedWorkspaceTenantId,
+} from '~/lib/query/tenants-for-picker';
 
 import {
 	getFailureMessage,
@@ -57,11 +63,28 @@ const REGIONAL_LOADING_SLOT = <FieldRowsSkeleton count={4} />;
  * settings query and are writable; the danger zone still has no backend and
  * keeps the coming-later affordance.
  */
+/** The page's queries: the settings plus the picker `useResolvedWorkspaceTenantId`
+ * reads (the shell observes it, so the helper never fetches it). */
+const tenantSettingsGeneralQueries = ({
+	tenantId,
+}: {
+	tenantId: string | null;
+}) => ({
+	settings: {
+		options: tenantSettingsGeneralQueryOptions,
+		variables: { tenantId },
+	},
+	picker: { options: tenantsForPickerQueryOptions, variables: {} },
+});
+
 const TenantSettingsGeneralPage = () => {
 	const { t } = useTranslation(['settings', 'common']);
 	const queryClient = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
-	const query = useTenantSettingsGeneralQuery(tenantId);
+	const queries = tenantSettingsGeneralQueries({ tenantId });
+	const query = useTenantSettingsGeneralQuery(
+		queries.settings.variables.tenantId,
+	);
 	const { data, isSuccess, refetch } = query;
 	const settings = toTenantSettingsGeneral(data);
 	const updateSettings = useUpdateTenantSettingsGeneralMutation();
@@ -297,6 +320,16 @@ export const Route = createFileRoute('/_authed-layout/tenant/settings/')({
 			{ kind: 'label', labelKey: 'general' },
 		],
 		i18nNamespaces: ['settings'],
+	},
+	loader: ({ context }) => {
+		const tenantId = resolveWorkspaceTenantIdFromCache(context.queryClient);
+		if (tenantId === null) {
+			return;
+		}
+		preloadRouteQueries(
+			context.queryClient,
+			tenantSettingsGeneralQueries({ tenantId }),
+		);
 	},
 	component: TenantSettingsGeneralPage,
 });

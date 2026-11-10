@@ -6,8 +6,10 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StateSurface } from '~/components/ui/state-surface';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	resolveWorkspaceTenant,
+	tenantsForPickerQueryOptions,
 	useTenantsForPickerQuery,
 } from '~/lib/query/tenants-for-picker';
 import { readSelectedTenantId } from '~/lib/session/selected-tenant-storage';
@@ -24,6 +26,11 @@ import {
 	ReadOnlyFieldRow,
 	ReadOnlyValue,
 } from '../_workspace-page-parts';
+
+/** The page's only query: the workspace picker the shell resolved. */
+const tenantWorkspacesQueries = () => ({
+	picker: { options: tenantsForPickerQueryOptions, variables: {} },
+});
 
 /**
  * Read-only org workspaces. No workspaces API exists, so the only real value
@@ -122,6 +129,9 @@ export const Route = createFileRoute(
 			{ kind: 'label', labelKey: 'workspaces' },
 		],
 		i18nNamespaces: ['settings'],
+	},
+	loader: ({ context }) => {
+		preloadRouteQueries(context.queryClient, tenantWorkspacesQueries());
 	},
 	component: TenantSettingsWorkspacesPage,
 });

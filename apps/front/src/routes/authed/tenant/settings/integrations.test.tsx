@@ -55,17 +55,18 @@ vi.mock('~/lib/query/social-accounts', async (importOriginal) => ({
 // The page reads the needs-reconnect list through
 // `useNeedsReconnectAccountsQuery`; the mock pins the resolved payload the
 // same way the sibling settings tests pin their query hooks.
-vi.mock('~/lib/query/tenants-for-picker', () => ({
+vi.mock('~/lib/query/tenants-for-picker', async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	useResolvedWorkspaceTenantId: () => 't1',
 }));
 
 vi.mock('~/lib/query/needs-reconnect-accounts', async () => {
-	const { toNeedsReconnectAccounts } = await vi.importActual<
+	const actual = await vi.importActual<
 		typeof import('~/lib/query/needs-reconnect-accounts')
 	>('~/lib/query/needs-reconnect-accounts');
 
 	return {
-		toNeedsReconnectAccounts,
+		...actual,
 		useNeedsReconnectAccountsQuery: () => ({
 			data: {
 				accounts: mocks.needsReconnectAccounts.map((account) => ({
@@ -78,7 +79,8 @@ vi.mock('~/lib/query/needs-reconnect-accounts', async () => {
 	};
 });
 
-vi.mock('~/lib/query/tenant-projects', () => ({
+vi.mock('~/lib/query/tenant-projects', async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	useTenantProjectsQuery: () => ({
 		data: {},
 		isPending: false,

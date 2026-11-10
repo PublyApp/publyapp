@@ -21,14 +21,20 @@ import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-feedback/mutation-toast';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
+	accountProfileQueryOptions,
 	toAccountProfile,
 	useAccountProfileQuery,
 	useUpdateAccountProfileMutation,
 	invalidateAccountProfileQuery,
 	type AccountProfileUpdateInput,
 } from '~/lib/query/tenant-account-profile';
-import { useResolvedWorkspaceTenantId } from '~/lib/query/tenants-for-picker';
+import {
+	resolveWorkspaceTenantIdFromCache,
+	tenantsForPickerQueryOptions,
+	useResolvedWorkspaceTenantId,
+} from '~/lib/query/tenants-for-picker';
 
 import {
 	getFailureMessage,
@@ -47,6 +53,13 @@ import {
 	ReadOnlyValue,
 } from '../_workspace-page-parts';
 
+/** The page's queries: the profile plus the picker `useResolvedWorkspaceTenantId`
+ * reads (the shell observes it, so the helper never fetches it). */
+const accountProfileQueries = ({ tenantId }: { tenantId: string | null }) => ({
+	profile: { options: accountProfileQueryOptions, variables: { tenantId } },
+	picker: { options: tenantsForPickerQueryOptions, variables: {} },
+});
+
 /**
  * The tenant user's own profile, editable through the real tenant-scoped
  * PATCH endpoint (`/account/profile`). Identity fields (avatar, first/last
@@ -58,7 +71,8 @@ const AccountProfilePage = () => {
 	const { t, i18n } = useTranslation(['account', 'common']);
 	const queryClient = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
-	const query = useAccountProfileQuery(tenantId);
+	const queries = accountProfileQueries({ tenantId });
+	const query = useAccountProfileQuery(queries.profile.variables.tenantId);
 	const { refetch } = query;
 	const profile = toAccountProfile(query.data);
 	const updateProfile = useUpdateAccountProfileMutation();
@@ -330,6 +344,16 @@ export const Route = createFileRoute('/_authed-layout/tenant/account/')({
 			{ kind: 'label', labelKey: 'profile' },
 		],
 		i18nNamespaces: ['account'],
+	},
+	loader: ({ context }) => {
+		const tenantId = resolveWorkspaceTenantIdFromCache(context.queryClient);
+		if (tenantId === null) {
+			return;
+		}
+		preloadRouteQueries(
+			context.queryClient,
+			accountProfileQueries({ tenantId }),
+		);
 	},
 	component: AccountProfilePage,
 });

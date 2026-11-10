@@ -6,8 +6,10 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StateSurface } from '~/components/ui/state-surface';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	resolveWorkspaceTenant,
+	tenantsForPickerQueryOptions,
 	useTenantsForPickerQuery,
 	type TenantsForPickerData,
 } from '~/lib/query/tenants-for-picker';
@@ -25,6 +27,11 @@ import {
 	ReadOnlyFieldRow,
 	ReadOnlyValue,
 } from './_workspace-page-parts';
+
+/** The page's only query: the workspace picker the shell resolved. */
+const organizationsQueries = () => ({
+	picker: { options: tenantsForPickerQueryOptions, variables: {} },
+});
 
 /**
  * The two explicit coming-later surfaces. They render unchanged in every
@@ -165,6 +172,9 @@ export const Route = createFileRoute('/_authed-layout/tenant/organizations')({
 	staticData: {
 		crumbs: () => [{ kind: 'label', labelKey: 'organizations' }],
 		i18nNamespaces: ['organizations'],
+	},
+	loader: ({ context }) => {
+		preloadRouteQueries(context.queryClient, organizationsQueries());
 	},
 	component: TenantOrganizationsPage,
 });
