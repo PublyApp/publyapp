@@ -115,6 +115,8 @@ describe('#2340 staff dashboard reports route preload', () => {
 				limit: '1',
 				startDate: start,
 				endDate: `${today}T23:59:59`,
+				// Not the impersonation request, which also has limit 1.
+				actions: undefined,
 			}),
 		);
 		expect(audit).toContainEqual(
