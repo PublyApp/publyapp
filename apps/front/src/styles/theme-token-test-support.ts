@@ -84,10 +84,10 @@ const buildTheme = (theme: ThemeName): Map<string, string> => {
 	return merged;
 };
 
-const THEMES: Record<ThemeName, Map<string, string>> = {
+const THEMES = {
 	light: buildTheme('light'),
 	dark: buildTheme('dark'),
-};
+} satisfies Record<ThemeName, Map<string, string>>;
 
 /** The raw (unresolved) custom properties in effect for a theme. */
 export const themeDeclarations = (theme: ThemeName): Map<string, string> =>
