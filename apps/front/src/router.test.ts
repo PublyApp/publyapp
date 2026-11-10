@@ -367,4 +367,50 @@ describe('handleAuthedQueryError', () => {
 
 		expect(mocks.triggerSessionInvalidated).toHaveBeenCalledTimes(1);
 	});
+
+	// Spec §8: a route preload is speculative. Its 401 must stay silent while
+	// NOTHING renders the query, and must still log out once a page observes
+	// it — the marker alone cannot decide, because a click during the pending
+	// preload reuses the preload's fetch (and its meta).
+	test('does not trigger for a route-preload 401 while the query has no observer', () => {
+		vi.stubGlobal('window', {
+			location: { pathname: '/staff/staff-users' },
+		});
+
+		handleAuthedQueryError(
+			{ responseStatusCode: 401, title: 'Unauthorized' },
+			{ meta: { routePreload: true }, getObserversCount: () => 0 },
+		);
+
+		expect(mocks.triggerSessionInvalidated).not.toHaveBeenCalled();
+	});
+
+	test('still triggers for a route-preload 401 once a page observes the query', () => {
+		vi.stubGlobal('window', {
+			location: { pathname: '/staff/staff-users' },
+		});
+
+		handleAuthedQueryError(
+			{ responseStatusCode: 401, title: 'Unauthorized' },
+			{ meta: { routePreload: true }, getObserversCount: () => 1 },
+		);
+
+		expect(mocks.triggerSessionInvalidated).toHaveBeenCalledTimes(1);
+	});
+
+	test('skipAuthedErrorBackstop still wins unconditionally over a route preload', () => {
+		vi.stubGlobal('window', {
+			location: { pathname: '/staff/staff-users' },
+		});
+
+		handleAuthedQueryError(
+			{ responseStatusCode: 401, title: 'Unauthorized' },
+			{
+				meta: { skipAuthedErrorBackstop: true, routePreload: true },
+				getObserversCount: () => 1,
+			},
+		);
+
+		expect(mocks.triggerSessionInvalidated).not.toHaveBeenCalled();
+	});
 });
