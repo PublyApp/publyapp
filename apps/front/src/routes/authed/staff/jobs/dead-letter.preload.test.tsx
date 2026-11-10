@@ -186,4 +186,32 @@ describe('#2340 staff dead-letter route preload', () => {
 		}
 		expectEndpointCalls();
 	});
+
+	test('tenant, job type and external state filters reach the dead-letter request', async () => {
+		const { warmed, snapshot } = await hoverThenClick({
+			tenant_id: '0192f4c2-7a1b-7c3d-8e4f-5a6b7c8d9e0f',
+			job_type: 'post.publish',
+			external_state_status: '6',
+		});
+
+		// The filtered list is one of the two dead-letter calls; the other is the
+		// unfiltered overview count. Dropping any filter leaves no such call.
+		const filtered = mocks.respond.mock.calls
+			.map(([call]) => call)
+			.filter((call) =>
+				pathEndsWith(call, 'staff', 'jobs', 'deadLetter', 'get'),
+			)
+			.map((call) => JSON.stringify(call.args))
+			.filter(
+				(args) =>
+					args.includes('0192f4c2-7a1b-7c3d-8e4f-5a6b7c8d9e0f') &&
+					args.includes('post.publish') &&
+					args.includes('6'),
+			);
+		expect(filtered).toHaveLength(1);
+		for (const query of warmed) {
+			expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));
+		}
+		expectEndpointCalls();
+	});
 });

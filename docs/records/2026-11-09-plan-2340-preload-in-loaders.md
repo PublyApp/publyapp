@@ -980,6 +980,10 @@ factory's fetcher once, and clicking adds no fetch while the data is fresh.
 | `globalTenantUserQueries` | `details` → `globalTenantUserDetailsQueryOptions` |
 | `globalTenantUserOrganizationsQueries` | `details` → `globalTenantUserDetailsQueryOptions`; `companies` → `globalTenantUserCompaniesQueryOptions` (picker exempt) |
 
+Limit: `roles/$roleId/users` does not warm the three shared team-counter queries mounted by
+`useStaffTeamOverview` (side-panel counts, secondary data, same exemption as measurement A rows 2/7/13);
+the route test pins this.
+
 Same spec/loader pattern as Task 4. Detail routes without list state use
 `loader: ({ context, params }) => { preloadRouteQueries(context.queryClient, spec({ <name>: params.<name> })); }`
 — the concrete param of that route (`logId`, `invitationId`, `roleId`, `userId`; **no route declares a

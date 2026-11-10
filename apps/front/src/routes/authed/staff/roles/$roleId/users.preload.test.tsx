@@ -87,6 +87,15 @@ const RESPONSES: readonly (readonly [readonly string[], FakeResponse])[] = [
 		{ role: { id: 'role-1', name: 'Support' } },
 	],
 ];
+/** Side-panel team counters (`useStaffTeamOverview`, `preload-exempt`): secondary
+ * data, deliberately not warmed. Pinned so the exclusion stays visible. */
+const COUNTER_ENDPOINTS: readonly (readonly string[])[] = [
+	['staff', 'users', 'get'],
+	['staff', 'invitations', 'get'],
+	['staff', 'roles', 'get'],
+];
+const countersCalled = () =>
+	COUNTER_ENDPOINTS.map((suffix) => countCallsByPath(mocks.respond, ...suffix));
 const WARMED_COUNT = 2;
 const LINK_LABEL = 'open role users';
 
@@ -117,6 +126,8 @@ const hoverThenClick = async (linkSearch?: Record<string, string>) => {
 	await waitFor(() => {
 		expect(queryClient.isFetching()).toBe(0);
 	});
+	// Hover never fires the team counters.
+	expect(countersCalled()).toEqual([0, 0, 0]);
 
 	const warmed = preloadedQueries(queryClient);
 	const snapshot = warmedSnapshot(warmed);
@@ -131,6 +142,12 @@ const hoverThenClick = async (linkSearch?: Record<string, string>) => {
 	});
 	await waitFor(() => {
 		expect(queryClient.isFetching()).toBe(0);
+	});
+	// The click mounts the side panel, which fetches each counter.
+	await waitFor(() => {
+		for (const count of countersCalled()) {
+			expect(count).toBeGreaterThan(0);
+		}
 	});
 
 	return { warmed, snapshot };
