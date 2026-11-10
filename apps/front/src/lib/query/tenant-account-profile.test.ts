@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 
 import {
+	accountProfileQueryOptions,
 	buildUpdateAccountProfileBody,
 	toAccountProfile,
 } from './tenant-account-profile';
@@ -122,5 +123,13 @@ describe('buildUpdateAccountProfileBody', () => {
 
 	test('produces an empty body for an empty input', () => {
 		expect(buildUpdateAccountProfileBody({ tenantId: 't-1' })).toEqual({});
+	});
+});
+
+describe('accountProfileQueryOptions', () => {
+	test('factory key is the key the hook built before extraction', () => {
+		expect(
+			accountProfileQueryOptions.queryKey({ tenantId: 'tenant-42' }),
+		).toEqual(['tenant', 'account-profile', 'tenant-42']);
 	});
 });

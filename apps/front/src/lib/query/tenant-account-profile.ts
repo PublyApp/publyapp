@@ -1,5 +1,5 @@
 import { createUntypedString } from '@microsoft/kiota-abstractions';
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import {
@@ -137,6 +137,21 @@ export const buildUpdateAccountProfileBody = (
 	return body;
 };
 
+export const accountProfileQueryOptions = {
+	queryKey: ({ tenantId }: { tenantId: string | null }): QueryKey => [
+		'tenant',
+		...ACCOUNT_PROFILE_QUERY_KEY,
+		tenantId,
+	],
+	fetcher: (variables: { tenantId: string | null }) => {
+		if (!variables.tenantId) {
+			throw new Error('tenantId is required for account role query');
+		}
+
+		return fetchAccountProfile(variables.tenantId);
+	},
+};
+
 /**
  * The signed-in user's tenant-scoped profile. `tenantId` comes from the
  * resolved workspace tenant (see `useResolvedWorkspaceTenantId`); the hook is
@@ -144,14 +159,8 @@ export const buildUpdateAccountProfileBody = (
  */
 export const useAccountProfileQuery = (tenantId: string | null) =>
 	useQuery({
-		queryKey: ['tenant', ...ACCOUNT_PROFILE_QUERY_KEY, tenantId],
-		queryFn: () => {
-			if (!tenantId) {
-				throw new Error('tenantId is required for account role query');
-			}
-
-			return fetchAccountProfile(tenantId);
-		},
+		queryKey: accountProfileQueryOptions.queryKey({ tenantId }),
+		queryFn: () => accountProfileQueryOptions.fetcher({ tenantId }),
 		enabled: tenantId !== null,
 	});
 

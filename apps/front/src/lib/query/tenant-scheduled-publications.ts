@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import type { QueryClient } from '@tanstack/react-query';
+import type { QueryClient, QueryKey } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
@@ -253,6 +253,62 @@ const buildInfiniteVariablesPayload = (
 		: undefined,
 });
 
+export type ScheduledPublicationsInfiniteQueryVariables =
+	ScheduledPublicationsInfiniteVariables & {
+		tenantId: string;
+		restartKey?: number;
+	};
+
+export const scheduledPublicationsInfiniteQueryOptions = {
+	queryKey: (
+		variables: ScheduledPublicationsInfiniteQueryVariables,
+	): QueryKey => [
+		'tenant',
+		...TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY,
+		variables.tenantId,
+		buildInfiniteVariablesPayload(variables),
+		variables.restartKey ?? 0,
+	],
+	fetcher: async (
+		variables: ScheduledPublicationsInfiniteQueryVariables,
+		pageParam: unknown,
+		signal?: AbortSignal,
+	) => {
+		const cursor = typeof pageParam === 'string' ? pageParam : undefined;
+		const client = getClientManager().getOrCreateClient(variables.tenantId);
+		const result = await client.posts.publications.get({
+			queryParameters: buildFindScheduledPublicationsQueryParameters({
+				from: variables.from,
+				to: variables.to,
+				statuses: variables.statuses,
+				cursor,
+				limit: variables.limit,
+			}),
+		});
+		if (!result) {
+			throw new Error('scheduled publications result was empty');
+		}
+		void signal;
+		return result;
+	},
+	initialPageParam: undefined as string | undefined,
+	getNextPageParam: (
+		lastPage: FindScheduledPublicationsResponse,
+		_allPages: FindScheduledPublicationsResponse[],
+		_lastPageParam: string | undefined,
+		allPageParams: (string | undefined)[],
+	) => {
+		const next = lastPage.nextCursor;
+		if (typeof next !== 'string' || next.length === 0) {
+			return undefined;
+		}
+		if (allPageParams.includes(next)) {
+			return undefined;
+		}
+		return next;
+	},
+};
+
 /**
  * Tenant-scoped infinite walk for one bounded window.
  *
@@ -270,53 +326,21 @@ const buildInfiniteVariablesPayload = (
  * a malicious or buggy backend that recycles a cursor is short-circuited here.
  */
 export const useScheduledPublicationsInfiniteQuery = (
-	variables: ScheduledPublicationsInfiniteVariables & {
-		tenantId: string;
-		restartKey?: number;
-	},
-) => {
-	const { tenantId, from, to, statuses, limit, restartKey } = variables;
-	const clientManager = getClientManager();
-	const baseQueryKey = [
-		'tenant',
-		...TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY,
-		tenantId,
-		buildInfiniteVariablesPayload({ tenantId, from, to, statuses, limit }),
-		restartKey ?? 0,
-	] as const;
-
-	return useInfiniteQuery({
-		queryKey: baseQueryKey,
-		initialPageParam: undefined as string | undefined,
-		queryFn: async ({ pageParam, signal }) => {
-			const client = clientManager.getOrCreateClient(tenantId);
-			const result = await client.posts.publications.get({
-				queryParameters: buildFindScheduledPublicationsQueryParameters({
-					from,
-					to,
-					statuses,
-					cursor: pageParam,
-					limit,
-				}),
-			});
-			if (!result) {
-				throw new Error('scheduled publications result was empty');
-			}
-			void signal;
-			return result;
-		},
-		getNextPageParam: (lastPage, _allPages, _lastPageParam, allPageParams) => {
-			const next = lastPage.nextCursor;
-			if (typeof next !== 'string' || next.length === 0) {
-				return undefined;
-			}
-			if (allPageParams.includes(next)) {
-				return undefined;
-			}
-			return next;
-		},
+	variables: ScheduledPublicationsInfiniteQueryVariables,
+) =>
+	useInfiniteQuery({
+		queryKey: scheduledPublicationsInfiniteQueryOptions.queryKey(variables),
+		queryFn: ({ pageParam, signal }) =>
+			scheduledPublicationsInfiniteQueryOptions.fetcher(
+				variables,
+				pageParam,
+				signal,
+			),
+		initialPageParam:
+			scheduledPublicationsInfiniteQueryOptions.initialPageParam,
+		getNextPageParam:
+			scheduledPublicationsInfiniteQueryOptions.getNextPageParam,
 	});
-};
 
 /** Invalidates every scheduled-publication window for one tenant. */
 export const invalidateTenantScheduledPublications = (

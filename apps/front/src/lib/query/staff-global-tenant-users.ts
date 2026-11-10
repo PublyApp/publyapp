@@ -252,7 +252,7 @@ const updateGlobalTenantUserIdentityMutationOptions = buildStaffMutationOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-const globalTenantUserCompaniesQueryOptions = buildStaffQueryOptions<
+export const globalTenantUserCompaniesQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantUserCompaniesForStaffResult,
 	GlobalTenantUserCompaniesQueryVariables
@@ -353,7 +353,7 @@ const bulkUnlinkGlobalTenantUserCompaniesMutationOptions =
 		{ clientAccessor: getClientManager() },
 	);
 
-const globalTenantUsersPickerQueryOptions = buildStaffQueryOptions<
+export const globalTenantUsersPickerQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	FindTenantsAsStaffResponse,
 	GlobalTenantUsersPickerQueryVariables

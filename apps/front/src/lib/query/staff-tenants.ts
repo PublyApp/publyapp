@@ -620,7 +620,7 @@ export const toStaffTenantUsage = (
 	};
 };
 
-const staffTenantUsageQueryOptions = buildStaffQueryOptions<
+export const staffTenantUsageQueryOptions = buildStaffQueryOptions<
 	ApiClient,
 	GetTenantUsageAsStaffResult,
 	StaffTenantDetailsQueryVariables

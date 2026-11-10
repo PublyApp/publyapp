@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { QueryKey } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 
 import type { FindNeedsReconnectAccountsForTenantResponse } from '@org/client-ts/models/index';
@@ -73,15 +74,25 @@ const fetchNeedsReconnectAccounts = async (
 	return result;
 };
 
+export const needsReconnectAccountsQueryOptions = {
+	queryKey: ({ tenantId }: { tenantId: string | null }): QueryKey => [
+		...NEEDS_RECONNECT_ACCOUNTS_QUERY_KEY,
+		tenantId,
+	],
+	fetcher: (variables: { tenantId: string | null }) =>
+		fetchNeedsReconnectAccounts(variables.tenantId as string),
+	staleTime: Infinity,
+};
+
 /**
  * The calling tenant's social accounts that need reconnection (C4 banner data).
  * Disabled until a workspace tenant is resolved (`useResolvedWorkspaceTenantId`).
  */
 export const useNeedsReconnectAccountsQuery = (tenantId: string | null) =>
 	useQuery({
-		queryKey: [...NEEDS_RECONNECT_ACCOUNTS_QUERY_KEY, tenantId],
-		queryFn: () => fetchNeedsReconnectAccounts(tenantId as string),
+		queryKey: needsReconnectAccountsQueryOptions.queryKey({ tenantId }),
+		queryFn: () => needsReconnectAccountsQueryOptions.fetcher({ tenantId }),
 		enabled: tenantId !== null,
-		staleTime: Infinity,
+		staleTime: needsReconnectAccountsQueryOptions.staleTime,
 		refetchOnWindowFocus: false,
 	});

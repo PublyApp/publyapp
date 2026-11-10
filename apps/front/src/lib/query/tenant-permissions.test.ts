@@ -43,6 +43,7 @@ import {
 	SOCIAL_ACCOUNTS_PUBLISH,
 	TENANT_PERMISSIONS_QUERY_KEY,
 	hasTenantPermission,
+	tenantPermissionsQueryOptions,
 	toTenantPermissions,
 	useTenantPermissions,
 	type ScopeAuthDataPayload,
@@ -116,6 +117,13 @@ describe('useTenantPermissions', () => {
 		renderHook(() => useTenantPermissions(null));
 
 		expect(mocks.capturedOptions?.enabled).toBe(false);
+	});
+
+	test('factory key is the key the hook built before extraction', () => {
+		expect(
+			tenantPermissionsQueryOptions.queryKey({ tenantId: 'tenant-42' }),
+		).toEqual(['tenant', ...TENANT_PERMISSIONS_QUERY_KEY, 'tenant-42']);
+		expect(tenantPermissionsQueryOptions.staleTime).toBe(Infinity);
 	});
 });
 
