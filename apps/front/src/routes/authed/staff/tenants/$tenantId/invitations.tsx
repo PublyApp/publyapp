@@ -5,9 +5,17 @@ import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { useRowSelection } from '~/components/table/use-row-selection';
-import { useTableController } from '~/components/table/use-table-controller';
+import {
+	buildTableApiVariables,
+	useTableController,
+} from '~/components/table/use-table-controller';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import {
+	preloadRouteQueries,
+	type RouteQuerySpecEntry,
+} from '~/lib/query/route-preload';
+import {
+	staffTenantInvitationsQueryOptions,
 	type StaffTenantInvitationRow,
 	toStaffTenantInvitationRows,
 	useRevokeStaffTenantInvitationMutation,
@@ -17,6 +25,7 @@ import {
 	invalidateAllStaffTenantScopes,
 	selectStaffTenantCrumbName,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -27,12 +36,14 @@ import { createTenantInvitationColumns } from './_invitation-columns';
 import { buildInvitationsFilterState } from './_invitations-filter-state';
 import { InvitationsPageHeader } from './_invitations-page-header';
 import {
+	type InvitationRouteSearchParams,
 	parseInvitationRouteSearchParams,
 	serializeInvitationRouteSearchParams,
 } from './_invitations-route-search';
 import { TenantInvitationsSelectionExport } from './_invitations-selection-export';
 import { InvitationsTable } from './_invitations-table';
 import { InviteTenantUserDrawerHost } from './_invite-user-drawer-host';
+import { inviteRolesQuery } from './_queries';
 import {
 	TenantDetailsError,
 	TenantDetailsIncomplete,
@@ -42,6 +53,41 @@ import {
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
+
+/** The page's queries, declared once: the loader warms them and the page reads
+ * the same variables. The cursor lives in React state, so the loader warms the
+ * first page (decision 4). */
+const tenantInvitationsQueries = ({
+	tenantId,
+	search,
+}: {
+	tenantId: string;
+	search: InvitationRouteSearchParams;
+}) => {
+	const { q, sortId, sortOrder, size } = buildTableApiVariables(
+		search,
+		DEFAULT_SORT,
+		DEFAULT_SIZE,
+	);
+	const details = {
+		options: staffTenantDetailsQueryOptions,
+		variables: { tenantId },
+	};
+	const invitations = {
+		options: staffTenantInvitationsQueryOptions,
+		variables: { tenantId, q, status: search.status, sortId, sortOrder, size },
+	};
+	const roles = inviteRolesQuery(tenantId);
+
+	// The role picker lives in the invite drawer, which only mounts on
+	// `?invite=1`: without it the page never reads the roles query.
+	const spec: Record<string, RouteQuerySpecEntry> =
+		search.invite === 1
+			? { details, invitations, roles }
+			: { details, invitations };
+
+	return { details, invitations, spec };
+};
 
 const StaffTenantInvitationsPage = () => {
 	const { tenantId } = Route.useParams();
@@ -84,20 +130,16 @@ const StaffTenantInvitationsPage = () => {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: `${tenantId}:${search.status ?? ''}`,
 	});
-	const detailsQuery = useStaffTenantDetailsQuery(
-		{ tenantId },
-		{ enabled: tenantId.length > 0 },
-	);
+	const queries = tenantInvitationsQueries({ tenantId, search });
+	const detailsQuery = useStaffTenantDetailsQuery(queries.details.variables, {
+		enabled: tenantId.length > 0,
+	});
 	const revokeInvitation = useRevokeStaffTenantInvitationMutation();
 	const invitationsQuery = useStaffTenantInvitationsQuery(
 		{
-			tenantId,
-			q: controller.apiVariables.q,
-			status: search.status,
-			sortId: controller.apiVariables.sortId,
-			sortOrder: controller.apiVariables.sortOrder,
+			...queries.invitations.variables,
+			// The cursor lives in React state: the loader warms the first page.
 			cursor: controller.apiVariables.cursor,
-			size: controller.apiVariables.size,
 		},
 		{
 			enabled: tenantId.length > 0,
@@ -283,5 +325,17 @@ export const Route = createFileRoute(
 		serializeInvitationRouteSearchParams(
 			parseInvitationRouteSearchParams(search as Record<string, unknown>),
 		),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			tenantInvitationsQueries({
+				tenantId: params.tenantId,
+				search: parseInvitationRouteSearchParams(
+					deps as Record<string, unknown>,
+				),
+			}).spec,
+		);
+	},
 	component: StaffTenantInvitationsPage,
 });

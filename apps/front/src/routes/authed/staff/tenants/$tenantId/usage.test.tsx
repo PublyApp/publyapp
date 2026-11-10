@@ -97,6 +97,16 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub stays inert.
+	staffTenantDetailsQueryOptions: {
+		queryKey: () => ['staffTenantDetailsQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
+	staffTenantUsageQueryOptions: {
+		queryKey: () => ['staffTenantUsageQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	selectStaffTenantCrumbName: () => undefined,
 	staffTenantCrumbQuery: () => ({}),
 	toStaffTenantDetails: mocks.toStaffTenantDetails,

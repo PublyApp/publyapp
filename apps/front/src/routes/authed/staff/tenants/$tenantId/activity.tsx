@@ -5,9 +5,14 @@ import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { DataTable } from '~/components/table/data-table';
-import { useTableController } from '~/components/table/use-table-controller';
-import { PageHeader } from '~/components/ui/product-page';
 import {
+	buildTableApiVariables,
+	useTableController,
+} from '~/components/table/use-table-controller';
+import { PageHeader } from '~/components/ui/product-page';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
+import {
+	tenantActivityQueryOptions,
 	type TenantActivityRow,
 	toTenantActivityRows,
 	useTenantActivityQuery,
@@ -15,6 +20,7 @@ import {
 import {
 	selectStaffTenantCrumbName,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -40,6 +46,34 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
+/** The page's queries, declared once: the loader warms them and the page reads
+ * the same variables. The cursor lives in React state, so the loader warms the
+ * first page (decision 4). */
+const tenantActivityQueries = ({
+	tenantId,
+	search,
+}: {
+	tenantId: string;
+	search: TableSearchParams;
+}) => {
+	const { sortId, sortOrder, size } = buildTableApiVariables(
+		search,
+		DEFAULT_SORT,
+		DEFAULT_SIZE,
+	);
+
+	return {
+		details: {
+			options: staffTenantDetailsQueryOptions,
+			variables: { tenantId },
+		},
+		activity: {
+			options: tenantActivityQueryOptions,
+			variables: { tenantId, sortId, sortOrder, size },
+		},
+	};
+};
+
 const StaffTenantActivityPage = () => {
 	const { tenantId } = Route.useParams();
 	const navigate = Route.useNavigate();
@@ -64,17 +98,15 @@ const StaffTenantActivityPage = () => {
 		cursorResetKey: tenantId,
 	});
 
-	const detailsQuery = useStaffTenantDetailsQuery(
-		{ tenantId },
-		{ enabled: tenantId.length > 0 },
-	);
+	const queries = tenantActivityQueries({ tenantId, search });
+	const detailsQuery = useStaffTenantDetailsQuery(queries.details.variables, {
+		enabled: tenantId.length > 0,
+	});
 	const activityQuery = useTenantActivityQuery(
 		{
-			tenantId,
-			sortId: controller.apiVariables.sortId,
-			sortOrder: controller.apiVariables.sortOrder,
+			...queries.activity.variables,
+			// The cursor lives in React state: the loader warms the first page.
 			cursor: controller.apiVariables.cursor,
-			size: controller.apiVariables.size,
 		},
 		{ enabled: tenantId.length > 0 },
 	);
@@ -183,5 +215,15 @@ export const Route = createFileRoute(
 		serializeTableSearchParams(
 			parseTableSearchParams(search as TableSearchParamInput),
 		),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			tenantActivityQueries({
+				tenantId: params.tenantId,
+				search: parseTableSearchParams(deps as TableSearchParamInput),
+			}),
+		);
+	},
 	component: StaffTenantActivityPage,
 });

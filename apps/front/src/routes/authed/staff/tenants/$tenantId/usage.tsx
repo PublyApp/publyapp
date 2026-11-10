@@ -10,9 +10,12 @@ import { AppErrorView } from '~/components/error-views/AppErrorView';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { StatCard } from '~/components/ui/stat-card';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	selectStaffTenantCrumbName,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
+	staffTenantUsageQueryOptions,
 	toStaffTenantDetails,
 	toStaffTenantUsage,
 	useStaffTenantDetailsQuery,
@@ -32,18 +35,30 @@ import {
 // last_activity_at is throttled by design — the "Computed …" line rendered
 // next to the cards names when this snapshot was computed so a stale figure
 // never poses as fresh.
+/** The page's queries, declared once: the loader warms them and the page reads
+ * the same variables. */
+const tenantUsageQueries = ({ tenantId }: { tenantId: string }) => ({
+	details: {
+		options: staffTenantDetailsQueryOptions,
+		variables: { tenantId },
+	},
+	usage: {
+		options: staffTenantUsageQueryOptions,
+		variables: { tenantId },
+	},
+});
+
 const StaffTenantUsagePage = () => {
 	const { tenantId } = Route.useParams();
 	const { t, i18n } = useTranslation('common');
 
-	const detailsQuery = useStaffTenantDetailsQuery(
-		{ tenantId },
-		{ enabled: tenantId.length > 0 },
-	);
-	const usageQuery = useStaffTenantUsageQuery(
-		{ tenantId },
-		{ enabled: tenantId.length > 0 },
-	);
+	const queries = tenantUsageQueries({ tenantId });
+	const detailsQuery = useStaffTenantDetailsQuery(queries.details.variables, {
+		enabled: tenantId.length > 0,
+	});
+	const usageQuery = useStaffTenantUsageQuery(queries.usage.variables, {
+		enabled: tenantId.length > 0,
+	});
 
 	// Hoisted so the fatal-error gates read plain locals, not query flags —
 	// QueryDisplay owns the loading/error/data rendering below.
@@ -224,6 +239,12 @@ export const Route = createFileRoute(
 			},
 			{ kind: 'label', labelKey: 'common:usage' },
 		],
+	},
+	loader: ({ context, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			tenantUsageQueries({ tenantId: params.tenantId }),
+		);
 	},
 	component: StaffTenantUsagePage,
 });

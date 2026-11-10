@@ -215,6 +215,16 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-roles', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub stays inert.
+	staffTenantRolesQueryOptions: {
+		queryKey: () => ['staffTenantRolesQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
+	staffTenantPermissionCatalogQueryOptions: {
+		queryKey: () => ['staffTenantPermissionCatalogQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	toStaffTenantRoleRows: mocks.toStaffTenantRoleRows,
 	useStaffTenantRolesQuery: mocks.useStaffTenantRolesQuery,
 	useDeleteStaffTenantRoleMutation: mocks.useDeleteStaffTenantRoleMutation,
@@ -224,6 +234,12 @@ vi.mock('~/lib/query/staff-tenant-roles', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub stays inert.
+	staffTenantDetailsQueryOptions: {
+		queryKey: () => ['staffTenantDetailsQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	invalidateAllStaffTenantScopes: mocks.invalidateAllStaffTenantScopes,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,

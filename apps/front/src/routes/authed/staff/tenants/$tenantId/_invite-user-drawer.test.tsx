@@ -292,6 +292,12 @@ vi.mock('~/lib/query/staff-tenants', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-roles', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub stays inert.
+	staffTenantRolesQueryOptions: {
+		queryKey: () => ['staffTenantRolesQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	useResolveTenantRoleNamesMutation: mocks.useResolveTenantRoleNamesMutation,
 	toResolveTenantRoleNameResolutions: (result: {
 		names?: Array<{

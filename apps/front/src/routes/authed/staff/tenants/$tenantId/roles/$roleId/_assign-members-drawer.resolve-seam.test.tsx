@@ -105,6 +105,12 @@ vi.mock('react-i18next', () => ({
 // seam — see staff-tenant-users.test.ts for its own id-identity proof); only
 // the resolve/assign/unassign seam under test runs for real below.
 vi.mock('~/lib/query/staff-tenant-users', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub stays inert.
+	staffTenantUsersQueryOptions: {
+		queryKey: () => ['staffTenantUsersQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	useStaffTenantUsersQuery: mocks.useStaffTenantUsersQuery,
 	toStaffTenantUserRows: (
 		items:

@@ -132,11 +132,27 @@ vi.mock('~/components/error-views/View403', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenants', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub stays inert.
+	staffTenantDetailsQueryOptions: {
+		queryKey: () => ['staffTenantDetailsQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	useStaffTenantDetailsQuery: mocks.useStaffTenantDetailsQuery,
 	toStaffTenantDetails: mocks.toStaffTenantDetails,
 }));
 
 vi.mock('~/lib/query/staff-tenant-roles', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub stays inert.
+	staffTenantRoleDetailsQueryOptions: {
+		queryKey: () => ['staffTenantRoleDetailsQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
+	staffTenantRoleMembersQueryOptions: {
+		queryKey: () => ['staffTenantRoleMembersQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	useStaffTenantRoleDetailsQuery: mocks.useStaffTenantRoleDetailsQuery,
 	toStaffTenantRoleDetails: mocks.toStaffTenantRoleDetails,
 	useStaffTenantRoleMembersQuery: mocks.useStaffTenantRoleMembersQuery,

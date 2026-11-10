@@ -34,13 +34,7 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-/*
- * Page size for the invite drawer's role picker. Server-side search +
- * cursor pagination (#821 pattern) instead of fetching the whole catalogue —
- * the previous hard-coded `size: 100` silently truncated tenants with more
- * than 100 roles.
- */
-const INVITE_ROLE_PAGE_SIZE = 20;
+import { INVITE_ROLE_PAGE_SIZE, inviteRolesQuery } from './_queries';
 
 const getSelectorFailureMessage = (
 	error: unknown,
@@ -102,12 +96,9 @@ export const InviteRoleSelect = ({
 		scopeKey: deferredRoleSearch,
 	});
 	const rolesQuery = useStaffTenantRolesQuery({
-		tenantId,
-		sortId: 'name',
-		sortOrder: 'asc',
+		...inviteRolesQuery(tenantId).variables,
 		q: deferredRoleSearch || undefined,
 		cursor: rolePagination.cursor,
-		size: INVITE_ROLE_PAGE_SIZE,
 	});
 	const roles = toStaffTenantRoleRows(rolesQuery.data?.data);
 	// The cursor sits on the result envelope; `data.data` is the item array.

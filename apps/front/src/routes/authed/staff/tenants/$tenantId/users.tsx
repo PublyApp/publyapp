@@ -7,14 +7,23 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { useRowSelection } from '~/components/table/use-row-selection';
-import { useTableController } from '~/components/table/use-table-controller';
 import {
+	buildTableApiVariables,
+	useTableController,
+} from '~/components/table/use-table-controller';
+import {
+	preloadRouteQueries,
+	type RouteQuerySpecEntry,
+} from '~/lib/query/route-preload';
+import {
+	staffTenantUsersQueryOptions,
 	toStaffTenantUserRows,
 	useStaffTenantUsersQuery,
 } from '~/lib/query/staff-tenant-users';
 import {
 	selectStaffTenantCrumbName,
 	staffTenantCrumbQuery,
+	staffTenantDetailsQueryOptions,
 	toStaffTenantDetails,
 	useStaffTenantDetailsQuery,
 } from '~/lib/query/staff-tenants';
@@ -22,6 +31,7 @@ import {
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { InviteTenantUserDrawerHost } from './_invite-user-drawer-host';
+import { inviteRolesQuery } from './_queries';
 import {
 	formatTenantUserStatusLabel,
 	TenantDetailsError,
@@ -56,6 +66,39 @@ export {
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
+
+/** The page's queries, declared once: the loader warms them and the page reads
+ * the same variables. The cursor lives in React state, so the loader warms the
+ * first page (decision 4). */
+const tenantUsersQueries = ({
+	tenantId,
+	search,
+}: {
+	tenantId: string;
+	search: TenantUsersListSearchParams;
+}) => {
+	const { q, sortId, sortOrder, size } = buildTableApiVariables(
+		search,
+		DEFAULT_SORT,
+		DEFAULT_SIZE,
+	);
+	const details = {
+		options: staffTenantDetailsQueryOptions,
+		variables: { tenantId },
+	};
+	const users = {
+		options: staffTenantUsersQueryOptions,
+		variables: { tenantId, q, status: search.status, sortId, sortOrder, size },
+	};
+	const roles = inviteRolesQuery(tenantId);
+
+	// The role picker lives in the invite drawer, which only mounts on
+	// `?invite=1`: without it the page never reads the roles query.
+	const spec: Record<string, RouteQuerySpecEntry> =
+		search.invite === 1 ? { details, roles, users } : { details, users };
+
+	return { details, users, spec };
+};
 
 const StaffTenantUsersPage = () => {
 	const { tenantId } = Route.useParams();
@@ -96,19 +139,15 @@ const StaffTenantUsersPage = () => {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: `${tenantId}:${search.status ?? ''}:${search.role ?? ''}`,
 	});
-	const detailsQuery = useStaffTenantDetailsQuery(
-		{ tenantId },
-		{ enabled: tenantId.length > 0 },
-	);
+	const queries = tenantUsersQueries({ tenantId, search });
+	const detailsQuery = useStaffTenantDetailsQuery(queries.details.variables, {
+		enabled: tenantId.length > 0,
+	});
 	const usersQuery = useStaffTenantUsersQuery(
 		{
-			tenantId,
-			q: controller.apiVariables.q,
-			status: search.status,
-			sortId: controller.apiVariables.sortId,
-			sortOrder: controller.apiVariables.sortOrder,
+			...queries.users.variables,
+			// The cursor lives in React state: the loader warms the first page.
 			cursor: controller.apiVariables.cursor,
-			size: controller.apiVariables.size,
 		},
 		{
 			enabled: tenantId.length > 0,
@@ -339,5 +378,17 @@ export const Route = createFileRoute(
 				search as TenantUsersListSearchParamInput,
 			),
 		),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			tenantUsersQueries({
+				tenantId: params.tenantId,
+				search: parseTenantUsersListSearchParams(
+					deps as TenantUsersListSearchParamInput,
+				),
+			}).spec,
+		);
+	},
 	component: StaffTenantUsersPage,
 });

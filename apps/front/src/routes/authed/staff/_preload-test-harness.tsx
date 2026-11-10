@@ -38,10 +38,14 @@ export type PreloadDestination = {
 	path: string;
 	/** A layout parent the destination nests under (the jobs index route). */
 	parentPath?: string;
+	/** A REAL parent route (its loader, search and component) the destination
+	 * nests under, at `childPath`: hovering the child re-runs the parent's
+	 * loader too. */
+	parent?: { path: string; childPath: string; options: RouteOptions };
 	options: RouteOptions;
 };
 
-const destinationOptions = (destination: PreloadDestination) => ({
+const destinationOptions = (destination: { options: RouteOptions }) => ({
 	staticData: destination.options.staticData,
 	validateSearch: destination.options.validateSearch,
 	loaderDeps: destination.options.loaderDeps,
@@ -77,21 +81,32 @@ const buildRouter = ({
 		}),
 	);
 
-	const layoutRoute = destination.parentPath
-		? createRoute(
-				widenOptions<Parameters<typeof createRoute>[0]>({
-					getParentRoute: () => rootRoute,
-					path: destination.parentPath,
-					staticData: { crumbs: 'shell' },
-					component: () => <Outlet />,
-				}),
-			)
-		: undefined;
+	const layoutOptions = destination.parent
+		? {
+				...destinationOptions(destination.parent),
+				path: destination.parent.path,
+			}
+		: {
+				staticData: { crumbs: 'shell' },
+				component: () => <Outlet />,
+				path: destination.parentPath,
+			};
+	const layoutRoute =
+		destination.parent || destination.parentPath
+			? createRoute(
+					widenOptions<Parameters<typeof createRoute>[0]>({
+						...layoutOptions,
+						getParentRoute: () => rootRoute,
+					}),
+				)
+			: undefined;
 	const destinationRoute = createRoute(
 		widenOptions<Parameters<typeof createRoute>[0]>({
 			...destinationOptions(destination),
 			getParentRoute: () => layoutRoute ?? rootRoute,
-			path: layoutRoute === undefined ? destination.path : '/',
+			path:
+				destination.parent?.childPath ??
+				(layoutRoute === undefined ? destination.path : '/'),
 		}),
 	);
 	const routeTree =

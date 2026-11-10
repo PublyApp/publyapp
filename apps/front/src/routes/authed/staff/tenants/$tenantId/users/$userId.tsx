@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	selectStaffTenantUserCrumbName,
 	staffTenantUserCrumbQuery,
@@ -44,6 +45,7 @@ import { TenantUserInfoCard } from './_details-info-card';
 import { TenantUserRemovalCard } from './_details-removal-card';
 import { TenantUserStatusCard } from './_details-status-card';
 import { getDetailsActionState } from './_details-status-helpers';
+import { tenantUserQueries } from './_queries';
 
 const StaffTenantUserDetailsPage = () => {
 	const { tenantId, userId } = Route.useParams();
@@ -56,15 +58,15 @@ const StaffTenantUserDetailsPage = () => {
 	const reactivateMutation = useReactivateStaffTenantUserMutation();
 	const removeMutation = useRemoveStaffTenantUserMutation();
 
-	const tenantQuery = useStaffTenantDetailsQuery(
-		{ tenantId },
-		{ enabled: tenantId.length > 0 },
-	);
+	const queries = tenantUserQueries({ tenantId, userId });
+	const tenantQuery = useStaffTenantDetailsQuery(queries.details.variables, {
+		enabled: tenantId.length > 0,
+	});
 	// Hoisted locals keep raw query flags out of the chained-query gate.
 	const tenantQueryIsPending = tenantQuery.isPending;
 	const tenantQueryIsError = tenantQuery.isError;
 	const detailsQuery = useStaffTenantUserDetailsQuery(
-		{ tenantId, userId },
+		queries.userDetails.variables,
 		{
 			// Hoisted locals keep raw query flags out of the chained-query gate.
 			enabled:
@@ -258,6 +260,15 @@ export const Route = createFileRoute(
 				select: selectStaffTenantUserCrumbName,
 			},
 		],
+	},
+	loader: ({ context, params }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			tenantUserQueries({
+				tenantId: params.tenantId,
+				userId: params.userId,
+			}),
+		);
 	},
 	component: StaffTenantUserDetailsPage,
 });

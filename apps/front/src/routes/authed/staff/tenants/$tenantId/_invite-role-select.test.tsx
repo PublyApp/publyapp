@@ -47,6 +47,12 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 }));
 
 vi.mock('~/lib/query/staff-tenant-roles', () => ({
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub stays inert.
+	staffTenantRolesQueryOptions: {
+		queryKey: () => ['staffTenantRolesQueryOptions'],
+		fetcher: () => Promise.resolve({}),
+	},
 	useStaffTenantRolesQuery: mocks.useStaffTenantRolesQuery,
 	toStaffTenantRoleRows: (items: unknown[]) =>
 		Array.isArray(items) ? items : [],

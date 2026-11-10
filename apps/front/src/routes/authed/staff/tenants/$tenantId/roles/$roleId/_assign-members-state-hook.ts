@@ -17,8 +17,12 @@ import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
-const DEFAULT_SIZE = 20;
+import {
+	ASSIGN_CANDIDATES_DEFAULT_SIZE,
+	ASSIGN_CANDIDATES_DEFAULT_SORT,
+	assignCandidatesQuery,
+} from './_queries';
+
 const EMPTY_SEARCH: TableSearchParams = {};
 
 export type AssignMembersState = {
@@ -98,18 +102,15 @@ export const useAssignMembersState = ({
 	const controller = useTableController({
 		search,
 		onSearchChange: setSearch,
-		defaultSort: DEFAULT_SORT,
-		defaultSize: DEFAULT_SIZE,
+		defaultSort: ASSIGN_CANDIDATES_DEFAULT_SORT,
+		defaultSize: ASSIGN_CANDIDATES_DEFAULT_SIZE,
 	});
 
 	const usersQuery = useStaffTenantUsersQuery(
 		{
-			tenantId,
-			q: controller.apiVariables.q,
-			sortId: controller.apiVariables.sortId,
-			sortOrder: controller.apiVariables.sortOrder,
+			...assignCandidatesQuery(tenantId, search).variables,
+			// The cursor lives in React state: the loader warms the first page.
 			cursor: controller.apiVariables.cursor,
-			size: controller.apiVariables.size,
 		},
 		{ enabled: isOpen && tenantId.length > 0 },
 	);
@@ -153,6 +154,7 @@ export const useAssignMembersState = ({
 		previousRowAccountIdsKeyRef.current = '';
 	}, [tenantId, roleId]);
 
+	// preload-exempt: resolves the roles of user ids selected on the page
 	const resolutionQuery = useStaffTenantRoleMemberAssignmentResolutionQuery(
 		{
 			tenantId,
