@@ -201,12 +201,16 @@ describe('#2340 staff dead-letter route preload', () => {
 			.filter((call) =>
 				pathEndsWith(call, 'staff', 'jobs', 'deadLetter', 'get'),
 			)
-			.map((call) => JSON.stringify(call.args))
+			.map(
+				(call) =>
+					(call.args[0] as { queryParameters?: Record<string, unknown> })
+						?.queryParameters,
+			)
 			.filter(
-				(args) =>
-					args.includes('0192f4c2-7a1b-7c3d-8e4f-5a6b7c8d9e0f') &&
-					args.includes('post.publish') &&
-					args.includes('6'),
+				(params) =>
+					params?.tenantId === '0192f4c2-7a1b-7c3d-8e4f-5a6b7c8d9e0f' &&
+					params.jobType === 'post.publish' &&
+					params.externalStateStatus === '6',
 			);
 		expect(filtered).toHaveLength(1);
 		for (const query of warmed) {

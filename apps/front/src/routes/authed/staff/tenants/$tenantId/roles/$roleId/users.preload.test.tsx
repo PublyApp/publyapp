@@ -10,6 +10,7 @@ import {
 	type PreloadDestination,
 	pathEndsWith,
 	preloadedQueries,
+	requestQueryParameters,
 	renderPreloadScenario,
 	warmedSnapshot,
 	widenOptions,
@@ -83,6 +84,8 @@ type Variant = {
 	/** Each endpoint the page reads, with how many distinct queries hit it. */
 	endpoints: readonly Endpoint[];
 	warmed: number;
+	/** Request parameters the URL must put on one endpoint's calls. */
+	request?: { suffix: readonly string[]; params: Record<string, string> };
 };
 
 const VARIANTS: readonly Variant[] = [
@@ -100,7 +103,11 @@ const VARIANTS: readonly Variant[] = [
 	{
 		title:
 			'a non-default URL search warms the keys the page reads for that URL',
-		search: { q: 'ana' },
+		search: { sort_id: 'name', sort_order: 'asc' },
+		request: {
+			suffix: ['byRoleId', 'users', 'get'],
+			params: { sortId: 'name', sortOrder: 'asc' },
+		},
 		endpoints: [
 			[['tenants', 'byTenantId', 'get'], 1],
 			[['roles', 'byRoleId', 'get'], 1],
@@ -151,6 +158,11 @@ const buildDestination = (linkSearch?: Record<string, string>) =>
 const expectEndpointCalls = (variant: Variant) => {
 	for (const [suffix, count] of variant.endpoints) {
 		expect(countCallsByPath(mocks.respond, ...suffix)).toBe(count);
+	}
+	if (variant.request !== undefined) {
+		expect(
+			requestQueryParameters(mocks.respond, ...variant.request.suffix),
+		).toContainEqual(expect.objectContaining(variant.request.params));
 	}
 };
 

@@ -236,9 +236,8 @@ export const Route = createFileRoute(
 			roleUsersQueries({
 				tenantId: params.tenantId,
 				roleId: params.roleId,
-				search: parseRoleMembersSearchParams(
-					deps as RoleMembersSearchParamInput,
-				),
+				// `deps` is already parsed by `validateSearch`: do not parse twice.
+				search: deps,
 			}).spec,
 		);
 	},

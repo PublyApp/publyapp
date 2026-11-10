@@ -230,6 +230,20 @@ export const countCallsByPath = (
 		return call !== undefined && pathEndsWith(call, ...suffix);
 	}).length;
 
+/** The `queryParameters` of every fake call to the endpoint ending in `suffix`. */
+export const requestQueryParameters = (
+	respond: RespondMock,
+	...suffix: string[]
+): Record<string, unknown>[] =>
+	respond.mock.calls
+		.map((args) => args[0] as FakeClientCall)
+		.filter((call) => pathEndsWith(call, ...suffix))
+		.map(
+			(call) =>
+				(call.args[0] as { queryParameters?: Record<string, unknown> })
+					?.queryParameters ?? {},
+		);
+
 /** Hover a link whose URL carries a filter, then click it: every key the loader
  * warmed must be the very key the page observes (no refetch). A loader that
  * dropped the filter warms the unfiltered key, which the filtered page never
