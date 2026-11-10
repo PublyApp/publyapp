@@ -63,17 +63,26 @@ Derived from `packages/shared-ts/src/lib/i18n/json/common.{en,fr}.json`:
 
 ### Colour tokens
 
-All colours are CSS custom properties declared in `apps/front/src/styles/app.css` under `:root`
-(light) and `html.dark` (dark), with a `@theme inline` bridge to Tailwind v4 utility names
-(`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `ring-ring`, etc.).
-— source: `apps/front/src/styles/app.css` (`:root`, `html.dark`, `@theme inline`)
+**Where tokens come from (#2360).** PublyApp and ShopKartOS share one visual language, which lives in
+`@radandevist/radan-ui`. `app.css` imports its `theme.css` (`--radan-ui-*` variables in `:root` and
+`.dark`, plus the `@theme inline` bridge to the Tailwind v4 names `bg-background`, `text-foreground`,
+`bg-primary`, `border-border`, `ring-ring`, `rounded-card`, `shadow-popover`, ...). The `--background`,
+`--publy-*` and `--effect-*` names below are thin aliases onto it: change a colour, radius or
+raised/popover effect in radan-ui, not here. Exactly one value of PublyApp's own overrides radan-ui:
+muted text (`--radan-ui-muted-foreground`, see Contrast). **PublyApp-only tokens** (radan-ui does not
+define them): primary active/soft, marketing eyebrow, `--publy-foreground-subtle`, `--publy-border-strong`,
+disabled, table header, row border, dropdown/selection-bar/auth-panel/alert/chart/role-tone sets, the
+avatar palette, shell/container sizes, the z-index scale, motion, the danger-zone and the type scale
+(radan-ui 0.1.1 ships none). A workaround for a radan-ui 0.1.1 light-mode `card-foreground` self-cycle
+sits right after the import in `app.css`.
+— source: `apps/front/src/styles/app.css` (`@import '@radandevist/radan-ui/theme.css'`, `:root`, `html.dark`, `@theme inline`), `apps/front/node_modules/@radandevist/radan-ui/dist/theme.css`
 
 **Semantic groups** (light value → dark value; both columns generated from `apps/front/src/styles/app.css`):
 
 | Group                   | Light                                | Dark                     | Notes                                                                                                                        |
 | ----------------------- | ------------------------------------ | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| Primary (chrome accent) | `--publy-primary #fdc700`            | `#f0bd00`                | Yellow.                                                                                                                      |
-| Primary foreground      | `--publy-primary-foreground #733e0a` | `#1a0d00`                | Solid-button text on `--publy-primary`.                                                                                      |
+| Primary (chrome accent) | `--publy-primary #fecd00`            | `#fecd00`                | Yellow; theme-invariant (radan-ui `primary`).                                                                                |
+| Primary foreground      | `--publy-primary-foreground #423600` | `#423600`                | Solid-button text on `--publy-primary`.                                                                                      |
 | Primary soft            | `#fffbeb`                            | `#2a2400`                | Chips / soft pill background.                                                                                                |
 | Primary soft foreground | `#733e0a`                            | `#fbbf24`                | Text on primary-soft; the value swaps to yellow in dark.                                                                     |
 | Background / surface    | `#f7f7f7`                            | `#18181b`                | `--publy-background`, `--publy-surface` identical in both themes.                                                            |
@@ -90,10 +99,10 @@ All colours are CSS custom properties declared in `apps/front/src/styles/app.css
 | Border                  | `#e3e3e3`                            | `#323234`                | Hairline ring colour.                                                                                                        |
 | Border strong           | `#d4d4d8`                            | `rgba(255,255,255,0.15)` | Used by `outline` button variant (unconditional, both themes).                                                               |
 | Input border            | `#e4e4e7`                            | `#27272a`                | `--publy-input-border`; field hairline, one step lighter than the general border.                                            |
-| Danger                  | `#dc2626`                            | `#f87171`                | `--publy-danger`; destructive actions/alerts.                                                                                |
-| Success                 | `#047857`                            | `#34d399`                |                                                                                                                              |
-| Warning                 | `#b45309`                            | `#fbbf24`                |                                                                                                                              |
-| Focus ring              | `#a16207`                            | `#facc15`                | `--publy-focus-ring`.                                                                                                        |
+| Danger                  | `#b91c1c`                            | `#fca5a5`                | `--publy-danger` = radan-ui `destructive`; destructive actions/alerts.                                                       |
+| Success                 | `#15803d`                            | `#86efac`                | radan-ui `status-success`.                                                                                                   |
+| Warning                 | `#b45309`                            | `#fdd34d`                | radan-ui `status-warning`.                                                                                                   |
+| Focus ring              | `#18181b`                            | `#d4d4d8`                | `--publy-focus-ring` = radan-ui `ring`.                                                                                      |
 | Disabled                | `#d4d4d8`                            | `#52525b`                |                                                                                                                              |
 
 The avatar identity palette `--publy-avatar-1…8` (teal, violet, pink, rose, orange, sky, cyan,
@@ -103,11 +112,13 @@ no separate thumb-tint set (the avatar palette already carries the identity hue)
 
 **Owner decision 2026-10-30 (#2271):** the Shopkart OS / Gray UI values above are **global** — staff
 space, tenant space and auth/marketing pages share them; they are not scoped to one surface. The
-brand yellow `--publy-primary` stays PublyApp's `#fdc700`.
+brand yellow is radan-ui's `#fecd00` (#2360).
 
 **Deliberate gap from Shopkart (owner decision, 30/10):** muted foreground is `#6b6b73` light /
 `#898989` dark instead of Shopkart's `#71717a` / `#7f7f7f`, because those measured 4.32–4.51:1 on
-our card, popover and secondary fills. AA contrast wins over pixel parity.
+our card, popover and secondary fills. AA contrast wins over pixel parity. It is implemented as an
+override of `--radan-ui-muted-foreground` in `app.css` (`:root:not(.dark)` and `html.dark`), so
+`text-muted-foreground` and `--publy-foreground-muted` stay one value.
 
 Marketing-specific accent `--publy-marketing-eyebrow-accent` (`#8a6a1f` light / `#d97706` dark) is
 the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/front/src/styles/app.css`
@@ -131,7 +142,7 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
 
 ### Spacing & radius
 
-- Radius scales with control height. Canonical tokens: `--publy-radius-sm 0.375rem`, `--publy-radius-md 0.5rem`,
+- Radius scales with control height. Canonical tokens: `--publy-radius-sm 0.375rem`, `--publy-radius-md 0.5rem` (both derived from radan-ui's `--radan-ui-radius`),
   `--publy-radius-input 10px`, `--publy-radius-chip 8px`, `--publy-radius-small-control 10px`,
   `--publy-radius-medium-control 12px`, `--publy-radius-control 14px`, `--publy-radius-menu-item 9px`,
   `--publy-radius-circular 999px`. — source: `apps/front/src/styles/app.css`
