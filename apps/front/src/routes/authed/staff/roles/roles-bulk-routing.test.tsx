@@ -68,6 +68,12 @@ vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 
 vi.mock('~/lib/query/staff-roles', () => ({
 	STAFF_ROLES_QUERY_KEY: ['staff-roles'],
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub is never called.
+	staffRolesQueryOptions: {
+		queryKey: () => ['staff-roles'],
+		fetcher: () => Promise.resolve({}),
+	},
 	invalidateStaffRoles: mocks.invalidateStaffRoles,
 	toStaffRoleRows: mocks.toStaffRoleRows,
 	useStaffRolesQuery: mocks.useStaffRolesQuery,

@@ -9,9 +9,17 @@ import { DataTableCursorFooter } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
-import { useTableController } from '~/components/table/use-table-controller';
+import {
+	buildTableApiVariables,
+	useTableController,
+} from '~/components/table/use-table-controller';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
-import { toStaffRoleRows, useStaffRolesQuery } from '~/lib/query/staff-roles';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
+import {
+	staffRolesQueryOptions,
+	toStaffRoleRows,
+	useStaffRolesQuery,
+} from '~/lib/query/staff-roles';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 
@@ -41,6 +49,28 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
+/** The page's list query, declared once: the loader warms it and the page reads
+ * the same variables. The loader takes the first page (no cursor, decision 4). */
+const staffRolesQueries = ({
+	search,
+}: {
+	search: StaffRoleListSearchParams;
+}) => {
+	const { q, sortId, sortOrder, size } = buildTableApiVariables(
+		search,
+		DEFAULT_SORT,
+		DEFAULT_SIZE,
+	);
+
+	return {
+		roles: {
+			options: staffRolesQueryOptions,
+			// The roles API paginates on `limit`, not `size`.
+			variables: { q, sortId, sortOrder, limit: size },
+		},
+	};
+};
+
 const StaffRolesPage = () => {
 	const { t, i18n } = useTranslation('common');
 	const navigate = Route.useNavigate();
@@ -63,12 +93,12 @@ const StaffRolesPage = () => {
 		defaultSize: DEFAULT_SIZE,
 		cursorResetKey: [search.members.join(','), search.type.join(',')].join('|'),
 	});
+	const queries = staffRolesQueries({ search });
 	const listVariables = {
-		q: controller.apiVariables.q,
-		sortId: controller.apiVariables.sortId,
-		sortOrder: controller.apiVariables.sortOrder,
+		...queries.roles.variables,
+		// The cursor lives in React state, never in URL search (decision 4): the
+		// loader warms the first page, the page adds its own cursor.
 		cursor: controller.apiVariables.cursor,
-		limit: controller.apiVariables.size,
 	};
 	const query = useStaffRolesQuery(listVariables);
 	// The overview publishes these variables as the counter only while they
@@ -272,5 +302,18 @@ export const Route = createFileRoute('/_authed-layout/staff/roles')({
 		serializeStaffRoleListSearchParams(
 			parseStaffRoleListSearchParams(search as StaffRoleListSearchParamInput),
 		),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			staffRolesQueries({
+				// `validateSearch` stores the wire shape (CSV filters); the page
+				// re-parses it, so the loader does too.
+				search: parseStaffRoleListSearchParams(
+					deps as StaffRoleListSearchParamInput,
+				),
+			}),
+		);
+	},
 	component: StaffRolesPage,
 });

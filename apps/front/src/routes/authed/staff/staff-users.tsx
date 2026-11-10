@@ -9,9 +9,17 @@ import { DataTableCursorFooter } from '~/components/table/data-table';
 import { FloatingSelectionBar } from '~/components/table/floating-selection-bar';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { useRowSelection } from '~/components/table/use-row-selection';
-import { useTableController } from '~/components/table/use-table-controller';
+import {
+	buildTableApiVariables,
+	useTableController,
+} from '~/components/table/use-table-controller';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
-import { toStaffUserRows, useStaffUsersQuery } from '~/lib/query/staff-users';
+import { preloadRouteQueries } from '~/lib/query/route-preload';
+import {
+	staffUsersQueryOptions,
+	toStaffUserRows,
+	useStaffUsersQuery,
+} from '~/lib/query/staff-users';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 
@@ -43,6 +51,22 @@ import {
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
 
+/** The page's list query, declared once: the loader warms it and the page reads
+ * the same variables. The loader takes the first page (no cursor, decision 4). */
+const staffUsersQueries = ({
+	search,
+}: {
+	search: StaffUserListSearchParams;
+}) => ({
+	users: {
+		options: staffUsersQueryOptions,
+		variables: {
+			...buildTableApiVariables(search, DEFAULT_SORT, DEFAULT_SIZE),
+			status: search.status.length > 0 ? search.status.join(',') : undefined,
+		},
+	},
+});
+
 const StaffUsersPage = () => {
 	const { t, i18n } = useTranslation('common');
 	const { t: tStaff } = useTranslation('staff-users');
@@ -72,9 +96,12 @@ const StaffUsersPage = () => {
 		].join('|'),
 	});
 
+	const queries = staffUsersQueries({ search });
 	const listVariables = {
-		...controller.apiVariables,
-		status: search.status.length > 0 ? search.status.join(',') : undefined,
+		...queries.users.variables,
+		// The cursor lives in React state, never in URL search (decision 4): the
+		// loader warms the first page, the page adds its own cursor.
+		cursor: controller.apiVariables.cursor,
 	};
 	const query = useStaffUsersQuery(listVariables);
 	// The overview publishes these variables as the counter only while they
@@ -296,5 +323,18 @@ export const Route = createFileRoute('/_authed-layout/staff/staff-users')({
 		serializeStaffUserListSearchParams(
 			parseStaffUserListSearchParams(search as StaffUserListSearchParamInput),
 		),
+	loaderDeps: ({ search }) => search,
+	loader: ({ context, deps }) => {
+		preloadRouteQueries(
+			context.queryClient,
+			staffUsersQueries({
+				// `validateSearch` stores the wire shape (CSV filters); the page
+				// re-parses it, so the loader does too.
+				search: parseStaffUserListSearchParams(
+					deps as StaffUserListSearchParamInput,
+				),
+			}),
+		);
+	},
 	component: StaffUsersPage,
 });

@@ -72,6 +72,12 @@ vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 
 vi.mock('~/lib/query/staff-invitations', () => ({
 	STAFF_INVITATIONS_QUERY_KEY: ['staff-invitations'],
+	// The route's query spec reads the factory object; this suite never runs
+	// the loader, so the stub is never called.
+	staffInvitationsQueryOptions: {
+		queryKey: () => ['staff-invitations'],
+		fetcher: () => Promise.resolve({}),
+	},
 	// Mocked per-test (not stubbed): the post-success invalidation contract is
 	// pinned through this spy AND through real QueryClient state below.
 	invalidateStaffInvitations: mocks.invalidateStaffInvitations,
