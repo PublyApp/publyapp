@@ -372,6 +372,11 @@ renders, never toasts, and a route needs no `pendingComponent` for it. Spec:
 - `loaderKeys ⊆ pageKeys` — a loader never warms a key its page does not use;
 - `pageKeys \ exemptions ⊆ loaderKeys` — no page query is left cold.
 
+Loader keys come only from the value(s) the spec function **returns** (for `.spec`, the `spec`
+property); an entry merely declared and never returned does not count. A conditional return
+(`search.assign === 1 ? … : …`, `selection.impossible`) counts the **union** of both branches: a
+branch-gated entry is still a key the loader may warm.
+
 Page queries are every direct `useQuery`/`useInfiniteQuery` call and every called `lib/**`
 binding whose body (directly, through a same-module local call, or through another imported
 `lib/**` hook) reaches a query hook — not only `*Query`-named hooks. The `/_authed-layout` route
@@ -388,8 +393,11 @@ src/lib/query/route-loader-query-key-guard.test.ts`, and in CI via `ci.yml` → 
    reads the **enclosing statement's** leading comments, so a call nested in `const x = …` is
    covered; an exempt call is skipped before key resolution (a dynamic key is legal). No reason
    is a failure, and a marker that no longer covers a visited query is a failure (stale). Use it
-   only where a hover genuinely cannot warm the query: a click-opened drawer's picker, data
-   keyed by a row selected on the page, session-stable shell chrome, the root session gate. The
+   where a hover cannot or should not warm the query — a click-opened drawer's picker, data
+   keyed by a row selected on the page, session-stable shell chrome, the root session gate,
+   deliberately secondary data (a side-panel count) — or where the loader does warm the key but
+   the guard cannot resolve it (a shared component whose query options arrive as a parameter or
+   a prop). The
    current inventory is 14 sites; adding one needs a reason a reviewer accepts.
 2. The route-keyed closed-drawer table `CLOSED_DRAWER_FILES` in the guard module: for a given
    route id, the `lib/**` binding calls inside named files are not page queries because the route
