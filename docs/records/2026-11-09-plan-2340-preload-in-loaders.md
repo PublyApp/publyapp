@@ -205,6 +205,12 @@ only costs one refetch).
 ## Global Constraints
 
 - **No visible change** on any page. A loader never awaits, never renders, never toasts.
+  - **Owner-ratified exception (Radan, 10/11)** — on
+    `/staff/tenants/$tenantId/roles/$roleId`, a **tenant** failure (404/403/500/400) shows the
+    tenant error view (`TenantDetailsError` → `MissingTenantView` / `View403` /
+    `staff-tenant-details-error`), the same surface every sibling tenant tab uses, instead of the
+    route boundary's role-flavoured view. The page body owns that classification; role-level
+    failures keep their existing views.
 - No `Array.reduce`, no IIFE, arrow components, design tokens only, i18n FR+EN for any new string.
 - React Doctor clean on every changed file (`just react-doctor`).
 - TypeScript only. No dependency change, no `pnpm install` by agents.
@@ -1298,7 +1304,9 @@ reuses it; a failing preload stays silent (reuse the Task 1 harness). Run with
   src-walking guards (`check-design-system`, `check-utility-boundaries`) never read them, and
   `check-typecheck-coverage` pins only the files it lists.
 - Modify: `apps/front/src/lib/query/route-loader-query-key-guard.test.ts` — **delete**
-  `isPreloadCallee` (Task 2) and `collectStrictModeOpaqueCalls`, and remove `'preloadRouteQueries'` from
+  `isPreloadCallee` (Task 2), `collectStrictModeOpaqueCalls`, and the Task-2 stand-in counter
+  (`callsPreloadRouteQueries`, `routesWithPreloadSpecs`, and its `routesWithLoaderKeys +
+  routesWithPreloadSpecs` canary `+` term), and remove `'preloadRouteQueries'` from
   the allowlist: rule 5 below resolves the helper's argument instead of skipping it.
 
 **Algorithm (in the module):**
@@ -1377,7 +1385,9 @@ fixtures above; (6) retirement condition: the guard retires when TanStack Router
 "preload every query a route renders" natively, or when the loaders move to a generated manifest.
 
 - [ ] **Step 1:** move the scanner to the module, inject `routesDir`, delete the Task-2 `isPreloadCallee`
-  allowlist and `collectStrictModeOpaqueCalls`, add the layout route + app-shell page set, add the
+  allowlist, `callsPreloadRouteQueries`, `routesWithPreloadSpecs` and its `routesWithLoaderKeys +
+  routesWithPreloadSpecs` canary (`+`) term, and `collectStrictModeOpaqueCalls`, add the layout route +
+  app-shell page set, add the
   **seven** section-D `preload-exempt` comments (`user-menu.tsx:43`, `entity-crumb.tsx:38`,
   `__root.tsx:604`, `app-shell.tsx:186`, `app-shell.tsx:197`,
   `_needs-reconnect-banner.tsx:17`, `_needs-reconnect-banner.tsx:18`), and keep the real-tree test

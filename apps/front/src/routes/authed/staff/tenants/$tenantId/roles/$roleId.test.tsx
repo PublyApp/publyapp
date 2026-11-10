@@ -1522,7 +1522,10 @@ describe('staff tenant role details route', () => {
 				throw new Error('expected the #2340 route preload loader');
 			}
 
-			loader(loaderArgs);
+			// Fire-and-forget: the loader must hand back nothing. An awaited
+			// loader passes the fetcher assertions below identically, so this
+			// assertion is what actually pins the non-blocking contract.
+			expect(loader(loaderArgs)).toBeUndefined();
 
 			await waitFor(() => {
 				expect(mocks.staffTenantDetailsFetcher).toHaveBeenCalledWith(

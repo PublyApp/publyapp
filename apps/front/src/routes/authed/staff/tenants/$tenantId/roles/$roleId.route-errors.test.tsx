@@ -24,11 +24,20 @@ import {
  * fire-and-forget and swallows their failures, so the PAGE BODY is what
  * classifies an API failure and renders the route's designed views. These
  * specs pin that contract against a router that mounts the production
- * route's real option objects:
+ * route's real option objects.
  *
- * - 404 (or a malformed-id 400) → `MissingTenantRoleView`
- * - 403 → `View403`
- * - 500/network → `TenantRoleDetailsError` with a retry that re-runs the fetch
+ * A TENANT failure renders the tenant views every sibling tenant tab uses
+ * (`TenantDetailsError`, owner-ratified 10/11):
+ *
+ * - tenant 404 / malformed-id 400 → `MissingTenantView`
+ * - tenant 403 → `View403`
+ * - tenant 500/network → `staff-tenant-details-error`
+ *
+ * A ROLE failure keeps the route's own views:
+ *
+ * - role 404 (or malformed-id 400) → `MissingTenantRoleView`
+ * - role 403 → `View403`
+ * - role 500/network → `TenantRoleDetailsError` with a retry that re-runs the fetch
  * - 401 → `LogoutRedirect`
  * - 404/403/500 never log the user out, and the generic parent-layout
  *   surfaces (`view-404`) stay out of the picture.
@@ -152,13 +161,20 @@ const ROLE_PAYLOAD = {
 };
 
 /** The wire shape the Kiota problem pipeline throws for an API problem. */
-const problemFor = (status: number) =>
-	({
+const problemFor = (status: number, translationKey?: string) => {
+	const problem = {
 		status,
 		title: `HTTP ${status}`,
 		detail: `problem-${status}`,
 		responseStatusCode: status,
-	}) satisfies FakeResponse;
+	};
+
+	if (translationKey !== undefined) {
+		return { ...problem, translationKey };
+	}
+
+	return problem;
+};
 
 const AppShellHost = (): JSX.Element => (
 	<AppShell mode="authed" pathname={DETAILS_URL}>
@@ -242,7 +258,7 @@ describe('role-details failure surfaces (#851 round 2 / #2340)', () => {
 		mocks.logout.mockClear();
 	});
 
-	test('a 404 API failure renders the tenant not-found view without logging out', async () => {
+	test('a tenant 404 API failure renders the tenant not-found view without logging out', async () => {
 		mocks.respond.mockImplementation(async (call) => {
 			if (pathEndsWith(call, 'byTenantId', 'get')) {
 				throw problemFor(404);
@@ -261,6 +277,68 @@ describe('role-details failure surfaces (#851 round 2 / #2340)', () => {
 			await screen.findByTestId('staff-tenant-details-not-found'),
 		).toBeTruthy();
 		expect(screen.queryByTestId('view-404')).toBeNull();
+		expect(mocks.logout).not.toHaveBeenCalled();
+	});
+
+	// Owner decision 10/11: a tenant failure on this route shows the same
+	// tenant error view as every sibling tenant tab, not the route boundary's
+	// role-flavoured view. These three cases pin the tenant 403/500/400
+	// surfaces the awaited loader used to intercept.
+	test('a tenant 403 API failure renders the tenant forbidden view without logging out', async () => {
+		mocks.respond.mockImplementation(async (call) => {
+			if (pathEndsWith(call, 'byTenantId', 'get')) {
+				throw problemFor(403);
+			}
+			if (pathEndsWith(call, 'byRoleId', 'get')) {
+				return ROLE_PAYLOAD;
+			}
+			return {};
+		});
+
+		await renderRouteAtDetailsUrl();
+
+		expect(await screen.findByTestId('view-403')).toBeTruthy();
+		expect(mocks.logout).not.toHaveBeenCalled();
+	});
+
+	test('a tenant 500 API failure renders the tenant error view, not the role retry view', async () => {
+		mocks.respond.mockImplementation(async (call) => {
+			if (pathEndsWith(call, 'byTenantId', 'get')) {
+				throw problemFor(500);
+			}
+			if (pathEndsWith(call, 'byRoleId', 'get')) {
+				return ROLE_PAYLOAD;
+			}
+			return {};
+		});
+
+		await renderRouteAtDetailsUrl();
+
+		const tenantError = await screen.findByTestId('staff-tenant-details-error');
+		expect(tenantError.textContent).toContain('tenant-details-error-title');
+		expect(screen.queryByTestId('staff-tenant-role-details-error')).toBeNull();
+		expect(mocks.logout).not.toHaveBeenCalled();
+	});
+
+	test('a tenant malformed-id 400 renders the tenant not-found view, not the role not-found view', async () => {
+		mocks.respond.mockImplementation(async (call) => {
+			if (pathEndsWith(call, 'byTenantId', 'get')) {
+				throw problemFor(400, 'malformed-id');
+			}
+			if (pathEndsWith(call, 'byRoleId', 'get')) {
+				return ROLE_PAYLOAD;
+			}
+			return {};
+		});
+
+		await renderRouteAtDetailsUrl();
+
+		expect(
+			await screen.findByTestId('staff-tenant-details-not-found'),
+		).toBeTruthy();
+		expect(
+			screen.queryByTestId('staff-tenant-role-details-not-found'),
+		).toBeNull();
 		expect(mocks.logout).not.toHaveBeenCalled();
 	});
 

@@ -227,26 +227,14 @@ const StaffTenantRoleDetailsPage = () => {
 };
 
 /**
- * The route's last-resort error surface. The loader no longer awaits or
- * rejects (it warms the query cache fire-and-forget, and the page body owns
- * every API failure through its own classified views); this boundary stays as
- * the route-local answer for a render-time throw, so a programming error is
- * not silently reshaped into a "not found" view by a generic surface.
- *
- * It resolves the failure through the SAME classifier the page body's error
- * path uses (`classifyRoleDetailsFailure`) and reuses the route's existing
- * error views verbatim:
- *
- * - 404 (or malformed-id 400) → `MissingTenantRoleView`
- * - 403 → `View403`
- * - any other recognizable API failure (500, network) →
- *   `TenantRoleDetailsError` + `TenantRetryActions`, whose retry
- *   invalidates the router so the query cache re-runs
- * - 401 → `LogoutRedirect`, matching the page body's own 401 handling and
- *   the repo-wide "only 401 logs out" invariant
- * - anything UNCLASSIFIABLE (no API-failure shape at all — a programming
- *   error, not a server answer) is RETHROWN so the parent layout boundary
- *   owns it loudly instead of being masked behind a "not found" view.
+ * The route's last-resort error surface for a **render-time throw**. The
+ * loader never awaits and never rejects (it warms the query cache
+ * fire-and-forget, and the page body classifies every API failure), so the
+ * branches below are not reachable from the loader: this boundary exists only
+ * so a programming error is not silently reshaped into a "not found" view by
+ * the generic parent surface. It reuses the route's existing error views
+ * through the same classifier as the page body (`classifyRoleDetailsFailure`)
+ * and rethrows an unclassifiable error to the parent layout boundary.
  */
 const RoleRouteErrorBoundary = ({
 	error,

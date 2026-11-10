@@ -8,7 +8,7 @@ import { staffTenantDetailsQueryOptions } from '~/lib/query/staff-tenants';
 
 // Members shown in the Overview avatar stack / preview before "View all".
 // It uses the same canonical offset-paginated endpoint as the full Members tab.
-export const MEMBERS_PREVIEW_LIMIT = 5;
+const MEMBERS_PREVIEW_LIMIT = 5;
 
 type RoleDetailsQueryArgs = {
 	tenantId: string;
