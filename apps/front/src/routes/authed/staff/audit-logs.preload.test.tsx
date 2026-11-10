@@ -70,6 +70,14 @@ const LOGS_PATH = ['staff', 'auditLogs', 'get'] as const;
 const ACTIONS_PATH = ['staff', 'auditLogs', 'actions', 'get'] as const;
 const LINK_LABEL = 'open audit logs';
 
+const destinationFor = (linkSearch: Record<string, string>) =>
+	widenOptions<PreloadDestination>({
+		linkTo: '/staff/audit-logs',
+		linkSearch,
+		path: '/staff/audit-logs',
+		options: StaffAuditLogsRoute.options,
+	});
+
 const destination = widenOptions<PreloadDestination>({
 	linkTo: '/staff/audit-logs',
 	path: '/staff/audit-logs',
@@ -136,5 +144,56 @@ describe('#2340 staff audit-logs route preload', () => {
 			expect(query.getObserversCount()).toBeGreaterThan(0);
 			expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));
 		}
+	});
+
+	test('a period filter warms the key the page reads for that URL', async () => {
+		const { queryClient } = renderPreloadScenario({
+			destination: destinationFor({ period: 'week' }),
+			linkLabel: LINK_LABEL,
+		});
+		const link = await screen.findByRole('link', { name: LINK_LABEL });
+
+		fireEvent.mouseEnter(link);
+		await waitFor(() => {
+			expect(countCallsByPath(mocks.respond, ...LOGS_PATH)).toBe(1);
+		});
+		await waitFor(() => {
+			expect(queryClient.isFetching()).toBe(0);
+		});
+
+		const warmed = preloadedQueries(queryClient);
+		const snapshot = warmedSnapshot(warmed);
+
+		fireEvent.click(link);
+		await waitFor(() => {
+			expect(screen.getByTestId('staff-audit-logs-history')).toBeTruthy();
+		});
+
+		// The page observes every warmed key as-is: same key, no refetch.
+		expect(warmed).toHaveLength(2);
+		for (const query of warmed) {
+			expect(query.getObserversCount()).toBeGreaterThan(0);
+			expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));
+		}
+		expect(countCallsByPath(mocks.respond, ...LOGS_PATH)).toBe(1);
+	});
+
+	test('a category filter with a cold action registry does not warm the logs', async () => {
+		const { queryClient } = renderPreloadScenario({
+			destination: destinationFor({ category: 'auth' }),
+			linkLabel: LINK_LABEL,
+		});
+		const link = await screen.findByRole('link', { name: LINK_LABEL });
+
+		fireEvent.mouseEnter(link);
+		await waitFor(() => {
+			expect(countCallsByPath(mocks.respond, ...ACTIONS_PATH)).toBe(1);
+		});
+		await waitFor(() => {
+			expect(queryClient.isFetching()).toBe(0);
+		});
+
+		expect(countCallsByPath(mocks.respond, ...LOGS_PATH)).toBe(0);
+		expect(preloadedQueries(queryClient)).toHaveLength(1);
 	});
 });

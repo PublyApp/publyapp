@@ -20,7 +20,10 @@ import {
 	useTableController,
 } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
-import { preloadRouteQueries } from '~/lib/query/route-preload';
+import {
+	preloadRouteQueries,
+	type RouteQuerySpecEntry,
+} from '~/lib/query/route-preload';
 import {
 	staffAuditLogActionsQueryOptions,
 	staffAuditLogsQueryOptions,
@@ -88,22 +91,28 @@ const auditLogsQueries = ({
 		endDate: search.period ? undefined : search.endDate,
 	});
 
-	return {
-		actions: {
-			options: staffAuditLogActionsQueryOptions,
-			variables: {},
-		},
-		logs: {
-			options: staffAuditLogsQueryOptions,
-			variables: {
-				...buildTableApiVariables(search, DEFAULT_SORT, DEFAULT_SIZE),
-				unknownActor: search.unknownActor,
-				actions: selection.actions?.split(','),
-				startDate: selection.startDate,
-				endDate: selection.endDate,
-			},
+	const actions = {
+		options: staffAuditLogActionsQueryOptions,
+		variables: {},
+	};
+	const logs = {
+		options: staffAuditLogsQueryOptions,
+		variables: {
+			...buildTableApiVariables(search, DEFAULT_SORT, DEFAULT_SIZE),
+			unknownActor: search.unknownActor,
+			actions: selection.actions?.split(','),
+			startDate: selection.startDate,
+			endDate: selection.endDate,
 		},
 	};
+
+	// An impossible selection never reads `logs` (the page disables it), so the
+	// loader must not warm the unfiltered entry either.
+	const spec: Record<string, RouteQuerySpecEntry> = selection.impossible
+		? { actions }
+		: { actions, logs };
+
+	return { actions, logs, spec };
 };
 
 const toHistoryEvents = (
@@ -559,7 +568,7 @@ export const Route = createFileRoute('/_authed-layout/staff/audit-logs')({
 					deps as AuditLogsListSearchParamInput,
 				),
 				catalog: buildAuditActionCatalog(actionsData?.actions ?? []),
-			}),
+			}).spec,
 		);
 	},
 	component: StaffAuditLogsPage,

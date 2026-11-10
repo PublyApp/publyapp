@@ -32,6 +32,8 @@ type RouteOptions = Record<string, unknown> & {
 export type PreloadDestination = {
 	/** URL the source page's link points at. */
 	linkTo: string;
+	/** Search the link carries (a non-default URL state). */
+	linkSearch?: Record<string, string>;
 	/** The destination route's path, relative to its parent. */
 	path: string;
 	/** A layout parent the destination nests under (the jobs index route). */
@@ -67,7 +69,11 @@ const buildRouter = ({
 			getParentRoute: () => rootRoute,
 			path: SOURCE_PATH,
 			staticData: { crumbs: 'shell' },
-			component: () => <Link to={destination.linkTo}>{linkLabel}</Link>,
+			component: () => (
+				<Link to={destination.linkTo} search={destination.linkSearch}>
+					{linkLabel}
+				</Link>
+			),
 		}),
 	);
 
@@ -190,7 +196,10 @@ export const pathEndsWith = (
 	...suffix: string[]
 ): boolean => {
 	const tail = call.path.slice(-suffix.length);
-	return suffix.every((segment, index) => tail[index] === segment);
+	return (
+		tail.length === suffix.length &&
+		suffix.every((segment, index) => tail[index] === segment)
+	);
 };
 
 type RespondMock = { mock: { calls: readonly (readonly unknown[])[] } };

@@ -134,4 +134,41 @@ describe('#2340 staff tenants route preload', () => {
 			expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));
 		}
 	});
+
+	test('a status filter warms the key the page reads for that URL', async () => {
+		const { queryClient } = renderPreloadScenario({
+			destination: widenOptions<PreloadDestination>({
+				linkTo: '/staff/tenants',
+				linkSearch: { status: 'active' },
+				path: '/staff/tenants',
+				options: StaffTenantsRoute.options,
+			}),
+			linkLabel: LINK_LABEL,
+		});
+		const link = await screen.findByRole('link', { name: LINK_LABEL });
+
+		fireEvent.mouseEnter(link);
+		await waitFor(() => {
+			expect(countCallsByPath(mocks.respond, ...TENANTS_PATH)).toBe(1);
+		});
+		await waitFor(() => {
+			expect(queryClient.isFetching()).toBe(0);
+		});
+
+		const warmed = preloadedQueries(queryClient);
+		const snapshot = warmedSnapshot(warmed);
+
+		fireEvent.click(link);
+		await waitFor(() => {
+			expect(screen.getByTestId('staff-tenants-table')).toBeTruthy();
+		});
+
+		// The page observes the warmed key as-is: same key, no refetch.
+		expect(warmed).toHaveLength(1);
+		for (const query of warmed) {
+			expect(query.getObserversCount()).toBeGreaterThan(0);
+			expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));
+		}
+		expect(countCallsByPath(mocks.respond, ...TENANTS_PATH)).toBe(1);
+	});
 });
