@@ -329,32 +329,78 @@ Authenticated application surfaces are CSR with `ssr: false`. They fetch applica
 the browser with TanStack Query and the Kiota client. Do not fetch authenticated domain data in
 server loaders or server functions.
 
-### Client route loaders (#851)
+### Route data preload (#2340)
 
-Client `loader`s (never server loaders) are permitted on authenticated routes for exactly one
-sanctioned purpose: **awaiting the same TanStack Query options the page body queries**, so data
-the breadcrumb shell needs (entity names) is in the query cache before the first frame. A cold
-deep link then paints its full named trail immediately, instead of flashing entity skeletons.
-Pair such a loader with a `pendingComponent` for the pending window. Do not use a loader as a
-second fetch path with different keys — reuse the page's own query-options factories so the
-cache dedupes.
+Every authenticated route whose page renders query data **warms that data on hover/intent**
+through a client `loader` that never blocks navigation. Client `loader`s (never server loaders)
+are permitted for this purpose only. The loader is fire-and-forget: it never awaits, never
+renders, never toasts, and a route needs no `pendingComponent` for it. Spec:
+`docs/records/2026-11-08-spec-query-display-and-preload.md` (§4.2, §5, §7, §8).
 
-**This is a guard, not a description.** The query-key subset rule above is enforced statically
-by `src/lib/query/route-loader-query-key-guard.test.ts` (test "every route loader preloads only query
-keys the route's own components pass to useQuery (route-loader query-key subset guard)"): every
-route `loader`'s query keys must be a subset of the query keys that route's own components pass
-to `useQuery`. Inclusion, not equality — a route may query more than it preloads, never the
-reverse. The guard walks the real modules under `src/routes/`, resolves one import hop into
-`lib/query/*` for hook-wrapped queries, and fails loudly — naming the route — on any loader it
-cannot statically resolve (a dynamic loader value, an unresolvable `queryKey` expression, or an
-opaque helper call in a loader that has `queryClient` access). It runs in CI via the
-`ci.yml` job `front-build`, step "Test front (non-vitest report-all)" (`pnpm --filter front test` →
-`pnpm test:design-guards`). A lane that wants to warm the cache for a new surface must satisfy
-this guard — the sanctioning decision is explicit and findable, not emergent.
+**The pieces**
 
-The one shipped example is `src/routes/authed/staff/tenants/$tenantId/roles/$roleId.tsx`
-(#846's skeleton-flash fix, implemented in #851); integration coverage lives in
-`src/lib/navigation/breadcrumb-loader.test.tsx`.
+- **Helper** — `preloadRouteQueries(queryClient, spec)` in `src/lib/query/route-preload.ts`.
+  It starts every entry's query without awaiting. A failure (rejected fetch or throwing
+  `queryKey`) is logged with the error object only and swallowed: the page's own `useQuery` at
+  mount is the request that reports the cause through `QueryDisplay`.
+- **One shared spec per route** — `({ ...params, search }) => ({ name: { options, variables } })`,
+  declared once, in the route file when the page component lives there, otherwise in a
+  route-local `_queries.ts`. The loader and the page components call the same function, so
+  variables cannot drift. A spec declares its own args (path params, parsed search, `tenantId` /
+  `locale` where the page needs them) and may compose other spec functions.
+- **Freshness** — `defaultPreloadStaleTime: 0` in `router.tsx` hands freshness to TanStack
+  Query. The helper passes a factory's `staleTime` **only when the factory declares one**
+  (session-stable factories declare `Infinity`); otherwise the QueryClient default applies. Never
+  write an explicit `staleTime: undefined`.
+- **Hover safety** — the helper **skips any query that already has observers**: a mounted
+  query belongs to the page that renders it. The fetch carries `meta: { routePreload: true }`,
+  and `handleAuthedQueryError` ignores that marker only while no observer is subscribed, so a
+  `401` that lands after the click still logs out; a hover with nothing rendered stays silent.
+- **Tenant id** — `/tenant/*` has no tenant id in the path; a loader gets it from
+  `resolveWorkspaceTenantIdFromCache(queryClient)` (`lib/query/tenants-for-picker.ts`) and warms
+  nothing when it is `null`. The workspace picker query is declared by each tenant spec, not
+  exempted.
+- **Stated limits (not exemptions)** — the cursor lives in React state, so a loader warms the
+  first page of the current filter/sort/size; a deeper cursor fetches at mount. An infinite
+  query's spec owns the initial `restartKey: 0`, the value a fresh mount reads.
+
+**The guard enforces both directions.**
+`src/lib/query/route-loader-query-key-guard.ts` (scanner) and
+`route-loader-query-key-guard.test.ts` (real-tree test plus fixtures under
+`tests/fixtures/route-loader-guard/`) check, over each route's real import graph:
+
+- `loaderKeys ⊆ pageKeys` — a loader never warms a key its page does not use;
+- `pageKeys \ exemptions ⊆ loaderKeys` — no page query is left cold.
+
+Page queries are every direct `useQuery`/`useInfiniteQuery` call and every called `lib/**`
+binding whose body (directly, through a same-module local call, or through another imported
+`lib/**` hook) reaches a query hook — not only `*Query`-named hooks. The `/_authed-layout` route
+is in the route set; its page graph is the pinned app-shell file set. Anything the guard cannot
+resolve statically (dynamic key, unknown helper call in a loader) is a violation naming the
+route, never a silent pass. The guard runs in the design-guards lane (excluded from the default
+`vitest.config.ts`): `pnpm exec vitest run --config vitest.design-guards.config.ts
+src/lib/query/route-loader-query-key-guard.test.ts`, and in CI via `ci.yml` → job `front-build`
+→ step "Test front (non-vitest report-all)".
+
+**The only two exemptions**
+
+1. `// preload-exempt: <reason>` on the line(s) above the `use*Query` / `useQuery` call. The guard
+   reads the **enclosing statement's** leading comments, so a call nested in `const x = …` is
+   covered; an exempt call is skipped before key resolution (a dynamic key is legal). No reason
+   is a failure, and a marker that no longer covers a visited query is a failure (stale). Use it
+   only where a hover genuinely cannot warm the query: a click-opened drawer's picker, data
+   keyed by a row selected on the page, session-stable shell chrome, the root session gate. The
+   current inventory is 14 sites; adding one needs a reason a reviewer accepts.
+2. The route-keyed closed-drawer table `CLOSED_DRAWER_FILES` in the guard module: for a given
+   route id, the `lib/**` binding calls inside named files are not page queries because the route
+   renders them only inside a closed drawer/portal (drafts' create drawer; the role members
+   route's assign-members state). Prefer this to a marker on a component another route renders
+   at mount. An entry whose file leaves the route's page graph fails as stale.
+
+Do not use a loader as a second fetch path with different keys — reuse the page's own
+query-options factories (and, for a key with no named factory, extract one) so the cache dedupes.
+Examples: `src/routes/authed/staff/tenants/$tenantId/roles/$roleId.tsx` (the first loader, #851),
+`$roleId.preload.test.tsx` and the other `*.preload.test.tsx` files.
 
 ## Server-Function Boundary
 
