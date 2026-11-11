@@ -359,7 +359,7 @@
 		var(--radan-ui-status-success) 20%,
 		transparent
 	);
-	--publy-alert-success-text: var(--radan-ui-status-success);
+	--publy-alert-success-text: var(--radan-ui-status-resolved-foreground);
 	--publy-shell-rail-width: 49px;
 	--publy-shell-panel-width: 272px;
 	--publy-shell-topbar-height: 64px;
@@ -551,7 +551,7 @@ html.dark {
 		var(--radan-ui-status-success) 36%,
 		transparent
 	);
-	--publy-alert-success-text: var(--radan-ui-status-success);
+	--publy-alert-success-text: var(--radan-ui-status-resolved-foreground);
 	--publy-selection-bar-bg: #f4f4f5;
 	--publy-selection-bar-fg: #18181b;
 	--publy-selection-bar-border: rgba(212, 212, 216, 0.8);

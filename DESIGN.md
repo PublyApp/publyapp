@@ -68,8 +68,9 @@ Derived from `packages/shared-ts/src/lib/i18n/json/common.{en,fr}.json`:
 `.dark`, plus the `@theme inline` bridge to the Tailwind v4 names `bg-background`, `text-foreground`,
 `bg-primary`, `border-border`, `ring-ring`, `rounded-card`, `shadow-popover`, ...). The `--background`,
 `--publy-*` and `--effect-*` names below are thin aliases onto it: change a colour, radius or
-raised/popover effect in radan-ui, not here. Exactly one value of PublyApp's own overrides radan-ui:
-muted text (`--radan-ui-muted-foreground`, see Contrast). **PublyApp-only tokens** (radan-ui does not
+raised/popover effect in radan-ui, not here. PublyApp overrides radan-ui in exactly two places: the
+muted-text value (`--radan-ui-muted-foreground`, see Contrast) and the Tailwind name `--color-input`, which stays
+the field hairline (`--radan-ui-input-border`) instead of radan-ui's input text colour. **PublyApp-only tokens** (radan-ui does not
 define them): primary active/soft, marketing eyebrow, `--publy-foreground-subtle`, `--publy-border-strong`,
 disabled, table header, row border, dropdown/selection-bar/auth-panel/alert/chart/role-tone sets, the
 avatar palette, shell/container sizes, the z-index scale, motion, the danger-zone and the type scale
@@ -79,7 +80,7 @@ sits right after the import in `app.css`; it is `:root:not(.dark)`, so it relies
 Tailwind utilities read those.
 — source: `apps/front/src/styles/app.css` (`@import '@radandevist/radan-ui/theme.css'`, `:root`, `html.dark`, `@theme inline`), `apps/front/node_modules/@radandevist/radan-ui/dist/theme.css`
 
-**Semantic groups** (light value → dark value; both columns generated from `apps/front/src/styles/app.css`):
+**Semantic groups** (light value → dark value; values resolved through `app.css` aliases onto radan-ui's `theme.css`, as of radan-ui 0.1.1):
 
 | Group                   | Light                                | Dark                     | Notes                                                                                                                         |
 | ----------------------- | ------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |

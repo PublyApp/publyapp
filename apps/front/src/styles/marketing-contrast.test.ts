@@ -225,3 +225,91 @@ const shellHasRenderTimeSubtleTokens = (): boolean => {
 		),
 	);
 };
+
+// #2360: the landing page's night band is a fixed dark canvas in both themes
+// and re-points the page tokens inside it. Tailwind utilities (`text-foreground`
+// on the brand wordmark, `ring-ring` on its link) now read `--radan-ui-*`, so
+// the re-point only works if those variables are re-pointed too. This measures
+// what the scope really resolves to, for BOTH night selectors, against the
+// band's fixed canvas.
+describe('landing night band', () => {
+	const landingCss = readFileSync(
+		path.resolve(process.cwd(), 'src/styles/landing.css'),
+		'utf8',
+	).replace(/\/\*[\s\S]*?\*\//g, '');
+
+	const declarationsFor = (selector: string): Map<string, string> => {
+		const declarations = new Map<string, string>();
+		for (const rule of landingCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+			const selectors = rule[1].split(',').map((entry) => entry.trim());
+			if (!selectors.includes(selector)) {
+				continue;
+			}
+			for (const decl of rule[2].matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+				declarations.set(decl[1], decl[2].trim());
+			}
+		}
+		return declarations;
+	};
+	// `--landing-*` live on `.publy-landing`; they are inherited by the night.
+	const landingRoot = declarationsFor('.publy-landing');
+
+	const mix = (top: string, pct: number, under: string): string => {
+		const a = toRgb(top);
+		const b = toRgb(under);
+		return (
+			'#' +
+			[0, 1, 2]
+				.map((i) =>
+					Math.round((a[i] * pct) / 100 + (b[i] * (100 - pct)) / 100)
+						.toString(16)
+						.padStart(2, '0'),
+				)
+				.join('')
+		);
+	};
+
+	const resolveInNight = (
+		token: string,
+		night: Map<string, string>,
+		theme: 'light' | 'dark',
+	): string => {
+		const raw = night.get(token) ?? landingRoot.get(token);
+		if (raw === undefined) {
+			return resolve(token, theme);
+		}
+		const mixMatch =
+			/^color-mix\(\s*in srgb,\s*var\((--[\w-]+)\)\s+(\d+)%,\s*var\((--[\w-]+)\)\s*\)$/.exec(
+				raw,
+			);
+		if (mixMatch) {
+			return mix(
+				resolveInNight(mixMatch[1], night, theme),
+				Number(mixMatch[2]),
+				resolveInNight(mixMatch[3], night, theme),
+			);
+		}
+		const alias = /^var\((--[\w-]+)\)$/.exec(raw);
+		if (alias) {
+			return resolveInNight(alias[1], night, theme);
+		}
+		return raw;
+	};
+
+	test.each([
+		'.publy-landing .publy-landing-night',
+		'.publy-landing .publy-landing-night-foot',
+	])('%s paints readable text and a visible focus ring', (selector) => {
+		const night = declarationsFor(selector);
+		const canvas = resolve('--publy-auth-panel-bg', 'light');
+
+		for (const theme of ['light', 'dark'] as const) {
+			// What `text-foreground` / `ring-ring` resolve to inside the band.
+			const text = resolveInNight('--radan-ui-foreground', night, theme);
+			const ring = resolveInNight('--radan-ui-ring', night, theme);
+
+			expect(contrast(text, canvas)).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+			expect(contrast(ring, canvas)).toBeGreaterThanOrEqual(3);
+		}
+	});
+});

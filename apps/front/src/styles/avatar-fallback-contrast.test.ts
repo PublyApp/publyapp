@@ -57,6 +57,67 @@ const contrastRatio = (foreground: string, background: string): number => {
 	return (lighter + 0.05) / (darker + 0.05);
 };
 
+const mixOver = (top: string, alpha: number, under: string): string => {
+	const a = parseHex(top);
+	const b = parseHex(under);
+	const channel = (x: number, y: number): string =>
+		Math.round(x * alpha + y * (1 - alpha))
+			.toString(16)
+			.padStart(2, '0');
+	return `#${channel(a.r, b.r)}${channel(a.g, b.g)}${channel(a.b, b.b)}`;
+};
+
+// #2360: pairs whose colours now come from radan-ui through aliases (and
+// through `--color-input`, which app.css deliberately keeps on the field
+// hairline). Measured on the page surface; a field on a card is a pre-existing
+// 4.44:1 light / 4.48:1 dark and is not part of this pin.
+describe('radan-ui aliased text pairs', () => {
+	test.each(['light', 'dark'] as const)(
+		'input placeholder clears AA on a bg-input/50 field over the page in the %s theme',
+		(theme) => {
+			const inputToken = /--color-input:\s*var\((--[\w-]+)\)/.exec(appCss)?.[1];
+			expect(inputToken).toBeDefined();
+			const page = resolveThemeToken('--radan-ui-background', theme);
+			const fill = mixOver(
+				resolveThemeToken(inputToken as string, theme),
+				0.5,
+				page,
+			);
+			const placeholder = resolveThemeToken(
+				'--radan-ui-muted-foreground',
+				theme,
+			);
+
+			expect(contrastRatio(placeholder, fill)).toBeGreaterThanOrEqual(
+				SMALL_TEXT_CONTRAST_FLOOR,
+			);
+		},
+	);
+
+	test.each([
+		['light', '--radan-ui-background'],
+		['light', '--radan-ui-card'],
+		['dark', '--radan-ui-background'],
+		['dark', '--radan-ui-card'],
+	] as const)(
+		'success alert text clears AA on its tint over %s %s',
+		(theme, surfaceToken) => {
+			const surface = resolveThemeToken(surfaceToken, theme);
+			const tint =
+				/color-mix\(\s*in srgb,\s*(#[0-9a-f]{6})\s+(\d+)%,\s*transparent\s*\)/i.exec(
+					resolveThemeToken('--publy-alert-success-bg', theme),
+				);
+			expect(tint).not.toBeNull();
+			const fill = mixOver(tint![1], Number(tint![2]) / 100, surface);
+			const text = resolveThemeToken('--publy-alert-success-text', theme);
+
+			expect(contrastRatio(text, fill)).toBeGreaterThanOrEqual(
+				SMALL_TEXT_CONTRAST_FLOOR,
+			);
+		},
+	);
+});
+
 describe('avatar fallback contrast', () => {
 	test.each([
 		['light', ':root'],
