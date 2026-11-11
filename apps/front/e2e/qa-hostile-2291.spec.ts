@@ -411,11 +411,11 @@ test.describe(
 			await expect(
 				page.getByTestId('app-shell-user-menu-trigger'),
 			).toBeVisible();
-			// The chip shows the « Sans nom » placeholder while the current user
-			// is still loading; read the name only once the real one is there.
-			await expect(page.locator('.app-shell-user-name')).not.toHaveText(
-				'Sans nom',
-			);
+			// While the current user is loading, the chip shows a placeholder and
+			// the label has no name part; read the name only once it is there.
+			await expect(
+				page.getByTestId('app-shell-user-menu-trigger'),
+			).toHaveAttribute('aria-label', /^Menu du compte — .+$/);
 			const visibleName =
 				(await page.locator('.app-shell-user-name').textContent())?.trim() ??
 				'';
