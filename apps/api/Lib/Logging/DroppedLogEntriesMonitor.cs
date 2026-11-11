@@ -53,20 +53,30 @@ public sealed class DroppedLogEntriesMonitor : IAsyncLogEventSinkMonitor {
 	}
 
 	public void Report(IAsyncLogEventSinkInspector inspector) {
+		long delta;
+		long dropped;
 		lock (this._Lock) {
-			var dropped = inspector.DroppedMessagesCount;
+			dropped = inspector.DroppedMessagesCount;
 			if (dropped <= this._Reported) {
 				return;
 			}
 
-			var delta = dropped - this._Reported;
+			delta = dropped - this._Reported;
 			this._Reported = dropped;
+		}
 
+		// Written OUTSIDE the lock and guarded: a blocked or closed stderr must never hang
+		// StopMonitoring (shutdown) nor throw out of the timer callback / logger dispose.
+		try {
 			var writer = this._Output ?? Console.Error;
 			writer.WriteLine(
 				$"[WRN] Log queue '{this._SinkName}' overflowed: {delta} entries dropped "
 				+ $"({dropped} in total since start, buffer size {inspector.BufferSize})."
 			);
+		} catch (IOException) {
+			// stderr gone: nothing left to report to.
+		} catch (ObjectDisposedException) {
+			// same
 		}
 	}
 }

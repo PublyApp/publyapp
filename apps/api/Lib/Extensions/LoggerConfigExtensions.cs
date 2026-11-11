@@ -13,14 +13,16 @@ public static class LoggerConfigExtensions {
 	// Targets IHostApplicationBuilder (design §3.2, F17) so BOTH hosts — the api/all
 	// WebApplication and the worker Generic Host — share one Serilog composition.
 	// AddSerilog is the builder-agnostic equivalent of Host.UseSerilog.
-	public static IHostApplicationBuilder ConfigureLogger(this IHostApplicationBuilder builder) {
-		// #1708: first registered = last stopped, so the async queues drain after every other
-		// hosted service has finished logging.
-		builder.Services.AddHostedService<FlushLogsOnStopHostedService>();
+	// `extend` is a test seam (#1708): lets a spec add a sink to the REAL pipeline.
+	public static IHostApplicationBuilder ConfigureLogger(
+		this IHostApplicationBuilder builder,
+		Action<LoggerConfiguration>? extend = null
+	) {
 		builder.Services.AddSerilog((serviceProvider, loggerConfig) => {
 			var hostEnvironment = serviceProvider.GetRequiredService<IHostEnvironment>();
 
 			LoggerConfigExtensions.BuildLoggerConfiguration(loggerConfig, hostEnvironment);
+			extend?.Invoke(loggerConfig);
 		});
 
 		return builder;
