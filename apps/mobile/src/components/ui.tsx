@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 export const Screen = ({ children }: { children: ReactNode }) => (
@@ -27,18 +28,23 @@ export const ErrorState = ({
 	message: string;
 	onRetry: () => void;
 	children?: ReactNode;
-}) => (
-	<View className="flex-1 items-center justify-center gap-4 px-8">
-		<Text className="text-center text-base text-destructive">{message}</Text>
-		<Pressable
-			className="rounded-control border border-border bg-card px-4 py-2"
-			onPress={onRetry}
-		>
-			<Text className="text-sm font-medium text-foreground">Réessayer</Text>
-		</Pressable>
-		{children}
-	</View>
-);
+}) => {
+	const { t } = useTranslation();
+	return (
+		<View className="flex-1 items-center justify-center gap-4 px-8">
+			<Text className="text-center text-base text-destructive">{message}</Text>
+			<Pressable
+				className="rounded-control border border-border bg-card px-4 py-2"
+				onPress={onRetry}
+			>
+				<Text className="text-sm font-medium text-foreground">
+					{t('retry')}
+				</Text>
+			</Pressable>
+			{children}
+		</View>
+	);
+};
 
 export const SecondaryAction = ({
 	label,
@@ -82,3 +88,18 @@ export const PrimaryButton = ({
 		</Text>
 	</Pressable>
 );
+
+export const SettingsButton = ({ onPress }: { onPress: () => void }) => {
+	const { t } = useTranslation();
+	return (
+		<Pressable
+			accessibilityRole="button"
+			className="rounded-chip border border-border bg-card px-3 py-2"
+			onPress={onPress}
+		>
+			<Text className="text-sm font-medium text-foreground">
+				{t('settings')}
+			</Text>
+		</Pressable>
+	);
+};

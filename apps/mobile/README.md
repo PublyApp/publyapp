@@ -78,11 +78,18 @@ Pick one of these, no API code change needed:
 - The session token is stored with `expo-secure-store`; it is never logged.
 - `401` clears the token and returns to sign-in; `403` never signs out (same rule
   as the web app).
-- Error text on every screen comes from the RFC 7807 problem body's `detail`.
+- Error text on every screen comes from the RFC 7807 problem body's `translationKey`, translated with `response-message.*.json` (never the English `detail`).
 - HTTP is a small typed `fetch` wrapper (`src/lib/api/client.ts`), not Kiota:
   the generated client pulls `@microsoft/kiota-abstractions` plus serializers that
   need Node/Web polyfills React Native does not ship. Revisit when the mobile app
   grows past two endpoints.
+
+## Language
+
+Strings come from `packages/shared-ts/src/lib/i18n/json/` (same FR/EN files as the web
+app; mobile-only keys are prefixed `mobile-` in `common`). Default is the phone
+language (French when it is neither FR nor EN). The choice is made on the sign-in
+screen or in Settings, and saved in `expo-secure-store` (`publy.language`).
 
 ## Layout
 
@@ -92,6 +99,8 @@ src/app/index.tsx        routing after hydrate (tenants or posts)
 src/app/sign-in.tsx      email + password
 src/app/tenants.tsx      organisation picker
 src/app/posts.tsx        read-only posts list
+src/app/settings.tsx     language choice (Français / English) + sign out
+src/lib/i18n/            i18next setup, phone-language default, saved choice
 src/lib/api/             typed fetch wrapper + wire types
 src/lib/auth/            secure-store session + auth context (401 rule)
 src/components/          screen states + root navigator

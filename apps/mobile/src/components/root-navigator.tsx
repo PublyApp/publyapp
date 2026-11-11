@@ -32,6 +32,7 @@ export const RootNavigator = () => {
 			<Stack.Screen name="sign-in" />
 			<Stack.Screen name="tenants" />
 			<Stack.Screen name="posts" />
+			<Stack.Screen name="settings" />
 		</Stack>
 	);
 };
