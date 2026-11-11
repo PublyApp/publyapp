@@ -66,9 +66,7 @@ const buildTheme = (theme: ThemeName): Map<string, string> => {
 		theme === 'light'
 			? [
 					[radanCss, /^:root\s*\{/],
-					// The workaround for radan-ui's self-cycling light
-					// `--radan-ui-card-foreground` (see app.css).
-					[appCss, /^:root(:not\(\.dark\))?\s*\{/],
+					[appCss, /^:root\s*\{/],
 				]
 			: [
 					[radanCss, /^:root\s*\{/],
@@ -96,6 +94,13 @@ export const themeDeclarations = (theme: ThemeName): Map<string, string> =>
 /** radan-ui's own `@theme inline` map (`--color-ring: var(--radan-ui-ring)`). */
 export const radanThemeInlineDeclarations = (): Map<string, string> =>
 	declarationsOf(extractBlocks(radanCss, /^@theme inline\s*\{/));
+
+/** The Tailwind `@theme inline` map in effect: app.css's block over radan-ui's. */
+export const themeInlineDeclarations = (): Map<string, string> =>
+	new Map([
+		...radanThemeInlineDeclarations(),
+		...declarationsOf(extractBlocks(appCss, /^@theme inline\s*\{/)),
+	]);
 
 /** Resolves a token to its final value, following `var()` chains. */
 export const resolveThemeToken = (name: string, theme: ThemeName): string => {

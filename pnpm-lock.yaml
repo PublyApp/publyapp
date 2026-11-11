@@ -142,8 +142,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared-ts
       '@radandevist/radan-ui':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.2.0
+        version: 0.2.0
       '@tabler/icons-react':
         specifier: 3.50.0
         version: 3.50.0(react@19.3.1)
@@ -2211,8 +2211,8 @@ packages:
   '@posthog/types@1.419.0':
     resolution: {integrity: sha512-XX7zRYt/vK8AzaD6V+oDquAzacZf5exJv971dja9En8Qf6g84Qvc3rpT0w6hDYYLWrjaSSkdjFfvvoXI0ouJDg==}
 
-  '@radandevist/radan-ui@0.1.1':
-    resolution: {integrity: sha512-0ElrP6/g5/w/+aJAnEVYaogV8k46EKPE/MBN7Eqzc5hJRh7EBxoMvPRt+9D0z2sVmiVqfwWNEObw0ZsUjgoBJw==}
+  '@radandevist/radan-ui@0.2.0':
+    resolution: {integrity: sha512-uxlnLjAIGiUDBIZr1QgvubXRKKlSwK4Nll0knuesFcNLtUnxhafthrWGAg9pYLzuAoZcVviyabhCJzuXRSpzew==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -8044,7 +8044,7 @@ snapshots:
 
   '@posthog/types@1.419.0': {}
 
-  '@radandevist/radan-ui@0.1.1': {}
+  '@radandevist/radan-ui@0.2.0': {}
 
   '@radix-ui/primitive@1.2.0': {}
 
