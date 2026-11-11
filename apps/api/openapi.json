@@ -17907,7 +17907,7 @@
               "null",
               "string"
             ],
-            "description": "The first day the series is measured from (the earliest recorded\ntransition), for the metrics backed by a recorded history\n(`active_tenants`). The days before it are not measured values and\nmust not be shown as 0 (#2349). `null` for the audit-log metrics,\nwhich cover the whole window."
+            "description": "The first day the series is measured from (the earliest recorded\ntransition), for the metrics backed by a recorded history\n(`active_tenants`). The days before it are not measured values and\nmust not be shown as 0 (#2349). `null` for the audit-log metrics and\nfor `members` / `pending_invitations` (rebuilt from the rows'\nown timestamps, exact back to the first row), which cover the whole window."
           },
           "points": {
             "type": "array",
