@@ -1,6 +1,6 @@
 # Plan — daily series for members and pending invitations (#2355)
 
-Date: 2026-11-11. Status: proposed, awaiting owner review. Issue #2355 (related #2339, #2349, #2364,
+Date: 2026-11-11. Status: proposed; amended 2026-11-11 with the owner's answers (see section 11). Issue #2355 (related #2339, #2349, #2364,
 #2348). Prior art: PR #2367 (`fdb6b2779`, active-organisations series), `da0dfc029` (sign-in series),
 `3cf48ad31` (series endpoint).
 
@@ -13,11 +13,14 @@ delta + sparkline to those cards, the same way as « Événements d'audit »."
 | Card | Source today | Exact predicate |
 | --- | --- | --- |
 | « Membres des organisations » | `GET /staff/tenants` unfiltered `counts.members` (`TenantAsStaffService.FindTenantsAsStaffAsync`) | `user_accounts` with `Scope = Tenant`, `!IsDeleted`, `!User.IsDeleted`, in a tenant with `!IsDeleted`. A suspended membership or a globally suspended user **still counts**. |
-| « Invitations en attente » | `GET /staff/invitations?status=pending` `counts.pending` (`InvitationQueryService.FindStaffInvitationsAsync`) | `invitations` with `Scope = Staff`, `Status = Pending`, `ExpiresAt > now`. |
+| « Invitations en attente » | Today: `GET /staff/invitations?status=pending` `counts.pending` (staff-scope invitations). **Owner decision 11/11: it must count organisation invitations**, so the figure moves to the tenants read's `counts.pendingInvitations` (see below). |
 
-The pending-invitations card is the **staff-scope** invitation list (platform staff invitations), not
-the organisation invitations (those are `counts.pendingInvitations` of the tenants read, which no
-card uses). The series follows the card. See open question Q1.
+Tenants read definition today (`TenantAsStaffService.FindTenantsAsStaffAsync`, the source of the
+tenants list KPI « Invitations en attente — N organisation(s) concernée(s) »): `invitations` with
+`Scope = Tenant`, `Status = Pending`, `!IsDeleted`, `TenantId` not null, in an organisation of the
+base query (`!tenant.IsDeleted`; **all organisation statuses** — pending, active, suspended — count).
+It does **not** test `ExpiresAt`: a pending invitation past its expiry is still counted today, while
+the staff list (and the owner's wording "not expired") excludes it. See section 11, Q3.
 
 ## 2. Investigation: is the data exact enough?
 
@@ -43,12 +46,17 @@ Conclusion: the timestamps are exact. Nothing needs recording.
 
 ### Pending invitations (`invitations`)
 
+- The invitations in scope are now `Scope = Tenant` (with a `TenantId`); the same fields apply to
+  every scope.
 - `CreatedAt`, `ExpiresAt` (required, never rewritten after creation: resend does not touch it),
   `AcceptedAt` (set by the 4 acceptance paths in `InvitationAcceptanceService`, together with
   `Status = Accepted`), `RevokedAt` (set by the 2 paths in `InvitationRevokeService`, together with
   `Status = Revoked`), `IsDeleted`/`DeletedAt`.
 - Expiry is derived (`Pending` + `ExpiresAt`), so "expired on day D" is computable from `ExpiresAt`.
 - No code path hard-deletes or soft-deletes an invitation.
+- The organisation's liveness matters for tenant-scope invitations: the tenants read ignores
+  invitations of a deleted organisation. `tenants.DeletedAt` is exact (same as members); suspension
+  is not a filter (suspended organisations count), so its missing timestamps do not matter.
 - Status transitions are one-way (Pending to Accepted or Revoked), so a row has at most one
   "leaves pending" instant.
 
@@ -94,14 +102,17 @@ card's current figure.
 Suspended accounts/users count, as on the card. The value is the number of such rows (accounts, as
 the card counts accounts).
 
-**Pending invitation on day D** — an `invitations` row `i` such that:
+**Pending invitation on day D** (organisation invitation) — an `invitations` row `i` such that:
 
-- `i.Scope = Staff`, and `i.CreatedAt < T(D)`;
+- `i.Scope = Tenant`, `i.TenantId` not null, and `i.CreatedAt < T(D)`;
+- its organisation: `t.DeletedAt` is null or `>= T(D)` (suspended and pending organisations count);
 - `i.AcceptedAt` is null or `>= T(D)`;
 - `i.RevokedAt` is null or `>= T(D)`;
-- `i.ExpiresAt > T(D)`;
+- `i.ExpiresAt > T(D)` (not expired; see Q3 for the tenants read);
 - `i.DeletedAt` is null or `>= T(D)` (no path deletes today; kept so a future soft delete is
   consistent).
+
+Today's point equals `counts.pendingInvitations` of the tenants read once Q3 is applied (task 5b).
 
 Both are **stock** series (a level at the end of the day), unlike the audit series which are flows.
 
@@ -140,7 +151,8 @@ No migration, no backfill, no new table, no index (see performance).
     `u.DeletedAt`, `t.DeletedAt`, for rows with `a.CreatedAt < T(end)` and `exit` null or
     `>= T(start of window)`. Rows that entered before the window feed the starting level.
   - Invitations: project `(i.CreatedAt, exit)` where `exit` is the earliest of `AcceptedAt`,
-    `RevokedAt`, `ExpiresAt`, `DeletedAt`, same overlap filter, `Scope = Staff`.
+    `RevokedAt`, `ExpiresAt`, `DeletedAt` and the organisation's `DeletedAt`, same overlap filter,
+    `Scope = Tenant`, joined to `tenants` (query syntax).
   - A row is counted on day D iff `enter < T(D)` and (`exit` is null or `exit >= T(D)`). For
     invitations `ExpiresAt` is exclusive (`ExpiresAt > T(D)`) while the other exits use `>=`; keep
     the two comparisons separate in code and in tests.
@@ -148,7 +160,7 @@ No migration, no backfill, no new table, no index (see performance).
   row); if members pass ~100k rows, group the entries and exits by day in SQL and read a baseline
   count before the window.
 - Performance: the existing indexes (`user_accounts (tenant_id, scope)`, `invitations (tenant_id,
-  scope)`) are enough at this scale; the staff-scope invitation count is tiny. Add an index only if a
+  scope)`) are enough at this scale; the tenant-scope invitation count is small. Add an index only if a
   measured query needs it.
 
 ## 7. Front changes
@@ -170,8 +182,13 @@ Files under `apps/front/src/routes/authed/staff/dashboard/` and `lib/query/staff
    `undefined` when the previous last point is 0 or missing. `formatSignedPercent` is reused.
 5. `_overview-kpis.tsx`: the members and pending-invitations `KpiCard`s receive `deltaQuery` (the
    previous series), `delta`, `deltaPeriod` (`dashboard-delta-vs-previous`, same string as the audit
-   card) and `sparkline` (the current series values), exactly the props the audit card uses; the
-   figure and the main `query` stay the current live ones (`counts.members`, `counts.pending`). The
+   card) and `sparkline` (the current series values), exactly the props the audit card uses. The
+   members figure and main `query` stay `counts.members` of `countsQuery`. The pending-invitations
+   card's figure and main `query` become `countsQuery`'s `counts.pendingInvitations` (the same
+   unfiltered tenants read the members and active-organisations cards already use): **no new
+   endpoint and no new field**, the figure source simply changes from the staff invitations list.
+   The `pendingInvitations` / `pendingInvitationsQuery` staff-invitations query stays only for the
+   « Invitations en attente » list below the cards (see Q4). The
    header comment that says "only the audit-events card has a series" is updated. `KpiCard` itself is
    not modified: the delta footer already goes through `QueryDisplay` (`discreet`), so a series that
    fails never hides the figure.
@@ -195,15 +212,20 @@ API (`*.Spec.cs`, `Spec` suffix and BDD names per docs/guides/test-conventions.m
   days stay `0`; today's last point equals the live count (card parity); non-tenant-scope accounts
   (staff, project) are ignored; window bounds inclusive; `recordedSince` is `null`.
 - `pending_invitations`: pending from `CreatedAt` day; accepted and revoked leave on their day;
-  expires on the `ExpiresAt` boundary (exclusive); tenant/project-scope invitations ignored; today's
-  point equals `counts.pending` of the staff invitations endpoint (parity spec); `recordedSince`
-  `null`.
+  expires on the `ExpiresAt` boundary (exclusive); staff and project-scope invitations ignored;
+  invitations of a soft-deleted organisation leave on its `DeletedAt` day; suspended and pending
+  organisations still count; today's point equals `counts.pendingInvitations` of the tenants read
+  (parity spec); `recordedSince` `null`.
+- Tenants read (`FindTenantsAsStaff` spec): `counts.pendingInvitations`, `pendingInvitationTenants`
+  exclude a pending invitation whose `ExpiresAt` has passed (Q3); existing facet specs updated.
 - Validation: unknown metric still 400 and the message now lists the two new metrics; 401/403 specs
   unchanged.
 - Parity specs are the guard against drifting from the card's definition.
 
 Front (vitest):
 
+- `index.test.tsx`: the pending-invitations card figure comes from the tenants read
+  (`counts.pendingInvitations`), not from the staff invitations list.
 - `_dashboard-format.test.ts`: `stockDelta` up / down / previous 0 / missing data.
 - `index.test.tsx`: both cards show delta + sparkline with the series mocked; no delta when the
   previous window is empty; a failing series leaves the figure visible.
@@ -219,6 +241,9 @@ Front (vitest):
    handler. Green.
 4. API (red/green): the `pending_invitations` specs, then `GetPendingInvitationSeriesAsync` + `case`.
 5. API: parity specs with the live counts; validation-message spec.
+5b. API (Q3): make the tenants read's `PendingInvitations` / `PendingInvitationTenants` ignore
+    expired invitations (`ExpiresAt > now`), with its specs. File:
+    `Modules/Tenants/Services/TenantAsStaffService.cs` and its spec.
 6. Contract: regenerate `apps/api/openapi.json` and `packages/client-ts` (no diff expected); extend
    `StaffDashboardMetric` in `lib/query/staff-dashboard.ts`.
 7. Front: `stockDelta` in `_dashboard-format.ts` with its tests.
@@ -229,11 +254,24 @@ Front (vitest):
     route-loader guard), typecheck, openapi/Kiota check; then annotated UI screenshots on the PR as
     the project requires for UI PRs.
 
-## 10. Open questions for the owner
+## 10. Owner decisions
 
-- **Q1.** « Invitations en attente » today counts **staff** invitations (the staff invitations list).
-  Is that the intended meaning, or should the card (and series) count **organisation** invitations
-  (the `pendingInvitations` of the tenants read)? This plan follows the card as it is; switching the
-  scope is a one-line predicate change plus the card's figure source.
-- **Q2.** Should the member series stay "accounts in live organisations, suspended included" (the
-  card's current rule)? This plan keeps it so the last point equals the card.
+- **Q1 (answered 11/11).** The card counts **organisation** invitations. Figure from the tenants
+  read's `counts.pendingInvitations`; series `pending_invitations` uses the same definition
+  (section 4).
+- **Q2 (answered 11/11).** Members keep the card's rule: accounts in non-deleted organisations,
+  suspended members included.
+
+## 11. Amendment 2026-11-11 and remaining questions
+
+Sections 1, 2, 4, 6, 7, 8 and 9 were amended for Q1: scope `Staff` became `Tenant`, the organisation's
+liveness joined the definition, the card's figure source changed, task 5b added.
+
+- **Q3.** The tenants read counts a pending invitation even after its `ExpiresAt`; the owner's
+  definition ("not expired") and the previous card exclude it. This plan makes the tenants read
+  exclude expired invitations too (task 5b), so the list KPI, the card and the series agree. That
+  changes the tenants list KPI number slightly. Alternative: keep expired ones counted everywhere
+  (drop `ExpiresAt` from the series definition). Confirm.
+- **Q4.** The « Invitations en attente » **list** under the cards still shows staff invitations
+  (`staffInvitationsQueryOptions`). It is out of scope here; if the owner wants it to follow the card
+  it needs a follow-up issue (a tenant-scope invitations read for the dashboard).
