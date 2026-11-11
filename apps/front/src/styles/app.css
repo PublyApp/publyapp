@@ -194,8 +194,8 @@
 	--publy-border: var(--radan-ui-border);
 	--publy-border-strong: #d4d4d8;
 	--publy-input-border: var(--radan-ui-input-border);
-	/* Dashed drop-zone hairline: Shopkart's `--input` — darker than the field
-	   hairline so a dashed surface reads as a target in both themes. */
+	/* Dashed drop-zone hairline: radan-ui's `input-foreground` (the old field text
+	   colour, Shopkart's old `--input`) — darker than the field hairline so a dashed surface reads as a target in both themes. */
 	--publy-dropzone-border: var(--radan-ui-input-foreground);
 	--publy-row-border: #f1f1f3;
 	/* #2292: the focus indicator is the near-black foreground in light mode

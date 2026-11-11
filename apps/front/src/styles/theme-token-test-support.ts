@@ -95,6 +95,13 @@ export const themeDeclarations = (theme: ThemeName): Map<string, string> =>
 export const radanThemeInlineDeclarations = (): Map<string, string> =>
 	declarationsOf(extractBlocks(radanCss, /^@theme inline\s*\{/));
 
+/** The Tailwind `@theme inline` map in effect: app.css's block over radan-ui's. */
+export const themeInlineDeclarations = (): Map<string, string> =>
+	new Map([
+		...radanThemeInlineDeclarations(),
+		...declarationsOf(extractBlocks(appCss, /^@theme inline\s*\{/)),
+	]);
+
 /** Resolves a token to its final value, following `var()` chains. */
 export const resolveThemeToken = (name: string, theme: ThemeName): string => {
 	const declarations = THEMES[theme];
