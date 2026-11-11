@@ -487,7 +487,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			if (row.TenantId is { } invitationTenantId) {
 				pendingInvitationTenantIds.Add(invitationTenantId);
 			}
-			if (row.ExpiresAt > now && row.ExpiresAt <= expiringBoundary) {
+			// Every row is already unexpired (the query tests ExpiresAt > now).
+			if (row.ExpiresAt <= expiringBoundary) {
 				expiringInvitations += 1;
 			}
 		}
