@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	ActivityIndicator,
 	FlatList,
+	type ListRenderItem,
 	Pressable,
 	Text,
 	View,
@@ -41,12 +42,37 @@ const formatDate = (isoDate: string): string => {
 
 const PAGE_SIZE = 20;
 
+const PostCard = ({ post }: { post: PostSummary }) => {
+	const status = STATUS_CLASS[post.status] ?? STATUS_CLASS.draft;
+	return (
+		<View className="rounded-control border border-border bg-card px-4 py-4">
+			<View className="flex-row items-center justify-between">
+				<View className={`rounded-chip px-2 py-1 ${status.pill}`}>
+					<Text className={`text-xs font-medium ${status.text}`}>
+						{STATUS_LABEL[post.status] ?? post.status}
+					</Text>
+				</View>
+				<Text className="text-xs text-foreground-muted">
+					{formatDate(post.createdAt)}
+				</Text>
+			</View>
+			<Text className="mt-3 text-base text-foreground" numberOfLines={4}>
+				{post.bodyPreview}
+			</Text>
+		</View>
+	);
+};
+
+const renderPost: ListRenderItem<PostSummary> = ({ item }) => (
+	<PostCard post={item} />
+);
+
 const PostsScreen = () => {
 	const { request } = useAuth();
 	const router = useRouter();
 	const [posts, setPosts] = useState<PostSummary[] | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	const [nextCursor, setNextCursor] = useState<string | null>(null);
+	const nextCursorRef = useRef<string | null>(null);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 	const [loadMoreError, setLoadMoreError] = useState(false);
 	const loadingMoreRef = useRef(false);
@@ -61,12 +87,12 @@ const PostsScreen = () => {
 
 	const load = useCallback(async () => {
 		setErrorMessage(null);
-		setNextCursor(null);
+		nextCursorRef.current = null;
 		setLoadMoreError(false);
 		try {
 			const result = await request<PostsResponse>(buildUrl(null));
 			setPosts(result.data);
-			setNextCursor(result.nextCursor);
+			nextCursorRef.current = result.nextCursor;
 		} catch (error) {
 			setPosts([]);
 			setErrorMessage(
@@ -82,6 +108,7 @@ const PostsScreen = () => {
 	}, [load]);
 
 	const loadMore = useCallback(async () => {
+		const nextCursor = nextCursorRef.current;
 		if (
 			loadingMoreRef.current ||
 			nextCursor === null ||
@@ -98,14 +125,14 @@ const PostsScreen = () => {
 			setPosts((prev) =>
 				prev === null ? result.data : [...prev, ...result.data],
 			);
-			setNextCursor(result.nextCursor);
+			nextCursorRef.current = result.nextCursor;
 		} catch {
 			setLoadMoreError(true);
 		} finally {
 			setIsLoadingMore(false);
 			loadingMoreRef.current = false;
 		}
-	}, [nextCursor, posts, request, buildUrl]);
+	}, [posts, request, buildUrl]);
 
 	if (posts === null) {
 		return <LoadingState label="Chargement des publications…" />;
@@ -187,29 +214,7 @@ const PostsScreen = () => {
 							void loadMore();
 						}}
 						onEndReachedThreshold={0.5}
-						renderItem={({ item }) => {
-							const status = STATUS_CLASS[item.status] ?? STATUS_CLASS.draft;
-							return (
-								<View className="rounded-control border border-border bg-card px-4 py-4">
-									<View className="flex-row items-center justify-between">
-										<View className={`rounded-chip px-2 py-1 ${status.pill}`}>
-											<Text className={`text-xs font-medium ${status.text}`}>
-												{STATUS_LABEL[item.status] ?? item.status}
-											</Text>
-										</View>
-										<Text className="text-xs text-foreground-muted">
-											{formatDate(item.createdAt)}
-										</Text>
-									</View>
-									<Text
-										className="mt-3 text-base text-foreground"
-										numberOfLines={4}
-									>
-										{item.bodyPreview}
-									</Text>
-								</View>
-							);
-						}}
+						renderItem={renderPost}
 						ListFooterComponent={listFooter}
 					/>
 				)}

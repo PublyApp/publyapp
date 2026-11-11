@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,6 +7,31 @@ import { EmptyState, ErrorState, LoadingState, Screen } from '@/components/ui';
 import { ApiError } from '@/lib/api/client';
 import type { TenantSummary, TenantsForPickerResponse } from '@/lib/api/types';
 import { useAuth } from '@/lib/auth/auth-context';
+
+type TenantRowProps = {
+	tenant: TenantSummary;
+	onSelect: (tenantId: string) => void;
+};
+
+const TenantRow = memo(({ tenant, onSelect }: TenantRowProps) => {
+	const onPress = useCallback(() => {
+		onSelect(tenant.id);
+	}, [onSelect, tenant.id]);
+
+	return (
+		<Pressable
+			accessibilityRole="button"
+			className="rounded-control border border-border bg-card px-4 py-4 active:bg-white"
+			onPress={onPress}
+		>
+			<Text className="text-base font-semibold text-foreground">
+				{tenant.name}
+			</Text>
+			<Text className="mt-1 text-sm text-foreground-muted">{tenant.code}</Text>
+		</Pressable>
+	);
+});
+TenantRow.displayName = 'TenantRow';
 
 const TenantsScreen = () => {
 	const { request, selectTenant, signOut } = useAuth();
@@ -35,10 +60,21 @@ const TenantsScreen = () => {
 		void load();
 	}, [load]);
 
-	const onSelect = async (tenantId: string) => {
-		await selectTenant(tenantId);
-		router.replace('/posts');
-	};
+	const onSelect = useCallback(
+		(tenantId: string) => {
+			void selectTenant(tenantId).then(() => {
+				router.replace('/posts');
+			});
+		},
+		[selectTenant, router],
+	);
+
+	const renderTenant = useCallback(
+		({ item }: { item: TenantSummary }) => (
+			<TenantRow onSelect={onSelect} tenant={item} />
+		),
+		[onSelect],
+	);
 
 	if (tenants === null) {
 		return <LoadingState label="Chargement des organisations…" />;
@@ -78,22 +114,7 @@ const TenantsScreen = () => {
 						contentContainerClassName="gap-3 pb-8"
 						data={tenants}
 						keyExtractor={(tenant) => tenant.id}
-						renderItem={({ item }) => (
-							<Pressable
-								accessibilityRole="button"
-								className="rounded-control border border-border bg-card px-4 py-4 active:bg-white"
-								onPress={() => {
-									void onSelect(item.id);
-								}}
-							>
-								<Text className="text-base font-semibold text-foreground">
-									{item.name}
-								</Text>
-								<Text className="mt-1 text-sm text-foreground-muted">
-									{item.code}
-								</Text>
-							</Pressable>
-						)}
+						renderItem={renderTenant}
 					/>
 				)}
 
