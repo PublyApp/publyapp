@@ -198,7 +198,7 @@
 	],
 	"dependencies": {
 		"@base-ui/react": "1.9.0",
-		"@hookform/resolvers": "6.0.0",
+		"@hookform/resolvers": "7.0.3",
 		"@microsoft/kiota-abstractions": "catalog:",
 		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.111",
 		"@org/client-ts": "workspace:*",
