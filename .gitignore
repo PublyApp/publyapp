@@ -80,3 +80,10 @@ packages/*/.artifacts/
 packages/scripts-cs/bin/
 packages/scripts-cs/obj/
 .dump
+
+# Expo (apps/mobile)
+apps/mobile/.expo/
+apps/mobile/expo-env.d.ts
+
+# Local pnpm store/cache used when the shared store is not writable
+.pnpm-cache/

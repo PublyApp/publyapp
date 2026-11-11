@@ -1,0 +1,18 @@
+{
+	"expo": {
+		"name": "PublyApp",
+		"slug": "publyapp",
+		"version": "0.0.1",
+		"scheme": "publyapp",
+		"orientation": "portrait",
+		"userInterfaceStyle": "light",
+		"newArchEnabled": true,
+		"android": {
+			"package": "app.publy.mobile"
+		},
+		"plugins": ["expo-router", "expo-secure-store"],
+		"updates": {
+			"enabled": false
+		}
+	}
+}
