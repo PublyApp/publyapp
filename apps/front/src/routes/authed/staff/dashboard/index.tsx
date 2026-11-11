@@ -257,7 +257,7 @@ const Overview = () => {
 				auditQuery={auditQuery}
 				previousSeriesQuery={previousSeriesQuery}
 				auditDelta={auditDelta}
-				auditDeltaPeriod={deltaPeriod}
+				deltaPeriod={deltaPeriod}
 				auditSparkline={(seriesQuery.data?.points ?? []).map(
 					(point) => point.value ?? 0,
 				)}

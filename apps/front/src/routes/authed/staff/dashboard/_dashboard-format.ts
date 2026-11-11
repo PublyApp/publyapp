@@ -45,7 +45,7 @@ export const formatShare = (
 			}).format(value / total);
 
 /** « +12,5 % » — the KPI delta, always signed. */
-export const formatSignedPercent = (value: number, locale: string): string =>
+const formatSignedPercent = (value: number, locale: string): string =>
 	numberFormat(locale, {
 		style: 'percent',
 		maximumFractionDigits: 1,

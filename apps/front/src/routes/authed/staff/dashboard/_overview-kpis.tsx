@@ -61,7 +61,7 @@ export const OverviewKpis = ({
 	auditQuery,
 	previousSeriesQuery,
 	auditDelta,
-	auditDeltaPeriod,
+	deltaPeriod,
 	auditSparkline,
 	membersSeriesQuery,
 	previousMembersSeriesQuery,
@@ -84,7 +84,8 @@ export const OverviewKpis = ({
 		Error
 	>;
 	auditDelta?: { label: string; direction: 'up' | 'down' };
-	auditDeltaPeriod?: string;
+	/** The comparison window's name, shared by the three cards with a delta. */
+	deltaPeriod?: string;
 	auditSparkline?: readonly number[];
 	/** The level cards' series (#2355): this window and the previous one. */
 	membersSeriesQuery: SeriesQuery;
@@ -105,7 +106,7 @@ export const OverviewKpis = ({
 			query={seriesQuery}
 			deltaQuery={previousSeriesQuery}
 			delta={auditDelta}
-			deltaPeriod={auditDeltaPeriod}
+			deltaPeriod={deltaPeriod}
 			sparkline={auditSparkline}
 		/>
 	);
@@ -130,7 +131,7 @@ export const OverviewKpis = ({
 				{...levelTrend(
 					membersSeriesQuery,
 					previousMembersSeriesQuery,
-					auditDeltaPeriod,
+					deltaPeriod,
 					locale,
 				)}
 			/>
@@ -154,7 +155,7 @@ export const OverviewKpis = ({
 				{...levelTrend(
 					pendingInvitationsSeriesQuery,
 					previousPendingInvitationsSeriesQuery,
-					auditDeltaPeriod,
+					deltaPeriod,
 					locale,
 				)}
 			/>

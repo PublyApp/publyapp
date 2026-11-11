@@ -354,9 +354,9 @@ const withData = () => {
 		recordedSince: addIsoDays(today, -29),
 	};
 	mocks.previousSeriesQuery.data = { points: points(30, 148) };
-	mocks.membersSeriesQuery.data = { points: points(30, 1284) };
+	mocks.membersSeriesQuery.data = { points: points(30, 1280) };
 	mocks.previousMembersSeriesQuery.data = { points: points(30, 1200) };
-	mocks.pendingSeriesQuery.data = { points: points(30, 7) };
+	mocks.pendingSeriesQuery.data = { points: points(30, 6) };
 	mocks.previousPendingSeriesQuery.data = { points: points(30, 10) };
 	mocks.heatmapQuery.data = { points: points(365, 12) };
 };
@@ -477,7 +477,12 @@ describe('staff dashboard overview', () => {
 		const membersDelta = within(members).getByTestId(
 			'staff-dashboard-kpi-members-delta',
 		);
-		// 1284 against 1200 is +7 %: a level compared with a level.
+		// The figure (1,284) comes from the tenants read; the series ends on
+		// 1,280, so only the read can have drawn it. 1,280 against 1,200 is up.
+		expect(within(members).getByText('1,284')).toBeTruthy();
+		expect(
+			members.querySelector('svg.kpi-spark:not(.ghost-svg)'),
+		).not.toBeNull();
 		expect(membersDelta.getAttribute('data-dir')).toBe('up');
 		expect(within(members).getByText('vs previous 30 days')).toBeTruthy();
 
