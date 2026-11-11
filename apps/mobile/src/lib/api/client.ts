@@ -12,6 +12,18 @@ const TENANT_ID_HEADER =
 
 const FALLBACK_STATUS_MESSAGE = 'Erreur serveur';
 
+/**
+ * The API's `detail` is English; the web app translates `translationKey`
+ * instead. v0 is French-only, so the keys the mobile screens can meet are
+ * mapped here (wording copied from shared-ts response-message.fr.json). An
+ * unknown key falls back to a French status message, never the English text.
+ */
+const FRENCH_MESSAGES = new Map([
+	['invalid-email-or-password', 'Email ou mot de passe invalide'],
+	['user-suspended', 'Utilisateur suspendu'],
+	['user-not-verified', 'Utilisateur non vérifié'],
+]);
+
 export class ApiError extends Error {
 	readonly status: number;
 	readonly detail: string;
@@ -33,7 +45,7 @@ export type ApiRequestOptions = {
 
 /** RFC 7807 problem body — the only fields this app reads. */
 type ProblemBody = {
-	detail?: unknown;
+	translationKey?: unknown;
 };
 
 const parseProblemBody = (text: string): ProblemBody | null => {
@@ -48,12 +60,9 @@ const parseProblemBody = (text: string): ProblemBody | null => {
 	}
 };
 
-const readProblemDetail = (body: ProblemBody | null): string | null => {
-	if (body === null) {
-		return null;
-	}
-	const detail = body.detail;
-	return typeof detail === 'string' && detail.length > 0 ? detail : null;
+const readProblemMessage = (body: ProblemBody | null): string | null => {
+	const key = body?.translationKey;
+	return typeof key === 'string' ? (FRENCH_MESSAGES.get(key) ?? null) : null;
 };
 
 const getApiBaseUrl = (): string => {
@@ -109,7 +118,7 @@ export const apiRequest = async <T>(
 	if (!response.ok) {
 		throw new ApiError(
 			response.status,
-			readProblemDetail(problem) ??
+			readProblemMessage(problem) ??
 				`${FALLBACK_STATUS_MESSAGE} (${response.status})`,
 		);
 	}
