@@ -237,7 +237,7 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 			rowMenu.locator(
 				'[data-slot="dropdown-menu-item"][data-variant="destructive"]',
 			),
-		).toHaveCSS('color', 'rgb(220, 38, 38)');
+		).toHaveCSS('color', 'rgb(185, 28, 28)');
 
 		await page.getByRole('menuitem', { name: 'Suspend' }).click();
 		const confirmDialog = page.getByRole('alertdialog');
@@ -265,10 +265,10 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		);
 
 		const confirmButton = modalFooter.getByRole('button', { name: 'Suspend' });
-		await expect(confirmButton).toHaveCSS('color', 'rgb(220, 38, 38)');
+		await expect(confirmButton).toHaveCSS('color', 'rgb(185, 28, 28)');
 		await expect(confirmButton).toHaveCSS(
 			'background-color',
-			'rgba(220, 38, 38, 0.1)',
+			'color(srgb 0.72549 0.109804 0.109804 / 0.1)',
 		);
 		await expect(confirmButton).toHaveCSS('font-weight', '600');
 	});
