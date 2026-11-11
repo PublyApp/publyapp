@@ -1984,12 +1984,20 @@
 	"mobile-no-posts-description": "This organization doesn't have any posts yet.",
 	"mobile-load-more-failed": "Could not load more. Tap to retry.",
 	"mobile-choose-organization": "Choose an organization",
-	"mobile-choose-organization-description": "Your posts belong to each organization.",
+	"mobile-choose-organization-description": "Your posts are specific to each organization.",
 	"mobile-no-organizations": "No organization available for this account.",
 	"mobile-server-error": "Server error ({{status}})",
 	"mobile-request-refused": "The request was refused ({{status}})",
 	"mobile-server-timeout": "The server is not responding. Try again.",
 	"mobile-server-unreachable": "Server unreachable. Check EXPO_PUBLIC_API_URL and the network.",
 	"mobile-api-url-missing": "EXPO_PUBLIC_API_URL is missing. See apps/mobile/README.md.",
-	"mobile-settings-button": "Settings"
+	"mobile-status-draft": "Draft",
+	"mobile-status-scheduled": "Scheduled",
+	"mobile-status-published": "Published",
+	"mobile-language-save-failed": "Could not save your language choice. It will reset when you restart the app.",
+	"mobile-error-forbidden": "You don't have access to this.",
+	"mobile-error-invalid-input": "The information entered is not valid.",
+	"mobile-error-too-many-requests": "Too many attempts. Wait a moment and try again.",
+	"mobile-error-unavailable": "The service is temporarily unavailable. Try again later.",
+	"mobile-error-not-found": "We could not find what you were looking for."
 }

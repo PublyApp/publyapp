@@ -20,6 +20,26 @@ const fallbackStatusMessage = (status: number): MessageSpec => ({
 });
 
 /**
+ * The shared response-message wording for these is developer-facing
+ * ("Request body validation failed"), so the app shows its own sentence.
+ */
+const MOBILE_ERROR_KEYS = new Map([
+	['forbidden', 'mobile-error-forbidden'],
+	['user-does-not-have-the-necessary-permissions', 'mobile-error-forbidden'],
+	['bad-request', 'mobile-error-invalid-input'],
+	['unprocessable-entity', 'mobile-error-invalid-input'],
+	['request-body-missing', 'mobile-error-invalid-input'],
+	['query-parameters-missing', 'mobile-error-invalid-input'],
+	['request-body-validation-failed', 'mobile-error-invalid-input'],
+	['query-parameters-validation-failed', 'mobile-error-invalid-input'],
+	['too-many-requests', 'mobile-error-too-many-requests'],
+	['internal-server-error', 'mobile-error-unavailable'],
+	['service-unavailable', 'mobile-error-unavailable'],
+	['gateway-timeout', 'mobile-error-unavailable'],
+	['not-found', 'mobile-error-not-found'],
+]);
+
+/**
  * The API's `detail` is English; the web app translates `translationKey`
  * with the response-message namespace, and so does this app. An unknown key
  * falls back to a translated status message, never the English text.
@@ -28,6 +48,10 @@ const responseMessageSpec = (body: ProblemBody | null): MessageSpec | null => {
 	const key = body?.translationKey;
 	if (typeof key !== 'string') {
 		return null;
+	}
+	const mobileKey = MOBILE_ERROR_KEYS.get(key);
+	if (mobileKey !== undefined) {
+		return { key: mobileKey };
 	}
 	const namespaced = `response-message:${key}`;
 	return i18n.exists(namespaced) ? { key: namespaced } : null;
@@ -100,10 +124,11 @@ export const apiRequest = async <T>(
 		headers.set(TENANT_ID_HEADER, options.tenantId);
 	}
 
+	const baseUrl = getApiBaseUrl();
 	const deadline = AbortSignal.timeout(15_000);
 	let response: Response;
 	try {
-		response = await fetch(`${getApiBaseUrl()}${path}`, {
+		response = await fetch(`${baseUrl}${path}`, {
 			method: options.method ?? 'GET',
 			headers,
 			body:

@@ -93,13 +93,12 @@ export const SettingsButton = ({ onPress }: { onPress: () => void }) => {
 	const { t } = useTranslation();
 	return (
 		<Pressable
+			accessibilityLabel={t('settings')}
 			accessibilityRole="button"
-			className="rounded-chip border border-border bg-card px-3 py-2"
+			className="h-10 w-10 items-center justify-center rounded-chip border border-border bg-card"
 			onPress={onPress}
 		>
-			<Text className="text-sm font-medium text-foreground">
-				{t('settings')}
-			</Text>
+			<Text className="text-lg text-foreground">⚙</Text>
 		</Pressable>
 	);
 };

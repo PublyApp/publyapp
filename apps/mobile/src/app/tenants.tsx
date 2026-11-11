@@ -114,12 +114,18 @@ const TenantsScreen = () => {
 	return (
 		<SafeAreaView className="flex-1 bg-background">
 			<Screen>
-				<View className="mb-6 flex-row items-center justify-between">
-					<View>
-						<Text className="text-2xl font-bold text-foreground">
+				<View className="mb-6 flex-row items-center justify-between gap-3">
+					<View className="min-w-0 flex-1">
+						<Text
+							className="text-2xl font-bold text-foreground"
+							numberOfLines={2}
+						>
 							{t('mobile-choose-organization')}
 						</Text>
-						<Text className="mt-1 text-sm text-foreground-muted">
+						<Text
+							className="mt-1 text-sm text-foreground-muted"
+							numberOfLines={3}
+						>
 							{t('mobile-choose-organization-description')}
 						</Text>
 					</View>

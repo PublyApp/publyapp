@@ -25,11 +25,10 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { messageText } from '@/lib/i18n';
 import type { MessageSpec } from '@/lib/i18n';
 
-// Keys of the shared `common` namespace.
 const STATUS_LABEL_KEY = {
-	draft: 'draft',
-	scheduled: 'scheduled',
-	published: 'published',
+	draft: 'mobile-status-draft',
+	scheduled: 'mobile-status-scheduled',
+	published: 'mobile-status-published',
 } as const satisfies Record<PostStatus, string>;
 
 const STATUS_CLASS = {
@@ -63,7 +62,7 @@ const PostCard = ({ post }: { post: PostSummary }) => {
 			<View className="flex-row items-center justify-between">
 				<View className={`rounded-chip px-2 py-1 ${status.pill}`}>
 					<Text className={`text-xs font-medium ${status.text}`}>
-						{t(STATUS_LABEL_KEY[post.status] ?? 'draft')}
+						{t(STATUS_LABEL_KEY[post.status] ?? 'mobile-status-draft')}
 					</Text>
 				</View>
 				<Text className="text-xs text-foreground-muted">
@@ -196,18 +195,24 @@ const PostsScreen = () => {
 	return (
 		<SafeAreaView className="flex-1 bg-background">
 			<Screen>
-				<View className="mb-4 flex-row items-end justify-between">
-					<View>
-						<Text className="text-2xl font-bold text-foreground">
+				<View className="mb-4 flex-row items-end justify-between gap-3">
+					<View className="min-w-0 flex-1">
+						<Text
+							className="text-2xl font-bold text-foreground"
+							numberOfLines={1}
+						>
 							{t('posts')}
 						</Text>
-						<Text className="mt-1 text-sm text-foreground-muted">
+						<Text
+							className="mt-1 text-sm text-foreground-muted"
+							numberOfLines={1}
+						>
 							{posts.length === 0
 								? t('mobile-no-posts')
 								: t('mobile-recent-posts')}
 						</Text>
 					</View>
-					<View className="flex-row gap-2">
+					<View className="shrink-0 flex-row items-center gap-2">
 						<Pressable
 							accessibilityRole="button"
 							className="rounded-chip border border-border bg-card px-3 py-2"
@@ -215,7 +220,10 @@ const PostsScreen = () => {
 								router.replace('/tenants');
 							}}
 						>
-							<Text className="text-sm font-medium text-foreground">
+							<Text
+								className="text-sm font-medium text-foreground"
+								numberOfLines={1}
+							>
 								{t('organization')}
 							</Text>
 						</Pressable>

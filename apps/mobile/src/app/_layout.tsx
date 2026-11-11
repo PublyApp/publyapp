@@ -12,9 +12,14 @@ const RootLayout = () => {
 	const [isI18nReady, setIsI18nReady] = useState(false);
 
 	useEffect(() => {
-		void initI18n().then(() => {
-			setIsI18nReady(true);
-		});
+		// initI18n falls back to French itself; finally guards any other failure.
+		void initI18n()
+			.catch((error: unknown) => {
+				console.warn('i18n init failed', error);
+			})
+			.finally(() => {
+				setIsI18nReady(true);
+			});
 	}, []);
 
 	// Wait for the saved language so no screen flashes in the wrong one.

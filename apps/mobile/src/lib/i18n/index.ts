@@ -2,21 +2,21 @@ import { getLocales } from 'expo-localization';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-import en from '@org/shared-ts/lib/i18n/locales/en';
-import fr from '@org/shared-ts/lib/i18n/locales/fr';
 import {
+	FALLBACK_LANGUAGE as SOURCE_LANGUAGE,
 	isSupportedLanguage,
 	type SupportedLanguage,
 } from '@org/shared-ts/lib/i18n/shared';
 
 import { readStoredLanguage, writeStoredLanguage } from './language-storage';
+import { resources } from './resources';
 
 /** Neither French nor English on the phone: French (owner decision, #2378). */
-const FALLBACK_LANGUAGE: SupportedLanguage = 'fr';
+const DEFAULT_LANGUAGE: SupportedLanguage = 'fr';
 
 const detectDeviceLanguage = (): SupportedLanguage => {
 	const code = getLocales()[0]?.languageCode;
-	return isSupportedLanguage(code) ? code : FALLBACK_LANGUAGE;
+	return isSupportedLanguage(code) ? code : DEFAULT_LANGUAGE;
 };
 
 const readInitialLanguage = async (): Promise<SupportedLanguage> => {
@@ -25,36 +25,51 @@ const readInitialLanguage = async (): Promise<SupportedLanguage> => {
 		if (isSupportedLanguage(stored)) {
 			return stored;
 		}
-	} catch {
-		// Unreadable storage: fall back to the phone language.
+	} catch (error) {
+		console.warn('Could not read the saved language', error);
 	}
 	return detectDeviceLanguage();
 };
 
-/** Resolves once i18next is ready with the saved choice, else the phone language. */
-export const initI18n = async (): Promise<void> => {
-	if (i18n.isInitialized) {
-		return;
-	}
-	const lng = await readInitialLanguage();
+const initWith = async (lng: SupportedLanguage): Promise<void> => {
 	await i18n.use(initReactI18next).init({
-		resources: { en, fr },
+		resources,
 		lng,
-		fallbackLng: FALLBACK_LANGUAGE,
+		fallbackLng: SOURCE_LANGUAGE,
 		defaultNS: 'common',
 		ns: ['common', 'response-message'],
 		interpolation: { escapeValue: false },
 	});
 };
 
+/**
+ * Resolves once i18next is ready with the saved choice, else the phone
+ * language. Never rejects: if detection or init fails, French is used so the
+ * app still renders.
+ */
+export const initI18n = async (): Promise<void> => {
+	if (i18n.isInitialized) {
+		return;
+	}
+	try {
+		await initWith(await readInitialLanguage());
+	} catch (error) {
+		console.warn('i18n init failed, falling back to French', error);
+		await initWith(DEFAULT_LANGUAGE);
+	}
+};
+
+/** Switches the UI language; resolves false when the choice could not be saved. */
 export const changeAppLanguage = async (
 	language: SupportedLanguage,
-): Promise<void> => {
+): Promise<boolean> => {
 	await i18n.changeLanguage(language);
 	try {
 		await writeStoredLanguage(language);
-	} catch {
-		// The language still changed for this session.
+		return true;
+	} catch (error) {
+		console.warn('Could not save the language choice', error);
+		return false;
 	}
 };
 
