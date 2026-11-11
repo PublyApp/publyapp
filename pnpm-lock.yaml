@@ -21,6 +21,9 @@ catalogs:
     oxlint:
       specifier: 1.90.0
       version: 1.90.0
+    react-i18next:
+      specifier: 17.1.10
+      version: 17.1.10
     ts-morph:
       specifier: 28.0.0
       version: 28.0.0
@@ -187,7 +190,7 @@ importers:
         specifier: 7.91.0
         version: 7.91.0(@types/react@19.3.0)(react@19.3.1)
       react-i18next:
-        specifier: 17.1.10
+        specifier: 'catalog:'
         version: 17.1.10(i18next@26.6.0(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
       simplebar-core:
         specifier: 1.3.2
@@ -283,6 +286,9 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@org/shared-ts':
+        specifier: workspace:*
+        version: link:../../packages/shared-ts
       expo:
         specifier: ~58.0.23
         version: 58.0.23(@babel/core@7.29.13)(@expo/dom-webview@58.0.2)(@expo/metro-runtime@58.0.17)(expo-router@58.0.30)(react-dom@19.3.1(react@19.3.0))(react-native-worklets@0.13.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
@@ -292,6 +298,9 @@ importers:
       expo-linking:
         specifier: ~58.0.16
         version: 58.0.16(expo@58.0.23)(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
+      expo-localization:
+        specifier: ~58.0.5
+        version: 58.0.5(expo@58.0.23)(react@19.3.0)
       expo-router:
         specifier: ~58.0.30
         version: 58.0.30(15874cce869eec55029b6bbcb714c3bd)
@@ -304,12 +313,18 @@ importers:
       expo-system-ui:
         specifier: ~58.0.7
         version: 58.0.7(expo@58.0.23)(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0))
+      i18next:
+        specifier: 'catalog:'
+        version: 26.6.0(typescript@7.0.2)
       nativewind:
         specifier: 4.2.7
         version: 4.2.7(react-native-reanimated@4.7.1(react-native-worklets@0.13.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native-safe-area-context@5.11.1(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.9.1))
       react:
         specifier: 19.3.0
         version: 19.3.0
+      react-i18next:
+        specifier: 'catalog:'
+        version: 17.1.10(i18next@26.6.0(typescript@7.0.2))(react-dom@19.3.1(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
       react-native:
         specifier: 0.88.1
         version: 0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0)
@@ -3816,6 +3831,12 @@ packages:
       react: '*'
       react-native: '*'
 
+  expo-localization@58.0.5:
+    resolution: {integrity: sha512-2wyZl/5wn95l38AAtdaUAq2VMJWbGbgQQDEuIEkkemmsA/BZ8gS21Nq+7I2X9hDfL5Z+4hlyLVdPtDIH0vvt1A==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+
   expo-modules-autolinking@58.0.17:
     resolution: {integrity: sha512-mZRVuUCOsYK4+n9U8972bQBqXn21ncMd9BBx0/iepKH49tdMB8ADj3O9bb+huA80XckyorFLVfi6nJcImYtUyg==}
     hasBin: true
@@ -5515,6 +5536,9 @@ packages:
     resolution: {integrity: sha512-6odND+fel5zVw3I4Yc2e69gvguDnX0CAAGiNDZSq4ik5WUcaLrkD2GLuog0XcODbor31hZ5ayEMgVDno+KPV5g==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
+
+  rtl-detect@1.1.2:
+    resolution: {integrity: sha512-PGMBq03+TTG/p/cRB7HCLKJ1MgDIi07+QU1faSjiYRfmY5UsAttV9Hs08jDAHVwcOwmVLcSJkpwyfXszVjWfIQ==}
 
   run-applescript@7.1.0:
     resolution: {integrity: sha512-DPe5pVFaAsinSaV6QjQ6gdiedWDcRCbUuiQfQa2wmWV7+xC9bGulGI8+TdRmoFkAPaBXk8CrAbnlY2ISniJ47Q==}
@@ -9674,6 +9698,12 @@ snapshots:
       - supports-color
       - typescript
 
+  expo-localization@58.0.5(expo@58.0.23)(react@19.3.0):
+    dependencies:
+      expo: 58.0.23(@babel/core@7.29.13)(@expo/dom-webview@58.0.2)(@expo/metro-runtime@58.0.17)(expo-router@58.0.30)(react-dom@19.3.1(react@19.3.0))(react-native-worklets@0.13.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
+      react: 19.3.0
+      rtl-detect: 1.1.2
+
   expo-modules-autolinking@58.0.17(typescript@7.0.2):
     dependencies:
       '@expo/platforms': 58.0.1
@@ -11388,6 +11418,18 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
 
+  react-i18next@17.1.10(i18next@26.6.0(typescript@7.0.2))(react-dom@19.3.1(react@19.3.0))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)(typescript@7.0.2):
+    dependencies:
+      '@babel/runtime': 7.29.13
+      html-parse-stringify: 4.0.1
+      i18next: 26.6.0(typescript@7.0.2)
+      react: 19.3.0
+      use-sync-external-store: 1.7.0(react@19.3.0)
+    optionalDependencies:
+      react-dom: 19.3.1(react@19.3.0)
+      react-native: 0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.0)
+      typescript: 7.0.2
+
   react-i18next@17.1.10(i18next@26.6.0(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2):
     dependencies:
       '@babel/runtime': 7.29.13
@@ -11638,6 +11680,8 @@ snapshots:
       '@rolldown/binding-openharmony-arm64': 1.2.15
       '@rolldown/binding-win32-arm64-msvc': 1.2.15
       '@rolldown/binding-win32-x64-msvc': 1.2.15
+
+  rtl-detect@1.1.2: {}
 
   run-applescript@7.1.0: {}
 
@@ -12140,6 +12184,10 @@ snapshots:
       picocolors: 1.1.1
 
   use-latest-callback@0.2.6(react@19.3.0):
+    dependencies:
+      react: 19.3.0
+
+  use-sync-external-store@1.7.0(react@19.3.0):
     dependencies:
       react: 19.3.0
 
