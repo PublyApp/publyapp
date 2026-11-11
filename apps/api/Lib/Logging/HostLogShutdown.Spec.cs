@@ -17,31 +17,38 @@ using Xunit;
 
 namespace PublyApp.Api.Lib.Logging;
 
-// #1708 paired proofs. Serilog.Sinks.Async queues entries on a background thread; shutting a
-// host down without draining that queue loses the newest entries, the ones that explain WHY
-// the process stopped.
+// #1708. Serilog.Sinks.Async queues entries on a background thread; a host teardown that does
+// not drain that queue loses the newest entries, the ones that explain WHY the process stopped.
 //
-// RED/GREEN:
-// - HostShutdown...: goes RED if the host teardown stops draining the real ConfigureLogger
-//   pipeline (the dispose returns while the gated sink still holds the entry).
-// - Overflow...: goes RED if `monitor:` is removed from the async sink under test.
-public sealed class FlushLogsOnStopSpec {
+// Honest scope: the host spec is a CONTRACT test for the teardown of the real ConfigureLogger
+// pipeline (it is red if that teardown stops draining, e.g. a non-disposing bootstrap
+// logger). It does NOT run Program.Main, so it is not the paired proof of `using var app`
+// (that change only matters for the boot-probe early return, covered for crashes by
+// MasterKeyWitnessBootIntegration.Spec, not for the flush). The overflow spec IS a real
+// red/green pair: it goes red when `monitor:` is removed from the async sink under test.
+public sealed class HostLogShutdownSpec {
 	[Fact]
-	public async Task HostShutdownWaitsForTheAsyncQueueAndWritesTheLastEntry() {
+	public async Task ItShouldWaitForTheAsyncQueueAndWriteTheLastEntryWhenTheHostIsDisposed() {
 		var sink = new GatedSink();
 		var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings {
 			EnvironmentName = EnvironmentNames.Production,
-			ApplicationName = nameof(FlushLogsOnStopSpec),
+			ApplicationName = nameof(HostLogShutdownSpec),
 		});
-		builder.ConfigureLogger(config => config.WriteTo.Async(w => w.Sink(sink)));
+		builder.ConfigureLoggerWithExtraSink(w => w.Async(inner => inner.Sink(sink)));
 		var host = builder.Build();
 		await host.StartAsync();
 		host.Services.GetRequiredService<Serilog.ILogger>().Information("last entry before stop");
 		await sink.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
 
 		await host.StopAsync();
-		var disposal = Task.Run(host.Dispose);
-		var finishedEarly = await Task.WhenAny(disposal, Task.Delay(250)) == disposal;
+		var disposalStarted =
+			new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		var disposal = Task.Run(() => {
+			disposalStarted.SetResult();
+			host.Dispose();
+		});
+		await disposalStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+		var finishedEarly = await Task.WhenAny(disposal, Task.Delay(100)) == disposal;
 
 		finishedEarly.Should().BeFalse("the teardown must wait for the queued entry (#1708)");
 		sink.Gate.Set();
@@ -50,7 +57,7 @@ public sealed class FlushLogsOnStopSpec {
 	}
 
 	[Fact]
-	public async Task OverflowOfARealAsyncSinkIsReportedByTheMonitor() {
+	public async Task ItShouldReportTheDroppedEntriesOfARealAsyncSinkOnOverflow() {
 		var sink = new GatedSink();
 		using var output = new StringWriter(CultureInfo.InvariantCulture);
 		var logger = new LoggerConfiguration()
@@ -73,7 +80,7 @@ public sealed class FlushLogsOnStopSpec {
 	}
 
 	[Fact]
-	public void MonitorReportsEachIncreaseOnceAndStaysSilentWhenNothingNewIsDropped() {
+	public void ItShouldReportEachIncreaseOnceAndStaySilentWhenNothingNewIsDropped() {
 		using var output = new StringWriter(CultureInfo.InvariantCulture);
 		var monitor = new DroppedLogEntriesMonitor("info", output, TimeSpan.FromHours(1));
 		var inspector = new FakeInspector { DroppedMessagesCount = 7 };
@@ -90,7 +97,7 @@ public sealed class FlushLogsOnStopSpec {
 	}
 
 	[Fact]
-	public void MonitorSwallowsAClosedOutputInsteadOfThrowingIntoShutdown() {
+	public void ItShouldNotThrowWhenTheOutputIsClosed() {
 		var output = new StringWriter(CultureInfo.InvariantCulture);
 		output.Dispose();
 		var monitor = new DroppedLogEntriesMonitor("info", output, TimeSpan.FromHours(1));
@@ -98,6 +105,34 @@ public sealed class FlushLogsOnStopSpec {
 		var report = () => monitor.Report(new FakeInspector { DroppedMessagesCount = 1 });
 
 		report.Should().NotThrow();
+	}
+
+	[Fact]
+	public async Task ItShouldNotLetAWedgedOutputHoldTheFinalReportHostage() {
+		using var output = new BlockedWriter();
+		var monitor = new DroppedLogEntriesMonitor(
+			"info",
+			output,
+			TimeSpan.FromHours(1),
+			TimeSpan.FromMilliseconds(100)
+		);
+		var inspector = new FakeInspector { DroppedMessagesCount = 5 };
+
+		var stop = Task.Run(() => monitor.StopMonitoring(inspector));
+
+		await stop.WaitAsync(TimeSpan.FromSeconds(10));
+		output.Release.Set();
+	}
+
+	private sealed class BlockedWriter : StringWriter {
+		public BlockedWriter() : base(CultureInfo.InvariantCulture) {
+		}
+
+		public ManualResetEventSlim Release { get; } = new();
+
+		public override void WriteLine(string? value) {
+			this.Release.Wait(TimeSpan.FromSeconds(30));
+		}
 	}
 
 	private sealed class GatedSink : ILogEventSink {

@@ -17,6 +17,7 @@ public sealed class DroppedLogEntriesMonitor : IAsyncLogEventSinkMonitor {
 	private readonly Lock _Lock = new();
 	private readonly TextWriter? _Output;
 	private readonly TimeSpan _PollInterval;
+	private readonly TimeSpan _StopTimeout;
 	private readonly string _SinkName;
 	private long _Reported;
 	private Timer? _Timer;
@@ -24,8 +25,10 @@ public sealed class DroppedLogEntriesMonitor : IAsyncLogEventSinkMonitor {
 	public DroppedLogEntriesMonitor(
 		string sinkName,
 		TextWriter? output = null,
-		TimeSpan? pollInterval = null
+		TimeSpan? pollInterval = null,
+		TimeSpan? stopTimeout = null
 	) {
+		this._StopTimeout = stopTimeout ?? TimeSpan.FromSeconds(1);
 		this._SinkName = sinkName;
 		this._Output = output;
 		this._PollInterval = pollInterval ?? TimeSpan.FromSeconds(5);
@@ -48,8 +51,13 @@ public sealed class DroppedLogEntriesMonitor : IAsyncLogEventSinkMonitor {
 			this._Timer = null;
 		}
 
-		// Final check: entries dropped since the last poll must still be reported.
-		this.Report(inspector);
+		// Final check: entries dropped since the last poll must still be reported. The write is
+		// bounded: a wedged stderr must not hold host disposal (and the queue drain) hostage.
+		try {
+			Task.Run(() => this.Report(inspector)).Wait(this._StopTimeout);
+		} catch (AggregateException) {
+			// Report never throws by design; stay defensive on the shutdown path.
+		}
 	}
 
 	public void Report(IAsyncLogEventSinkInspector inspector) {
@@ -65,8 +73,8 @@ public sealed class DroppedLogEntriesMonitor : IAsyncLogEventSinkMonitor {
 			this._Reported = dropped;
 		}
 
-		// Written OUTSIDE the lock and guarded: a blocked or closed stderr must never hang
-		// StopMonitoring (shutdown) nor throw out of the timer callback / logger dispose.
+		// Written OUTSIDE the lock and guarded: a closed stderr must not throw out of the
+		// timer callback / logger dispose. A BLOCKED stderr is bounded by StopMonitoring.
 		try {
 			var writer = this._Output ?? Console.Error;
 			writer.WriteLine(

@@ -85,6 +85,26 @@ public sealed class LoggerSinkGraphSpec {
 		);
 	}
 
+	// Guard-gap (#1708): the test-only extra-sink seam of ConfigureLogger must stay INSIDE the
+	// wrapper, so a sink added through it can never become a path around the redaction.
+	[Fact]
+	public void ItShouldKeepASinkAddedThroughTheTestSeamBehindTheSanitizingWrapper() {
+		var loggerConfig = new LoggerConfiguration();
+		LoggerConfigExtensions.BuildLoggerConfiguration(
+			loggerConfig,
+			new FakeHostEnvironment { EnvironmentName = EnvironmentNames.Production },
+			extraSink: w => w.Console(formatProvider: CultureInfo.InvariantCulture)
+		);
+		using var logger = loggerConfig.CreateLogger();
+
+		var nodes = LoggerSinkGraphSpec._WalkSinkGraph(logger);
+
+		nodes.Count(node => LoggerSinkGraphSpec._IsOutputSink(node.SinkType)).Should().BeGreaterThan(0);
+		nodes
+			.Where(node => LoggerSinkGraphSpec._IsOutputSink(node.SinkType) && !node.HasSanitizingAncestor)
+			.Should().BeEmpty("the extra-sink seam must register inside WriteTo.Sanitized(...)");
+	}
+
 	// Non-vacuity control: the walker must be able to SEE an unsanitized output sink.
 	// Without this, a walker that silently returned nothing would pass every assertion
 	// above and the guard would be worthless.

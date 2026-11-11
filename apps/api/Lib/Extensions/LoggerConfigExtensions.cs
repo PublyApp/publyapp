@@ -4,6 +4,7 @@ using PublyApp.Api.Lib.Diagnostics;
 using PublyApp.Api.Lib.Logging;
 
 using Serilog;
+using Serilog.Configuration;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 
@@ -13,16 +14,20 @@ public static class LoggerConfigExtensions {
 	// Targets IHostApplicationBuilder (design §3.2, F17) so BOTH hosts — the api/all
 	// WebApplication and the worker Generic Host — share one Serilog composition.
 	// AddSerilog is the builder-agnostic equivalent of Host.UseSerilog.
-	// `extend` is a test seam (#1708): lets a spec add a sink to the REAL pipeline.
-	public static IHostApplicationBuilder ConfigureLogger(
+	public static IHostApplicationBuilder ConfigureLogger(this IHostApplicationBuilder builder) {
+		return builder.ConfigureLoggerWithExtraSink(extraSink: null);
+	}
+
+	// Test seam (#1708): adds a sink INSIDE the sanitizing wrapper of the REAL pipeline, so
+	// it can never be a path around the redaction invariant. Internal on purpose.
+	internal static IHostApplicationBuilder ConfigureLoggerWithExtraSink(
 		this IHostApplicationBuilder builder,
-		Action<LoggerConfiguration>? extend = null
+		Action<LoggerSinkConfiguration>? extraSink
 	) {
 		builder.Services.AddSerilog((serviceProvider, loggerConfig) => {
 			var hostEnvironment = serviceProvider.GetRequiredService<IHostEnvironment>();
 
-			LoggerConfigExtensions.BuildLoggerConfiguration(loggerConfig, hostEnvironment);
-			extend?.Invoke(loggerConfig);
+			LoggerConfigExtensions.BuildLoggerConfiguration(loggerConfig, hostEnvironment, extraSink);
 		});
 
 		return builder;
@@ -48,7 +53,8 @@ public static class LoggerConfigExtensions {
 	/// </summary>
 	public static void BuildLoggerConfiguration(
 		LoggerConfiguration loggerConfig,
-		IHostEnvironment hostEnvironment
+		IHostEnvironment hostEnvironment,
+		Action<LoggerSinkConfiguration>? extraSink = null
 	) {
 		loggerConfig
 			.MinimumLevel.Information()
@@ -96,6 +102,8 @@ public static class LoggerConfigExtensions {
 			// direct path around it, and a no-op for every normal boot keeps production
 			// behavior byte-identical.
 			CanaryBootLogProbe.AttachSinkIfRequested(writeTo);
+			// #1708 test seam, same place and same reason as the probe above.
+			extraSink?.Invoke(writeTo);
 
 			writeTo
 				.Async(w => w.Logger(l => l
