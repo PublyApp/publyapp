@@ -7,7 +7,7 @@ const { getDefaultConfig } = require('expo/metro-config');
 const { withNativeWind } = require('nativewind/metro');
 
 // Expo's getDefaultConfig already detects the pnpm workspace (watchFolders +
-// nodeModulesPaths) since SDK 52 — see docs/guides/monorepos.md. Do not
+// nodeModulesPaths) since SDK 52 — see https://docs.expo.dev/guides/monorepos/. Do not
 // re-declare them here; that is the documented way to break the monorepo setup.
 const config = getDefaultConfig(__dirname);
 
