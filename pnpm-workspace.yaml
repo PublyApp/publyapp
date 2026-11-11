@@ -8,7 +8,7 @@ autoInstallPeers: true
 # Workspaces reference these as "<name>": "catalog:" instead of repeating a
 # specifier. A dependency used by a single workspace stays in that manifest.
 catalog:
-  "@microsoft/kiota-abstractions": 1.0.0-preview.111
+  "@microsoft/kiota-abstractions": 1.0.0-preview.112
   "@microsoft/kiota-serialization-json": 1.0.0-preview.111
   "@types/node": 24.19.2
   i18next: 26.6.0
