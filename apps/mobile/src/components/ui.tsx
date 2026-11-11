@@ -18,12 +18,15 @@ export const EmptyState = ({ label }: { label: string }) => (
 	</View>
 );
 
+/** Extra exits (switch organisation, sign out) are composed as children. */
 export const ErrorState = ({
 	message,
 	onRetry,
+	children,
 }: {
 	message: string;
 	onRetry: () => void;
+	children?: ReactNode;
 }) => (
 	<View className="flex-1 items-center justify-center gap-4 px-8">
 		<Text className="text-center text-base text-destructive">{message}</Text>
@@ -33,7 +36,20 @@ export const ErrorState = ({
 		>
 			<Text className="text-sm font-medium text-foreground">Réessayer</Text>
 		</Pressable>
+		{children}
 	</View>
+);
+
+export const SecondaryAction = ({
+	label,
+	onPress,
+}: {
+	label: string;
+	onPress: () => void;
+}) => (
+	<Pressable accessibilityRole="button" className="py-2" onPress={onPress}>
+		<Text className="text-sm text-foreground-muted">{label}</Text>
+	</Pressable>
 );
 
 export const PrimaryButton = ({

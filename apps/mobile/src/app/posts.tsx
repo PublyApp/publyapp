@@ -10,7 +10,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { EmptyState, ErrorState, LoadingState, Screen } from '@/components/ui';
+import {
+	EmptyState,
+	ErrorState,
+	LoadingState,
+	Screen,
+	SecondaryAction,
+} from '@/components/ui';
 import { ApiError } from '@/lib/api/client';
 import type { PostStatus, PostSummary, PostsResponse } from '@/lib/api/types';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -146,7 +152,14 @@ const PostsScreen = () => {
 					setPosts(null);
 					void load();
 				}}
-			/>
+			>
+				<SecondaryAction
+					label="Changer d'organisation"
+					onPress={() => {
+						router.replace('/tenants');
+					}}
+				/>
+			</ErrorState>
 		);
 	}
 

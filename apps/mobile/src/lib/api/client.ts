@@ -10,7 +10,11 @@ const SESSION_TOKEN_HEADER =
 const TENANT_ID_HEADER =
 	process.env.EXPO_PUBLIC_TENANT_HEADER ?? 'X-PublyApp-TenantId';
 
-const FALLBACK_STATUS_MESSAGE = 'Erreur serveur';
+/** A 5xx is the server's fault; a 4xx is a refused request, not a server error. */
+const fallbackStatusMessage = (status: number): string =>
+	status >= 500
+		? `Erreur serveur (${status})`
+		: `La demande a été refusée (${status})`;
 
 /**
  * The API's `detail` is English; the web app translates `translationKey`
@@ -22,6 +26,17 @@ const FRENCH_MESSAGES = new Map([
 	['invalid-email-or-password', 'Email ou mot de passe invalide'],
 	['user-suspended', 'Utilisateur suspendu'],
 	['user-not-verified', 'Utilisateur non vérifié'],
+	['tenant-suspended', 'Cette organisation a été suspendue'],
+	['forbidden', 'Accès refusé pour cette organisation.'],
+	[
+		'user-does-not-have-the-necessary-permissions',
+		"Votre rôle ne permet pas d'afficher ces publications.",
+	],
+	[
+		'request-body-validation-failed',
+		'Les informations saisies ne sont pas valides.',
+	],
+	['too-many-requests', 'Trop de tentatives. Réessayez dans un instant.'],
 ]);
 
 export class ApiError extends Error {
@@ -118,8 +133,7 @@ export const apiRequest = async <T>(
 	if (!response.ok) {
 		throw new ApiError(
 			response.status,
-			readProblemMessage(problem) ??
-				`${FALLBACK_STATUS_MESSAGE} (${response.status})`,
+			readProblemMessage(problem) ?? fallbackStatusMessage(response.status),
 		);
 	}
 

@@ -3,7 +3,13 @@ import { memo, useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { EmptyState, ErrorState, LoadingState, Screen } from '@/components/ui';
+import {
+	EmptyState,
+	ErrorState,
+	LoadingState,
+	Screen,
+	SecondaryAction,
+} from '@/components/ui';
 import { ApiError } from '@/lib/api/client';
 import type { TenantSummary, TenantsForPickerResponse } from '@/lib/api/types';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -62,9 +68,14 @@ const TenantsScreen = () => {
 
 	const onSelect = useCallback(
 		(tenantId: string) => {
-			void selectTenant(tenantId).then(() => {
-				router.replace('/posts');
-			});
+			selectTenant(tenantId).then(
+				() => {
+					router.replace('/posts');
+				},
+				() => {
+					setErrorMessage("Impossible d'enregistrer l'organisation choisie.");
+				},
+			);
 		},
 		[selectTenant, router],
 	);
@@ -88,7 +99,14 @@ const TenantsScreen = () => {
 					setTenants(null);
 					void load();
 				}}
-			/>
+			>
+				<SecondaryAction
+					label="Se déconnecter"
+					onPress={() => {
+						void signOut();
+					}}
+				/>
+			</ErrorState>
 		);
 	}
 
