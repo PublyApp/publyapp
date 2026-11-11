@@ -200,7 +200,7 @@
 		"@base-ui/react": "1.9.0",
 		"@hookform/resolvers": "6.0.0",
 		"@microsoft/kiota-abstractions": "catalog:",
-		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.111",
+		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.112",
 		"@org/client-ts": "workspace:*",
 		"@org/shared-ts": "workspace:*",
 		"@radandevist/radan-ui": "0.2.0",
