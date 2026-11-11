@@ -27,22 +27,29 @@ the staff list (and the owner's wording "not expired") excludes it. See section 
 ### Members (`user_accounts`, `users`, `tenants`)
 
 - `BaseAttributes` gives every row `CreatedAt`, `IsDeleted`, `DeletedAt`.
-- Every production removal path sets `DeletedAt` together with `IsDeleted`: `SaveChanges` soft delete
-  and normalisation (`AppDbContext`), `ExecuteUpdateAsync` in `StaffUserLifecycleService`,
-  `TenantUserMembershipOperations` (single and bulk remove), tenant delete in `TenantAsStaffService`.
-- A removed member who rejoins gets a **new** account row (filtered unique index
-  `ux_user_accounts_tenant_active`), so each membership interval is exactly one row. No interval is
-  overwritten.
-- Hard delete: `AppDbContext.ForceHardDelete` exists, no production caller found (specs only). A hard
-  deleted row would silently vanish from past days; it is accepted and documented as the same
-  trade-off as #2367.
+- Every tenant-scope membership removal sets `DeletedAt` together with `IsDeleted`: `SaveChanges`
+  soft delete (`AppDbContext`) and `TenantUserMembershipOperations` (single and bulk remove). A
+  tenant delete writes `tenants.deleted_at` only (accounts stay live), which is why the tenant join
+  is part of the definition.
+- **Ceiling (decision: keep the restore).** Two rejoin paths exist. Invitation acceptance inserts a
+  **new** row, so that interval is exact. The staff assign path
+  (`TenantUserCompanyMembershipService`, `POST /staff/tenant-users/{userId}/companies`) looks the
+  account up with `IgnoreQueryFilters()` and **revives the same soft-deleted row**
+  (`IsDeleted = false; DeletedAt = null`), keeping the original `CreatedAt`. For a member removed and
+  then re-assigned, the removal instant is erased, so the series counts that member continuously
+  from their first join, including the time they were not a member. Today's point is still correct
+  (parity holds). The assign flow is deliberately **not** changed; this is a documented trade-off,
+  pinned by an API spec (section 8).
+- Hard delete: no production code removes `user_accounts` or `invitations` rows
+  (`ForceHardDelete` is used only for post media and role links). A hard deleted row would silently
+  vanish from past days; accepted and documented, as in #2367.
 - Suspension is **not** a state of the metric (the card counts suspended members), so the missing
   suspension timestamps do not matter.
 - Tenant liveness: `tenants.DeletedAt` is exact for a soft delete. A restore is the one lossy case
   (only the current flag survives); no restore endpoint is used by the dashboard flows and the loss
   would only move one tenant's members between days.
 
-Conclusion: the timestamps are exact. Nothing needs recording.
+Conclusion: exact except for the restore ceiling above. Nothing needs recording.
 
 ### Pending invitations (`invitations`)
 
@@ -88,9 +95,12 @@ like the audit-log metrics. The only caveat is the hard-delete one above.
 Time zone: **UTC**, the one every existing series uses. A point is one UTC calendar day `YYYY-MM-DD`;
 the window bounds come from the existing `DashboardQueryRules.TryParseWindow` (start/end inclusive).
 
-Let `T(D) = min(start of day D+1 UTC, now)`: the end of day D, but never in the future. The last point
-(today) is therefore evaluated at "now", the same instant the card uses, so the last point equals the
-card's current figure.
+Let `T(D) = min(start of day D+1 UTC, now)`: the end of day D, but never in the future. Only the
+last day (the current UTC day) is clamped; every earlier day is evaluated at its end. The last point
+is then evaluated at "now", the same instant the card uses, so it equals the card's figure **only
+when `end_date` is the current UTC day** (a future `end_date`, or a local "today" ahead of UTC,
+repeats today's stock). The parity specs pin `end_date` = current UTC day. The two series are not
+filtered by the page's organisation `scope` (do not pass it).
 
 **Member on day D** — a `user_accounts` row `a` such that:
 
@@ -126,7 +136,7 @@ Same endpoint `GET /staff/dashboard/series`, two metrics added to `DashboardMetr
 Names are snake_case plural nouns like `active_tenants`. No new query parameter, no new response
 field: `{ metric, startDate, endDate, recordedSince: null, points: [{ date, value }] }`, zero-filled,
 one point per day of the window. `DashboardMetrics.Available` and the validator message list them
-(the validator already reads `Available`, so an unknown metric stays a 400 with the existing
+(the validator already reads `Available`, so an unknown metric stays a 422 with the existing
 message). The XML doc of `RecordedSince` says it is `null` for these metrics too.
 
 `apps/api/openapi.json` carries no enum for `metric`; regenerate it and the Kiota client
@@ -151,17 +161,19 @@ No migration, no backfill, no new table, no index (see performance).
     `u.DeletedAt`, `t.DeletedAt`, for rows with `a.CreatedAt < T(end)` and `exit` null or
     `>= T(start of window)`. Rows that entered before the window feed the starting level.
   - Invitations: project `(i.CreatedAt, exit)` where `exit` is the earliest of `AcceptedAt`,
-    `RevokedAt`, `ExpiresAt`, `DeletedAt` and the organisation's `DeletedAt`, same overlap filter,
-    `Scope = Tenant`, joined to `tenants` (query syntax).
+    `RevokedAt`, `DeletedAt` and the organisation's `DeletedAt` (inclusive exits), with `ExpiresAt`
+    carried as a **separate** exclusive bound (never collapsed into `exit`: a row expiring exactly
+    at `T(D)` must not count), same overlap filter, `Scope = Tenant`, joined to `tenants` (query
+    syntax).
   - A row is counted on day D iff `enter < T(D)` and (`exit` is null or `exit >= T(D)`). For
     invitations `ExpiresAt` is exclusive (`ExpiresAt > T(D)`) while the other exits use `>=`; keep
     the two comparisons separate in code and in tests.
 - ponytail note in code: whole overlapping rows in memory is fine at staff-scale (two timestamps per
   row); if members pass ~100k rows, group the entries and exits by day in SQL and read a baseline
   count before the window.
-- Performance: the existing indexes (`user_accounts (tenant_id, scope)`, `invitations (tenant_id,
-  scope)`) are enough at this scale; the tenant-scope invitation count is small. Add an index only if a
-  measured query needs it.
+- Performance: no index serves the `created_at` / `deleted_at` / `expires_at` predicates and both
+  queries are joins, so each is a table scan, four per dashboard load (current and previous window, two
+  metrics). That is fine at staff scale; add an index only if a measured query needs it.
 
 ## 7. Front changes
 
@@ -176,10 +188,12 @@ Files under `apps/front/src/routes/authed/staff/dashboard/` and `lib/query/staff
    queries" becomes thirteen.
 3. `index.tsx` `Overview`: one `useStaffDashboardSeriesQuery` per new entry; include their `.error`
    in the `shouldLogoutForFailure` loop.
-4. `_dashboard-format.ts`: a small `stockDelta(current, previous, locale)` helper: compares the
-   **last point** of the current window with the **last point** of the previous window (a stock, not
-   the sum used for the audit flow), returns `{ label: formatSignedPercent(...), direction }`, or
-   `undefined` when the previous last point is 0 or missing. `formatSignedPercent` is reused.
+4. `_dashboard-format.ts`: **no third copy**. Move the existing `{ label, direction }` delta builder
+   (today duplicated as `seriesDelta` in `reports.tsx` and inline in `index.tsx`) into
+   `_dashboard-format.ts`, add `seriesLastValue(points)` next to `seriesTotal`, and delete both
+   copies. The flow delta feeds it the window sums, the stock delta feeds it the last values. The
+   result is `undefined` when either side is missing or the previous value is 0; equality is `up`
+   with `+0,0 %` (the audit convention).
 5. `_overview-kpis.tsx`: the members and pending-invitations `KpiCard`s receive `deltaQuery` (the
    previous series), `delta`, `deltaPeriod` (`dashboard-delta-vs-previous`, same string as the audit
    card) and `sparkline` (the current series values), exactly the props the audit card uses. The
@@ -187,13 +201,15 @@ Files under `apps/front/src/routes/authed/staff/dashboard/` and `lib/query/staff
    card's figure and main `query` become `countsQuery`'s `counts.pendingInvitations` (the same
    unfiltered tenants read the members and active-organisations cards already use): **no new
    endpoint and no new field**, the figure source simply changes from the staff invitations list.
-   The `pendingInvitations` / `pendingInvitationsQuery` staff-invitations query stays only for the
-   « Invitations en attente » list below the cards (see Q4). The
+   The `pendingInvitationsQuery` prop leaves `OverviewKpis` (unused otherwise); the query stays in
+   `index.tsx` for the list below the cards. The
    header comment that says "only the audit-events card has a series" is updated. `KpiCard` itself is
    not modified: the delta footer already goes through `QueryDisplay` (`discreet`), so a series that
    fails never hides the figure.
-6. i18n: no new key (the delta line and period labels exist). If a card needs an `aria-label` for the
-   sparkline, add FR+EN keys together in `common.fr.json` and `common.en.json`.
+6. i18n: the delta line and period labels exist (`Sparkline` is `aria-hidden`). One FR+EN pair is
+   added: the staff-invitations **list** card under the KPIs gets a distinct label (« Invitations
+   staff en attente » / "Pending staff invitations"), since the KPI now counts organisation
+   invitations and the list still shows staff ones (the two numbers differ on the same screen).
 
 Composition: `OverviewKpis` keeps composing `KpiCard`; props are passed as data, no new boolean
 options. All async display goes through `QueryDisplay`.
@@ -218,19 +234,28 @@ API (`*.Spec.cs`, `Spec` suffix and BDD names per docs/guides/test-conventions.m
   (parity spec); `recordedSince` `null`.
 - Tenants read (`FindTenantsAsStaff` spec): `counts.pendingInvitations`, `pendingInvitationTenants`
   exclude a pending invitation whose `ExpiresAt` has passed (Q3); existing facet specs updated.
-- Validation: unknown metric still 400 and the message now lists the two new metrics; 401/403 specs
-  unchanged.
+- Validation: an unknown metric still answers 422 and the message now lists the two new metrics;
+  401/403 specs unchanged.
+- Members restore ceiling: a member removed then re-assigned through the staff assign path is counted
+  continuously from the first join (the documented trade-off), while a member removed and re-invited
+  gets a gap. The spec names the ceiling so it is not a surprise.
 - Parity specs are the guard against drifting from the card's definition.
 
 Front (vitest):
 
 - `index.test.tsx`: the pending-invitations card figure comes from the tenants read
   (`counts.pendingInvitations`), not from the staff invitations list.
-- `_dashboard-format.test.ts`: `stockDelta` up / down / previous 0 / missing data.
+- `_dashboard-format.test.ts`: the shared delta builder and `seriesLastValue` (up / down / equal /
+  previous 0 / missing current or previous).
 - `index.test.tsx`: both cards show delta + sparkline with the series mocked; no delta when the
   previous window is empty; a failing series leaves the figure visible.
 - `index.preload.test.tsx`: the loader warms the four new queries with the expected `metric`,
-  `startDate`, `endDate` (the preload harness already asserts the page reads what the loader warmed).
+  `startDate`, `endDate`. Update its hard-coded counts: the `settle` wait on `SERIES === 4`, the two
+  assertions hard-coded to 9 queries and the test title (series calls 4 to 8, total 9 to 13), or the
+  suite hangs.
+- E2E: skipped on purpose (docs/guides/e2e-coverage.md). The API parity and boundary specs are the
+  deterministic proof of the series arithmetic; a Playwright spec over seeded timestamps would be a
+  slow duplicate.
 
 ## 9. Tasks (bite-sized)
 
@@ -240,13 +265,15 @@ Front (vitest):
 3. API: `GetMemberSeriesAsync` + interface + handler `case`. File: `Services/DashboardQueryService.cs`,
    handler. Green.
 4. API (red/green): the `pending_invitations` specs, then `GetPendingInvitationSeriesAsync` + `case`.
-5. API: parity specs with the live counts; validation-message spec.
-5b. API (Q3): make the tenants read's `PendingInvitations` / `PendingInvitationTenants` ignore
-    expired invitations (`ExpiresAt > now`), with its specs. File:
-    `Modules/Tenants/Services/TenantAsStaffService.cs` and its spec.
+5. API (Q3, first): make the tenants read's `PendingInvitations` / `PendingInvitationTenants` ignore
+   expired invitations (`ExpiresAt > now`) in `Modules/Tenants/Services/TenantAsStaffService.cs`;
+   add the expired-row assertion to `Modules/Tenants/Handlers/Staff/FindTenantsAsStaff.Spec.cs`.
+5b. API: parity specs with the live counts (`end_date` = current UTC day); validation-message spec;
+    members restore-ceiling spec.
 6. Contract: regenerate `apps/api/openapi.json` and `packages/client-ts` (no diff expected); extend
    `StaffDashboardMetric` in `lib/query/staff-dashboard.ts`.
-7. Front: `stockDelta` in `_dashboard-format.ts` with its tests.
+7. Front: move the delta builder to `_dashboard-format.ts`, add `seriesLastValue`, delete the copies in
+   `reports.tsx` and `index.tsx`, with tests.
 8. Front: four queries in `dashboardOverviewQueries` and hooks in `Overview`; loader preload test.
 9. Front: pass `deltaQuery` / `delta` / `deltaPeriod` / `sparkline` to the two cards in
    `_overview-kpis.tsx`; update the component comment; card tests in `index.test.tsx`.
@@ -262,16 +289,15 @@ Front (vitest):
 - **Q2 (answered 11/11).** Members keep the card's rule: accounts in non-deleted organisations,
   suspended members included.
 
-## 11. Amendment 2026-11-11 and remaining questions
+## 11. Amendment 2026-11-11 and review decisions
 
-Sections 1, 2, 4, 6, 7, 8 and 9 were amended for Q1: scope `Staff` became `Tenant`, the organisation's
-liveness joined the definition, the card's figure source changed, task 5b added.
+Amended for Q1 (scope `Staff` became `Tenant`, organisation liveness, card figure source) and for the
+plan review (captain decisions): restore ceiling kept and pinned (the assign flow is not changed),
+only the last day clamped, honest table-scan statement, 422 for an invalid metric, delta builder
+reused, distinct label for the staff-invitations list.
 
-- **Q3.** The tenants read counts a pending invitation even after its `ExpiresAt`; the owner's
-  definition ("not expired") and the previous card exclude it. This plan makes the tenants read
-  exclude expired invitations too (task 5b), so the list KPI, the card and the series agree. That
-  changes the tenants list KPI number slightly. Alternative: keep expired ones counted everywhere
-  (drop `ExpiresAt` from the series definition). Confirm.
-- **Q4.** The « Invitations en attente » **list** under the cards still shows staff invitations
-  (`staffInvitationsQueryOptions`). It is out of scope here; if the owner wants it to follow the card
-  it needs a follow-up issue (a tenant-scope invitations read for the dashboard).
+- **Q3 (decided).** Expired is not pending anywhere: the tenants read excludes expired invitations
+  too (task 5), so the tenants list KPI, the card and the series agree. The tenants list number
+  changes slightly.
+- **Q4 (decided).** The staff-invitations list under the cards stays out of scope; it only gets a
+  distinct label (section 7, item 6).
