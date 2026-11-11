@@ -203,6 +203,7 @@
 		"@microsoft/kiota-http-fetchlibrary": "1.0.0-preview.111",
 		"@org/client-ts": "workspace:*",
 		"@org/shared-ts": "workspace:*",
+		"@radandevist/radan-ui": "0.1.1",
 		"@tabler/icons-react": "3.50.0",
 		"@tanstack/react-query": "5.105.1",
 		"@tanstack/react-router": "1.170.46",

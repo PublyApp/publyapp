@@ -69,6 +69,11 @@ vi.mock('../_tenant-details-shell', () => ({
 	formatTenantStatusLabel: (status: string) => status,
 }));
 
+import {
+	radanThemeInlineDeclarations,
+	themeDeclarations as themeDeclarationsFor,
+} from '~/styles/theme-token-test-support';
+
 import { RoleTenantBand } from './_role-tenant-band';
 
 // jsdom shadows the global URL constructor with a browser-relative one, so
@@ -263,9 +268,12 @@ describe('RoleTenantBand contrast (review-ui-fidelity.md IMPORTANT finding)', ()
 		cleanup();
 	});
 
-	const themeInlineDeclarations = extractDeclarations(
-		extractBlock('@theme inline'),
-	);
+	// #2360: the colour map is radan-ui's own `@theme inline`, with PublyApp's
+	// block (fonts, success/warning, ...) layered on top.
+	const themeInlineDeclarations = new Map([
+		...radanThemeInlineDeclarations(),
+		...extractDeclarations(extractBlock('@theme inline')),
+	]);
 
 	test.each([
 		['light', ':root'],
@@ -288,13 +296,10 @@ describe('RoleTenantBand contrast (review-ui-fidelity.md IMPORTANT finding)', ()
 				);
 			}
 
-			// html.dark overrides layer over :root, mirroring the real cascade.
-			const themeDeclarations = new Map([
-				...extractDeclarations(extractBlock(':root')),
-				...(header === 'html.dark'
-					? extractDeclarations(extractBlock('html.dark'))
-					: []),
-			]);
+			// radan-ui + app.css, merged in cascade order for the theme.
+			const themeDeclarations = themeDeclarationsFor(
+				header === 'html.dark' ? 'dark' : 'light',
+			);
 
 			const backgroundHex = resolvePaintedHex(
 				section.className,
@@ -323,7 +328,7 @@ describe('RoleTenantBand contrast (review-ui-fidelity.md IMPORTANT finding)', ()
 	// The strictest common pairing — muted text on the secondary fill — must now
 	// clear the floor too.
 	test('text-muted-foreground on the secondary surface clears the light-mode floor', () => {
-		const themeDeclarations = extractDeclarations(extractBlock(':root'));
+		const themeDeclarations = themeDeclarationsFor('light');
 		const backgroundHex = resolvePaintedHex(
 			'bg-secondary',
 			'background-color',

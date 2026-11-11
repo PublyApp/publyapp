@@ -274,6 +274,16 @@
 		--border: var(--publy-border);
 		--input: var(--publy-border);
 		--ring: var(--publy-focus-ring);
+		/* #2360: the Tailwind bridge is radan-ui's `@theme inline`, so
+		   `text-foreground`, `border-border`, `ring-ring`, `border-input` ...
+		   read `--radan-ui-*` at the element, not the shadcn aliases above.
+		   Re-point those too or the night band paints ink on ink in light. */
+		--radan-ui-foreground: var(--publy-foreground);
+		--radan-ui-foreground-secondary: var(--publy-foreground-secondary);
+		--radan-ui-muted-foreground: var(--publy-foreground-muted);
+		--radan-ui-border: var(--publy-border);
+		--radan-ui-input-border: var(--publy-border);
+		--radan-ui-ring: var(--publy-focus-ring);
 	}
 
 	.publy-landing .publy-landing-night {

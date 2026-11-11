@@ -63,38 +63,50 @@ Derived from `packages/shared-ts/src/lib/i18n/json/common.{en,fr}.json`:
 
 ### Colour tokens
 
-All colours are CSS custom properties declared in `apps/front/src/styles/app.css` under `:root`
-(light) and `html.dark` (dark), with a `@theme inline` bridge to Tailwind v4 utility names
-(`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `ring-ring`, etc.).
-— source: `apps/front/src/styles/app.css` (`:root`, `html.dark`, `@theme inline`)
+**Where tokens come from (#2360).** PublyApp and ShopKartOS share one visual language, which lives in
+`@radandevist/radan-ui`. `app.css` imports its `theme.css` (`--radan-ui-*` variables in `:root` and
+`.dark`, plus the `@theme inline` bridge to the Tailwind v4 names `bg-background`, `text-foreground`,
+`bg-primary`, `border-border`, `ring-ring`, `rounded-card`, `shadow-popover`, ...). The `--background`,
+`--publy-*` and `--effect-*` names below are thin aliases onto it: change a colour, radius or
+raised/popover effect in radan-ui, not here. PublyApp overrides radan-ui in exactly two places: the
+muted-text value (`--radan-ui-muted-foreground`, see Contrast) and the Tailwind name `--color-input`, which stays
+the field hairline (`--radan-ui-input-border`) instead of radan-ui's input text colour. **PublyApp-only tokens** (radan-ui does not
+define them): primary active/soft, marketing eyebrow, `--publy-foreground-subtle`, `--publy-border-strong`,
+disabled, table header, row border, dropdown/selection-bar/auth-panel/alert/chart/role-tone sets, the
+avatar palette, shell/container sizes, the z-index scale, motion, the danger-zone and the type scale
+(radan-ui 0.1.1 ships none). A workaround for a radan-ui 0.1.1 light-mode `card-foreground` self-cycle
+sits right after the import in `app.css`; it is `:root:not(.dark)`, so it relies on the `dark` class staying on
+`<html>`. Scoped re-points (the landing night band) must re-point the `--radan-ui-*` variables, because the
+Tailwind utilities read those.
+— source: `apps/front/src/styles/app.css` (`@import '@radandevist/radan-ui/theme.css'`, `:root`, `html.dark`, `@theme inline`), `apps/front/node_modules/@radandevist/radan-ui/dist/theme.css`
 
-**Semantic groups** (light value → dark value; both columns generated from `apps/front/src/styles/app.css`):
+**Semantic groups** (light value → dark value; values resolved through `app.css` aliases onto radan-ui's `theme.css`, as of radan-ui 0.1.1):
 
-| Group                   | Light                                | Dark                     | Notes                                                                                                                        |
-| ----------------------- | ------------------------------------ | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| Primary (chrome accent) | `--publy-primary #fdc700`            | `#f0bd00`                | Yellow.                                                                                                                      |
-| Primary foreground      | `--publy-primary-foreground #733e0a` | `#1a0d00`                | Solid-button text on `--publy-primary`.                                                                                      |
-| Primary soft            | `#fffbeb`                            | `#2a2400`                | Chips / soft pill background.                                                                                                |
-| Primary soft foreground | `#733e0a`                            | `#fbbf24`                | Text on primary-soft; the value swaps to yellow in dark.                                                                     |
-| Background / surface    | `#f7f7f7`                            | `#18181b`                | `--publy-background`, `--publy-surface` identical in both themes.                                                            |
-| Card / popover          | `#f2f2f2`                            | `#1f1f23`                | `--publy-card`; the raised card/popover fill.                                                                                |
-| Muted                   | `#f7f7f7`                            | `#1f1f23`                | Tailwind `muted`; equals `background` in light.                                                                              |
-| Surface raised          | `#f6f6f6`                            | `#18181b`                | Dark equals `background`; use `card`/`popover` for an elevated panel.                                                        |
-| Surface muted           | `#f2f2f2`                            | `#222226`                | `--publy-surface-muted` (secondary/accent fills).                                                                            |
-| Surface hover           | `#f2f2f2`                            | `#222226`                |                                                                                                                              |
-| Surface active          | `#ffffff`                            | `#27272a`                | Active navigation row.                                                                                                       |
-| Foreground              | `#18181b`                            | `#feffff`                | Body text.                                                                                                                   |
-| Foreground secondary    | `#3f3f46`                            | `#d4d4d8`                | Real content text.                                                                                                           |
-| Foreground muted        | `#6b6b73`                            | `#898989`                | Secondary body text; clears 4.5:1 on every surface. Deliberate AA step from Shopkart's `#71717a` / `#7f7f7f` (see Contrast). |
-| Foreground subtle       | `#a1a1aa`                            | `#71717a`                | ~2.5:1; **non-text roles only** (placeholders, eyebrows, separators, decorative icons).                                      |
-| Border                  | `#e3e3e3`                            | `#323234`                | Hairline ring colour.                                                                                                        |
-| Border strong           | `#d4d4d8`                            | `rgba(255,255,255,0.15)` | Used by `outline` button variant (unconditional, both themes).                                                               |
-| Input border            | `#e4e4e7`                            | `#27272a`                | `--publy-input-border`; field hairline, one step lighter than the general border.                                            |
-| Danger                  | `#dc2626`                            | `#f87171`                | `--publy-danger`; destructive actions/alerts.                                                                                |
-| Success                 | `#047857`                            | `#34d399`                |                                                                                                                              |
-| Warning                 | `#b45309`                            | `#fbbf24`                |                                                                                                                              |
-| Focus ring              | `#a16207`                            | `#facc15`                | `--publy-focus-ring`.                                                                                                        |
-| Disabled                | `#d4d4d8`                            | `#52525b`                |                                                                                                                              |
+| Group                   | Light                                | Dark                     | Notes                                                                                                                         |
+| ----------------------- | ------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| Primary (chrome accent) | `--publy-primary #fecd00`            | `#fecd00`                | Yellow; theme-invariant (radan-ui `primary`).                                                                                 |
+| Primary foreground      | `--publy-primary-foreground #423600` | `#423600`                | Solid-button text on `--publy-primary`.                                                                                       |
+| Primary soft            | `#fffbeb`                            | `#2a2400`                | Chips / soft pill background.                                                                                                 |
+| Primary soft foreground | `#733e0a`                            | `#fbbf24`                | Text on primary-soft; the value swaps to yellow in dark.                                                                      |
+| Background / surface    | `#f7f7f7`                            | `#18181b`                | `--publy-background`, `--publy-surface` identical in both themes.                                                             |
+| Card / popover          | `#f2f2f2`                            | `#1f1f23`                | `--publy-card`; raised card fill. Menus/popovers paint `--popover-surface` (`#fff` / `#1f1f23`).                              |
+| Muted                   | `#f7f7f7`                            | `#1f1f23`                | Tailwind `muted`; equals `background` in light.                                                                               |
+| Surface raised          | `#f6f6f6`                            | `#18181b`                | Dark equals `background`; use `card`/`popover` for an elevated panel.                                                         |
+| Surface muted           | `#f2f2f2`                            | `#222226`                | `--publy-surface-muted` (secondary fills).                                                                                    |
+| Surface hover           | `#f2f2f2`                            | `#222226`                |                                                                                                                               |
+| Surface active          | `#ffffff`                            | `#27272a`                | Active navigation row.                                                                                                        |
+| Foreground              | `#18181b`                            | `#feffff`                | Body text.                                                                                                                    |
+| Foreground secondary    | `#3f3f46`                            | `#d4d4d8`                | Real content text.                                                                                                            |
+| Foreground muted        | `#6b6b73`                            | `#898989`                | Secondary body text; clears 4.5:1 on every surface. Deliberate AA step from Shopkart's `#71717a` / `#7f7f7f` (see Contrast).  |
+| Foreground subtle       | `#a1a1aa`                            | `#71717a`                | ~2.5:1; **non-text roles only** (placeholders, eyebrows, separators, decorative icons).                                       |
+| Border                  | `#e3e3e3`                            | `#323234`                | Hairline ring colour.                                                                                                         |
+| Border strong           | `#d4d4d8`                            | `rgba(255,255,255,0.15)` | Used by `outline` button variant (unconditional, both themes).                                                                |
+| Input border            | `#e4e4e7`                            | `#27272a`                | `--publy-input-border`; field hairline. `border-input` / `bg-input/*` map to it (`--color-input` is re-defined in `app.css`). |
+| Danger                  | `#b91c1c`                            | `#fca5a5`                | `--publy-danger` = radan-ui `destructive`; destructive actions/alerts.                                                        |
+| Success                 | `#15803d`                            | `#86efac`                | radan-ui `status-success`.                                                                                                    |
+| Warning                 | `#b45309`                            | `#fdd34d`                | radan-ui `status-warning`.                                                                                                    |
+| Focus ring              | `#18181b`                            | `#d4d4d8`                | `--publy-focus-ring` = radan-ui `ring`.                                                                                       |
+| Disabled                | `#d4d4d8`                            | `#52525b`                |                                                                                                                               |
 
 The avatar identity palette `--publy-avatar-1…8` (teal, violet, pink, rose, orange, sky, cyan,
 magenta) is **theme-invariant** (no `html.dark` counterpart) — WCAG-pinned against fixed white
@@ -103,11 +115,13 @@ no separate thumb-tint set (the avatar palette already carries the identity hue)
 
 **Owner decision 2026-10-30 (#2271):** the Shopkart OS / Gray UI values above are **global** — staff
 space, tenant space and auth/marketing pages share them; they are not scoped to one surface. The
-brand yellow `--publy-primary` stays PublyApp's `#fdc700`.
+brand yellow is radan-ui's `#fecd00` (#2360).
 
 **Deliberate gap from Shopkart (owner decision, 30/10):** muted foreground is `#6b6b73` light /
 `#898989` dark instead of Shopkart's `#71717a` / `#7f7f7f`, because those measured 4.32–4.51:1 on
-our card, popover and secondary fills. AA contrast wins over pixel parity.
+our card, popover and secondary fills. AA contrast wins over pixel parity. It is implemented as an
+override of `--radan-ui-muted-foreground` in `app.css` (`:root:not(.dark)` and `html.dark`), so
+`text-muted-foreground` and `--publy-foreground-muted` stay one value.
 
 Marketing-specific accent `--publy-marketing-eyebrow-accent` (`#8a6a1f` light / `#d97706` dark) is
 the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/front/src/styles/app.css`
@@ -131,7 +145,7 @@ the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/
 
 ### Spacing & radius
 
-- Radius scales with control height. Canonical tokens: `--publy-radius-sm 0.375rem`, `--publy-radius-md 0.5rem`,
+- Radius scales with control height. Canonical tokens: `--publy-radius-sm 0.375rem`, `--publy-radius-md 0.5rem` (both derived from radan-ui's `--radan-ui-radius`),
   `--publy-radius-input 10px`, `--publy-radius-chip 8px`, `--publy-radius-small-control 10px`,
   `--publy-radius-medium-control 12px`, `--publy-radius-control 14px`, `--publy-radius-menu-item 9px`,
   `--publy-radius-circular 999px`. — source: `apps/front/src/styles/app.css`
@@ -238,12 +252,12 @@ scaffolding/CSS-import dependency only, not a runtime library. — source: `docs
 | `card.tsx`                                                 | Sectioned surface (no cva; `size` prop)                                 | `size`: default/sm; slots: Header/Title/Description/Action/Content/Footer                                           | `--publy-shadow-ring`, `--publy-radius-card`                                                                                      |
 | `input.tsx` / `textarea.tsx`                               | Text entry                                                              | none (utility classes)                                                                                              | `--publy-radius-input`, `--publy-shadow-input`, `ring-ring`, `--publy-destructive-soft`                                           |
 | `select.tsx`                                               | Trigger-anchored dropdown select                                        | none; `size` data attr                                                                                              | `--publy-radius-input`, `ring-ring`; `alignItemWithTrigger` defaults `false`                                                      |
-| `dropdown-menu.tsx`                                        | Menu / context menu / submenu                                           | item radius 9px; `showCheckbox` prop                                                                                | `--publy-radius-menu-item`, 5% foreground mix on `--popover` (hover/focus/highlight)                                              |
+| `dropdown-menu.tsx`                                        | Menu / context menu / submenu                                           | item radius 9px; `showCheckbox` prop                                                                                | `--publy-radius-menu-item`, 5% foreground mix on `--popover-surface` (hover/focus/highlight)                                      |
 | `switch.tsx` / `checkbox.tsx`                              | Toggles                                                                 | `size`: default/sm                                                                                                  | `--publy-radius-small-control`, `bg-primary` (checked)                                                                            |
 | `tabs.tsx`                                                 | Tab list                                                                | `variant`: default/line                                                                                             | `bg-muted`, `border-border`; labels 14px/400 muted, active 500 foreground with a 2px foreground underline and 12px inline padding |
 | `table.tsx`                                                | Data grid primitives (`TableContainer`, etc.)                           | none                                                                                                                | `--publy-table-header`, `--publy-row-border`                                                                                      |
 | `skeleton.tsx`                                             | Loading placeholder                                                     | none (allows `rounded-full` for circular shimmer)                                                                   | surface-muted                                                                                                                     |
-| `tooltip.tsx`                                              | Hover/focus hint                                                        | none                                                                                                                | `bg-popover`                                                                                                                      |
+| `tooltip.tsx`                                              | Hover/focus hint                                                        | none                                                                                                                | `bg-foreground`                                                                                                                   |
 | `drawer.tsx` / `confirm-dialog.tsx`                        | Dialog surfaces (drawer = side panel)                                   | none                                                                                                                | `--publy-drawer-width 460px`, `--publy-modal-radius`, `--publy-shadow-drawer`                                                     |
 | `state-view.tsx` / `state-surface.tsx`                     | Empty / error / loading primitives                                      | none                                                                                                                | tone colour via `--publy-foreground-muted`/`--publy-danger`/`--publy-primary`                                                     |
 | `search-input.tsx`                                         | List search field                                                       | `compact` / `table`                                                                                                 | `--publy-data-table-search-input`                                                                                                 |

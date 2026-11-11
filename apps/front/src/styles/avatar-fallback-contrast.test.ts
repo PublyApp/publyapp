@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
+import { resolveThemeToken } from './theme-token-test-support';
+
 const rootDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)));
 const appCss = readFileSync(path.join(rootDir, 'app.css'), 'utf8');
 const SMALL_TEXT_CONTRAST_FLOOR = 4.5;
@@ -20,52 +22,12 @@ const AVATAR_BACKGROUND_TOKENS = [
 
 type Rgb = { r: number; g: number; b: number };
 
-const extractBlock = (header: ':root' | 'html.dark'): string => {
-	const start = appCss.indexOf(`${header} {`);
-	if (start === -1) {
-		throw new Error(`Missing ${header} theme block`);
-	}
-
-	let depth = 0;
-	for (let index = start; index < appCss.length; index += 1) {
-		if (appCss[index] === '{') {
-			depth += 1;
-		} else if (appCss[index] === '}') {
-			depth -= 1;
-			if (depth === 0) {
-				return appCss.slice(start, index + 1);
-			}
-		}
-	}
-
-	throw new Error(`Unclosed ${header} theme block`);
-};
-
-const findHexToken = (block: string, token: string): string | undefined => {
-	const match = new RegExp(`${token}:\\s*(#[0-9a-fA-F]{6});`).exec(block);
-	return match?.[1];
-};
-
-const extractHexToken = (block: string, token: string): string => {
-	const value = findHexToken(block, token);
-	if (!value) {
-		throw new Error(`Missing hex token ${token}`);
-	}
-	return value;
-};
-
 const resolveThemeHexToken = (
 	header: ':root' | 'html.dark',
 	token: string,
 ): string => {
-	if (header === 'html.dark') {
-		const darkValue = findHexToken(extractBlock(header), token);
-		if (darkValue) {
-			return darkValue;
-		}
-	}
-
-	return extractHexToken(extractBlock(':root'), token);
+	// #2360: tokens may be aliases onto radan-ui; resolve through both sheets.
+	return resolveThemeToken(token, header === 'html.dark' ? 'dark' : 'light');
 };
 
 const parseHex = (hex: string): Rgb => ({
@@ -95,6 +57,67 @@ const contrastRatio = (foreground: string, background: string): number => {
 	return (lighter + 0.05) / (darker + 0.05);
 };
 
+const mixOver = (top: string, alpha: number, under: string): string => {
+	const a = parseHex(top);
+	const b = parseHex(under);
+	const channel = (x: number, y: number): string =>
+		Math.round(x * alpha + y * (1 - alpha))
+			.toString(16)
+			.padStart(2, '0');
+	return `#${channel(a.r, b.r)}${channel(a.g, b.g)}${channel(a.b, b.b)}`;
+};
+
+// #2360: pairs whose colours now come from radan-ui through aliases (and
+// through `--color-input`, which app.css deliberately keeps on the field
+// hairline). Measured on the page surface; a field on a card is a pre-existing
+// 4.44:1 light / 4.48:1 dark and is not part of this pin.
+describe('radan-ui aliased text pairs', () => {
+	test.each(['light', 'dark'] as const)(
+		'input placeholder clears AA on a bg-input/50 field over the page in the %s theme',
+		(theme) => {
+			const inputToken = /--color-input:\s*var\((--[\w-]+)\)/.exec(appCss)?.[1];
+			expect(inputToken).toBeDefined();
+			const page = resolveThemeToken('--radan-ui-background', theme);
+			const fill = mixOver(
+				resolveThemeToken(inputToken as string, theme),
+				0.5,
+				page,
+			);
+			const placeholder = resolveThemeToken(
+				'--radan-ui-muted-foreground',
+				theme,
+			);
+
+			expect(contrastRatio(placeholder, fill)).toBeGreaterThanOrEqual(
+				SMALL_TEXT_CONTRAST_FLOOR,
+			);
+		},
+	);
+
+	test.each([
+		['light', '--radan-ui-background'],
+		['light', '--radan-ui-card'],
+		['dark', '--radan-ui-background'],
+		['dark', '--radan-ui-card'],
+	] as const)(
+		'success alert text clears AA on its tint over %s %s',
+		(theme, surfaceToken) => {
+			const surface = resolveThemeToken(surfaceToken, theme);
+			const tint =
+				/color-mix\(\s*in srgb,\s*(#[0-9a-f]{6})\s+(\d+)%,\s*transparent\s*\)/i.exec(
+					resolveThemeToken('--publy-alert-success-bg', theme),
+				);
+			expect(tint).not.toBeNull();
+			const fill = mixOver(tint![1], Number(tint![2]) / 100, surface);
+			const text = resolveThemeToken('--publy-alert-success-text', theme);
+
+			expect(contrastRatio(text, fill)).toBeGreaterThanOrEqual(
+				SMALL_TEXT_CONTRAST_FLOOR,
+			);
+		},
+	);
+});
+
 describe('avatar fallback contrast', () => {
 	test.each([
 		['light', ':root'],
@@ -102,9 +125,11 @@ describe('avatar fallback contrast', () => {
 	] as const)(
 		'keeps secondary foreground legible on the muted surface in the %s theme',
 		(_theme, header) => {
-			const block = extractBlock(header);
-			const foreground = extractHexToken(block, '--publy-foreground-secondary');
-			const background = extractHexToken(block, '--publy-surface-muted');
+			const foreground = resolveThemeHexToken(
+				header,
+				'--publy-foreground-secondary',
+			);
+			const background = resolveThemeHexToken(header, '--publy-surface-muted');
 
 			expect(contrastRatio(foreground, background)).toBeGreaterThanOrEqual(
 				SMALL_TEXT_CONTRAST_FLOOR,

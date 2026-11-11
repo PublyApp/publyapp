@@ -90,7 +90,7 @@ export const StaffRoleIdentityHeader = ({
 				<Link
 					to="/staff/roles/$roleId/users"
 					params={{ roleId }}
-					className="inline-flex items-center gap-1.5 rounded-[var(--publy-radius-control)] border border-input bg-background px-3 py-2 text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+					className="inline-flex items-center gap-1.5 rounded-[var(--publy-radius-control)] border border-input bg-background px-3 py-2 text-sm text-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
 				>
 					{t('view-all-assigned-users')}
 				</Link>

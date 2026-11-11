@@ -63,7 +63,7 @@ const expectSingleVisibleShadow = async (
 // highlight is distinguishable from the popover base, which `bg-muted` is not
 // (in dark it equals the popover).
 const MENU_ITEM_HIGHLIGHT =
-	'color-mix(in oklch, var(--popover), var(--foreground) 5%)';
+	'color-mix(in oklch, var(--popover-surface), var(--foreground) 5%)';
 
 const seedDarkTheme = async (page: Page): Promise<void> => {
 	await page.evaluate((key) => {

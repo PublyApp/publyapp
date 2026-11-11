@@ -10,7 +10,7 @@ import { cn } from '~/lib/utils';
 // foreground mix on the popover base, so it stays visible in both themes.
 // `bg-muted` is not usable here — in dark it equals the popover.
 const menuItemHighlight =
-	'focus:bg-[color-mix(in_oklch,var(--popover),var(--foreground)_5%)] data-highlighted:bg-[color-mix(in_oklch,var(--popover),var(--foreground)_5%)]';
+	'focus:bg-[color-mix(in_oklch,var(--popover-surface),var(--foreground)_5%)] data-highlighted:bg-[color-mix(in_oklch,var(--popover-surface),var(--foreground)_5%)]';
 
 const DropdownMenu = ({ ...props }: MenuPrimitive.Root.Props) => {
 	return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
@@ -132,7 +132,7 @@ const DropdownMenuSubTrigger = ({
 			data-slot="dropdown-menu-sub-trigger"
 			data-inset={inset}
 			className={cn(
-				`flex h-8 cursor-default items-center gap-2 rounded-[var(--publy-radius-menu-item)] px-2.5 text-[13px] text-foreground outline-hidden select-none ${menuItemHighlight} data-inset:pl-9.5 data-popup-open:bg-[color-mix(in_oklch,var(--popover),var(--foreground)_5%)] data-open:bg-[color-mix(in_oklch,var(--popover),var(--foreground)_5%)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[15px] [&_svg]:text-muted-foreground`,
+				`flex h-8 cursor-default items-center gap-2 rounded-[var(--publy-radius-menu-item)] px-2.5 text-[13px] text-foreground outline-hidden select-none ${menuItemHighlight} data-inset:pl-9.5 data-popup-open:bg-[color-mix(in_oklch,var(--popover-surface),var(--foreground)_5%)] data-open:bg-[color-mix(in_oklch,var(--popover-surface),var(--foreground)_5%)] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[15px] [&_svg]:text-muted-foreground`,
 				className,
 			)}
 			{...props}

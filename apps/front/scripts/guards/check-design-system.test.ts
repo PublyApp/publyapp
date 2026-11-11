@@ -2267,6 +2267,15 @@ test('reports the actual internal anchor when another anchor appears first', asy
 	assert.doesNotMatch(anchors[0].source, /href=\{href\}/);
 });
 
+const readRadanTheme = (): Promise<string> =>
+	readFile(
+		new URL(
+			'../../node_modules/@radandevist/radan-ui/dist/theme.css',
+			import.meta.url,
+		),
+		'utf8',
+	);
+
 test('primary button chrome is on .btn-primary-chrome, with no border-radius override (F6/F9)', async () => {
 	const css = await readFile(
 		new URL('../../src/styles/app.css', import.meta.url),
@@ -2288,9 +2297,14 @@ test('primary button chrome is on .btn-primary-chrome, with no border-radius ove
 	// (`--publy-chrome-border`/`--publy-shadow-chrome`) is gone.
 	assert.match(chromeRuleBody, /border:\s*1px\s+solid\s+transparent/);
 	assert.match(chromeRuleBody, /box-shadow:\s*var\(--effect-primary-raised\)/);
+	// #2360: the ring VALUE now lives in radan-ui; app.css only aliases it.
 	assert.match(
 		css,
-		/--effect-primary-raised:\s*0\s+0\s+0\s+1px\s+rgb\(120\s+96\s+0\s*\/\s*30%\)/,
+		/--effect-primary-raised:\s*var\(--radan-ui-effect-primary-raised\)/,
+	);
+	assert.match(
+		await readRadanTheme(),
+		/--radan-ui-effect-primary-raised:\s*0\s+0\s+0\s+1px\s+rgb\(120\s+96\s+0\s*\/\s*30%\)/,
 	);
 
 	// F6: no border-radius here. This class is un-layered (must beat
@@ -2308,17 +2322,35 @@ test('handoff design tokens are present in app.css', async () => {
 	);
 
 	assert.match(css, /--publy-font-sans:\s*Geist, ui-sans-serif/);
-	assert.match(css, /--publy-primary:\s*#fecd00/i);
-	assert.match(css, /--publy-primary-foreground:\s*#423600/i);
+	// #2360: colours and effects are aliases onto radan-ui, whose theme.css
+	// holds the pinned values (checked below).
+	const radan = await readRadanTheme();
+	assert.match(css, /--publy-primary:\s*var\(--radan-ui-primary\)/);
+	assert.match(
+		css,
+		/--publy-primary-foreground:\s*var\(--radan-ui-primary-foreground\)/,
+	);
+	assert.match(radan, /--radan-ui-yellow:\s*#fecd00/i);
+	assert.match(radan, /--radan-ui-primary:\s*var\(--radan-ui-yellow\)/);
+	assert.match(
+		radan,
+		/--radan-ui-primary-foreground:\s*var\(--radan-ui-yellow-ink\)/,
+	);
+	assert.match(radan, /--radan-ui-yellow-ink:\s*#423600/i);
 	assert.match(css, /--publy-shell-rail-width:\s*49px/);
 	assert.match(css, /--publy-shell-panel-width:\s*272px/);
 	assert.match(css, /--publy-shell-topbar-height:\s*64px/);
 	assert.match(
 		css,
-		/--effect-raised-control:\s*0\s+0\s+0\s+1px\s+var\(--border\)/,
+		/--effect-raised-control:\s*var\(--radan-ui-effect-raised-control\)/,
 	);
-	assert.match(css, /--popover-surface:\s*#ffffff/i);
-	assert.match(css, /--effect-popover:/);
+	assert.match(
+		radan,
+		/--radan-ui-effect-raised-control:\s*0\s+0\s+0\s+1px\s+var\(--radan-ui-border\)/,
+	);
+	assert.match(css, /--popover-surface:\s*var\(--radan-ui-popover-surface\)/);
+	assert.match(radan, /--radan-ui-popover-surface:\s*#fff\b/i);
+	assert.match(css, /--effect-popover:\s*var\(--radan-ui-effect-popover\)/);
 	assert.match(css, /--publy-modal-radius:\s*28px/);
 });
 
