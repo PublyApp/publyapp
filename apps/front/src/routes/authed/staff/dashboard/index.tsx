@@ -34,7 +34,7 @@ import {
 	type DashboardPeriod,
 	type OrganisationScope,
 } from './_dashboard-filters';
-import { formatSignedPercent, seriesTotal } from './_dashboard-format';
+import { seriesDelta, seriesTotal } from './_dashboard-format';
 import {
 	ChartCard,
 	OrganisationScopeSelect,
@@ -54,7 +54,7 @@ type OverviewSearch = {
 	scope?: OrganisationScope;
 };
 
-/** The nine queries the overview renders, declared once: the loader warms them
+/** The thirteen queries the overview renders, declared once: the loader warms them
  * and the page reads the same variables (so the window the loader fetched is
  * the window the page observes). */
 const dashboardOverviewQueries = ({ search }: { search: OverviewSearch }) => {
@@ -111,6 +111,32 @@ const dashboardOverviewQueries = ({ search }: { search: OverviewSearch }) => {
 			options: staffDashboardSeriesQueryOptions,
 			variables: { metric: 'audit_events' as const, ...previousPeriod(period) },
 		},
+		// « Membres des organisations » and « Invitations en attente » are levels,
+		// not flows: each needs the current and the previous window, like the
+		// audit pair, and neither follows the « Organisations » scope (#2355).
+		membersSeries: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: { metric: 'members' as const, startDate, endDate },
+		},
+		previousMembersSeries: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: { metric: 'members' as const, ...previousPeriod(period) },
+		},
+		pendingInvitationsSeries: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: {
+				metric: 'pending_invitations' as const,
+				startDate,
+				endDate,
+			},
+		},
+		previousPendingInvitationsSeries: {
+			options: staffDashboardSeriesQueryOptions,
+			variables: {
+				metric: 'pending_invitations' as const,
+				...previousPeriod(period),
+			},
+		},
 		// The heatmap is the platform's last year, not the page's period: the
 		// prototype fills the card with as many weeks as the API allows (366
 		// days).
@@ -162,6 +188,18 @@ const Overview = () => {
 		queries.previousSeries.variables,
 	);
 	const heatmapQuery = useStaffDashboardSeriesQuery(queries.heatmap.variables);
+	const membersSeriesQuery = useStaffDashboardSeriesQuery(
+		queries.membersSeries.variables,
+	);
+	const previousMembersSeriesQuery = useStaffDashboardSeriesQuery(
+		queries.previousMembersSeries.variables,
+	);
+	const pendingInvitationsSeriesQuery = useStaffDashboardSeriesQuery(
+		queries.pendingInvitationsSeries.variables,
+	);
+	const previousPendingInvitationsSeriesQuery = useStaffDashboardSeriesQuery(
+		queries.previousPendingInvitationsSeries.variables,
+	);
 
 	for (const queryError of [
 		countsQuery.error,
@@ -173,6 +211,10 @@ const Overview = () => {
 		previousSeriesQuery.error,
 		heatmapQuery.error,
 		growthQuery.error,
+		membersSeriesQuery.error,
+		previousMembersSeriesQuery.error,
+		pendingInvitationsSeriesQuery.error,
+		previousPendingInvitationsSeriesQuery.error,
 	]) {
 		if (queryError !== null && shouldLogoutForFailure(queryError)) {
 			return <LogoutRedirect />;
@@ -181,20 +223,10 @@ const Overview = () => {
 
 	const currentTotal = seriesTotal(seriesQuery.data?.points);
 	const previousTotal = seriesTotal(previousSeriesQuery.data?.points);
-	const auditDelta =
-		currentTotal !== undefined &&
-		previousTotal !== undefined &&
-		previousTotal > 0
-			? {
-					label: formatSignedPercent(
-						(currentTotal - previousTotal) / previousTotal,
-						locale,
-					),
-					direction:
-						currentTotal >= previousTotal ? ('up' as const) : ('down' as const),
-				}
-			: undefined;
-
+	const auditDelta = seriesDelta(currentTotal, previousTotal, locale);
+	const deltaPeriod = t('dashboard-delta-vs-previous', {
+		period: t(previousPeriodLabelKey(period)),
+	});
 	return (
 		<div className="space-y-5" data-testid="staff-dashboard-overview-panel">
 			<div className="mb-4 flex flex-wrap items-center gap-2">
@@ -219,19 +251,22 @@ const Overview = () => {
 				activeTenants={countsQuery.data?.counts?.active}
 				members={countsQuery.data?.counts?.members}
 				seriesTotal={currentTotal}
-				pendingInvitations={pendingInvitationsQuery.data?.counts?.pending}
+				pendingInvitations={countsQuery.data?.counts?.pendingInvitations}
 				countsQuery={countsQuery}
 				seriesQuery={seriesQuery}
-				pendingInvitationsQuery={pendingInvitationsQuery}
 				auditQuery={auditQuery}
 				previousSeriesQuery={previousSeriesQuery}
 				auditDelta={auditDelta}
-				auditDeltaPeriod={t('dashboard-delta-vs-previous', {
-					period: t(previousPeriodLabelKey(period)),
-				})}
+				deltaPeriod={deltaPeriod}
 				auditSparkline={(seriesQuery.data?.points ?? []).map(
 					(point) => point.value ?? 0,
 				)}
+				membersSeriesQuery={membersSeriesQuery}
+				previousMembersSeriesQuery={previousMembersSeriesQuery}
+				pendingInvitationsSeriesQuery={pendingInvitationsSeriesQuery}
+				previousPendingInvitationsSeriesQuery={
+					previousPendingInvitationsSeriesQuery
+				}
 				locale={locale}
 			/>
 

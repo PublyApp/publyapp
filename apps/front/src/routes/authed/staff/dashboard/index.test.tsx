@@ -86,6 +86,34 @@ const mocks = vi.hoisted(() => ({
 		data: undefined as Record<string, unknown> | undefined,
 		refetch: vi.fn(),
 	},
+	membersSeriesQuery: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
+	previousMembersSeriesQuery: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
+	pendingSeriesQuery: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
+	previousPendingSeriesQuery: {
+		isPending: false,
+		isError: false,
+		error: null as Error | null,
+		data: undefined as Record<string, unknown> | undefined,
+		refetch: vi.fn(),
+	},
 	search: {} as DashboardSearch,
 	navigate: vi.fn(),
 	shouldLogoutForFailure: vi.fn(() => false),
@@ -163,6 +191,7 @@ const EN_LABELS: TestLabelMap = {
 	'dashboard-kpi-members': 'Organisation members',
 	'dashboard-kpi-audit-events': 'Audit events',
 	'dashboard-kpi-pending-invitations': 'Pending invitations',
+	'dashboard-card-pending-staff-invitations': 'Pending staff invitations',
 	'dashboard-card-growth': 'Organisation growth',
 	'dashboard-note-growth': 'Active organisations per day',
 	'dashboard-note-growth-since': 'History recorded since {{date}}',
@@ -248,6 +277,7 @@ const tenantCounts = {
 	pending: 4,
 	suspended: 3,
 	members: 1284,
+	pendingInvitations: 7,
 };
 
 /** The facets of the status-filtered tenants query: the whole-platform counts
@@ -324,6 +354,10 @@ const withData = () => {
 		recordedSince: addIsoDays(today, -29),
 	};
 	mocks.previousSeriesQuery.data = { points: points(30, 148) };
+	mocks.membersSeriesQuery.data = { points: points(30, 1280) };
+	mocks.previousMembersSeriesQuery.data = { points: points(30, 1200) };
+	mocks.pendingSeriesQuery.data = { points: points(30, 6) };
+	mocks.previousPendingSeriesQuery.data = { points: points(30, 10) };
 	mocks.heatmapQuery.data = { points: points(365, 12) };
 };
 
@@ -338,6 +372,10 @@ const resetMocks = () => {
 		mocks.growthQuery,
 		mocks.previousSeriesQuery,
 		mocks.heatmapQuery,
+		mocks.membersSeriesQuery,
+		mocks.previousMembersSeriesQuery,
+		mocks.pendingSeriesQuery,
+		mocks.previousPendingSeriesQuery,
 	] as QueryMock[]) {
 		query.isPending = false;
 		query.isError = false;
@@ -360,6 +398,19 @@ const resetMocks = () => {
 		(variables: { metric: string; startDate: string; endDate: string }) => {
 			if (variables.metric === 'active_tenants') {
 				return mocks.growthQuery;
+			}
+			const isCurrent = variables.endDate === todayIso();
+			if (variables.metric === 'members' && isCurrent) {
+				return mocks.membersSeriesQuery;
+			}
+			if (variables.metric === 'members') {
+				return mocks.previousMembersSeriesQuery;
+			}
+			if (variables.metric === 'pending_invitations' && isCurrent) {
+				return mocks.pendingSeriesQuery;
+			}
+			if (variables.metric === 'pending_invitations') {
+				return mocks.previousPendingSeriesQuery;
 			}
 			if (variables.startDate <= addIsoDays(todayIso(), -300)) {
 				return mocks.heatmapQuery;
@@ -401,11 +452,71 @@ describe('staff dashboard overview', () => {
 		// The audit-events figure is the series total (30 × 160), the same
 		// source the reports screen reads — never the audit list's 4,812.
 		expect(screen.getByText('4,800')).toBeTruthy();
+		// The organisation invitations of the tenants read (7), never the staff
+		// invitations list's own pending count (5) (#2355).
+		const pending = within(
+			screen.getByTestId('staff-dashboard-kpi-pending-invitations'),
+		);
+		expect(pending.getByText('7')).toBeTruthy();
+		expect(pending.queryByText('5')).toBeNull();
+	});
+
+	test('the staff-invitations list card is labelled apart from the KPI (#2355)', () => {
+		withData();
+		render(<Overview />);
+
+		const list = screen.getByTestId('staff-dashboard-pending-invitations');
+		expect(within(list).getByText('Pending staff invitations')).toBeTruthy();
+	});
+
+	test('the members and pending-invitations KPIs carry a delta and a sparkline from their series (#2355)', () => {
+		withData();
+		render(<Overview />);
+
+		const members = screen.getByTestId('staff-dashboard-kpi-members');
+		const membersDelta = within(members).getByTestId(
+			'staff-dashboard-kpi-members-delta',
+		);
+		// The figure (1,284) comes from the tenants read; the series ends on
+		// 1,280, so only the read can have drawn it. 1,280 against 1,200 is up.
+		expect(within(members).getByText('1,284')).toBeTruthy();
 		expect(
-			within(
-				screen.getByTestId('staff-dashboard-kpi-pending-invitations'),
-			).getByText('5'),
-		).toBeTruthy();
+			members.querySelector('svg.kpi-spark:not(.ghost-svg)'),
+		).not.toBeNull();
+		expect(membersDelta.getAttribute('data-dir')).toBe('up');
+		expect(within(members).getByText('vs previous 30 days')).toBeTruthy();
+
+		const pending = screen.getByTestId(
+			'staff-dashboard-kpi-pending-invitations',
+		);
+		expect(
+			within(pending)
+				.getByTestId('staff-dashboard-kpi-pending-invitations-delta')
+				.getAttribute('data-dir'),
+		).toBe('down');
+	});
+
+	test('no delta when the previous window is empty, and the figure stays (#2355)', () => {
+		withData();
+		mocks.previousMembersSeriesQuery.data = { points: [] };
+		render(<Overview />);
+
+		const members = screen.getByTestId('staff-dashboard-kpi-members');
+		expect(
+			within(members).queryByTestId('staff-dashboard-kpi-members-delta'),
+		).toBeNull();
+		expect(within(members).getByText('1,284')).toBeTruthy();
+	});
+
+	test('a failing series never hides the member figure (#2355)', () => {
+		withData();
+		mocks.previousMembersSeriesQuery.isError = true;
+		mocks.previousMembersSeriesQuery.error = new Error('boom');
+		mocks.previousMembersSeriesQuery.data = undefined;
+		render(<Overview />);
+
+		const members = screen.getByTestId('staff-dashboard-kpi-members');
+		expect(within(members).getByText('1,284')).toBeTruthy();
 	});
 
 	test('the invitation outcomes come from the unfiltered query, not the pending-only one (B2)', () => {

@@ -15,6 +15,8 @@ public static class DashboardMetrics {
 	public const string SignIns = "sign_ins";
 	public const string FailedSignIns = "failed_sign_ins";
 	public const string ActiveTenants = "active_tenants";
+	public const string Members = "members";
+	public const string PendingInvitations = "pending_invitations";
 
 	/// <summary>The metrics the endpoint actually serves.</summary>
 	public static readonly string[] Available = [
@@ -22,6 +24,8 @@ public static class DashboardMetrics {
 		DashboardMetrics.SignIns,
 		DashboardMetrics.FailedSignIns,
 		DashboardMetrics.ActiveTenants,
+		DashboardMetrics.Members,
+		DashboardMetrics.PendingInvitations,
 	];
 }
 
@@ -74,8 +78,9 @@ public sealed class GetDashboardSeriesForStaffResponse {
 	/// The first day the series is measured from (the earliest recorded
 	/// transition), for the metrics backed by a recorded history
 	/// (<c>active_tenants</c>). The days before it are not measured values and
-	/// must not be shown as 0 (#2349). <c>null</c> for the audit-log metrics,
-	/// which cover the whole window.
+	/// must not be shown as 0 (#2349). <c>null</c> for the audit-log metrics and
+	/// for <c>members</c> / <c>pending_invitations</c> (rebuilt from the rows'
+	/// own timestamps, exact back to the first row), which cover the whole window.
 	/// </summary>
 	public string? RecordedSince { get; init; }
 
@@ -143,6 +148,16 @@ public sealed class GetDashboardSeriesForStaff {
 					);
 					break;
 				}
+			case DashboardMetrics.Members:
+				points = await dashboardQueryService.GetMemberSeriesAsync(
+					args,
+					cancellationToken
+				);
+				break;
+			case DashboardMetrics.PendingInvitations:
+				points = await dashboardQueryService
+					.GetPendingInvitationSeriesAsync(args, cancellationToken);
+				break;
 			default:
 				points = await dashboardQueryService.GetAuditEventSeriesAsync(
 					args,

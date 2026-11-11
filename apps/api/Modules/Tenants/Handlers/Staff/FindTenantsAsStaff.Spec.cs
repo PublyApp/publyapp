@@ -1271,6 +1271,11 @@ public sealed class FindTenantsAsStaffSpec
 			frenchId,
 			DateTime.UtcNow.AddDays(30)
 		);
+		// Pending but already expired: not pending any more (#2355).
+		await this._SeedPendingTenantInvitationAsync(
+			frenchId,
+			DateTime.UtcNow.AddDays(-1)
+		);
 
 		var url = TenantTestHelper.GetFindUrl(q: marker, limit: 100);
 		using var request = new HttpRequestMessage(HttpMethod.Get, url)
@@ -1300,7 +1305,8 @@ public sealed class FindTenantsAsStaffSpec
 			facet.Locale == "en" && facet.Count >= 1
 		);
 
-		// Two pending invitations for one organisation, one expiring within seven days.
+		// Two pending invitations for one organisation, one expiring within seven
+		// days; the expired one is not counted.
 		result.Counts.PendingInvitations.Should().Be(2);
 		result.Counts.PendingInvitationTenants.Should().Be(1);
 		result.Counts.ExpiringInvitations.Should().Be(1);

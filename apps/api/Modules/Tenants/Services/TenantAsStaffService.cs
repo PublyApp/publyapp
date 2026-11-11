@@ -463,14 +463,15 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			.ToList();
 
 		// « Invitations en attente »: pending organisation invitations for the
-		// filtered tenants, the organisations concerned, and the ones expiring
-		// within seven days (already-expired rows are not expiring).
+		// filtered tenants (an expired invitation is not pending), the
+		// organisations concerned, and the ones expiring within seven days.
 		var now = DateTime.UtcNow;
 		var expiringBoundary = now.AddDays(7);
 		var pendingInvitationRows = await (
 			from invitation in this._DbContext.Invitation.AsNoTracking()
 			where invitation.Scope == InvitationScope.Tenant
 				&& invitation.Status == InvitationStatus.Pending
+				&& invitation.ExpiresAt > now
 				&& !invitation.IsDeleted
 				&& invitation.TenantId != null
 				&& baseQuery.Any(tenant => tenant.Id == invitation.TenantId)
@@ -486,7 +487,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			if (row.TenantId is { } invitationTenantId) {
 				pendingInvitationTenantIds.Add(invitationTenantId);
 			}
-			if (row.ExpiresAt > now && row.ExpiresAt <= expiringBoundary) {
+			// Every row is already unexpired (the query tests ExpiresAt > now).
+			if (row.ExpiresAt <= expiringBoundary) {
 				expiringInvitations += 1;
 			}
 		}

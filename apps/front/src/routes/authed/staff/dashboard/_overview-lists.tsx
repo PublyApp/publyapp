@@ -151,7 +151,7 @@ export const OverviewLists = ({
 
 			<DashboardCard
 				testId="staff-dashboard-pending-invitations"
-				label={t('dashboard-kpi-pending-invitations')}
+				label={t('dashboard-card-pending-staff-invitations')}
 				icon={<IconMail />}
 				actions={
 					<ViewAllLink

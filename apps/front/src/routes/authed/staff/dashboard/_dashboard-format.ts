@@ -45,7 +45,7 @@ export const formatShare = (
 			}).format(value / total);
 
 /** « +12,5 % » — the KPI delta, always signed. */
-export const formatSignedPercent = (value: number, locale: string): string =>
+const formatSignedPercent = (value: number, locale: string): string =>
 	numberFormat(locale, {
 		style: 'percent',
 		maximumFractionDigits: 1,
@@ -89,6 +89,32 @@ export const seriesTotal = (
 	}
 	return total;
 };
+
+/** The last point's value: the level a stock series (members, pending
+ * invitations) ends the window on. `undefined` when the API served no point. */
+export const seriesLastValue = (
+	points: ReadonlyArray<{ value?: number | null }> | null | undefined,
+): number | undefined => {
+	if (!points || points.length === 0) {
+		return undefined;
+	}
+	return points[points.length - 1]?.value ?? 0;
+};
+
+/** The change against the previous window, when both figures are known and
+ * the previous one is not 0 (a percentage of 0 has no meaning). The flow
+ * series feed it their window sums, the stock series their last values. */
+export const seriesDelta = (
+	current: number | undefined,
+	previous: number | undefined,
+	locale: string,
+): { label: string; direction: 'up' | 'down' } | undefined =>
+	current !== undefined && previous !== undefined && previous > 0
+		? {
+				label: formatSignedPercent((current - previous) / previous, locale),
+				direction: current >= previous ? ('up' as const) : ('down' as const),
+			}
+		: undefined;
 
 /** The API's daily points as the shared charts' labelled series. When the API
  * reports the first day its history is measured from (`recordedSince`), the

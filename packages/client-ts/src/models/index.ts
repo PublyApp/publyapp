@@ -6971,7 +6971,7 @@ export interface GetDashboardSeriesForStaffResponse extends AdditionalDataHolder
      */
     points?: DashboardSeriesPoint[] | null;
     /**
-     * The first day the series is measured from (the earliest recordedtransition), for the metrics backed by a recorded history(`active_tenants`). The days before it are not measured values andmust not be shown as 0 (#2349). `null` for the audit-log metrics,which cover the whole window.
+     * The first day the series is measured from (the earliest recordedtransition), for the metrics backed by a recorded history(`active_tenants`). The days before it are not measured values andmust not be shown as 0 (#2349). `null` for the audit-log metrics andfor `members` / `pending_invitations` (rebuilt from the rows'own timestamps, exact back to the first row), which cover the whole window.
      */
     recordedSince?: string | null;
     /**

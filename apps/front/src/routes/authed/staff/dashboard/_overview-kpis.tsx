@@ -13,15 +13,38 @@ import type {
 	GetDashboardSeriesForStaffResponse,
 } from '@org/client-ts/models/index';
 
+import { seriesDelta, seriesLastValue } from './_dashboard-format';
 import { KpiCard } from './_dashboard-ui';
+
+type SeriesQuery = UseQueryResult<GetDashboardSeriesForStaffResponse, Error>;
+
+/** A level card's comparison, from its series and the previous window's: the
+ * delta is the window's last value against the previous window's last one,
+ * and the sparkline is the window itself. A series that is missing or failed
+ * only drops the comparison, never the figure. */
+const levelTrend = (
+	current: SeriesQuery,
+	previous: SeriesQuery,
+	deltaPeriod: string | undefined,
+	locale: string,
+) => ({
+	delta: seriesDelta(
+		seriesLastValue(current.data?.points),
+		seriesLastValue(previous.data?.points),
+		locale,
+	),
+	deltaQuery: previous,
+	deltaPeriod,
+	sparkline: (current.data?.points ?? []).map((point) => point.value ?? 0),
+});
 
 /** The four overview figures (§5.2): active organisations and their members
  * (the unfiltered tenants facets), the period's audit events and the pending
- * invitations. Each card owns its query, so its loading/error state renders
- * through `QueryDisplay`: a figure the API cannot source yet is never a
- * measured-looking 0. Only the audit-events card has a series to compare, so
- * only it carries a delta and a sparkline; the other three have no historical
- * endpoint (the tenants read exposes current counts, not a daily series).
+ * organisation invitations (all from the unfiltered tenants read). Each card
+ * owns its query, so its loading/error state renders through `QueryDisplay`:
+ * a figure the API cannot source is never a measured-looking 0. The audit,
+ * members and pending-invitations cards carry a delta and a sparkline from
+ * their daily series (#2355); the active-organisations card has none yet.
  * The audit-events figure comes from that series, so the card is gated on the
  * series query — the same query the Rapports KPI gates on: the two screens
  * show the same figure or the same error, never one behind the other one's
@@ -35,12 +58,15 @@ export const OverviewKpis = ({
 	pendingInvitations,
 	countsQuery,
 	seriesQuery,
-	pendingInvitationsQuery,
 	auditQuery,
 	previousSeriesQuery,
 	auditDelta,
-	auditDeltaPeriod,
+	deltaPeriod,
 	auditSparkline,
+	membersSeriesQuery,
+	previousMembersSeriesQuery,
+	pendingInvitationsSeriesQuery,
+	previousPendingInvitationsSeriesQuery,
 	locale,
 }: {
 	activeTenants: number | null | undefined;
@@ -49,7 +75,6 @@ export const OverviewKpis = ({
 	pendingInvitations: number | null | undefined;
 	countsQuery: UseQueryResult<unknown, Error>;
 	seriesQuery: UseQueryResult<unknown, Error>;
-	pendingInvitationsQuery: UseQueryResult<unknown, Error>;
 	/** The audit list, read only for its exact total when the series has no
 	 * point. */
 	auditQuery: UseQueryResult<FindAuditLogsResponse, Error>;
@@ -59,8 +84,14 @@ export const OverviewKpis = ({
 		Error
 	>;
 	auditDelta?: { label: string; direction: 'up' | 'down' };
-	auditDeltaPeriod?: string;
+	/** The comparison window's name, shared by the three cards with a delta. */
+	deltaPeriod?: string;
 	auditSparkline?: readonly number[];
+	/** The level cards' series (#2355): this window and the previous one. */
+	membersSeriesQuery: SeriesQuery;
+	previousMembersSeriesQuery: SeriesQuery;
+	pendingInvitationsSeriesQuery: SeriesQuery;
+	previousPendingInvitationsSeriesQuery: SeriesQuery;
 	locale: string;
 }) => {
 	const { t } = useTranslation('common');
@@ -75,7 +106,7 @@ export const OverviewKpis = ({
 			query={seriesQuery}
 			deltaQuery={previousSeriesQuery}
 			delta={auditDelta}
-			deltaPeriod={auditDeltaPeriod}
+			deltaPeriod={deltaPeriod}
 			sparkline={auditSparkline}
 		/>
 	);
@@ -97,6 +128,12 @@ export const OverviewKpis = ({
 				figure={members}
 				locale={locale}
 				query={countsQuery}
+				{...levelTrend(
+					membersSeriesQuery,
+					previousMembersSeriesQuery,
+					deltaPeriod,
+					locale,
+				)}
 			/>
 			<QueryDisplay
 				query={auditQuery}
@@ -114,7 +151,13 @@ export const OverviewKpis = ({
 				icon={<IconMail />}
 				figure={pendingInvitations}
 				locale={locale}
-				query={pendingInvitationsQuery}
+				query={countsQuery}
+				{...levelTrend(
+					pendingInvitationsSeriesQuery,
+					previousPendingInvitationsSeriesQuery,
+					deltaPeriod,
+					locale,
+				)}
 			/>
 		</div>
 	);

@@ -1876,6 +1876,7 @@
 	"dashboard-kpi-members": "Organisation members",
 	"dashboard-kpi-audit-events": "Audit events",
 	"dashboard-kpi-pending-invitations": "Pending invitations",
+	"dashboard-card-pending-staff-invitations": "Pending staff invitations",
 	"dashboard-kpi-signins": "Sign-ins",
 	"dashboard-kpi-failed-signins": "Failed sign-ins",
 	"dashboard-kpi-impersonations": "Impersonation sessions",
