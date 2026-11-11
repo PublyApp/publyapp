@@ -411,6 +411,11 @@ test.describe(
 			await expect(
 				page.getByTestId('app-shell-user-menu-trigger'),
 			).toBeVisible();
+			// The chip shows the « Sans nom » placeholder while the current user
+			// is still loading; read the name only once the real one is there.
+			await expect(page.locator('.app-shell-user-name')).not.toHaveText(
+				'Sans nom',
+			);
 			const visibleName =
 				(await page.locator('.app-shell-user-name').textContent())?.trim() ??
 				'';
