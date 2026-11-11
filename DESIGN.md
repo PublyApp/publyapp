@@ -68,9 +68,7 @@ Derived from `packages/shared-ts/src/lib/i18n/json/common.{en,fr}.json`:
 `.dark`, plus the `@theme inline` bridge to the Tailwind v4 names `bg-background`, `text-foreground`,
 `bg-primary`, `border-border`, `ring-ring`, `rounded-card`, `shadow-popover`, ...). The `--background`,
 `--publy-*` and `--effect-*` names below are thin aliases onto it: change a colour, radius or
-raised/popover effect in radan-ui, not here. PublyApp overrides radan-ui in exactly two places: the
-muted-text value (`--radan-ui-muted-foreground`, see Contrast) and the Tailwind name `--color-input`, which stays
-the field hairline (`--radan-ui-input-border`) instead of radan-ui's input text colour. **PublyApp-only tokens** (radan-ui does not
+raised/popover effect in radan-ui, not here. PublyApp does not override any radan-ui value. **PublyApp-only tokens** (radan-ui does not
 define them): primary active/soft, marketing eyebrow, `--publy-foreground-subtle`, `--publy-border-strong`,
 disabled, table header, row border, dropdown/selection-bar/auth-panel/alert/chart/role-tone sets, the
 avatar palette, shell/container sizes, the z-index scale, motion, the danger-zone and the type scale
@@ -97,14 +95,14 @@ Tailwind utilities read those.
 | Surface active          | `#ffffff`                            | `#27272a`                | Active navigation row.                                                                                                        |
 | Foreground              | `#18181b`                            | `#feffff`                | Body text.                                                                                                                    |
 | Foreground secondary    | `#3f3f46`                            | `#d4d4d8`                | Real content text.                                                                                                            |
-| Foreground muted        | `#6b6b73`                            | `#898989`                | Secondary body text; clears 4.5:1 on every surface. Deliberate AA step from Shopkart's `#71717a` / `#7f7f7f` (see Contrast).  |
+| Foreground muted        | `#6b6b73`                            | `#898989`                | Secondary body text; clears 4.5:1 on every surface. radan-ui's own value since 0.1.2 (AA step from Shopkart's `#71717a` / `#7f7f7f`; see Contrast).|
 | Foreground subtle       | `#a1a1aa`                            | `#71717a`                | ~2.5:1; **non-text roles only** (placeholders, eyebrows, separators, decorative icons).                                       |
 | Border                  | `#e3e3e3`                            | `#323234`                | Hairline ring colour.                                                                                                         |
 | Border strong           | `#d4d4d8`                            | `rgba(255,255,255,0.15)` | Used by `outline` button variant (unconditional, both themes).                                                                |
-| Input border            | `#e4e4e7`                            | `#27272a`                | `--publy-input-border`; field hairline. `border-input` / `bg-input/*` map to it (`--color-input` is re-defined in `app.css`). |
+| Input border            | `#e4e4e7`                            | `#27272a`                | `--publy-input-border`; field hairline. `border-input` / `bg-input/*` map to it (`--color-input` is radan-ui's `input`, the same hairline). |
 | Danger                  | `#b91c1c`                            | `#fca5a5`                | `--publy-danger` = radan-ui `destructive`; destructive actions/alerts.                                                        |
-| Success                 | `#15803d`                            | `#86efac`                | radan-ui `status-success`.                                                                                                    |
-| Warning                 | `#b45309`                            | `#fdd34d`                | radan-ui `status-warning`.                                                                                                    |
+| Success                 | `#157f3d`                            | `#86efac`                | radan-ui `status-success`.                                                                                                    |
+| Warning                 | `#b35309`                            | `#fdd34d`                | radan-ui `status-warning`.                                                                                                    |
 | Focus ring              | `#18181b`                            | `#d4d4d8`                | `--publy-focus-ring` = radan-ui `ring`.                                                                                       |
 | Disabled                | `#d4d4d8`                            | `#52525b`                |                                                                                                                               |
 
@@ -119,9 +117,9 @@ brand yellow is radan-ui's `#fecd00` (#2360).
 
 **Deliberate gap from Shopkart (owner decision, 30/10):** muted foreground is `#6b6b73` light /
 `#898989` dark instead of Shopkart's `#71717a` / `#7f7f7f`, because those measured 4.32–4.51:1 on
-our card, popover and secondary fills. AA contrast wins over pixel parity. It is implemented as an
-override of `--radan-ui-muted-foreground` in `app.css` (`:root:not(.dark)` and `html.dark`), so
-`text-muted-foreground` and `--publy-foreground-muted` stay one value.
+our card, popover and secondary fills. AA contrast wins over pixel parity. radan-ui ships these
+values itself since 0.1.2, so `app.css` carries no override and `text-muted-foreground` and
+`--publy-foreground-muted` stay one value.
 
 Marketing-specific accent `--publy-marketing-eyebrow-accent` (`#8a6a1f` light / `#d97706` dark) is
 the only handoff-specified eyebrow colour; do not lighten it. — source: `apps/front/src/styles/app.css`

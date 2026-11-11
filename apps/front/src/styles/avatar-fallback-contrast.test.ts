@@ -4,7 +4,10 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, test } from 'vitest';
 
-import { resolveThemeToken } from './theme-token-test-support';
+import {
+	radanThemeInlineDeclarations,
+	resolveThemeToken,
+} from './theme-token-test-support';
 
 const rootDir = path.resolve(fileURLToPath(new URL('.', import.meta.url)));
 const appCss = readFileSync(path.join(rootDir, 'app.css'), 'utf8');
@@ -68,14 +71,16 @@ const mixOver = (top: string, alpha: number, under: string): string => {
 };
 
 // #2360: pairs whose colours now come from radan-ui through aliases (and
-// through `--color-input`, which app.css deliberately keeps on the field
-// hairline). Measured on the page surface; a field on a card is a pre-existing
+// through `--color-input`, which radan-ui maps to the field hairline).
+// Measured on the page surface; a field on a card is a pre-existing
 // 4.44:1 light / 4.48:1 dark and is not part of this pin.
 describe('radan-ui aliased text pairs', () => {
 	test.each(['light', 'dark'] as const)(
 		'input placeholder clears AA on a bg-input/50 field over the page in the %s theme',
 		(theme) => {
-			const inputToken = /--color-input:\s*var\((--[\w-]+)\)/.exec(appCss)?.[1];
+			const inputToken = /var\((--[\w-]+)\)/.exec(
+				radanThemeInlineDeclarations().get('--color-input') ?? '',
+			)?.[1];
 			expect(inputToken).toBeDefined();
 			const page = resolveThemeToken('--radan-ui-background', theme);
 			const fill = mixOver(

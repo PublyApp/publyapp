@@ -66,9 +66,7 @@ const buildTheme = (theme: ThemeName): Map<string, string> => {
 		theme === 'light'
 			? [
 					[radanCss, /^:root\s*\{/],
-					// The workaround for radan-ui's self-cycling light
-					// `--radan-ui-card-foreground` (see app.css).
-					[appCss, /^:root(:not\(\.dark\))?\s*\{/],
+					[appCss, /^:root\s*\{/],
 				]
 			: [
 					[radanCss, /^:root\s*\{/],

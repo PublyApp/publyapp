@@ -282,6 +282,7 @@
 		--radan-ui-foreground-secondary: var(--publy-foreground-secondary);
 		--radan-ui-muted-foreground: var(--publy-foreground-muted);
 		--radan-ui-border: var(--publy-border);
+		--radan-ui-input: var(--publy-border);
 		--radan-ui-input-border: var(--publy-border);
 		--radan-ui-ring: var(--publy-focus-ring);
 	}

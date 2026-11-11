@@ -9,25 +9,6 @@
    of their own. */
 @import '@radandevist/radan-ui/theme.css';
 
-/* Upstream bug in @radandevist/radan-ui 0.1.1: theme.css declares
-   `--radan-ui-card-foreground` twice in :root and the second one is
-   `var(--radan-ui-card-foreground)`, a self-cycle that makes the variable
-   invalid in LIGHT mode. Re-declare it here, right after the import. Remove
-   this block once radan-ui ships the fix. Dark mode is protected because
-   `:root:not(.dark)` simply does not match while the `dark` class is on
-   <html> (ui-store.ts and __root.tsx put it on documentElement; it must stay
-   there). A plain `:root` rule would match in both themes and, being later in
-   the source, would beat radan-ui's `.dark` value. */
-:root:not(.dark) {
-	--radan-ui-card-foreground: var(--radan-ui-ink);
-	/* One deliberate PublyApp override of a radan-ui value: muted text one
-	   step darker than radan-ui's #71717a / #7f7f7f so it clears AA 4.5:1 on
-	   every surface (radan-ui's value measures 4.32:1 on the card #f2f2f2 and,
-	   in dark, 4.42:1 on #18181b, 3.96:1 on #222226). Dark counterpart lives
-	   in html.dark below. Pinned by marketing-contrast.test.ts. */
-	--radan-ui-muted-foreground: #6b6b73;
-}
-
 /* The landing page. Scoped under its own `.publy-landing` root class and
    inert on every other route. */
 @import './landing.css';
@@ -146,11 +127,6 @@
 	--color-primary-active: var(--publy-primary-active);
 	--color-success: var(--publy-success);
 	--color-warning: var(--publy-warning);
-	/* radan-ui's own `--color-input` is its input TEXT colour;
-	   PublyApp's `bg-input/50` fills and `border-input` hairlines have always
-	   meant the field hairline, so this one Tailwind name is re-defined here
-	   (this block comes after the import, so it wins). */
-	--color-input: var(--radan-ui-input-border);
 	--radius-small: var(--publy-radius-sm);
 	--radius-medium: var(--publy-radius-md);
 	--radius-large: var(--publy-radius-control);
@@ -211,8 +187,7 @@
 	--publy-table-header: #fcfcfd;
 	--publy-foreground: var(--radan-ui-foreground);
 	--publy-foreground-secondary: var(--radan-ui-foreground-secondary);
-	/* Muted text: radan-ui's variable, which this file overrides (see the
-	   import at the top) so it clears AA 4.5:1 on every surface. */
+	/* Muted text: radan-ui's own variable (AA 4.5:1 on every surface since 0.1.2). */
 	--publy-foreground-muted: var(--radan-ui-muted-foreground);
 	--publy-foreground-subtle: #a1a1aa;
 	--publy-disabled: #d4d4d8;
@@ -221,7 +196,7 @@
 	--publy-input-border: var(--radan-ui-input-border);
 	/* Dashed drop-zone hairline: Shopkart's `--input` — darker than the field
 	   hairline so a dashed surface reads as a target in both themes. */
-	--publy-dropzone-border: var(--radan-ui-input);
+	--publy-dropzone-border: var(--radan-ui-input-foreground);
 	--publy-row-border: #f1f1f3;
 	/* #2292: the focus indicator is the near-black foreground in light mode
 	   and the light grey border in dark — both far above the 3:1 floor
@@ -466,7 +441,6 @@ html.dark {
 	--publy-primary-soft: #2a2400;
 	--publy-primary-soft-foreground: #fbbf24;
 	--publy-marketing-eyebrow-accent: #d97706;
-	--radan-ui-muted-foreground: #898989;
 	--publy-foreground-subtle: #71717a;
 	--publy-disabled: #52525b;
 	--publy-table-header: #212124;
