@@ -14,6 +14,9 @@ public static class LoggerConfigExtensions {
 	// WebApplication and the worker Generic Host — share one Serilog composition.
 	// AddSerilog is the builder-agnostic equivalent of Host.UseSerilog.
 	public static IHostApplicationBuilder ConfigureLogger(this IHostApplicationBuilder builder) {
+		// #1708: first registered = last stopped, so the async queues drain after every other
+		// hosted service has finished logging.
+		builder.Services.AddHostedService<FlushLogsOnStopHostedService>();
 		builder.Services.AddSerilog((serviceProvider, loggerConfig) => {
 			var hostEnvironment = serviceProvider.GetRequiredService<IHostEnvironment>();
 
@@ -101,7 +104,8 @@ public static class LoggerConfigExtensions {
 						rollingInterval: RollingInterval.Day,
 						fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 						retainedFileCountLimit: 7
-					)));
+					)),
+					monitor: new DroppedLogEntriesMonitor("info"));
 			writeTo
 				.Async(w => w.Logger(l => l
 					.Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Warning)
@@ -111,7 +115,8 @@ public static class LoggerConfigExtensions {
 						rollingInterval: RollingInterval.Day,
 						fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 						retainedFileCountLimit: 7
-					)));
+					)),
+					monitor: new DroppedLogEntriesMonitor("warning"));
 			writeTo
 				.Async(w => w.Logger(l => l
 					.Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Error)
@@ -121,7 +126,8 @@ public static class LoggerConfigExtensions {
 						rollingInterval: RollingInterval.Day,
 						fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 						retainedFileCountLimit: 7
-					)));
+					)),
+					monitor: new DroppedLogEntriesMonitor("error"));
 
 			// Development: Show everything in console + debug file
 			if (hostEnvironment.IsDevelopment()) {
@@ -138,7 +144,8 @@ public static class LoggerConfigExtensions {
 						rollingInterval: RollingInterval.Day,
 						fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 						retainedFileCountLimit: 7
-					)));
+					)),
+					monitor: new DroppedLogEntriesMonitor("debug"));
 			}
 			// Testing: Keep console output concise. Surface only warnings/errors.
 			else if (hostEnvironment.IsEnvironment(EnvironmentNames.Testing)) {
