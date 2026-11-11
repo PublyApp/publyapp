@@ -8,12 +8,14 @@ import type {
 } from '@org/client-ts/models/index';
 import { buildStaffQueryOptions } from '@org/shared-ts/lib/query/create-hooks';
 
-/** The series the staff dashboard endpoint serves (#2348, #2354, #2349). */
+/** The series the staff dashboard endpoint serves (#2348, #2354, #2349, #2355). */
 type StaffDashboardMetric =
 	| 'audit_events'
 	| 'sign_ins'
 	| 'failed_sign_ins'
-	| 'active_tenants';
+	| 'active_tenants'
+	| 'members'
+	| 'pending_invitations';
 
 export type StaffDashboardSeriesVariables = {
 	metric: StaffDashboardMetric;

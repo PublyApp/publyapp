@@ -1876,6 +1876,7 @@
 	"dashboard-kpi-members": "Membres des organisations",
 	"dashboard-kpi-audit-events": "Événements d'audit",
 	"dashboard-kpi-pending-invitations": "Invitations en attente",
+	"dashboard-card-pending-staff-invitations": "Invitations staff en attente",
 	"dashboard-kpi-signins": "Connexions",
 	"dashboard-kpi-failed-signins": "Connexions échouées",
 	"dashboard-kpi-impersonations": "Sessions d'impersonation",

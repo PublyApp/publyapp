@@ -84,7 +84,7 @@ const destination = widenOptions<PreloadDestination>({
 
 const settle = async (queryClient: { isFetching: () => number }) => {
 	await waitFor(() => {
-		expect(countCallsByPath(mocks.respond, ...SERIES)).toBe(4);
+		expect(countCallsByPath(mocks.respond, ...SERIES)).toBe(8);
 	});
 	await waitFor(() => {
 		expect(queryClient.isFetching()).toBe(0);
@@ -98,7 +98,7 @@ describe('#2340 staff dashboard overview route preload', () => {
 		mocks.respond.mockReset();
 	});
 
-	test('hovering warms each of the nine queries once, with the URL filters in the request', async () => {
+	test('hovering warms each of the thirteen queries once, with the URL filters in the request', async () => {
 		const { queryClient } = renderPreloadScenario({
 			destination,
 			linkLabel: LINK_LABEL,
@@ -112,7 +112,7 @@ describe('#2340 staff dashboard overview route preload', () => {
 		expect(countCallsByPath(mocks.respond, ...TENANTS)).toBe(2);
 		expect(countCallsByPath(mocks.respond, ...INVITATIONS)).toBe(2);
 		expect(countCallsByPath(mocks.respond, ...AUDIT)).toBe(1);
-		expect(preloadedQueries(queryClient)).toHaveLength(9);
+		expect(preloadedQueries(queryClient)).toHaveLength(13);
 
 		// The scope reaches only the « Dernières organisations » request.
 		const tenants = requestQueryParameters(mocks.respond, ...TENANTS);
@@ -165,6 +165,16 @@ describe('#2340 staff dashboard overview route preload', () => {
 			startDate: addIsoDays(today, -364),
 			endDate: heatmapWindow().endDate,
 		});
+		// The level cards' series: the same window and the previous one, never
+		// filtered by the scope (#2355).
+		for (const metric of ['members', 'pending_invitations']) {
+			expect(series).toContainEqual({
+				metric,
+				startDate: start,
+				endDate: today,
+			});
+			expect(series).toContainEqual({ metric, ...previousPeriod('7d') });
+		}
 		expect(screen.queryByTestId('staff-dashboard-overview-panel')).toBeNull();
 	});
 
@@ -187,7 +197,7 @@ describe('#2340 staff dashboard overview route preload', () => {
 			expect(screen.getByTestId('staff-dashboard-overview-panel')).toBeTruthy();
 		});
 
-		expect(warmed).toHaveLength(9);
+		expect(warmed).toHaveLength(13);
 		for (const query of warmed) {
 			expect(query.getObserversCount()).toBeGreaterThan(0);
 			expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));

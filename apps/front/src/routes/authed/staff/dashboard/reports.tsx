@@ -24,11 +24,7 @@ import {
 	previousPeriod,
 	type DashboardPeriod,
 } from './_dashboard-filters';
-import {
-	formatSignedPercent,
-	seriesTotal,
-	toSeriesPoints,
-} from './_dashboard-format';
+import { seriesDelta, seriesTotal, toSeriesPoints } from './_dashboard-format';
 import { ReportsFilters } from './_reports-filters';
 import { ReportsKpis } from './_reports-kpis';
 import { ReportsPrimaryCharts } from './_reports-primary-charts';
@@ -80,20 +76,6 @@ const typeBucket = (action: string): string => {
 	}
 	return 'other';
 };
-
-/** The change against the previous window, when both totals are known and
- * the previous one is not 0 (a percentage of 0 has no meaning). */
-const seriesDelta = (
-	current: number | undefined,
-	previous: number | undefined,
-	locale: string,
-): { label: string; direction: 'up' | 'down' } | undefined =>
-	current !== undefined && previous !== undefined && previous > 0
-		? {
-				label: formatSignedPercent((current - previous) / previous, locale),
-				direction: current >= previous ? ('up' as const) : ('down' as const),
-			}
-		: undefined;
 
 /** The report's URL state: the period is optional, so a bare link stays
  * valid. */

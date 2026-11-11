@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, test } from 'vitest';
 
-import { formatPeriodRange, seriesTotal } from './_dashboard-format';
+import {
+	formatPeriodRange,
+	seriesDelta,
+	seriesLastValue,
+	seriesTotal,
+} from './_dashboard-format';
 
 const originalTimeZone = process.env.TZ;
 
@@ -41,5 +46,41 @@ describe('seriesTotal', () => {
 		expect(seriesTotal([])).toBeUndefined();
 		expect(seriesTotal(undefined)).toBeUndefined();
 		expect(seriesTotal(null)).toBeUndefined();
+	});
+});
+
+describe('seriesLastValue', () => {
+	test('is the level the window ends on, a real zero included', () => {
+		expect(seriesLastValue([{ value: 3 }, { value: 9 }])).toBe(9);
+		expect(seriesLastValue([{ value: 3 }, { value: 0 }])).toBe(0);
+	});
+
+	test('a series with no point is unknown', () => {
+		expect(seriesLastValue([])).toBeUndefined();
+		expect(seriesLastValue(undefined)).toBeUndefined();
+		expect(seriesLastValue(null)).toBeUndefined();
+	});
+});
+
+describe('seriesDelta', () => {
+	test('goes up or down against the previous figure', () => {
+		expect(seriesDelta(110, 100, 'en')).toEqual({
+			label: '+10%',
+			direction: 'up',
+		});
+		expect(seriesDelta(90, 100, 'en')?.direction).toBe('down');
+	});
+
+	test('equality reads as up with a zero change', () => {
+		expect(seriesDelta(100, 100, 'en')).toEqual({
+			label: '+0%',
+			direction: 'up',
+		});
+	});
+
+	test('has no delta when a side is unknown or the previous figure is 0', () => {
+		expect(seriesDelta(undefined, 100, 'en')).toBeUndefined();
+		expect(seriesDelta(100, undefined, 'en')).toBeUndefined();
+		expect(seriesDelta(100, 0, 'en')).toBeUndefined();
 	});
 });
