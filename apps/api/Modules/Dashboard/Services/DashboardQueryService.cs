@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -64,6 +65,14 @@ public interface IDashboardQueryService {
 		CancellationToken cancellationToken = default);
 
 	Task<ActiveTenantSeries> GetActiveTenantSeriesAsync(
+		GetDashboardSeriesArgs args,
+		CancellationToken cancellationToken = default);
+
+	Task<IReadOnlyList<DashboardSeriesPoint>> GetMemberSeriesAsync(
+		GetDashboardSeriesArgs args,
+		CancellationToken cancellationToken = default);
+
+	Task<IReadOnlyList<DashboardSeriesPoint>> GetPendingInvitationSeriesAsync(
 		GetDashboardSeriesArgs args,
 		CancellationToken cancellationToken = default);
 
@@ -188,6 +197,248 @@ public class DashboardQueryService : IDashboardQueryService {
 		}
 
 		return new ActiveTenantSeries(points, recordedSince);
+	}
+
+	/// <summary>
+	/// Organisation members at the end of each UTC day (#2355), rebuilt from
+	/// the memberships' own timestamps: a tenant-scope account counts from its
+	/// <c>CreatedAt</c> until the earliest of its own, its user's or its
+	/// organisation's deletion. Suspended members count, like the card.
+	/// Ceiling: the staff assign path revives a removed account's row
+	/// (<c>DeletedAt</c> cleared, <c>CreatedAt</c> kept), so such a member is
+	/// counted continuously from the first join.
+	/// </summary>
+	public async Task<IReadOnlyList<DashboardSeriesPoint>>
+		GetMemberSeriesAsync(
+		GetDashboardSeriesArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var endExclusive = args.EndDate.AddDays(1);
+
+		// A table scan over the memberships overlapping the window: fine at
+		// staff scale (two timestamps per row, no index serves them).
+		// ponytail: rows in memory; past ~100k members, group the entries
+		// and exits by day in SQL and read a baseline count before the window.
+		var rows = await (
+			from account in this._DbContext.UserAccount
+				.AsNoTracking()
+			join tenant in this._DbContext.Tenant
+				.AsNoTracking()
+				on account.TenantId equals tenant.Id
+			where account.Scope == AccountScope.Tenant
+				&& account.CreatedAt < endExclusive
+				&& (!account.IsDeleted
+					|| account.DeletedAt == null
+					|| account.DeletedAt >= args.StartDate)
+				&& (!account.User.IsDeleted
+					|| account.User.DeletedAt == null
+					|| account.User.DeletedAt >= args.StartDate)
+				&& (!tenant.IsDeleted
+					|| tenant.DeletedAt == null
+					|| tenant.DeletedAt >= args.StartDate)
+			select new {
+				Enter = account.CreatedAt,
+				AccountDeleted = account.IsDeleted,
+				AccountDeletedAt = account.DeletedAt,
+				AccountUpdatedAt = account.UpdatedAt,
+				UserDeleted = account.User.IsDeleted,
+				UserDeletedAt = account.User.DeletedAt,
+				UserUpdatedAt = account.User.UpdatedAt,
+				TenantDeleted = tenant.IsDeleted,
+				TenantDeletedAt = tenant.DeletedAt,
+				TenantUpdatedAt = tenant.UpdatedAt,
+			}
+		).ToListAsync(cancellationToken);
+
+		var intervals = new List<StockInterval>(rows.Count);
+		foreach (var row in rows) {
+			intervals.Add(new StockInterval(
+				row.Enter,
+				DashboardQueryService._EarliestOf(
+					DashboardQueryService._DeletionInstant(
+						row.AccountDeleted,
+						row.AccountDeletedAt,
+						row.AccountUpdatedAt
+					),
+					DashboardQueryService._DeletionInstant(
+						row.UserDeleted,
+						row.UserDeletedAt,
+						row.UserUpdatedAt
+					),
+					DashboardQueryService._DeletionInstant(
+						row.TenantDeleted,
+						row.TenantDeletedAt,
+						row.TenantUpdatedAt
+					)
+				)
+			));
+		}
+
+		return DashboardQueryService._SweepStock(args, intervals);
+	}
+
+	/// <summary>
+	/// Organisation invitations pending at the end of each UTC day (#2355):
+	/// created, and not yet accepted, revoked, expired or deleted, in an
+	/// organisation not yet deleted. Same definition as the tenants read's
+	/// <c>PendingInvitations</c>; suspended organisations count.
+	/// </summary>
+	public async Task<IReadOnlyList<DashboardSeriesPoint>>
+		GetPendingInvitationSeriesAsync(
+		GetDashboardSeriesArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var endExclusive = args.EndDate.AddDays(1);
+
+		// Table scan, as for the members: fine at staff scale.
+		var rows = await (
+			from invitation in this._DbContext.Invitation
+				.AsNoTracking()
+			join tenant in this._DbContext.Tenant
+				.AsNoTracking()
+				on invitation.TenantId equals tenant.Id
+			where invitation.Scope == InvitationScope.Tenant
+				&& invitation.CreatedAt < endExclusive
+				&& invitation.ExpiresAt >= args.StartDate
+				&& (!tenant.IsDeleted
+					|| tenant.DeletedAt == null
+					|| tenant.DeletedAt >= args.StartDate)
+			select new {
+				Enter = invitation.CreatedAt,
+				invitation.ExpiresAt,
+				invitation.Status,
+				invitation.AcceptedAt,
+				invitation.RevokedAt,
+				InvitationDeleted = invitation.IsDeleted,
+				InvitationDeletedAt = invitation.DeletedAt,
+				InvitationUpdatedAt = invitation.UpdatedAt,
+				TenantDeleted = tenant.IsDeleted,
+				TenantDeletedAt = tenant.DeletedAt,
+				TenantUpdatedAt = tenant.UpdatedAt,
+			}
+		).ToListAsync(cancellationToken);
+
+		var intervals = new List<StockInterval>(rows.Count);
+		foreach (var row in rows) {
+			DateTime? accepted = row.Status == InvitationStatus.Accepted
+				? row.AcceptedAt ?? row.InvitationUpdatedAt
+				: null;
+			DateTime? revoked = row.Status == InvitationStatus.Revoked
+				? row.RevokedAt ?? row.InvitationUpdatedAt
+				: null;
+
+			intervals.Add(new StockInterval(
+				row.Enter,
+				DashboardQueryService._EarliestOf(
+					accepted,
+					revoked,
+					DashboardQueryService._DeletionInstant(
+						row.InvitationDeleted,
+						row.InvitationDeletedAt,
+						row.InvitationUpdatedAt
+					),
+					DashboardQueryService._DeletionInstant(
+						row.TenantDeleted,
+						row.TenantDeletedAt,
+						row.TenantUpdatedAt
+					),
+					// Expiry is exclusive (expired AT ExpiresAt), the other
+					// exits inclusive: one tick earlier makes the single
+					// "gone when leave < T" test right for both.
+					row.ExpiresAt.AddTicks(-1)
+				)
+			));
+		}
+
+		return DashboardQueryService._SweepStock(args, intervals);
+	}
+
+	/// <summary>
+	/// One row of a stock series: present from <see cref="Enter"/> (inclusive)
+	/// and gone as soon as <see cref="Leave"/> is before the day's end instant.
+	/// </summary>
+	private readonly record struct StockInterval(
+		DateTime Enter,
+		DateTime? Leave
+	);
+
+	/// <summary>
+	/// A soft delete's instant: its <c>DeletedAt</c>, or the last update when a
+	/// raw write flagged the row without stamping it.
+	/// </summary>
+	private static DateTime? _DeletionInstant(
+		bool isDeleted,
+		DateTime? deletedAt,
+		DateTime updatedAt
+	) {
+		if (!isDeleted) {
+			return null;
+		}
+
+		return deletedAt ?? updatedAt;
+	}
+
+	private static DateTime? _EarliestOf(params DateTime?[] instants) {
+		DateTime? earliest = null;
+		foreach (var instant in instants) {
+			if (instant is { } value
+				&& (earliest is null || value < earliest)
+			) {
+				earliest = value;
+			}
+		}
+
+		return earliest;
+	}
+
+	/// <summary>
+	/// Counts, for each UTC day, the intervals present at the day's end
+	/// instant T(D) = min(start of D+1, now): only the current day is clamped,
+	/// so its point is the live figure. Zero-filled.
+	/// </summary>
+	private static IReadOnlyList<DashboardSeriesPoint> _SweepStock(
+		GetDashboardSeriesArgs args,
+		List<StockInterval> intervals
+	) {
+		var now = DateTime.UtcNow;
+		var enters = intervals
+			.Select(interval => interval.Enter)
+			.Order()
+			.ToList();
+		var leaves = new List<DateTime>();
+		foreach (var interval in intervals) {
+			if (interval.Leave is { } leave) {
+				leaves.Add(leave < interval.Enter ? interval.Enter : leave);
+			}
+		}
+		leaves.Sort();
+
+		var points = new List<DashboardSeriesPoint>();
+		var enterCursor = 0;
+		var leaveCursor = 0;
+		for (var day = args.StartDate; day <= args.EndDate; day = day.AddDays(1)) {
+			var instant = day.AddDays(1) < now ? day.AddDays(1) : now;
+			while (enterCursor < enters.Count
+				&& enters[enterCursor] < instant
+			) {
+				enterCursor++;
+			}
+			while (leaveCursor < leaves.Count
+				&& leaves[leaveCursor] < instant
+			) {
+				leaveCursor++;
+			}
+
+			points.Add(new DashboardSeriesPoint {
+				Date = day.ToString(
+					"yyyy-MM-dd",
+					CultureInfo.InvariantCulture
+				),
+				Value = enterCursor - leaveCursor,
+			});
+		}
+
+		return points;
 	}
 
 	/// <summary>

@@ -14,8 +14,10 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Tenants.Services;
+using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -660,6 +662,474 @@ public sealed class GetDashboardSeriesForStaffSpec
 		problem.Should().NotBeNull();
 		Assert.NotNull(problem);
 		problem.Errors.Should().ContainKey("start_date");
+	}
+
+	// ---- members / pending_invitations (#2355) ----
+	// Windows sit in 2021: every other row of the shared database is dated
+	// now, so these assertions are exact, not relative.
+
+	private static DateTime _Utc(
+		int year,
+		int month,
+		int day,
+		int hour = 0
+	) {
+		return new DateTime(year, month, day, hour, 0, 0, DateTimeKind.Utc);
+	}
+
+	private sealed class SeededRows {
+		public List<Guid> TenantIds { get; } = [];
+		public List<Guid> UserIds { get; } = [];
+		public List<Guid> AccountIds { get; } = [];
+		public List<Guid> InvitationIds { get; } = [];
+	}
+
+	private async Task<Guid> _SeedTenantAsync(
+		SeededRows rows,
+		DateTime createdAt,
+		TenantStatus status = TenantStatus.Active,
+		DateTime? deletedAt = null
+	) {
+		await using var scope =
+			this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var tenant = new Tenant {
+			Name = $"series-{Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = status,
+			MaxUsers = 10,
+		};
+		await db.Tenant.AddAsync(tenant);
+		await db.SaveChangesAsync();
+		var id = tenant.GetRequiredId();
+		rows.TenantIds.Add(id);
+
+		// ExecuteUpdate bypasses the SaveChanges timestamp rewrite.
+		await db.Tenant
+			.Where(row => row.Id == id)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(row => row.CreatedAt, createdAt)
+				.SetProperty(row => row.IsDeleted, deletedAt is not null)
+				.SetProperty(row => row.DeletedAt, deletedAt));
+		return id;
+	}
+
+	private async Task<Guid> _SeedMemberAsync(
+		SeededRows rows,
+		Guid tenantId,
+		DateTime createdAt,
+		DateTime? accountDeletedAt = null,
+		DateTime? userDeletedAt = null,
+		AccountStatus accountStatus = AccountStatus.Active
+	) {
+		await using var scope =
+			this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var user = new User {
+			Email = $"series-{Guid.NewGuid():N}@example.com",
+			Password = "x",
+			IsVerified = true,
+			Status = UserStatus.Active,
+		};
+		await db.User.AddAsync(user);
+		await db.SaveChangesAsync();
+		var account = UserAccount.CreateTenantAccount(
+			user.GetRequiredId(),
+			tenantId
+		);
+		account.Status = accountStatus;
+		await db.UserAccount.AddAsync(account);
+		await db.SaveChangesAsync();
+
+		var userId = user.GetRequiredId();
+		var accountId = account.GetRequiredId();
+		rows.UserIds.Add(userId);
+		rows.AccountIds.Add(accountId);
+		await db.User
+			.Where(row => row.Id == userId)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(row => row.CreatedAt, createdAt)
+				.SetProperty(row => row.IsDeleted, userDeletedAt is not null)
+				.SetProperty(row => row.DeletedAt, userDeletedAt));
+		await db.UserAccount
+			.Where(row => row.Id == accountId)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(row => row.CreatedAt, createdAt)
+				.SetProperty(row => row.IsDeleted, accountDeletedAt is not null)
+				.SetProperty(row => row.DeletedAt, accountDeletedAt));
+		return accountId;
+	}
+
+	private async Task<Guid> _SeedInvitationAsync(
+		SeededRows rows,
+		Guid? tenantId,
+		DateTime createdAt,
+		DateTime expiresAt,
+		InvitationStatus status = InvitationStatus.Pending,
+		DateTime? acceptedAt = null,
+		DateTime? revokedAt = null
+	) {
+		await using var scope =
+			this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var inviter = await db.User
+			.Where(user => user.Email == TestConstants.StaffAdminEmail)
+			.FirstAsync();
+		var email = $"series-{Guid.NewGuid():N}@example.com";
+		var token = Guid.NewGuid().ToString("N")[..32];
+		var invitation = tenantId is { } id
+			? Invitation.CreateTenantInvitationWithRoles(
+				email, id, [], inviter.GetRequiredId(), expiresAt, token)
+			: Invitation.CreateStaffInvitationWithRoles(
+				email, [], inviter.GetRequiredId(), expiresAt, token);
+		await db.Invitation.AddAsync(invitation);
+		await db.SaveChangesAsync();
+
+		var invitationId = invitation.GetRequiredId();
+		rows.InvitationIds.Add(invitationId);
+		await db.Invitation
+			.Where(row => row.Id == invitationId)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(row => row.CreatedAt, createdAt)
+				.SetProperty(row => row.Status, status)
+				.SetProperty(row => row.AcceptedAt, acceptedAt)
+				.SetProperty(row => row.RevokedAt, revokedAt));
+		return invitationId;
+	}
+
+	private async Task _CleanUpAsync(SeededRows rows) {
+		await using var scope =
+			this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await db.Invitation
+			.Where(row => rows.InvitationIds.Contains(row.Id ?? Guid.Empty))
+			.ExecuteDeleteAsync();
+		await db.UserAccount
+			.Where(row => rows.AccountIds.Contains(row.Id ?? Guid.Empty))
+			.ExecuteDeleteAsync();
+		await db.User
+			.Where(row => rows.UserIds.Contains(row.Id ?? Guid.Empty))
+			.ExecuteDeleteAsync();
+		await db.Tenant
+			.Where(row => rows.TenantIds.Contains(row.Id ?? Guid.Empty))
+			.ExecuteDeleteAsync();
+		await db.TenantStatusHistory
+			.Where(row => rows.TenantIds.Contains(row.TenantId))
+			.ExecuteDeleteAsync();
+	}
+
+	[Fact]
+	public async Task
+		ItShouldCountMembersAtTheEndOfEachUtcDayFromTheirOwnTimestamps() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var rows = new SeededRows();
+		try {
+			var tenant = await this._SeedTenantAsync(rows, GetDashboardSeriesForStaffSpec._Utc(2021, 1, 1));
+			var deletedTenant = await this._SeedTenantAsync(
+				rows,
+				GetDashboardSeriesForStaffSpec._Utc(2021, 1, 1),
+				deletedAt: GetDashboardSeriesForStaffSpec._Utc(2021, 3, 3, 6)
+			);
+
+			// Never removed.
+			await this._SeedMemberAsync(rows, tenant, GetDashboardSeriesForStaffSpec._Utc(2021, 3, 1, 10));
+			// Removed on the 4th at noon: out from the 4th's end of day.
+			await this._SeedMemberAsync(
+				rows,
+				tenant,
+				GetDashboardSeriesForStaffSpec._Utc(2021, 3, 2, 10),
+				accountDeletedAt: GetDashboardSeriesForStaffSpec._Utc(2021, 3, 4, 12)
+			);
+			// Suspended memberships still count, like the card.
+			await this._SeedMemberAsync(
+				rows,
+				tenant,
+				GetDashboardSeriesForStaffSpec._Utc(2021, 3, 2, 10),
+				accountStatus: AccountStatus.Suspended
+			);
+			// Its user is deleted on the 5th.
+			await this._SeedMemberAsync(
+				rows,
+				tenant,
+				GetDashboardSeriesForStaffSpec._Utc(2021, 3, 3, 10),
+				userDeletedAt: GetDashboardSeriesForStaffSpec._Utc(2021, 3, 5, 8)
+			);
+			// Its organisation is deleted on the 3rd: members leave with it.
+			await this._SeedMemberAsync(
+				rows,
+				deletedTenant,
+				GetDashboardSeriesForStaffSpec._Utc(2021, 3, 1, 10)
+			);
+
+			var result = await this._GetSeriesAsync(
+				token,
+				"members",
+				"2021-03-01",
+				"2021-03-06"
+			);
+
+			result.Metric.Should().Be("members");
+			result.RecordedSince.Should().BeNull();
+			result.Points.Select(point => point.Value)
+				.Should()
+				.Equal(2, 4, 4, 3, 2, 2);
+		} finally {
+			await this._CleanUpAsync(rows);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldIgnoreNonTenantScopeAccountsForMembers() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var rows = new SeededRows();
+		try {
+			var tenant = await this._SeedTenantAsync(rows, GetDashboardSeriesForStaffSpec._Utc(2021, 1, 1));
+			var accountId = await this._SeedMemberAsync(
+				rows,
+				tenant,
+				GetDashboardSeriesForStaffSpec._Utc(2021, 4, 1, 10)
+			);
+			await using (var scope =
+				this._Fixture.Factory.Services.CreateAsyncScope()) {
+				var db = scope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
+				await db.UserAccount
+					.Where(row => row.Id == accountId)
+					.ExecuteUpdateAsync(setters => setters
+						.SetProperty(row => row.Scope, AccountScope.Staff)
+						.SetProperty(row => row.TenantId, (Guid?)null));
+			}
+
+			var result = await this._GetSeriesAsync(
+				token,
+				"members",
+				"2021-04-01",
+				"2021-04-02"
+			);
+
+			result.Points.Select(point => point.Value)
+				.Should()
+				.Equal(0, 0);
+		} finally {
+			await this._CleanUpAsync(rows);
+		}
+	}
+
+	[Fact]
+	public async Task
+		ItShouldCountARestoredMembershipContinuouslyFromItsFirstJoin() {
+		// Documented ceiling (#2355): the staff assign path revives the removed
+		// account's row (IsDeleted = false, DeletedAt = null, CreatedAt kept),
+		// so the removal instant is gone and the member is counted without a
+		// gap. This spec pins that trade-off; it is not a feature.
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var rows = new SeededRows();
+		try {
+			var tenant = await this._SeedTenantAsync(rows, GetDashboardSeriesForStaffSpec._Utc(2021, 1, 1));
+			var accountId = await this._SeedMemberAsync(
+				rows,
+				tenant,
+				GetDashboardSeriesForStaffSpec._Utc(2021, 6, 1, 10),
+				accountDeletedAt: GetDashboardSeriesForStaffSpec._Utc(2021, 6, 3, 10)
+			);
+			await using (var scope =
+				this._Fixture.Factory.Services.CreateAsyncScope()) {
+				var db = scope.ServiceProvider
+					.GetRequiredService<AppDbContext>();
+				await db.UserAccount
+					.Where(row => row.Id == accountId)
+					.ExecuteUpdateAsync(setters => setters
+						.SetProperty(row => row.IsDeleted, false)
+						.SetProperty(row => row.DeletedAt, (DateTime?)null));
+			}
+
+			var result = await this._GetSeriesAsync(
+				token,
+				"members",
+				"2021-06-01",
+				"2021-06-05"
+			);
+
+			result.Points.Select(point => point.Value)
+				.Should()
+				.Equal(1, 1, 1, 1, 1);
+		} finally {
+			await this._CleanUpAsync(rows);
+		}
+	}
+
+	[Fact]
+	public async Task
+		ItShouldCountPendingOrganisationInvitationsAtTheEndOfEachUtcDay() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var rows = new SeededRows();
+		var farFuture = GetDashboardSeriesForStaffSpec._Utc(2030, 1, 1);
+		try {
+			var tenant = await this._SeedTenantAsync(rows, GetDashboardSeriesForStaffSpec._Utc(2021, 1, 1));
+			var suspended = await this._SeedTenantAsync(
+				rows,
+				GetDashboardSeriesForStaffSpec._Utc(2021, 1, 1),
+				TenantStatus.Suspended
+			);
+			var deleted = await this._SeedTenantAsync(
+				rows,
+				GetDashboardSeriesForStaffSpec._Utc(2021, 1, 1),
+				deletedAt: GetDashboardSeriesForStaffSpec._Utc(2021, 5, 3, 6)
+			);
+
+			// Pending throughout.
+			await this._SeedInvitationAsync(
+				rows, tenant, GetDashboardSeriesForStaffSpec._Utc(2021, 5, 1, 10), farFuture);
+			// Accepted on the 3rd at noon: out from the 3rd's end of day.
+			await this._SeedInvitationAsync(
+				rows, tenant, GetDashboardSeriesForStaffSpec._Utc(2021, 5, 1, 10), farFuture,
+				InvitationStatus.Accepted, acceptedAt: GetDashboardSeriesForStaffSpec._Utc(2021, 5, 3, 12));
+			// Revoked on the 4th at noon: out from the 4th's end of day.
+			await this._SeedInvitationAsync(
+				rows, tenant, GetDashboardSeriesForStaffSpec._Utc(2021, 5, 2, 10), farFuture,
+				InvitationStatus.Revoked, revokedAt: GetDashboardSeriesForStaffSpec._Utc(2021, 5, 4, 12));
+			// Expires exactly at the 3rd's end instant (4th, 00:00): expiry
+			// is exclusive, so it is already out of the 3rd.
+			await this._SeedInvitationAsync(
+				rows, tenant, GetDashboardSeriesForStaffSpec._Utc(2021, 5, 2, 10), GetDashboardSeriesForStaffSpec._Utc(2021, 5, 4));
+			// A suspended organisation still counts, like the tenants read.
+			await this._SeedInvitationAsync(
+				rows, suspended, GetDashboardSeriesForStaffSpec._Utc(2021, 5, 1, 10), farFuture);
+			// The organisation is deleted on the 3rd: its invitation leaves.
+			await this._SeedInvitationAsync(
+				rows, deleted, GetDashboardSeriesForStaffSpec._Utc(2021, 5, 1, 10), farFuture);
+			// Staff-scope invitations are not organisation invitations.
+			await this._SeedInvitationAsync(
+				rows, null, GetDashboardSeriesForStaffSpec._Utc(2021, 5, 1, 10), farFuture);
+
+			var result = await this._GetSeriesAsync(
+				token,
+				"pending_invitations",
+				"2021-05-01",
+				"2021-05-06"
+			);
+
+			result.Metric.Should().Be("pending_invitations");
+			result.RecordedSince.Should().BeNull();
+			result.Points.Select(point => point.Value)
+				.Should()
+				.Equal(4, 6, 3, 2, 2, 2);
+		} finally {
+			await this._CleanUpAsync(rows);
+		}
+	}
+
+	[Fact]
+	public async Task
+		ItShouldMatchTheTenantsReadOnTheCurrentUtcDayForBothSeries() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var today = DateTime.UtcNow.Date.ToString(
+			"yyyy-MM-dd",
+			CultureInfo.InvariantCulture
+		);
+		var rows = new SeededRows();
+		try {
+			var before = await this._GetTodayAsync(token, today);
+
+			var tenant = await this._SeedTenantAsync(
+				rows,
+				DateTime.UtcNow.AddDays(-2)
+			);
+			await this._SeedMemberAsync(
+				rows,
+				tenant,
+				DateTime.UtcNow.AddMinutes(-5)
+			);
+			await this._SeedInvitationAsync(
+				rows,
+				tenant,
+				DateTime.UtcNow.AddMinutes(-5),
+				DateTime.UtcNow.AddDays(3)
+			);
+			// An expired one is in neither figure.
+			await this._SeedInvitationAsync(
+				rows,
+				tenant,
+				DateTime.UtcNow.AddDays(-2),
+				DateTime.UtcNow.AddMinutes(-1)
+			);
+
+			var after = await this._GetTodayAsync(token, today);
+
+			// The series' last point (end_date = the current UTC day) moves
+			// exactly like the figures the cards read from the tenants read.
+			(after.SeriesMembers - before.SeriesMembers)
+				.Should().Be(after.ReadMembers - before.ReadMembers);
+			(after.SeriesPending - before.SeriesPending)
+				.Should().Be(after.ReadPending - before.ReadPending);
+			(after.SeriesMembers - before.SeriesMembers).Should().Be(1);
+			(after.SeriesPending - before.SeriesPending).Should().Be(1);
+		} finally {
+			await this._CleanUpAsync(rows);
+		}
+	}
+
+	private sealed record TodayFigures(
+		int SeriesMembers,
+		int SeriesPending,
+		int ReadMembers,
+		int ReadPending
+	);
+
+	private async Task<TodayFigures> _GetTodayAsync(
+		string token,
+		string today
+	) {
+		var members = await this._GetSeriesAsync(
+			token, "members", today, today);
+		var pending = await this._GetSeriesAsync(
+			token, "pending_invitations", today, today);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			TenantTestHelper.GetFindUrl(limit: 1)
+		).WithSessionToken(token);
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var read = await response.Content
+			.ReadFromJsonAsync<TenantsReadResponse>();
+		Assert.NotNull(read);
+
+		return new TodayFigures(
+			members.Points[0].Value,
+			pending.Points[0].Value,
+			read.Counts.Members,
+			read.Counts.PendingInvitations
+		);
+	}
+
+	private sealed record TenantsReadResponse {
+		public TenantsReadCounts Counts { get; init; } = new();
+	}
+
+	private sealed record TenantsReadCounts {
+		public int Members { get; init; }
+		public int PendingInvitations { get; init; }
+	}
+
+	[Fact]
+	public async Task ItShouldReturn422ForAnUnknownMetricAndNameTheNewOnes() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			GetDashboardSeriesForStaffSpec._GetUrl(
+				"nope",
+				"2021-01-01",
+				"2021-01-02"
+			)
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var body = await response.Content.ReadAsStringAsync();
+		body.Should().Contain("members");
+		body.Should().Contain("pending_invitations");
 	}
 
 	private async Task<SeriesResponse> _GetSeriesAsync(
