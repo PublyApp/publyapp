@@ -103,6 +103,16 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 	}) => {
 		await loginAsStaffAdmin(page);
 
+		// The requeue and trigger gates derive from the REAL staff scope
+		// request (#2268: no mock). Listen before navigating, and wait for it
+		// before the first gated click so a slow backend cannot race the gate.
+		const staffScopeResponse = page.waitForResponse(
+			(response) =>
+				response.url().startsWith(`${API_BASE_URL}/auth/scope-auth-data`) &&
+				response.url().includes('scope=staff') &&
+				response.request().method() === 'GET',
+		);
+
 		// --- Queue section renders rows from the mocked list endpoint.
 		await mockQueueList(page, [queueRow]);
 		await page.goto('/staff/jobs');
@@ -220,6 +230,7 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 			.getByTestId(DLQ_TABLE)
 			.getByRole('button', { name: 'SendEmailJob', exact: true })
 			.click();
+		await staffScopeResponse;
 		await page.getByTestId(`dead-letter-requeue-${deadLetterId}`).click();
 		await expect(
 			page.getByRole('alertdialog', { name: 'Requeue this job?' }),
@@ -298,6 +309,7 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 			.getByTestId(SYSTEM_TABLE)
 			.getByRole('button', { name: 'retention-sweep', exact: true })
 			.click();
+		await staffScopeResponse;
 		await page.getByTestId(`system-job-trigger-${systemJobId}`).click();
 		await expect(page.getByText('System job enqueued')).toBeVisible({
 			timeout: 15_000,
