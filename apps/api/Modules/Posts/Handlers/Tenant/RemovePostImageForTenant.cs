@@ -20,7 +20,8 @@ public sealed class RemovePostImageForTenant {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
-		AppNotFoundHttpResult
+		AppNotFoundHttpResult,
+		AppValidationProblemHttpResult
 	>> Handle(
 		[FromRoute] string postId,
 		[FromServices] IRequestAuthContext authContext,
@@ -32,6 +33,7 @@ public sealed class RemovePostImageForTenant {
 		return await RemovePostImageForTenant.RemoveAsync(
 			postId,
 			assetId: null,
+			segmentId: null,
 			authContext,
 			assetService,
 			uploadReferences,
@@ -43,10 +45,12 @@ public sealed class RemovePostImageForTenant {
 	internal static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
-		AppNotFoundHttpResult
+		AppNotFoundHttpResult,
+		AppValidationProblemHttpResult
 	>> RemoveAsync(
 		string postId,
 		Guid? assetId,
+		Guid? segmentId,
 		IRequestAuthContext authContext,
 		IPostMediaAssetService assetService,
 		IUploadAssetReferenceService uploadReferences,
@@ -79,12 +83,37 @@ public sealed class RemovePostImageForTenant {
 			);
 		}
 
+		if (segmentId is { } owningSegmentId) {
+			var segment = await assetService.FindOwnedSegmentAsync(
+				tenantId, postIdGuid, owningSegmentId, cancellationToken
+			);
+			if (segment is null) {
+				return TypedProblems.NotFound(
+					"Segment not found",
+					ResponseKeys.PostSegmentNotFound
+				);
+			}
+
+			var published = await assetService.GetPublishedSegmentCountAsync(
+				postIdGuid, cancellationToken
+			);
+			if (segment.Position + 1 <= published) {
+				return TypedProblems.ValidationProblem(
+					"Segments that are already published cannot be changed",
+					ResponseKeys.PostSegmentsLocked,
+					new Dictionary<string, string[]> {
+						["segment"] = ["Published segments are read-only."],
+					}
+				);
+			}
+		}
+
 		// #1461: the HANDLER owns the #807 F5 reference discipline — the service
 		// commits the row's hard delete and hands back the blob path; THIS handler
 		// releases the blob's reference only AFTER that commit. Physical deletion
 		// stays exclusively sweeper's.
 		var removedPath = await assetService.RemoveAsync(
-			new RemovePostMediaArgs(tenantId, postIdGuid, assetId), cancellationToken
+			new RemovePostMediaArgs(tenantId, postIdGuid, assetId, segmentId), cancellationToken
 		);
 		if (removedPath is null) {
 			return TypedProblems.NotFound(
@@ -106,6 +135,7 @@ public sealed class RemovePostImageForTenant {
 					TenantId = tenantId,
 					ImageRemoved = true,
 					ImageId = assetId,
+					SegmentId = segmentId,
 				}
 			),
 			cancellationToken

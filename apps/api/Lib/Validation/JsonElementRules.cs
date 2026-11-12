@@ -729,6 +729,42 @@ public static class JsonElementRules {
 	}
 
 	/// <summary>
+	/// Validates an array whose items are each a GUID string or null, with no GUID repeated
+	/// and exactly as many entries as the sibling array <paramref name="siblingLength"/>
+	/// reads (aligned parallel arrays, e.g. segment ids next to segment texts).
+	/// </summary>
+	public static IRuleBuilderOptions<T, JsonElement>
+		MustBeNullableGuidArrayAlignedWith<T>(
+			this IRuleBuilder<T, JsonElement> ruleBuilder,
+			string fieldName,
+			Func<T, int?> siblingLength
+	) {
+		return ruleBuilder
+			.Must((root, element) =>
+				element.ValueKind == JsonValueKind.Array
+				&& siblingLength(root) == element.GetArrayLength()
+			)
+			.WithMessage($"{fieldName} must be an array with one entry per item of its sibling array")
+			.Must(element =>
+				element.ValueKind != JsonValueKind.Array
+				|| element.EnumerateArray().All(item =>
+					item.ValueKind == JsonValueKind.Null
+					|| (item.ValueKind == JsonValueKind.String && item.TryGetGuid(out _))
+				)
+			)
+			.WithMessage($"Every {fieldName} entry must be a valid GUID or null")
+			.Must(element =>
+				element.ValueKind != JsonValueKind.Array
+				|| element.EnumerateArray()
+					.Where(item => item.ValueKind == JsonValueKind.String)
+					.Select(item => item.GetString())
+					.Distinct()
+					.Count() == element.EnumerateArray().Count(item => item.ValueKind == JsonValueKind.String)
+			)
+			.WithMessage($"{fieldName} must not repeat an id");
+	}
+
+	/// <summary>
 	/// Validates a required JsonElement string array field that allows an empty array:
 	/// required → array → bounded size → every item is a bounded non-empty string.
 	/// Use it for batch-read/resolve-style endpoints where an empty array is a valid
@@ -740,7 +776,9 @@ public static class JsonElementRules {
 			string fieldName,
 			string itemName,
 			int maxCount,
-			int maxItemLength = 200
+			int maxItemLength = 200,
+			// A blank item is then the handler's to name (which segment, which key).
+			bool allowBlankItems = false
 		) {
 		return ruleBuilder
 			.Must(element =>
@@ -760,7 +798,7 @@ public static class JsonElementRules {
 			// every array-walking predicate must tolerate non-array kinds itself.
 			.Must(element =>
 				element.ValueKind != JsonValueKind.Array
-				|| element.EnumerateArray().All(BeNonEmptyString)
+				|| element.EnumerateArray().All(item => allowBlankItems ? item.ValueKind == JsonValueKind.String : BeNonEmptyString(item))
 			)
 			.WithMessage($"Every {itemName} must be a non-empty string")
 			.Must(element =>

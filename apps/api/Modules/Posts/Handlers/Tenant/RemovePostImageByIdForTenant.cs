@@ -18,7 +18,8 @@ public sealed class RemovePostImageByIdForTenant {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
-		AppNotFoundHttpResult
+		AppNotFoundHttpResult,
+		AppValidationProblemHttpResult
 	>> Handle(
 		[FromRoute] string postId,
 		[FromRoute] string assetId,
@@ -38,6 +39,7 @@ public sealed class RemovePostImageByIdForTenant {
 		return await RemovePostImageForTenant.RemoveAsync(
 			postId,
 			assetIdGuid,
+			segmentId: null,
 			authContext,
 			assetService,
 			uploadReferences,

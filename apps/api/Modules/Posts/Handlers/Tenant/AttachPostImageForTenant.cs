@@ -39,6 +39,29 @@ public sealed class AttachPostImageForTenant {
 		IFormFile? file,
 		CancellationToken cancellationToken = default
 	) {
+		return await AttachPostImageForTenant.AttachAsync(
+			postId, null, authContext, assetService, uploadReferences,
+			uploadAdmissionService, fileStorage, auditLogService, logger, file, cancellationToken
+		);
+	}
+
+	/// <summary>
+	/// The shared attach flow: <paramref name="segmentId"/> null appends to the post's own
+	/// images, otherwise to that follow-up segment's (#2181).
+	/// </summary>
+	internal static async Task<IResult> AttachAsync(
+		string postId,
+		Guid? segmentId,
+		IRequestAuthContext authContext,
+		IPostMediaAssetService assetService,
+		IUploadAssetReferenceService uploadReferences,
+		IUploadAdmissionService uploadAdmissionService,
+		IFileStorage fileStorage,
+		IAuditLogService auditLogService,
+		ILogger logger,
+		IFormFile? file,
+		CancellationToken cancellationToken
+	) {
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
 			throw new InvalidOperationException(
 				$"{nameof(authContext.TenantId)} is not a GUID"
@@ -67,6 +90,32 @@ public sealed class AttachPostImageForTenant {
 			);
 		}
 
+		if (segmentId is { } owningSegmentId) {
+			var segment = await assetService.FindOwnedSegmentAsync(
+				tenantId, postIdGuid, owningSegmentId, cancellationToken
+			);
+			if (segment is null) {
+				return TypedProblems.NotFound(
+					"Segment not found",
+					ResponseKeys.PostSegmentNotFound
+				);
+			}
+
+			// A published segment is read-only: its remote record already exists.
+			var published = await assetService.GetPublishedSegmentCountAsync(
+				postIdGuid, cancellationToken
+			);
+			if (segment.Position + 1 <= published) {
+				return TypedProblems.ValidationProblem(
+					"Segments that are already published cannot be changed",
+					ResponseKeys.PostSegmentsLocked,
+					new Dictionary<string, string[]> {
+						["segment"] = ["Published segments are read-only."],
+					}
+				);
+			}
+		}
+
 		if (file is null || file.Length == 0) {
 			return AttachPostImageForTenant._ValidationFailure(
 				"An image file is required",
@@ -77,7 +126,7 @@ public sealed class AttachPostImageForTenant {
 		// Cheap early refusal so an image over the cap never reaches storage; the asset
 		// service re-checks authoritatively at insert time.
 		var existingImages = await assetService.ListByPostAsync(
-			tenantId, postIdGuid, cancellationToken
+			tenantId, postIdGuid, cancellationToken, segmentId
 		);
 		if (existingImages.Count >= ProviderCapabilityRegistry.MaxImagesPerPost) {
 			return AttachPostImageForTenant._LimitReached();
@@ -205,6 +254,7 @@ public sealed class AttachPostImageForTenant {
 				TargetId: null,
 				Details: new {
 					PostId = postIdGuid,
+					SegmentId = segmentId,
 					Path = relativePath,
 					SizeBytes = file.Length,
 					ContentType = inspected.ContentType,
@@ -243,7 +293,8 @@ public sealed class AttachPostImageForTenant {
 					WidthPx: inspected.WidthPx,
 					HeightPx: inspected.HeightPx,
 					SizeBytes: file.Length,
-					UploadedByUserId: account.UserId
+					UploadedByUserId: account.UserId,
+					SegmentId: segmentId
 				),
 				cancellationToken
 			);
@@ -272,6 +323,7 @@ public sealed class AttachPostImageForTenant {
 				logger,
 				tenantId,
 				postIdGuid,
+				segmentId,
 				relativePath
 			);
 			throw;
@@ -353,6 +405,7 @@ public sealed class AttachPostImageForTenant {
 		ILogger logger,
 		Guid tenantId,
 		Guid postId,
+		Guid? segmentId,
 		string relativePath
 	) {
 		// CancellationToken.None throughout: compensation must still run when the
@@ -369,7 +422,7 @@ public sealed class AttachPostImageForTenant {
 			// removing that row later releases this reference, so releasing here
 			// as well would double-release.
 			var liveAssets = await assetService.ListByPostAsync(
-				tenantId, postId, CancellationToken.None
+				tenantId, postId, CancellationToken.None, segmentId
 			);
 			if (liveAssets.Any(liveAsset => string.Equals(
 				liveAsset.RelativePath, relativePath, StringComparison.Ordinal

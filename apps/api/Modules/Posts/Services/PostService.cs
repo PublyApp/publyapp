@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
@@ -25,7 +26,11 @@ public record UpdatePostArgs(
 	PatchField<string?> ImageAltText,
 	// Follow-up segments (thread, #2171): null leaves them untouched, an empty
 	// list removes them all, otherwise they replace the post's follow-ups.
-	IReadOnlyList<string>? Segments = null
+	IReadOnlyList<string>? Segments = null,
+	// Which stored segment each entry of Segments continues (null = a new segment),
+	// so a reorder or removal keeps every segment's images with ITS text (#2181).
+	// Absent = entries match the stored segments by position.
+	IReadOnlyList<Guid?>? SegmentIds = null
 );
 
 public record FindPostsArgs(
@@ -94,7 +99,13 @@ public abstract record FindPostsResult {
 }
 
 public abstract record UpdatePostResult {
-	public sealed record Success(Post Post) : UpdatePostResult;
+	/// <param name="ReleasedImagePaths">Blobs of images dropped with removed segments: the
+	/// handler releases their upload references after the commit (#807 F5).</param>
+	public sealed record Success(Post Post, IReadOnlyList<string>? ReleasedImagePaths = null)
+		: UpdatePostResult;
+
+	/// <summary>A submitted segment id is not a segment of this post (#2181).</summary>
+	public sealed record SegmentNotFound : UpdatePostResult;
 
 	public sealed record NotFound : UpdatePostResult;
 
@@ -108,8 +119,12 @@ public abstract record UpdatePostResult {
 
 /// <summary>One follow-up segment: <see cref="Number"/> is its 1-based place in the thread (2..N).</summary>
 public record PostSegmentReadModel {
+	/// <summary>Stable id: image routes and <c>segmentIds</c> on update refer to it (#2181).</summary>
+	public required Guid Id { get; init; }
 	public required int Number { get; init; }
 	public required string Body { get; init; }
+	/// <summary>The segment's own images in publish order (up to four).</summary>
+	public required IReadOnlyList<PostImageReadModel> Images { get; init; }
 }
 
 public record PostListItem {
@@ -288,6 +303,7 @@ public class PostService : IPostService {
 			from a in this._DbContext.PostMediaAsset.AsNoTracking()
 			where a.TenantId == tenantId
 				&& pagePostIds.Contains(a.PostId)
+				&& a.SegmentId == null
 				&& !a.IsDeleted
 			orderby a.Position
 			select a
@@ -336,9 +352,19 @@ public class PostService : IPostService {
 			return new UpdatePostResult.NotFound();
 		}
 
-		var segmentsLocked = await this._ApplySegmentsAsync(post, args, cancellationToken);
-		if (segmentsLocked) {
+		// Reordering follow-ups moves unique positions around: one transaction keeps the
+		// parking step and the final write atomic (#2181).
+		IDbContextTransaction? transaction = args.SegmentIds is null
+			? null
+			: await this._DbContext.Database.BeginTransactionAsync(cancellationToken);
+		await using var transactionScope = transaction;
+		var applied = await this._ApplySegmentsAsync(post, args, cancellationToken);
+		if (applied.Locked) {
 			return new UpdatePostResult.SegmentsLocked();
+		}
+
+		if (applied.UnknownSegment) {
+			return new UpdatePostResult.SegmentNotFound();
 		}
 
 		if (args.Body is not null) {
@@ -353,6 +379,7 @@ public class PostService : IPostService {
 				from a in this._DbContext.PostMediaAsset
 				where a.TenantId == tenantId
 					&& a.PostId == id
+					&& a.SegmentId == null
 					&& !a.IsDeleted
 				orderby a.Position
 				select a
@@ -386,6 +413,9 @@ public class PostService : IPostService {
 		}
 
 		await this._DbContext.SaveChangesAsync(cancellationToken);
+		if (transaction is not null) {
+			await transaction.CommitAsync(cancellationToken);
+		}
 
 		if (this._Logger.IsEnabled(LogLevel.Information)) {
 			this._Logger.LogInformation(
@@ -395,21 +425,31 @@ public class PostService : IPostService {
 			);
 		}
 
-		return new UpdatePostResult.Success(post);
+		return new UpdatePostResult.Success(post, applied.ReleasedImagePaths);
+	}
+
+	private sealed record AppliedSegments(
+		bool Locked,
+		bool UnknownSegment,
+		IReadOnlyList<string> ReleasedImagePaths
+	) {
+		public static readonly AppliedSegments Untouched = new(false, false, []);
 	}
 
 	/// <summary>
 	/// Stages the follow-up replacement and enforces the read-only rule for
-	/// already-published segments of a thread. Returns true when the edit must be
-	/// refused (nothing has been changed at that point).
+	/// already-published segments of a thread. Nothing is changed when the edit is
+	/// refused. A segment keeps its images while it stays (matched by id when the
+	/// request names ids, else by position); the images of a removed segment are
+	/// staged for hard deletion and their blob paths returned for release (#2181).
 	/// </summary>
-	private async Task<bool> _ApplySegmentsAsync(
+	private async Task<AppliedSegments> _ApplySegmentsAsync(
 		Post post,
 		UpdatePostArgs args,
 		CancellationToken cancellationToken
 	) {
 		if (args.Segments is null && args.Body is null) {
-			return false;
+			return AppliedSegments.Untouched;
 		}
 
 		var postId = post.GetRequiredId();
@@ -419,6 +459,24 @@ public class PostService : IPostService {
 			orderby segment.Position
 			select segment
 		).ToListAsync(cancellationToken);
+
+		// The stored segment each requested follow-up continues (null = a new one).
+		var matched = new List<PostSegment?>();
+		if (args.Segments is not null) {
+			for (var index = 0; index < args.Segments.Count; index++) {
+				var wanted = args.SegmentIds?[index];
+				var current = wanted is { } id
+					? existing.FirstOrDefault(segment => segment.Id == id)
+					: args.SegmentIds is null
+						? existing.FirstOrDefault(segment => segment.Position == index + 1)
+						: null;
+				if (wanted is not null && current is null) {
+					return new AppliedSegments(false, true, []);
+				}
+
+				matched.Add(current);
+			}
+		}
 
 		var published = existing.Count > 0
 			? await ThreadSegments.PublishedSegmentCountAsync(
@@ -432,17 +490,40 @@ public class PostService : IPostService {
 			after.AddRange(args.Segments ?? existing.Select(segment => segment.Body).ToList());
 			for (var index = 0; index < published; index++) {
 				if (index >= after.Count || after[index] != before[index]) {
-					return true;
+					return new AppliedSegments(true, false, []);
+				}
+
+				// A published follow-up must still be the SAME segment, in the same place.
+				if (index > 0 && args.Segments is not null
+					&& (index - 1 >= existing.Count
+						|| !object.ReferenceEquals(matched[index - 1], existing[index - 1]))) {
+					return new AppliedSegments(true, false, []);
 				}
 			}
 		}
 
 		if (args.Segments is null) {
-			return false;
+			return AppliedSegments.Untouched;
+		}
+
+		var kept = matched.OfType<PostSegment>().ToHashSet();
+		var surplus = existing.Where(segment => !kept.Contains(segment)).ToList();
+		// A removed row still holds its slot until saved: a new row landing on it counts too.
+		var moves = matched.Index().Any(entry =>
+				entry.Item is not null && entry.Item.Position != entry.Index + 1)
+			|| surplus.Any(segment => segment.Position <= args.Segments.Count);
+		if (moves) {
+			// The unique (post, position) index is checked row by row: park every stored
+			// row on a free negative slot first, then assign the final positions.
+			for (var index = 0; index < existing.Count; index++) {
+				existing[index].Position = -(index + 1);
+			}
+
+			await this._DbContext.SaveChangesAsync(cancellationToken);
 		}
 
 		for (var index = 0; index < args.Segments.Count; index++) {
-			var current = existing.FirstOrDefault(segment => segment.Position == index + 1);
+			var current = matched[index];
 			if (current is null) {
 				this._DbContext.PostSegment.Add(new PostSegment {
 					TenantId = post.TenantId,
@@ -450,21 +531,44 @@ public class PostService : IPostService {
 					Position = index + 1,
 					Body = args.Segments[index],
 				});
-			} else if (current.Body != args.Segments[index]) {
+				continue;
+			}
+
+			if (current.Position != index + 1) {
+				current.Position = index + 1;
+				current.UpdatedAt = DateTime.UtcNow;
+			}
+
+			if (current.Body != args.Segments[index]) {
 				current.Body = args.Segments[index];
 				current.UpdatedAt = DateTime.UtcNow;
 			}
 		}
 
-		foreach (var surplus in existing.Where(segment => segment.Position > args.Segments.Count)) {
-			this._DbContext.PostSegment.Remove(surplus);
+		var released = new List<string>();
+		if (surplus.Count > 0) {
+			var surplusIds = surplus.Select(segment => segment.GetRequiredId()).ToList();
+			var orphanImages = await (
+				from asset in this._DbContext.PostMediaAsset
+				where asset.PostId == postId
+					&& asset.SegmentId != null
+					&& surplusIds.Contains(asset.SegmentId.GetValueOrDefault())
+					&& !asset.IsDeleted
+				select asset
+			).ToListAsync(cancellationToken);
+			this._DbContext.ForceHardDeleteRange(orphanImages);
+			released.AddRange(orphanImages.Select(asset => asset.RelativePath));
+		}
+
+		foreach (var gone in surplus) {
+			this._DbContext.PostSegment.Remove(gone);
 		}
 
 		await ThreadSegments.PruneTextOverridesAsync(
 			this._DbContext, postId, args.Segments.Count + 1, cancellationToken
 		);
 
-		return false;
+		return new AppliedSegments(false, false, released);
 	}
 
 	public async Task<IReadOnlyList<PostSegmentReadModel>> FindSegmentsAsync(
@@ -472,17 +576,36 @@ public class PostService : IPostService {
 		Guid postId,
 		CancellationToken cancellationToken = default
 	) {
-		return await (
+		var segments = await (
 			from segment in this._DbContext.PostSegment.AsNoTracking()
 			where segment.TenantId == tenantId
 				&& segment.PostId == postId
 				&& !segment.IsDeleted
 			orderby segment.Position
-			select new PostSegmentReadModel {
+			select segment
+		).ToListAsync(cancellationToken);
+		if (segments.Count == 0) {
+			return [];
+		}
+
+		var images = await (
+			from asset in this._DbContext.PostMediaAsset.AsNoTracking()
+			where asset.TenantId == tenantId
+				&& asset.PostId == postId
+				&& asset.SegmentId != null
+				&& !asset.IsDeleted
+			orderby asset.Position
+			select asset
+		).ToListAsync(cancellationToken);
+		var bySegment = images.ToLookup(asset => asset.SegmentId);
+		return segments
+			.Select(segment => new PostSegmentReadModel {
+				Id = segment.GetRequiredId(),
 				Number = segment.Position + 1,
 				Body = segment.Body,
-			}
-		).ToListAsync(cancellationToken);
+				Images = PostWire.FormatImages(bySegment[segment.Id]),
+			})
+			.ToList();
 	}
 
 	public async Task<int> GetPublishedSegmentCountAsync(

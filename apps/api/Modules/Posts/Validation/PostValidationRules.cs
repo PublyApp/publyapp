@@ -1,3 +1,6 @@
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
+
 namespace PublyApp.Api.Modules.Posts.Validation;
 
 /// <summary>
@@ -19,4 +22,35 @@ public static class PostValidationRules {
 	// Alt text rides on the attached image row; bounded here like every other
 	// wire field so the DB column stays permissive while the contract is not.
 	public const int ImageAltTextMaxLength = 1_000;
+
+	/// <summary>
+	/// A blank follow-up is refused with the segment named (1-based number in the thread,
+	/// so numbering never shifts), never dropped silently on save (#2181).
+	/// </summary>
+	public static AppValidationProblemHttpResult? FindBlankSegment(IReadOnlyList<string>? segments) {
+		if (segments is null) {
+			return null;
+		}
+
+		for (var index = 0; index < segments.Count; index++) {
+			if (!string.IsNullOrWhiteSpace(segments[index])) {
+				continue;
+			}
+
+			var number = index + 2;
+			var message = $"Segment {number} is empty. Write some text or remove it.";
+			return TypedProblems.ValidationProblem(
+				message,
+				ResponseKeys.PostSegmentBlank,
+				new Dictionary<string, string[]> {
+					["segments"] = [message],
+				},
+				new Dictionary<string, object?> {
+					["segmentNumber"] = number,
+				}
+			);
+		}
+
+		return null;
+	}
 }
