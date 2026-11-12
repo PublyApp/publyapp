@@ -82,6 +82,9 @@ public sealed class CompleteMastodonConnectForTenant {
 				new Dictionary<string, object?> {
 					["expectedHandle"] = mismatch.ExpectedHandle,
 					["actualHandle"] = mismatch.ActualHandle,
+					// What the front needs to offer "connect it as a new account instead".
+					["provider"] = SocialAccountWire.FormatProvider(mismatch.Provider),
+					["instance"] = mismatch.Host,
 				}
 			);
 		}

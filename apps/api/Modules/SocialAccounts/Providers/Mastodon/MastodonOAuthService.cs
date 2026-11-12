@@ -48,8 +48,12 @@ public abstract record CompleteMastodonConnectResult {
 	/// A reconnect came back signed in as a different account than the one being reconnected.
 	/// Nothing was stored, the new token was revoked and the old account is untouched (#2186).
 	/// </summary>
-	public sealed record AccountMismatch(string ExpectedHandle, string ActualHandle)
-		: CompleteMastodonConnectResult;
+	public sealed record AccountMismatch(
+		string ExpectedHandle,
+		string ActualHandle,
+		SocialProvider Provider,
+		string Host
+	) : CompleteMastodonConnectResult;
 }
 
 /// <summary>
@@ -290,7 +294,7 @@ public sealed class MastodonOAuthService {
 					new MastodonRevocation(host, app, accessToken.Value), cancellationToken
 				);
 				return new CompleteMastodonConnectResult.AccountMismatch(
-					expected.DisplayHandle, $"{account.Value.Acct}@{host}"
+					expected.DisplayHandle, $"{account.Value.Acct}@{host}", pending.Provider, host
 				);
 			}
 		}

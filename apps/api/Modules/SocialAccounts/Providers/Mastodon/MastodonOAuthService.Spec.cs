@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Services;
@@ -425,6 +426,8 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 		var mismatch = result.Should().BeOfType<CompleteMastodonConnectResult.AccountMismatch>().Subject;
 		mismatch.ExpectedHandle.Should().Be("alice@swap.example");
 		mismatch.ActualHandle.Should().Be("bob@swap.example");
+		mismatch.Host.Should().Be("swap.example");
+		mismatch.Provider.Should().Be(SocialProvider.Mastodon);
 		(await h.Db.SocialAccount.CountAsync(a => a.TenantId == h.TenantId)).Should().Be(1, "the other account is not linked");
 		var stored = await h.Db.SocialAccount.AsNoTracking().SingleAsync(a => a.TenantId == h.TenantId);
 		stored.Status.Should().Be(SocialAccountStatus.NeedsReconnect);
@@ -528,66 +531,5 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 			.OpenSessionAsync(connected.Account.GetRequiredId(), default);
 
 		result.Should().BeOfType<SocialSessionResult.AccountFailure>();
-	}
-
-	private sealed class FakeMastodonClient : IMastodonClient {
-		public List<string> Calls { get; } = [];
-
-		public MastodonAccountInfo Account { get; set; } = new("109", "alice");
-
-		public MastodonInstanceLimits? Limits { get; set; }
-
-		public string Token { get; set; } = "access-token-1";
-
-		public MastodonResult<string>? TokenResult { get; set; }
-
-		// When set, each registration gets its own client id (to tell two apps apart).
-		public bool UniqueClients { get; set; }
-
-		public string? LastExchangeClientId { get; private set; }
-
-		// Whether the fake instance advertises PKCE S256; false models an older Mastodon / Pixelfed.
-		public bool SupportsPkce { get; set; }
-
-		public string? LastExchangeVerifier { get; private set; }
-
-		public Task<MastodonResult<MastodonApp>> RegisterAppAsync(string host, string redirectUri, string scopes, CancellationToken cancellationToken) {
-			this.Calls.Add($"register {host}");
-			var clientId = this.UniqueClients ? $"client-{scopes.Replace(' ', '-')}" : "client-id";
-			return Task.FromResult<MastodonResult<MastodonApp>>(new MastodonResult<MastodonApp>.Ok(new MastodonApp(clientId, "client-secret")));
-		}
-
-		public Task<bool> SupportsPkceAsync(string host, CancellationToken cancellationToken) {
-			this.Calls.Add($"pkce {host}");
-			return Task.FromResult(this.SupportsPkce);
-		}
-
-		public Task<MastodonResult<string>> ExchangeCodeAsync(string host, MastodonApp app, string redirectUri, string code, string? codeVerifier, CancellationToken cancellationToken) {
-			this.Calls.Add($"exchange {host}");
-			this.LastExchangeClientId = app.ClientId;
-			this.LastExchangeVerifier = codeVerifier;
-			return Task.FromResult(this.TokenResult ?? new MastodonResult<string>.Ok(this.Token));
-		}
-
-		public Task<MastodonResult<MastodonAccountInfo>> VerifyCredentialsAsync(string host, string accessToken, CancellationToken cancellationToken) {
-			this.Calls.Add($"verify {host}");
-			return Task.FromResult<MastodonResult<MastodonAccountInfo>>(new MastodonResult<MastodonAccountInfo>.Ok(this.Account));
-		}
-
-		public Task<MastodonInstanceLimits?> GetInstanceLimitsAsync(string host, CancellationToken cancellationToken) {
-			this.Calls.Add($"limits {host}");
-			return Task.FromResult(this.Limits);
-		}
-
-		public Exception? RevokeFailure { get; set; }
-
-		public Task RevokeAsync(string host, MastodonApp app, string accessToken, CancellationToken cancellationToken) {
-			if (this.RevokeFailure is not null) {
-				throw this.RevokeFailure;
-			}
-
-			this.Calls.Add($"revoke {host} {accessToken} {app.ClientSecret}");
-			return Task.CompletedTask;
-		}
 	}
 }
