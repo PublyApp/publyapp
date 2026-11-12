@@ -26,6 +26,7 @@
 	"image-help": "{{types}}, {{size}} maximum chacune. Jusqu’à {{max}} images.",
 	"image-no-common-type": "Aucun type d'image n'est accepté par toutes les destinations sélectionnées. Désélectionnez une destination ou publiez sans image.",
 	"attempt-timed-out": "Cela prend trop de temps. Vérifiez vos publications avant de réessayer, au cas où cela aurait abouti.",
+	"image-timed-out": "L’envoi des images prend trop de temps. Certaines sont peut-être déjà jointes : réessayez et seules les manquantes seront envoyées.",
 	"image-retry": "Réessayer",
 	"image-add": "Ajouter des images",
 	"image-alt-label-numbered": "Texte alternatif de l’image {{index}}",

@@ -226,6 +226,11 @@ export const CreatePostDrawer = ({
 
 	const handleOpenChange = (o: boolean) => {
 		if (!o) {
+			// A save that was already on the wire may still create a draft: refresh
+			// the list so it does not appear out of nowhere later.
+			if (busy) {
+				void invalidateTenantPosts(qc, tenantId);
+			}
 			resetAll();
 		}
 		onOpenChange(o);

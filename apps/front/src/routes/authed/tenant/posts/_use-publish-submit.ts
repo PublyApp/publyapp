@@ -139,10 +139,20 @@ export const usePublishSubmit = ({
 			await invalidateTenantPosts(queryClient, tenantId);
 			await invalidateTenantPublications(queryClient, tenantId);
 			await invalidateTenantScheduledPublications(queryClient, tenantId);
+			// Cancelled or left while the lists refreshed: the request is done, but
+			// the user is somewhere else now, so nothing is navigated for them.
+			if (prepared.attempt && !prepared.attempt.isCurrent()) {
+				setPending(null);
+				return;
+			}
 		} catch (error) {
 			setPending(null);
 			if (error instanceof AttemptCancelledError) {
-				// Cancelled while waiting: no message, no navigation.
+				// Cancelled while waiting: no message, no navigation. The request
+				// may still have landed, so the lists refresh to show it.
+				void invalidateTenantPosts(queryClient, tenantId);
+				void invalidateTenantPublications(queryClient, tenantId);
+				void invalidateTenantScheduledPublications(queryClient, tenantId);
 				return;
 			}
 			if (error instanceof AttemptTimedOutError) {

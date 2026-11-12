@@ -1148,6 +1148,111 @@ describe('CreatePostDrawer deferred image handoff', () => {
 		}
 	});
 
+	test('an attach that times out keeps the images that landed, stops the chain, and Try again sends only the missing ones (#2179)', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		try {
+			let landSecond: (value: { id: string }) => void = () => undefined;
+			mocks.attachMutateAsync
+				.mockResolvedValueOnce({ id: 'asset-a' })
+				.mockImplementationOnce(
+					() =>
+						new Promise((resolve) => {
+							landSecond = resolve;
+						}),
+				)
+				.mockResolvedValueOnce({ id: 'asset-c' });
+			const onOpenChange = vi.fn();
+			renderDrawer(onOpenChange);
+			setFieldValue('tenant-posts-create-body', 'three pictures');
+			await userEvent.upload(
+				screen.getByTestId('tenant-posts-create-image-input'),
+				[PNG_FILE, SECOND_FILE, THIRD_FILE],
+			);
+			await userEvent.click(screen.getByTestId('tenant-posts-create-save'));
+			await waitFor(() =>
+				expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(2),
+			);
+
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS + 1000);
+			});
+			expect(
+				screen.getByTestId('tenant-posts-create-image-handoff'),
+			).toBeTruthy();
+			expect(screen.getByRole('alert').textContent).toContain(
+				'posts:image-timed-out',
+			);
+
+			// The second upload was already on the wire and lands late: the chain
+			// stops there (nothing more is uploaded) and that image counts as attached.
+			await act(async () => {
+				landSecond({ id: 'asset-b' });
+			});
+			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(2);
+
+			await userEvent.click(
+				screen.getByTestId('tenant-posts-create-image-retry'),
+			);
+
+			await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+			const names = mocks.attachMutateAsync.mock.calls.map(
+				(call) => (call[0] as { file: File }).file.name,
+			);
+			expect(names).toEqual(['logo.png', 'second.png', 'third.png']);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	test('Try again right after an attach timeout does not re-send the image that had landed (#2179)', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		try {
+			mocks.attachMutateAsync
+				.mockResolvedValueOnce({ id: 'asset-a' })
+				.mockImplementationOnce(() => new Promise(() => undefined));
+			const onOpenChange = vi.fn();
+			renderDrawer(onOpenChange);
+			setFieldValue('tenant-posts-create-body', 'two pictures');
+			await userEvent.upload(
+				screen.getByTestId('tenant-posts-create-image-input'),
+				[PNG_FILE, SECOND_FILE],
+			);
+			await userEvent.click(screen.getByTestId('tenant-posts-create-save'));
+			await waitFor(() =>
+				expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(2),
+			);
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS + 1000);
+			});
+
+			await userEvent.click(
+				screen.getByTestId('tenant-posts-create-image-retry'),
+			);
+
+			await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+			const names = mocks.attachMutateAsync.mock.calls.map(
+				(call) => (call[0] as { file: File }).file.name,
+			);
+			expect(names).toEqual(['logo.png', 'second.png', 'second.png']);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	test('cancelling during a save refreshes the post list: a draft may have been created (#2179)', async () => {
+		mocks.savePost.mockImplementationOnce(() => new Promise(() => undefined));
+		renderDrawer(vi.fn());
+		await fillBodyAndPickImage('draft body');
+		act(() => {
+			void mocks.publishBlockProps.current?.onBeforePublish?.();
+		});
+		await waitFor(() => expect(mocks.savePost).toHaveBeenCalledTimes(1));
+
+		await userEvent.click(screen.getByText('common:cancel'));
+
+		expect(mocks.invalidateTenantPosts).toHaveBeenCalled();
+	});
+
 	test('discarding the failed image keeps the created post and closes cleanly', async () => {
 		const onOpenChange = vi.fn();
 		mocks.attachMutateAsync.mockRejectedValueOnce(TOO_LARGE_PROBLEM);

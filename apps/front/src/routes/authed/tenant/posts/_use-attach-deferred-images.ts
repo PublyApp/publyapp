@@ -14,6 +14,12 @@ import {
 import { AttemptCancelledError } from './_attempt';
 import type { DeferredImageSelection } from './_post-image-picker';
 
+/** What an attach run has done so far (filled in as images land). */
+export type AttachProgress = {
+	remaining: DeferredImageSelection[];
+	assetIds: Map<string, string>;
+};
+
 export type AttachDeferredImagesOutcome =
 	| {
 			ok: true;
@@ -48,10 +54,7 @@ export const useAttachDeferredImages = (tenantId: string) => {
 	const attachInOrder = async (
 		postId: string,
 		images: DeferredImageSelection[],
-		progress: {
-			remaining: DeferredImageSelection[];
-			assetIds: Map<string, string>;
-		},
+		progress: AttachProgress,
 		isCurrent: () => boolean,
 	): Promise<void> => {
 		const [image, ...rest] = images;
@@ -101,11 +104,12 @@ export const useAttachDeferredImages = (tenantId: string) => {
 		postId: string,
 		images: DeferredImageSelection[],
 		isCurrent: () => boolean = () => true,
-	): Promise<AttachDeferredImagesOutcome> => {
-		const progress = {
+		// Owned by the caller so it can read what finished when it stops waiting.
+		progress: AttachProgress = {
 			remaining: images,
 			assetIds: new Map<string, string>(),
-		};
+		},
+	): Promise<AttachDeferredImagesOutcome> => {
 		try {
 			await attachInOrder(postId, images, progress, isCurrent);
 			return { ok: true, assetIds: progress.assetIds };

@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	publishNow: vi.fn(),
 	schedule: vi.fn(),
+	invalidatePublications: vi.fn(),
 }));
 
 vi.mock('~/lib/query/tenant-permissions', () => ({
@@ -36,7 +37,7 @@ vi.mock('~/lib/query/tenant-permissions', () => ({
 vi.mock('~/lib/query/tenant-publications', () => ({
 	publishNowMutation: { mutationFn: mocks.publishNow },
 	schedulePostMutation: { mutationFn: mocks.schedule },
-	invalidateTenantPublications: vi.fn().mockResolvedValue(undefined),
+	invalidateTenantPublications: mocks.invalidatePublications,
 }));
 vi.mock('~/lib/query/tenant-scheduled-publications', () => ({
 	invalidateTenantScheduledPublications: vi.fn().mockResolvedValue(undefined),
@@ -133,6 +134,7 @@ const renderBlock = (props: {
 	);
 
 beforeEach(() => {
+	mocks.invalidatePublications.mockResolvedValue(undefined);
 	mocks.publishNow.mockResolvedValue(undefined);
 	mocks.schedule.mockResolvedValue(undefined);
 });
@@ -281,6 +283,55 @@ describe('PublishOnBlock interruption (#2179)', () => {
 		);
 		expect(mocks.navigate).not.toHaveBeenCalled();
 		expect(screen.queryByRole('alert')).toBeNull();
+	});
+
+	test('cancelling while the request is in flight refreshes the lists, the post may have landed (#2179)', async () => {
+		const registry = createAttemptRegistry();
+		const attempt = registry.begin();
+		mocks.publishNow.mockImplementationOnce(() => new Promise(() => undefined));
+		renderBlock({
+			onBeforePublish: async () => ({ postId: POST_ID, attempt }),
+			onPublishInterrupted: vi.fn(),
+		});
+		await userEvent.click(screen.getByTestId('tenant-posts-publish-now'));
+		await waitFor(() => expect(mocks.publishNow).toHaveBeenCalledTimes(1));
+
+		registry.invalidate();
+
+		await waitFor(() =>
+			expect(mocks.invalidatePublications).toHaveBeenCalledTimes(1),
+		);
+	});
+
+	test('leaving while the lists refresh after the request does not navigate (#2179)', async () => {
+		const registry = createAttemptRegistry();
+		const attempt = registry.begin();
+		let finishRefresh: () => void = () => undefined;
+		mocks.invalidatePublications.mockImplementationOnce(
+			() =>
+				new Promise<void>((resolve) => {
+					finishRefresh = resolve;
+				}),
+		);
+		renderBlock({
+			onBeforePublish: async () => ({ postId: POST_ID, attempt }),
+			onPublishInterrupted: vi.fn(),
+		});
+		await userEvent.click(screen.getByTestId('tenant-posts-publish-now'));
+		await waitFor(() =>
+			expect(mocks.invalidatePublications).toHaveBeenCalledTimes(1),
+		);
+
+		registry.invalidate();
+		finishRefresh();
+
+		await waitFor(() =>
+			expect(
+				(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
+					.disabled,
+			).toBe(false),
+		);
+		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
 
 	test('a request that stalls ends in a visible message (#2179)', async () => {

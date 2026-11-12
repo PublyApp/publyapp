@@ -4,7 +4,8 @@
  * An attempt is a generation: it stays current until something supersedes it
  * (a new attempt, Cancel/close, unmount). Every step checks `isCurrent` after
  * each await and before the request goes out, and `run` stops WAITING for a
- * request as soon as the attempt is superseded or a bounded time has passed.
+ * request as soon as the attempt is superseded or a bounded time has passed
+ * (per wait, not for the attempt as a whole: each step has its own limit).
  * Stopping the wait cannot recall a request that already left, but nothing
  * further is sent and nothing is navigated on its behalf.
  */

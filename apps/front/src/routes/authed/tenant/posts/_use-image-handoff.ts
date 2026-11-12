@@ -5,6 +5,7 @@ import { AttemptTimedOutError, createAttemptRegistry } from './_attempt';
 import type { Attempt } from './_attempt';
 import type { DeferredImageSelection } from './_post-image-picker';
 import { useAttachDeferredImages } from './_use-attach-deferred-images';
+import type { AttachProgress } from './_use-attach-deferred-images';
 
 /**
  * The create drawer's image handoff: the deferred picker selection, and what
@@ -64,19 +65,45 @@ export const useImageHandoff = (tenantId: string) => {
 		images: DeferredImageSelection[],
 		attempt: Attempt,
 	): Promise<ReadonlyMap<string, string> | null> => {
-		const outcome = await attempt
-			.run(deferredAttach.attachAll(forPostId, images, attempt.isCurrent))
-			.catch((error: unknown) => {
-				if (error instanceof AttemptTimedOutError) {
-					return {
-						ok: false as const,
-						remaining: images,
-						assetIds: new Map<string, string>(),
-						cause: t('posts:attempt-timed-out'),
-					};
-				}
-				return null;
-			});
+		const progress: AttachProgress = {
+			remaining: images,
+			assetIds: new Map<string, string>(),
+		};
+		// A timeout stops the upload chain too (it ends at the next step), and the
+		// images that landed before the deadline stay marked attached, so a retry
+		// uploads only the missing ones.
+		let abandoned = false;
+		const work = deferredAttach.attachAll(
+			forPostId,
+			images,
+			() => attempt.isCurrent() && !abandoned,
+			progress,
+		);
+		const outcome = await attempt.run(work).catch((error: unknown) => {
+			if (error instanceof AttemptTimedOutError) {
+				abandoned = true;
+				// An upload that was already on the wire may still land: mark it
+				// attached when it does, so a retry does not append it twice.
+				void work.then(() => {
+					if (attempt.isCurrent()) {
+						setDeferredImages((current) =>
+							current.map((image) => ({
+								...image,
+								attachedAssetId:
+									image.attachedAssetId ?? progress.assetIds.get(image.id),
+							})),
+						);
+					}
+				});
+				return {
+					ok: false as const,
+					remaining: progress.remaining,
+					assetIds: progress.assetIds,
+					cause: t('posts:image-timed-out'),
+				};
+			}
+			return null;
+		});
 		if (outcome === null || !attempt.isCurrent()) {
 			return null;
 		}
@@ -101,8 +128,9 @@ export const useImageHandoff = (tenantId: string) => {
 		return null;
 	};
 
-	/** The attach of a Publish / Schedule / Save attempt. A success ends any
-	 * earlier failure: no stale panel, cause or resume is left behind. */
+	/** The attach of a Publish / Schedule / Save attempt. A success ends the
+	 * earlier failure's panel and cause (the intent itself was already dropped
+	 * by `beginAttempt`; the clear here is belt and braces). */
 	const tryAttach = async (
 		forPostId: string,
 		images: DeferredImageSelection[],
