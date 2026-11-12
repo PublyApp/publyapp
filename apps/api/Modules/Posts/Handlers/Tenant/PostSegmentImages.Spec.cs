@@ -135,12 +135,13 @@ public sealed class PostSegmentImagesSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldRefuseAnImageBeyondThePostCapOnASegmentButStillTakeOneOnTheNextSegment() {
+	public async Task ItShouldRefuseAFifthImageOnAFollowUpAtAttachTimeButStillTakeOneOnTheNextSegment() {
 		var (tenantId, token) = await this._LoginAsync();
 		var postId = await this._CreateThreadAsync(tenantId, token, "two", "three");
 		var segments = (await this._GetAsync(tenantId, token, postId)).Segments;
-		// The attach-time cap is the one of a post: the most any provider accepts.
-		for (var width = 10; width < 10 + ProviderCapabilityRegistry.MaxImagesPerPost; width++) {
+		// A follow-up carries 0 to 4 images: the most a thread destination accepts.
+		ProviderCapabilityRegistry.MaxImagesPerFollowUp.Should().Be(4);
+		for (var width = 10; width < 14; width++) {
 			await this._AttachAsync(tenantId, token, postId, segments[0].Id, width);
 		}
 
@@ -151,6 +152,70 @@ public sealed class PostSegmentImagesSpec : IClassFixture<ApiFixture> {
 		overCap.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		(await PostSegmentImagesSpec._ProblemAsync(overCap)).GetProperty("translationKey").GetString().Should().Be("post-image-limit-reached");
 		await this._AttachAsync(tenantId, token, postId, segments[1].Id, 50);
+	}
+
+	[Fact]
+	public async Task ItShouldSetAndClearTheAltTextOfASegmentImageUntilItsSegmentIsPublished() {
+		var (tenantId, token) = await this._LoginAsync();
+		var postId = await this._CreateThreadAsync(tenantId, token, "two", "three");
+		var segments = (await this._GetAsync(tenantId, token, postId)).Segments;
+		var onTwo = await this._AttachAsync(tenantId, token, postId, segments[0].Id, 10);
+		var onThree = await this._AttachAsync(tenantId, token, postId, segments[1].Id, 20);
+
+		using var set = await this._SendAsync(
+			tenantId, token, HttpMethod.Patch, $"/posts/{postId}/segments/{segments[1].Id}/images/{onThree.Id}",
+			JsonContent.Create(new { altText = "a cat" })
+		);
+		set.StatusCode.Should().Be(HttpStatusCode.OK);
+		(await this._GetAsync(tenantId, token, postId)).Segments[1].Images.Single().AltText.Should().Be("a cat");
+
+		await this._SeedPublishedSegmentsAsync(tenantId, postId, count: 2);
+		using var locked = await this._SendAsync(
+			tenantId, token, HttpMethod.Patch, $"/posts/{postId}/segments/{segments[0].Id}/images/{onTwo.Id}",
+			JsonContent.Create(new { altText = "too late" })
+		);
+
+		locked.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		(await PostSegmentImagesSpec._ProblemAsync(locked)).GetProperty("translationKey").GetString().Should().Be("post-segments-locked");
+		(await this._GetAsync(tenantId, token, postId)).Segments[0].Images.Single().AltText.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldRefuseSegmentIdsThatRepeatAnIdInAnotherCaseOrDoNotMatchTheSegmentCount() {
+		var (tenantId, token) = await this._LoginAsync();
+		var postId = await this._CreateThreadAsync(tenantId, token, "two", "three");
+		var segments = (await this._GetAsync(tenantId, token, postId)).Segments;
+
+		using var repeated = await this._SendAsync(
+			tenantId, token, HttpMethod.Patch, $"/posts/{postId}",
+			JsonContent.Create(new {
+				segments = new List<string> { "a", "b" },
+				segmentIds = new[] { segments[0].Id.ToString().ToLowerInvariant(), segments[0].Id.ToString().ToUpperInvariant() },
+			})
+		);
+		using var shortList = await this._SendAsync(
+			tenantId, token, HttpMethod.Patch, $"/posts/{postId}",
+			JsonContent.Create(new { segments = new List<string> { "a", "b" }, segmentIds = new Guid?[] { segments[0].Id } })
+		);
+
+		repeated.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		shortList.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		(await this._GetAsync(tenantId, token, postId)).Segments.Select(segment => segment.Body)
+			.Should().Equal("two", "three");
+	}
+
+	[Fact]
+	public async Task ItShouldDeleteSegmentImagesWithTheirPostAndReleaseTheirReferences() {
+		var (tenantId, token) = await this._LoginAsync();
+		var postId = await this._CreateThreadAsync(tenantId, token, "two");
+		var segment = (await this._GetAsync(tenantId, token, postId)).Segments[0];
+		var image = await this._AttachAsync(tenantId, token, postId, segment.Id, 10);
+
+		using var delete = await this._SendAsync(tenantId, token, HttpMethod.Delete, $"/posts/{postId}");
+
+		delete.IsSuccessStatusCode.Should().BeTrue();
+		(await this._LiveSegmentImageCountAsync(postId)).Should().Be(0);
+		(await this._ReferenceCountAsync(image.Path)).Should().Be(0);
 	}
 
 	[Fact]
@@ -340,8 +405,8 @@ public sealed class PostSegmentImagesSpec : IClassFixture<ApiFixture> {
 	private async Task<int> _LiveSegmentImageCountAsync(Guid postId) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.PostMediaAsset.CountAsync(
-			asset => asset.PostId == postId && asset.SegmentId != null && !asset.IsDeleted
+		return await db.PostSegmentMediaAsset.CountAsync(
+			asset => asset.PostId == postId && !asset.IsDeleted
 		);
 	}
 

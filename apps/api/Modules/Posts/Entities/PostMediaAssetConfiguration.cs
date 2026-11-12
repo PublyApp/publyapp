@@ -9,25 +9,11 @@ public sealed class PostMediaAssetConfiguration : IEntityTypeConfiguration<PostM
 		// so two concurrent appends cannot claim the same slot (the loser hits a
 		// unique violation) and the order is never ambiguous. Soft-deleted rows
 		// are excluded so a replacement never fights a historical row.
-		// Scoped to the post's OWN images (no segment): follow-up segments (#2181) keep
-		// their own order under the index below.
 		builder
 			.HasIndex(asset => new { asset.PostId, asset.Position })
 			.IsUnique()
 			.HasDatabaseName("ux_post_media_assets_live_post_position")
-			.HasFilter("is_deleted = false AND segment_id IS NULL");
-
-		builder
-			.HasIndex(asset => new { asset.SegmentId, asset.Position })
-			.IsUnique()
-			.HasDatabaseName("ux_post_media_assets_live_segment_position")
-			.HasFilter("is_deleted = false AND segment_id IS NOT NULL");
-
-		builder
-			.HasOne<PostSegment>()
-			.WithMany()
-			.HasForeignKey(asset => asset.SegmentId)
-			.OnDelete(DeleteBehavior.Cascade);
+			.HasFilter("is_deleted = false");
 
 		// Attach/remove/read all resolve an asset by its tenant and post.
 		builder

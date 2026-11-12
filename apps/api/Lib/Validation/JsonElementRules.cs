@@ -757,7 +757,8 @@ public static class JsonElementRules {
 				element.ValueKind != JsonValueKind.Array
 				|| element.EnumerateArray()
 					.Where(item => item.ValueKind == JsonValueKind.String)
-					.Select(item => item.GetString())
+					// Compare parsed GUIDs: the same id in another case or format is a repeat.
+					.Select(item => item.TryGetGuid(out var id) ? id : Guid.Empty)
 					.Distinct()
 					.Count() == element.EnumerateArray().Count(item => item.ValueKind == JsonValueKind.String)
 			)

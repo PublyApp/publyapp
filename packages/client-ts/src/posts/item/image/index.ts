@@ -34,7 +34,7 @@ export interface ImageRequestBuilder extends BaseRequestBuilder<ImageRequestBuil
      * @throws {AppProblemDetails} error when the service returns a 404 status code
      * @throws {AppProblemDetails} error when the service returns a 409 status code
      * @throws {AppProblemDetails} error when the service returns a 413 status code
-     * @throws {AppProblemDetails} error when the service returns a 422 status code
+     * @throws {ValidationProblemDetails} error when the service returns a 422 status code
      * @throws {AppProblemDetails} error when the service returns a 429 status code
      * @throws {AppProblemDetails} error when the service returns a 500 status code
      */
@@ -86,7 +86,7 @@ export const ImageRequestBuilderRequestsMetadata: RequestsMetadata = {
             404: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             409: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             413: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
-            422: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
+            422: createValidationProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             429: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
             500: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,
         },

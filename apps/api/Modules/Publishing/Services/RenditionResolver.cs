@@ -146,41 +146,39 @@ public static class RenditionResolver {
 		CancellationToken cancellationToken
 	) {
 		var postId = post.GetRequiredId();
-		var followUps = await ThreadSegments.FollowUpBodiesAsync(db, postId, cancellationToken);
-		var allAssets = await (
+		var followUpRows = await ThreadSegments.FollowUpsAsync(db, postId, cancellationToken);
+		var followUps = followUpRows.Select(row => row.Body).ToList();
+		var rootAssets = await (
 			from media in db.PostMediaAsset.AsNoTracking()
 			where media.PostId == postId && !media.IsDeleted
 			orderby media.Position
 			select media
 		).ToListAsync(cancellationToken);
-		var segmentIds = followUps.Count == 0
+		var segmentAssets = followUpRows.Count == 0
 			? []
 			: await (
-				from segment in db.PostSegment.AsNoTracking()
-				where segment.PostId == postId && !segment.IsDeleted
-				orderby segment.Position
-				select segment.Id
+				from media in db.PostSegmentMediaAsset.AsNoTracking()
+				where media.PostId == postId && !media.IsDeleted
+				orderby media.Position
+				select media
 			).ToListAsync(cancellationToken);
-		var bySegment = allAssets
-			.Where(media => media.SegmentId is not null)
-			.ToLookup(media => media.SegmentId.GetValueOrDefault());
-		var followUpAssets = segmentIds
-			.Select(id => (IReadOnlyList<ContentAsset>)bySegment[id.GetValueOrDefault()]
+		var bySegment = segmentAssets.ToLookup(media => media.SegmentId);
+		var followUpAssets = followUpRows
+			.Select(row => (IReadOnlyList<ContentAsset>)bySegment[row.Id]
 				.Select(RenditionResolver._ToContentAsset)
 				.ToList())
 			.ToList();
 		return new SourceContent(
 			post.Body,
 			followUps,
-			allAssets
-				.Where(media => media.SegmentId is null)
+			rootAssets
 				.Select(RenditionResolver._ToContentAsset)
 				.ToList(),
 			followUpAssets.Any(set => set.Count > 0) ? followUpAssets : null
 		);
 	}
 
-	private static ContentAsset _ToContentAsset(PostMediaAsset media) {
+	private static ContentAsset _ToContentAsset(IPostImage media) {
 		return new ContentAsset(
 			media.GetRequiredId(),
 			media.RelativePath,

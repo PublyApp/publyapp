@@ -156,6 +156,12 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		get { return this.Set<PostSegment>(); }
 	}
 
+	// Images of follow-up segments (#2181): their own table, so an older app version never
+	// reads them as the post's images.
+	public DbSet<PostSegmentMediaAsset> PostSegmentMediaAsset {
+		get { return this.Set<PostSegmentMediaAsset>(); }
+	}
+
 	// Data Protection key ring (C1-bis): keys persisted in Postgres, encrypted at rest
 	// with SOCIAL_ACCOUNTS_MASTER_KEY.
 	public DbSet<DataProtectionKey> DataProtectionKeys {

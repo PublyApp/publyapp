@@ -132,6 +132,14 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			);
 		}
 
+		// The window protects a resend with the SAME key only. A re-issued publication has a
+		// fresh key, so a status the failed one wrote but never recorded would be posted twice.
+		if (request.ResendUnderNewKey) {
+			return Task.FromResult<ReconcileResult>(new ReconcileResult.NeedsReview(
+				"Mastodon cannot confirm whether an earlier attempt of this thread already posted a segment; check your profile"
+			));
+		}
+
 		var age = DateTime.UtcNow - request.FirstAttemptAtUtc;
 		ReconcileResult result = age <= MastodonPublishProvider.IdempotencyWindow
 			? new ReconcileResult.SafeToResend()
@@ -202,9 +210,16 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 
 		// From here on a transport failure is AMBIGUOUS: the instance may have applied it.
 		try {
-			return await MastodonPublishProvider._SendStatusAsync(
+			var sent = await MastodonPublishProvider._SendStatusAsync(
 				client, httpRequest, position, MastodonPublishProvider._Network(request), cancellationToken
 			);
+			if (sent.Segment is not null && request.ResendPosition == position) {
+				return await MastodonPublishProvider._VerifyDedupedTextAsync(
+					client, request, sent, text, cancellationToken
+				);
+			}
+
+			return sent;
 		} catch (JsonException) {
 			return new Outcome(
 				new PublishResult.Ambiguous("the instance answered with an unreadable body"), null
@@ -254,6 +269,43 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			?? body.GetStringPropertyOrNull("uri")
 			?? string.Empty;
 		return new Outcome(new PublishResult.Published(id, url), new CompletedSegment(position, id, string.Empty, url));
+	}
+
+	/// <summary>
+	/// A resend under the same key is answered with the original status: confirm it still
+	/// holds the text being sent, so an edited segment never records the old text as published.
+	/// </summary>
+	private static async Task<Outcome> _VerifyDedupedTextAsync(
+		HttpClient client,
+		PublishRequest request,
+		Outcome sent,
+		string text,
+		CancellationToken cancellationToken
+	) {
+		if (sent.Segment is null) {
+			return sent;
+		}
+
+		using var lookup = MastodonPublishProvider._Request(
+			HttpMethod.Get, request, $"/api/v1/statuses/{Uri.EscapeDataString(sent.Segment.RecordId)}/source"
+		);
+		using var response = await client.SendAsync(lookup, cancellationToken);
+		if (!response.IsSuccessStatusCode) {
+			return new Outcome(new PublishResult.Ambiguous(
+				"the instance could not confirm the text of the status it already holds"
+			), null);
+		}
+
+		var body = await MastodonPublishProvider._ReadJsonAsync(response, cancellationToken);
+		var existing = body.GetStringPropertyOrNull("text");
+		if (existing is null || string.Equals(existing, text, StringComparison.Ordinal)) {
+			return sent;
+		}
+
+		return new Outcome(new PublishResult.ContentFailure(
+			"An earlier attempt already posted this segment with different text. "
+			+ "Delete that status on your instance, then publish again."
+		), null);
 	}
 
 	private sealed record Uploaded(List<string> Ids, PublishResult? Failure);

@@ -68,7 +68,7 @@ public static class PostWire {
 	/// when the post has no image. URL follows the anonymously-served
 	/// <c>/files</c> convention documented on CreateStaffUpload.
 	/// </summary>
-	public static PostImageReadModel? FormatImage(PostMediaAsset? asset) {
+	public static PostImageReadModel? FormatImage(IPostImage? asset) {
 		if (asset is null) {
 			return null;
 		}
@@ -84,7 +84,7 @@ public static class PostWire {
 
 	/// <summary>Projects a post's live assets, already in position order.</summary>
 	public static IReadOnlyList<PostImageReadModel> FormatImages(
-		IEnumerable<PostMediaAsset> assets
+		IEnumerable<IPostImage> assets
 	) {
 		return assets
 			.OrderBy(asset => asset.Position)

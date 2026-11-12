@@ -26,6 +26,7 @@ public sealed class RemovePostImageForTenant {
 		[FromRoute] string postId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostMediaAssetService assetService,
+		[FromServices] IPostSegmentMediaAssetService segmentService,
 		[FromServices] IUploadAssetReferenceService uploadReferences,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
@@ -36,6 +37,7 @@ public sealed class RemovePostImageForTenant {
 			segmentId: null,
 			authContext,
 			assetService,
+			segmentService,
 			uploadReferences,
 			auditLogService,
 			cancellationToken
@@ -53,6 +55,7 @@ public sealed class RemovePostImageForTenant {
 		Guid? segmentId,
 		IRequestAuthContext authContext,
 		IPostMediaAssetService assetService,
+		IPostSegmentMediaAssetService segmentService,
 		IUploadAssetReferenceService uploadReferences,
 		IAuditLogService auditLogService,
 		CancellationToken cancellationToken
@@ -84,7 +87,7 @@ public sealed class RemovePostImageForTenant {
 		}
 
 		if (segmentId is { } owningSegmentId) {
-			var segment = await assetService.FindOwnedSegmentAsync(
+			var segment = await segmentService.FindOwnedSegmentAsync(
 				new FindOwnedSegmentArgs(tenantId, postIdGuid, owningSegmentId), cancellationToken
 			);
 			if (segment is null) {
@@ -94,7 +97,7 @@ public sealed class RemovePostImageForTenant {
 				);
 			}
 
-			var published = await assetService.GetPublishedSegmentCountAsync(
+			var published = await segmentService.GetPublishedSegmentCountAsync(
 				postIdGuid, cancellationToken
 			);
 			if (segment.Position + 1 <= published) {
@@ -112,9 +115,16 @@ public sealed class RemovePostImageForTenant {
 		// commits the row's hard delete and hands back the blob path; THIS handler
 		// releases the blob's reference only AFTER that commit. Physical deletion
 		// stays exclusively sweeper's.
-		var removedPath = await assetService.RemoveAsync(
-			new RemovePostMediaArgs(tenantId, postIdGuid, assetId, segmentId), cancellationToken
-		);
+		var removedPath = segmentId is { } removeFromSegment
+			? await segmentService.RemoveAsync(
+				new RemoveSegmentMediaArgs(
+					tenantId, postIdGuid, removeFromSegment, assetId.GetValueOrDefault()
+				),
+				cancellationToken
+			)
+			: await assetService.RemoveAsync(
+				new RemovePostMediaArgs(tenantId, postIdGuid, assetId), cancellationToken
+			);
 		if (removedPath is null) {
 			return TypedProblems.NotFound(
 				"No image is attached to this post",

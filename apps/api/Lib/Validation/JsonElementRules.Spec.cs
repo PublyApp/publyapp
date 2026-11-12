@@ -1763,4 +1763,52 @@ public sealed class JsonElementRulesSpec {
 		var result = new PatchFieldNonEmptyGuidValidator().Validate(model);
 		_ = result.IsValid.Should().BeFalse();
 	}
+
+	private sealed class AlignedIdsModel {
+		public int? SiblingLength { get; set; }
+
+		public JsonElement Ids { get; set; }
+	}
+
+	private sealed class AlignedIdsValidator : AbstractValidator<AlignedIdsModel> {
+		public AlignedIdsValidator() {
+			this.RuleFor(x => x.Ids)
+				.MustBeNullableGuidArrayAlignedWith("SegmentIds", model => model.SiblingLength);
+		}
+	}
+
+	private static bool _AlignedIdsValid(int siblingLength, string idsJson) {
+		var model = new AlignedIdsModel {
+			SiblingLength = siblingLength,
+			Ids = JsonDocument.Parse(idsJson).RootElement,
+		};
+		return new AlignedIdsValidator().Validate(model).IsValid;
+	}
+
+	[Fact]
+	public void ItShouldAcceptAlignedGuidsAndNullsInAnyNumber() {
+		var a = Guid.NewGuid();
+		JsonElementRulesSpec._AlignedIdsValid(3, $"[\"{a}\",null,null]").Should().BeTrue();
+	}
+
+	[Fact]
+	public void ItShouldRejectAGuidArrayWhoseLengthDiffersFromItsSibling() {
+		JsonElementRulesSpec._AlignedIdsValid(2, $"[\"{Guid.NewGuid()}\"]").Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldRejectTheSameGuidRepeatedInAnotherCase() {
+		var id = Guid.NewGuid();
+		JsonElementRulesSpec._AlignedIdsValid(
+			2, $"[\"{id.ToString().ToLowerInvariant()}\",\"{id.ToString().ToUpperInvariant()}\"]"
+		).Should().BeFalse();
+	}
+
+	[Fact]
+	public void ItShouldRejectTheSameGuidRepeatedInAnotherFormat() {
+		var id = Guid.NewGuid();
+		JsonElementRulesSpec._AlignedIdsValid(
+			2, $"[\"{id:D}\",\"{id:N}\"]"
+		).Should().BeFalse();
+	}
 }

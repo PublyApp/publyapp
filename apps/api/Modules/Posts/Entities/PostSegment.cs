@@ -11,8 +11,8 @@ namespace PublyApp.Api.Modules.Posts.Entities;
 /// <see cref="Post.Body"/> (plus the post's images), so a post without rows here
 /// is a plain single-segment post and nothing about it changes. A row at
 /// <see cref="Position"/> p (1-based among the follow-ups) is segment p + 1 and
-/// publishes as a reply to the segment before it. Text only in v1: images belong
-/// to the first segment.
+/// publishes as a reply to the segment before it. Its images (0-4) live in
+/// <see cref="PostSegmentMediaAsset"/>.
 /// </summary>
 [Table("post_segments")]
 public class PostSegment : BaseAttributes, ITenantEntity {

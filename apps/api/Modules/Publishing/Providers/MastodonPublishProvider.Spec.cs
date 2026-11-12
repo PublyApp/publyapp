@@ -494,6 +494,55 @@ public sealed class MastodonPublishProviderSpec {
 	}
 
 	[Fact]
+	public async Task ItShouldNeverVouchForAResendUnderANewKeyEvenInsideTheWindow() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("111"));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).ReconcileAsync(
+			MastodonPublishProviderSpec._Reconcile(TimeSpan.FromMinutes(1)) with { ResendUnderNewKey = true },
+			CancellationToken.None
+		);
+
+		result.Should().BeOfType<ReconcileResult.NeedsReview>();
+		handler.Requests.Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task ItShouldRefuseToRecordTheOldTextWhenADedupedResendReturnsAStatusWithOtherText() {
+		var handler = new RecordingHandler(request => MastodonPublishProviderSpec._IsStatus(request)
+			? MastodonPublishProviderSpec._Status("111")
+			: MastodonPublishProviderSpec._Json(200, """{"id":"111","text":"the text before the edit"}"""));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(
+			MastodonPublishProviderSpec._Request() with { ResendPosition = 0 }, CancellationToken.None
+		);
+
+		result.Should().BeOfType<PublishResult.ContentFailure>().Which.Cause.Should().Contain("different text");
+	}
+
+	[Fact]
+	public async Task ItShouldRecordADedupedResendWhoseStatusStillHoldsTheTextBeingSent() {
+		var handler = new RecordingHandler(request => MastodonPublishProviderSpec._IsStatus(request)
+			? MastodonPublishProviderSpec._Status("111")
+			: MastodonPublishProviderSpec._Json(200, """{"id":"111","text":"hello fediverse"}"""));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(
+			MastodonPublishProviderSpec._Request() with { ResendPosition = 0 }, CancellationToken.None
+		);
+
+		result.Should().BeOfType<PublishResult.Published>().Which.RecordId.Should().Be("111");
+	}
+
+	[Fact]
+	public async Task ItShouldNotLookUpTheStatusTextOnAFirstSend() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("111"));
+
+		await MastodonPublishProviderSpec._Provider(handler)
+			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+
+		handler.Requests.Should().ContainSingle();
+	}
+
+	[Fact]
 	public async Task ItShouldReconcileAsNeedsReviewBeyondTheIdempotencyWindowWithoutAnyHttpCall() {
 		var handler = new RecordingHandler(_ => throw new InvalidOperationException("no call expected"));
 

@@ -80,6 +80,19 @@ public static class ProviderCapabilityRegistry {
 		get { return ProviderCapabilityRegistry._Defaults.Values.Max(capability => capability.MaxImages); }
 	}
 
+	/// <summary>
+	/// The most images one follow-up segment can carry: the most any provider that
+	/// publishes threads accepts (0 to 4 today, Bluesky and Mastodon), so a fifth image is
+	/// refused when it is attached, not when the thread is published (#2181).
+	/// </summary>
+	public static int MaxImagesPerFollowUp {
+		get {
+			return ProviderCapabilityRegistry._Defaults.Values
+				.Where(capability => capability.SupportsThreads)
+				.Max(capability => capability.MaxImages);
+		}
+	}
+
 	/// <summary>The largest per-image size any provider accepts.</summary>
 	public static long MaxImageBytes {
 		get { return ProviderCapabilityRegistry._Defaults.Values.Max(capability => capability.MaxImageBytes); }

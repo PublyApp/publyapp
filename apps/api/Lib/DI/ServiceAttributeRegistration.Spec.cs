@@ -71,6 +71,7 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(ITenantRoleQueryAsStaffService), typeof(TenantRoleQueryAsStaffService)),
 		(typeof(IProjectService), typeof(ProjectService)),
 		(typeof(IPostMediaAssetService), typeof(PostMediaAssetService)),
+		(typeof(IPostSegmentMediaAssetService), typeof(PostSegmentMediaAssetService)),
 		(typeof(IPostService), typeof(PostService)),
 		(typeof(IPublicationListService), typeof(PublicationListService)),
 		(typeof(IPublicationQueueService), typeof(PublicationQueueService)),

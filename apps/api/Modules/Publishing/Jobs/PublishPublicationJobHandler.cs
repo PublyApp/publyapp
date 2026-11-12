@@ -236,6 +236,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		// A journal row that never resolved means an earlier write may have landed
 		// (timeout, crash, stale-job recovery): look BEFORE writing again (#2176).
 		var unresolved = await this._FindUnresolvedAsync(publicationId, cancellationToken);
+		int? resendPosition = null;
 		if (unresolved is not null) {
 			var reconciled = await this._PublishProvider.ReconcileAsync(
 				new ReconcileRequest {
@@ -261,6 +262,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					break;
 				case ReconcileResult.SafeToResend:
 					await this._Journal.SupersedeUnresolvedAsync(publicationId, cancellationToken);
+					resendPosition = unresolved.SegmentPosition;
 					break;
 				case ReconcileResult.NeedsReview review:
 					await this._ParkForReviewAsync(publicationId, publication.TenantId, review.Cause, cancellationToken);
@@ -310,6 +312,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					.ToList(),
 				FollowUpSegments = effectiveTexts.Skip(1).ToList(),
 				CompletedSegments = completedSegments,
+				ResendPosition = resendPosition,
 				OnBeforeWrite = async (position, token) => {
 					openAttempt = await this._Journal.BeginAsync(
 						new BeginPublishAttemptArgs(
@@ -460,6 +463,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					Provider = provider,
 					FirstAttemptAtUtc = entry.First,
 					ExpectedText = effectiveTexts[next],
+					ResendUnderNewKey = true,
 				},
 				cancellationToken
 			);

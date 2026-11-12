@@ -303,7 +303,6 @@ public class PostService : IPostService {
 			from a in this._DbContext.PostMediaAsset.AsNoTracking()
 			where a.TenantId == tenantId
 				&& pagePostIds.Contains(a.PostId)
-				&& a.SegmentId == null
 				&& !a.IsDeleted
 			orderby a.Position
 			select a
@@ -379,7 +378,6 @@ public class PostService : IPostService {
 				from a in this._DbContext.PostMediaAsset
 				where a.TenantId == tenantId
 					&& a.PostId == id
-					&& a.SegmentId == null
 					&& !a.IsDeleted
 				orderby a.Position
 				select a
@@ -550,14 +548,13 @@ public class PostService : IPostService {
 			var surplusIds = surplus.Select(segment => segment.GetRequiredId()).ToHashSet();
 			// A post holds at most a few dozen segment images: filter in memory.
 			var segmentImages = await (
-				from asset in this._DbContext.PostMediaAsset
+				from asset in this._DbContext.PostSegmentMediaAsset
 				where asset.PostId == postId
-					&& asset.SegmentId != null
 					&& !asset.IsDeleted
 				select asset
 			).ToListAsync(cancellationToken);
 			var orphanImages = segmentImages
-				.Where(asset => surplusIds.Contains(asset.SegmentId.GetValueOrDefault()))
+				.Where(asset => surplusIds.Contains(asset.SegmentId))
 				.ToList();
 			this._DbContext.ForceHardDeleteRange(orphanImages);
 			released.AddRange(orphanImages.Select(asset => asset.RelativePath));
@@ -592,10 +589,9 @@ public class PostService : IPostService {
 		}
 
 		var images = await (
-			from asset in this._DbContext.PostMediaAsset.AsNoTracking()
+			from asset in this._DbContext.PostSegmentMediaAsset.AsNoTracking()
 			where asset.TenantId == tenantId
 				&& asset.PostId == postId
-				&& asset.SegmentId != null
 				&& !asset.IsDeleted
 			orderby asset.Position
 			select asset
@@ -606,7 +602,7 @@ public class PostService : IPostService {
 				Id = segment.GetRequiredId(),
 				Number = segment.Position + 1,
 				Body = segment.Body,
-				Images = PostWire.FormatImages(bySegment[segment.Id]),
+				Images = PostWire.FormatImages(bySegment[segment.GetRequiredId()]),
 			})
 			.ToList();
 	}

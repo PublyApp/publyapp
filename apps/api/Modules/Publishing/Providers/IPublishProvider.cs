@@ -41,6 +41,12 @@ public sealed record ReconcileRequest {
 	/// text was sent before an edit, so it is NOT this segment's success. Null = not checked.
 	/// </summary>
 	public string? ExpectedText { get; init; }
+
+	/// <summary>
+	/// True when a resend would go out under a NEW idempotency key (a re-issued publication
+	/// after a failed one, #2181): a provider that only dedupes by key cannot vouch for it.
+	/// </summary>
+	public bool ResendUnderNewKey { get; init; }
 }
 
 /// <summary>Outcome of reconciling one ambiguous write.</summary>

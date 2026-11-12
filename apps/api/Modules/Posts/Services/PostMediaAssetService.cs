@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Posts.Entities;
-using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 
 namespace PublyApp.Api.Modules.Posts.Services;
@@ -16,29 +15,19 @@ public record AttachPostMediaArgs(
 	int WidthPx,
 	int HeightPx,
 	long SizeBytes,
-	Guid UploadedByUserId,
-	// The follow-up segment the image belongs to; null = the post's own images (#2181).
-	Guid? SegmentId = null
+	Guid UploadedByUserId
 );
 
 public record RemovePostMediaArgs(
 	Guid TenantId,
 	Guid PostId,
-	Guid? AssetId,
-	Guid? SegmentId = null
-);
-
-public record FindOwnedSegmentArgs(
-	Guid TenantId,
-	Guid PostId,
-	Guid SegmentId
+	Guid? AssetId
 );
 
 public record ReorderPostMediaArgs(
 	Guid TenantId,
 	Guid PostId,
-	IReadOnlyList<Guid> OrderedAssetIds,
-	Guid? SegmentId = null
+	IReadOnlyList<Guid> OrderedAssetIds
 );
 
 public record SetPostMediaAltTextArgs(
@@ -76,21 +65,6 @@ public interface IPostMediaAssetService {
 		CancellationToken cancellationToken = default
 	);
 
-	/// <summary>
-	/// The follow-up segment with this id on the post, or null (unknown, another
-	/// post's or another tenant's: invisible, #2181).
-	/// </summary>
-	Task<PostSegment?> FindOwnedSegmentAsync(
-		FindOwnedSegmentArgs args,
-		CancellationToken cancellationToken = default
-	);
-
-	/// <summary>How many leading segments are already published (their images are read-only).</summary>
-	Task<int> GetPublishedSegmentCountAsync(
-		Guid postId,
-		CancellationToken cancellationToken = default
-	);
-
 	/// <summary>The first live asset row of a post (position 0), or null when it has none.</summary>
 	Task<PostMediaAsset?> FindByPostAsync(
 		Guid tenantId,
@@ -98,16 +72,10 @@ public interface IPostMediaAssetService {
 		CancellationToken cancellationToken = default
 	);
 
-	/// <summary>The post's OWN live images in publish order (follow-up segments keep theirs apart, #2181).</summary>
+	/// <summary>The post's live asset rows in publish order.</summary>
 	Task<IReadOnlyList<PostMediaAsset>> ListByPostAsync(
 		Guid tenantId,
 		Guid postId,
-		CancellationToken cancellationToken = default
-	);
-
-	/// <summary>The live images of one follow-up segment in publish order (#2181).</summary>
-	Task<IReadOnlyList<PostMediaAsset>> ListBySegmentAsync(
-		FindOwnedSegmentArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -184,30 +152,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		return await query.FirstOrDefaultAsync(cancellationToken);
 	}
 
-	public async Task<PostSegment?> FindOwnedSegmentAsync(
-		FindOwnedSegmentArgs args,
-		CancellationToken cancellationToken = default
-	) {
-		var (tenantId, postId, segmentId) = (args.TenantId, args.PostId, args.SegmentId);
-		var query =
-			from segment in dbContext.PostSegment.AsNoTracking()
-			where segment.Id == segmentId
-				&& segment.PostId == postId
-				&& segment.TenantId == tenantId
-				&& !segment.IsDeleted
-			select segment;
-		return await query.FirstOrDefaultAsync(cancellationToken);
-	}
-
-	public async Task<int> GetPublishedSegmentCountAsync(
-		Guid postId,
-		CancellationToken cancellationToken = default
-	) {
-		return await ThreadSegments.PublishedSegmentCountAsync(
-			dbContext, postId, cancellationToken
-		);
-	}
-
 	public async Task<PostMediaAsset?> FindByPostAsync(
 		Guid tenantId,
 		Guid postId,
@@ -217,7 +161,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			from a in dbContext.PostMediaAsset.AsNoTracking()
 			where a.TenantId == tenantId
 				&& a.PostId == postId
-				&& a.SegmentId == null
 				&& !a.IsDeleted
 			orderby a.Position
 			select a;
@@ -233,22 +176,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			from a in dbContext.PostMediaAsset.AsNoTracking()
 			where a.TenantId == tenantId
 				&& a.PostId == postId
-				&& a.SegmentId == null
-				&& !a.IsDeleted
-			orderby a.Position
-			select a;
-		return await query.ToListAsync(cancellationToken);
-	}
-
-	public async Task<IReadOnlyList<PostMediaAsset>> ListBySegmentAsync(
-		FindOwnedSegmentArgs args,
-		CancellationToken cancellationToken = default
-	) {
-		var query =
-			from a in dbContext.PostMediaAsset.AsNoTracking()
-			where a.TenantId == args.TenantId
-				&& a.PostId == args.PostId
-				&& a.SegmentId == args.SegmentId
 				&& !a.IsDeleted
 			orderby a.Position
 			select a;
@@ -263,7 +190,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			from a in dbContext.PostMediaAsset
 			where a.TenantId == args.TenantId
 				&& a.PostId == args.PostId
-				&& a.SegmentId == args.SegmentId
 				&& !a.IsDeleted
 			select a.Position
 		).ToListAsync(cancellationToken);
@@ -281,7 +207,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		var asset = new PostMediaAsset {
 			TenantId = args.TenantId,
 			PostId = args.PostId,
-			SegmentId = args.SegmentId,
 			Position = nextPosition,
 			RelativePath = args.RelativePath,
 			ContentType = args.ContentType,
@@ -310,7 +235,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			from a in dbContext.PostMediaAsset
 			where a.TenantId == tenantId
 				&& a.PostId == postId
-				&& a.SegmentId == args.SegmentId
 				&& !a.IsDeleted
 			orderby a.Position
 			select a
@@ -358,7 +282,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			from a in dbContext.PostMediaAsset
 			where a.TenantId == tenantId
 				&& a.PostId == postId
-				&& a.SegmentId == args.SegmentId
 				&& !a.IsDeleted
 			select a
 		).ToListAsync(cancellationToken);

@@ -68,7 +68,13 @@ const getSchema = (t: (k: string) => string) =>
 		projectId: z.string().nullable().optional(),
 		// Thread follow-ups (segments 2..N); at most 24 after the first body.
 		segments: z
-			.array(z.object({ id: z.string(), text: z.string().max(20000) }))
+			.array(
+				z.object({
+					id: z.string(),
+					text: z.string().max(20000),
+					serverId: z.string().optional(),
+				}),
+			)
 			.max(24),
 	});
 
@@ -92,6 +98,7 @@ const resetFormFromDetails = (
 		segments: reconcileSegmentDrafts(
 			methods.getValues('segments'),
 			d.segments.map((segment) => segment.body),
+			d.segments.map((segment) => segment.id),
 		),
 	});
 };
@@ -201,6 +208,12 @@ const TenantPostEditPage = () => {
 					values.segments.length > 0 || hasStoredSegments
 						? values.segments.map((segment) => segment.text)
 						: undefined,
+				// Each draft names the stored segment it came from, so its images
+				// follow its text through a reorder or a removal.
+				segmentIds:
+					values.segments.length > 0 || hasStoredSegments
+						? values.segments.map((segment) => segment.serverId)
+						: undefined,
 				tenantId: tenantId ?? '',
 			});
 			await invalidateTenantPosts(qc, tenantId ?? '');
@@ -220,6 +233,17 @@ const TenantPostEditPage = () => {
 			if (failure.kind === 'validation' && failure.fieldErrors) {
 				for (const [k, msgs] of Object.entries(failure.fieldErrors)) {
 					methods.setError(k as keyof Values, { message: msgs[0] });
+				}
+				// The form only renders the root error: a refusal with no field of its
+				// own (a blank follow-up is named by its segment number) must still show.
+				if (!failure.fieldErrors.body && !failure.fieldErrors.projectId) {
+					methods.setError('root', {
+						message:
+							getFailureMessage(failure, {
+								fallback: t('common:an-error-occurred'),
+								translate: translateResponseMessage,
+							}) ?? undefined,
+					});
 				}
 				return;
 			}

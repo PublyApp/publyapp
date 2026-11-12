@@ -54,4 +54,17 @@ describe('reconcileSegmentDrafts', () => {
 
 		expect(one?.id).not.toBe(two?.id);
 	});
+
+	test('stamps each draft with the stored segment it came from, so a save can name it', () => {
+		const [one, two] = reconcileSegmentDrafts([], ['A', 'B'], ['s-1', 's-2']);
+
+		expect(one?.serverId).toBe('s-1');
+		expect(two?.serverId).toBe('s-2');
+	});
+
+	test('a draft added in the editor has no stored segment', () => {
+		const [added] = reconcileSegmentDrafts([], ['A']);
+
+		expect(added).not.toHaveProperty('serverId');
+	});
 });

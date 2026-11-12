@@ -57,6 +57,8 @@ public static partial class Routes {
 				return $"/{postId}/segments/{segmentId}/images/{assetId}";
 			}
 
+			public const string SegmentImageAlt = "/{postId}/segments/{segmentId}/images/{assetId}";
+
 			public const string SegmentImagesOrder = "/{postId}/segments/{segmentId}/images/order";
 			public static string SegmentImagesOrderFn(string postId, string segmentId) {
 				return $"/{postId}/segments/{segmentId}/images/order";

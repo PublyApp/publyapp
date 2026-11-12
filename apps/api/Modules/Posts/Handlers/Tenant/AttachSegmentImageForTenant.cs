@@ -17,6 +17,7 @@ public sealed class AttachSegmentImageForTenant {
 		[FromRoute] string segmentId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostMediaAssetService assetService,
+		[FromServices] IPostSegmentMediaAssetService segmentService,
 		[FromServices] IUploadAssetReferenceService uploadReferences,
 		[FromServices] IUploadAdmissionService uploadAdmissionService,
 		[FromServices] IFileStorage fileStorage,
@@ -33,7 +34,7 @@ public sealed class AttachSegmentImageForTenant {
 		}
 
 		return await AttachPostImageForTenant.AttachAsync(
-			postId, segmentIdGuid, authContext, assetService, uploadReferences,
+			postId, segmentIdGuid, authContext, assetService, segmentService, uploadReferences,
 			uploadAdmissionService, fileStorage, auditLogService, logger, file, cancellationToken
 		);
 	}

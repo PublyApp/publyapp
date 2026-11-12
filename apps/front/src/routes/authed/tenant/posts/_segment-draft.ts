@@ -1,11 +1,15 @@
 /** A follow-up segment as the composer holds it: the id is the stable React
- * key, so reordering never swaps DOM state between segments. */
-export type SegmentDraft = { id: string; text: string };
+ * key, so reordering never swaps DOM state between segments. `serverId` is the
+ * stored segment this draft came from (absent for a segment added in the
+ * editor): a save sends it so the segment's images follow its text. */
+export type SegmentDraft = { id: string; text: string; serverId?: string };
 
 export const newSegmentDraft = (
 	text = '',
 	id: string = crypto.randomUUID(),
-): SegmentDraft => ({ id, text });
+	serverId?: string,
+): SegmentDraft =>
+	serverId === undefined ? { id, text } : { id, text, serverId };
 
 /** Shared empty list: a stable default for watched form values. */
 export const NO_SEGMENTS: SegmentDraft[] = [];
@@ -23,6 +27,7 @@ export const NO_SEGMENTS: SegmentDraft[] = [];
 export const reconcileSegmentDrafts = (
 	previous: readonly SegmentDraft[],
 	texts: readonly string[],
+	serverIds?: readonly string[],
 ): SegmentDraft[] => {
 	const used = new Set<string>();
 	const drafts: SegmentDraft[] = [];
@@ -35,7 +40,7 @@ export const reconcileSegmentDrafts = (
 		if (match) {
 			used.add(match.id);
 		}
-		drafts.push(newSegmentDraft(text, match?.id));
+		drafts.push(newSegmentDraft(text, match?.id, serverIds?.[index]));
 	}
 	return drafts;
 };

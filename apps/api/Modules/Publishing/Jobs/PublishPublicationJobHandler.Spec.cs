@@ -1620,6 +1620,30 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	[Fact]
+	public async Task ItShouldAskTheProviderToVerifyTheSegmentTextWhenResendingUnderTheSameKey() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var first = new JournalingProvider(async (self, request, token) => {
+			await self.BeginWriteAsync(request, 0, token);
+			return new PublishResult.Ambiguous("the instance did not answer in time");
+		});
+		await PublishPublicationJobHandlerSpec._RunAsync(db, first, seeded);
+		var second = new JournalingProvider(
+			async (self, request, token) => {
+				await self.BeginWriteAsync(request, 0, token);
+				return new PublishResult.Published("at://r", "https://r");
+			},
+			new ReconcileResult.SafeToResend()
+		);
+		using var retryDb = await this._NewDbAsync();
+
+		await PublishPublicationJobHandlerSpec._RunAsync(retryDb, second, seeded, attempts: 1);
+
+		second.Requests.Should().ContainSingle().Which.ResendPosition.Should().Be(0);
+		first.Requests.Should().ContainSingle().Which.ResendPosition.Should().BeNull("a first send has nothing to verify");
+	}
+
+	[Fact]
 	public async Task ItShouldNotWriteAndBackOffWhenTheLookupIsUnavailable() {
 		using var db = await this._NewDbAsync();
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
@@ -1888,7 +1912,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		for (var index = 0; index < images.Length; index++) {
 			using var stream = new MemoryStream(images[index].Bytes);
 			var path = await storage.SaveAsync(stream, images[index].Extension);
-			db.PostMediaAsset.Add(new PostMediaAsset {
+			db.PostSegmentMediaAsset.Add(new PostSegmentMediaAsset {
 				TenantId = seeded.TenantId,
 				PostId = post.GetRequiredId(),
 				SegmentId = segment.GetRequiredId(),
@@ -1952,7 +1976,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		await PublishPublicationJobHandlerSpec._AddSegmentAsync(
 			db, seeded, 1, "two", storage, ("image/png", ".png", TestImages.Png(12, 12), null)
 		);
-		var asset = await db.PostMediaAsset.SingleAsync(media => media.SegmentId != null);
+		var asset = await db.PostSegmentMediaAsset.SingleAsync();
 		await storage.DeleteAsync(asset.RelativePath);
 		var provider = new FakePublishProvider(null);
 
@@ -2072,6 +2096,20 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		outcome.Should().BeOfType<JobOutcome.Success>();
 		provider.Reconciles.Should().ContainSingle().Which.IdempotencyKey.Should().Be(failed.IdempotencyKey);
 		provider.Writes.Should().Be(1);
+	}
+
+	[Fact]
+	public async Task ItShouldTellTheProviderAReissuedResendWouldGoOutUnderANewKey() {
+		using var db = await this._NewDbAsync();
+		var (_, fresh) = await PublishPublicationJobHandlerSpec._SeedReissueAsync(db, (0, SubmissionState.Unknown));
+		var provider = new JournalingProvider(
+			(_, _, _) => throw new InvalidOperationException("no write expected"),
+			new ReconcileResult.NeedsReview("cannot confirm under a new key")
+		);
+
+		await PublishPublicationJobHandlerSpec._RunAsync(db, provider, fresh);
+
+		provider.Reconciles.Should().ContainSingle().Which.ResendUnderNewKey.Should().BeTrue();
 	}
 
 	[Fact]

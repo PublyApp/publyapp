@@ -68,25 +68,6 @@ public sealed class ReorderPostImagesForTenant {
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
-		return await ReorderPostImagesForTenant.ReorderAsync(
-			postId, null, body, authContext, assetService, auditLogService, cancellationToken
-		);
-	}
-
-	internal static async Task<Results<
-		Ok<PostImagesReordered>,
-		AppBadRequestHttpResult,
-		AppNotFoundHttpResult,
-		AppValidationProblemHttpResult
-	>> ReorderAsync(
-		string postId,
-		Guid? segmentId,
-		ReorderPostImagesBody body,
-		IRequestAuthContext authContext,
-		IPostMediaAssetService assetService,
-		IAuditLogService auditLogService,
-		CancellationToken cancellationToken
-	) {
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
 			throw new InvalidOperationException(
 				$"{nameof(authContext.TenantId)} is not a GUID"
@@ -112,34 +93,8 @@ public sealed class ReorderPostImagesForTenant {
 			);
 		}
 
-		if (segmentId is { } owningSegmentId) {
-			var segment = await assetService.FindOwnedSegmentAsync(
-				new FindOwnedSegmentArgs(tenantId, postIdGuid, owningSegmentId), cancellationToken
-			);
-			if (segment is null) {
-				return TypedProblems.NotFound(
-					"Segment not found",
-					ResponseKeys.PostSegmentNotFound
-				);
-			}
-
-			var published = await assetService.GetPublishedSegmentCountAsync(
-				postIdGuid, cancellationToken
-			);
-			if (segment.Position + 1 <= published) {
-				return TypedProblems.ValidationProblem(
-					"Segments that are already published cannot be changed",
-					ResponseKeys.PostSegmentsLocked,
-					new Dictionary<string, string[]> {
-						["segment"] = ["Published segments are read-only."],
-					}
-				);
-			}
-		}
-
 		var result = await assetService.ReorderAsync(
-			new ReorderPostMediaArgs(tenantId, postIdGuid, body.GetAssetIds(), segmentId),
-			cancellationToken
+			new ReorderPostMediaArgs(tenantId, postIdGuid, body.GetAssetIds()), cancellationToken
 		);
 		if (result is not ReorderPostMediaResult.Reordered reordered) {
 			const string message =
@@ -161,7 +116,6 @@ public sealed class ReorderPostImagesForTenant {
 				Details: new {
 					TenantId = tenantId,
 					ImagesReordered = true,
-					SegmentId = segmentId,
 				}
 			),
 			cancellationToken

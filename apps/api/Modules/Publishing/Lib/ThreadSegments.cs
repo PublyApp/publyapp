@@ -12,6 +12,21 @@ namespace PublyApp.Api.Modules.Publishing.Lib;
 /// </summary>
 public static class ThreadSegments {
 	/// <summary>The post's follow-up segment texts (segments 2..N) in order.</summary>
+	/// <summary>Follow-up segments as (Id, Body) in one query, so ids and bodies never drift apart.</summary>
+	public static async Task<IReadOnlyList<(Guid Id, string Body)>> FollowUpsAsync(
+		AppDbContext db,
+		Guid postId,
+		CancellationToken cancellationToken
+	) {
+		var rows = await (
+			from segment in db.PostSegment.AsNoTracking()
+			where segment.PostId == postId && !segment.IsDeleted
+			orderby segment.Position
+			select new { segment.Id, segment.Body }
+		).ToListAsync(cancellationToken);
+		return rows.Select(row => (row.Id.GetValueOrDefault(), row.Body)).ToList();
+	}
+
 	public static async Task<IReadOnlyList<string>> FollowUpBodiesAsync(
 		AppDbContext db,
 		Guid postId,

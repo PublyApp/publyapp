@@ -496,6 +496,70 @@ describe('TenantPostEditPage', () => {
 		);
 	});
 
+	test('save names each follow-up by its stored segment id, so images follow their text', async () => {
+		mocks.useTenantPostDetailsQuery.mockReturnValue({
+			data: {
+				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+				body: 'Hello world',
+				projectId: null,
+				segments: [
+					{ id: 'seg-b', number: 2, body: 'B' },
+					{ id: 'seg-c', number: 3, body: 'C' },
+				],
+				images: [],
+			},
+			isPending: false,
+			isSuccess: true,
+			isError: false,
+			error: null,
+			refetch: vi.fn(),
+			isFetching: false,
+		});
+		mocks.savePost.mockClear();
+		mocks.savePost.mockResolvedValue({});
+
+		render(<TenantPostEditPage />);
+		fireEvent.submit(screen.getByTestId('form-stub') as HTMLFormElement);
+		await new Promise((resolve) => {
+			setTimeout(resolve, 0);
+		});
+
+		expect(mocks.savePost.mock.calls[0]?.[0]?.segments).toEqual(['B', 'C']);
+		expect(mocks.savePost.mock.calls[0]?.[0]?.segmentIds).toEqual([
+			'seg-b',
+			'seg-c',
+		]);
+	});
+
+	test('a refused blank follow-up shows its message on the page instead of failing silently', async () => {
+		mocks.useTenantPostDetailsQuery.mockReturnValue({
+			data: {
+				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+				body: 'Hello world',
+				projectId: null,
+				segments: [{ id: 'seg-b', number: 2, body: 'B' }],
+				images: [],
+			},
+			isPending: false,
+			isSuccess: true,
+			isError: false,
+			error: null,
+			refetch: vi.fn(),
+			isFetching: false,
+		});
+		mocks.savePost.mockRejectedValue({
+			status: 422,
+			detail: 'Segment 3 is empty',
+			errors: { segments: ['Segment 3 is empty'] },
+		});
+
+		render(<TenantPostEditPage />);
+		fireEvent.submit(screen.getByTestId('form-stub') as HTMLFormElement);
+
+		const alert = await screen.findByRole('alert');
+		expect(alert.textContent).toContain('Segment 3 is empty');
+	});
+
 	test('a refetch keeps the segment ids, so a follow-up customization survives it and is still sent', () => {
 		const loadedPost = (images: unknown[]) =>
 			mocks.useTenantPostDetailsQuery.mockReturnValue({

@@ -26,6 +26,7 @@ public sealed class RemoveSegmentImageForTenant {
 		[FromRoute] string assetId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostMediaAssetService assetService,
+		[FromServices] IPostSegmentMediaAssetService segmentService,
 		[FromServices] IUploadAssetReferenceService uploadReferences,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
@@ -44,6 +45,7 @@ public sealed class RemoveSegmentImageForTenant {
 			segmentIdGuid,
 			authContext,
 			assetService,
+			segmentService,
 			uploadReferences,
 			auditLogService,
 			cancellationToken
