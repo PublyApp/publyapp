@@ -130,7 +130,9 @@ public class Program {
 		}
 
 		var builder = Program.CreateWebHostBuilder(args, role);
-		var app = builder.Build();
+		// #1708: `using` so every exit (incl. the boot-probe early return) disposes the host,
+		// whose teardown flushes the Serilog async queues.
+		using var app = builder.Build();
 
 		// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing, wrong-size, or
 		// wrong-VALUE (Epic C §4). The canary (review r3) decrypts a sentinel persisted

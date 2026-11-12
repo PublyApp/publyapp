@@ -4,6 +4,7 @@ using PublyApp.Api.Lib.Diagnostics;
 using PublyApp.Api.Lib.Logging;
 
 using Serilog;
+using Serilog.Configuration;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 
@@ -14,10 +15,19 @@ public static class LoggerConfigExtensions {
 	// WebApplication and the worker Generic Host — share one Serilog composition.
 	// AddSerilog is the builder-agnostic equivalent of Host.UseSerilog.
 	public static IHostApplicationBuilder ConfigureLogger(this IHostApplicationBuilder builder) {
+		return builder.ConfigureLoggerWithExtraSink(extraSink: null);
+	}
+
+	// Test seam (#1708): adds a sink INSIDE the sanitizing wrapper of the REAL pipeline, so
+	// it can never be a path around the redaction invariant. Internal on purpose.
+	internal static IHostApplicationBuilder ConfigureLoggerWithExtraSink(
+		this IHostApplicationBuilder builder,
+		Action<LoggerSinkConfiguration>? extraSink
+	) {
 		builder.Services.AddSerilog((serviceProvider, loggerConfig) => {
 			var hostEnvironment = serviceProvider.GetRequiredService<IHostEnvironment>();
 
-			LoggerConfigExtensions.BuildLoggerConfiguration(loggerConfig, hostEnvironment);
+			LoggerConfigExtensions.BuildLoggerConfiguration(loggerConfig, hostEnvironment, extraSink);
 		});
 
 		return builder;
@@ -43,7 +53,8 @@ public static class LoggerConfigExtensions {
 	/// </summary>
 	public static void BuildLoggerConfiguration(
 		LoggerConfiguration loggerConfig,
-		IHostEnvironment hostEnvironment
+		IHostEnvironment hostEnvironment,
+		Action<LoggerSinkConfiguration>? extraSink = null
 	) {
 		loggerConfig
 			.MinimumLevel.Information()
@@ -91,6 +102,8 @@ public static class LoggerConfigExtensions {
 			// direct path around it, and a no-op for every normal boot keeps production
 			// behavior byte-identical.
 			CanaryBootLogProbe.AttachSinkIfRequested(writeTo);
+			// #1708 test seam, same place and same reason as the probe above.
+			extraSink?.Invoke(writeTo);
 
 			writeTo
 				.Async(w => w.Logger(l => l
@@ -101,7 +114,8 @@ public static class LoggerConfigExtensions {
 						rollingInterval: RollingInterval.Day,
 						fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 						retainedFileCountLimit: 7
-					)));
+					)),
+					monitor: new DroppedLogEntriesMonitor("info"));
 			writeTo
 				.Async(w => w.Logger(l => l
 					.Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Warning)
@@ -111,7 +125,8 @@ public static class LoggerConfigExtensions {
 						rollingInterval: RollingInterval.Day,
 						fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 						retainedFileCountLimit: 7
-					)));
+					)),
+					monitor: new DroppedLogEntriesMonitor("warning"));
 			writeTo
 				.Async(w => w.Logger(l => l
 					.Filter.ByIncludingOnly(e => e.Level == LogEventLevel.Error)
@@ -121,7 +136,8 @@ public static class LoggerConfigExtensions {
 						rollingInterval: RollingInterval.Day,
 						fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 						retainedFileCountLimit: 7
-					)));
+					)),
+					monitor: new DroppedLogEntriesMonitor("error"));
 
 			// Development: Show everything in console + debug file
 			if (hostEnvironment.IsDevelopment()) {
@@ -138,7 +154,8 @@ public static class LoggerConfigExtensions {
 						rollingInterval: RollingInterval.Day,
 						fileSizeLimitBytes: 10 * 1024 * 1024, // 10MB
 						retainedFileCountLimit: 7
-					)));
+					)),
+					monitor: new DroppedLogEntriesMonitor("debug"));
 			}
 			// Testing: Keep console output concise. Surface only warnings/errors.
 			else if (hostEnvironment.IsEnvironment(EnvironmentNames.Testing)) {
