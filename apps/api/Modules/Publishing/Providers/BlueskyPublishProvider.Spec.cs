@@ -1031,7 +1031,7 @@ public sealed class BlueskyPublishProviderSpec {
 				200,
 				"""{"uri":"at://did:plc:x/app.bsky.feed.post/r0","cid":"cid-old","value":{"text":"""
 				+ JsonSerializer.Serialize(storedText) + "}}"
-			));
+			), absentLookups: false);
 	}
 
 	[Fact]
@@ -1087,7 +1087,7 @@ public sealed class BlueskyPublishProviderSpec {
 	public async Task ItShouldAskForReviewWhenTheReconciledRecordHoldsOtherTextThanTheOneNowPublished() {
 		var handler = new RecordingHandler(_ => BlueskyPublishProviderSpec._JsonResponse(
 			200, """{"uri":"at://did:plc:x/app.bsky.feed.post/pub-k","cid":"cid-9","value":{"text":"old"}}"""
-		));
+		), absentLookups: false);
 		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
 		var request = BlueskyPublishProviderSpec._ReconcileRequest();
 

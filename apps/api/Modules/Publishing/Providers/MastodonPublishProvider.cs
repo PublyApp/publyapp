@@ -135,9 +135,9 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		// The window protects a resend with the SAME key only. A re-issued publication has a
 		// fresh key, so a status the failed one wrote but never recorded would be posted twice.
 		if (request.ResendUnderNewKey) {
-			return Task.FromResult<ReconcileResult>(new ReconcileResult.NeedsReview(
+			return new ReconcileResult.NeedsReview(
 				"Mastodon cannot confirm whether an earlier attempt of this thread already posted a segment; check your profile"
-			));
+			);
 		}
 
 		var age = DateTime.UtcNow - request.FirstAttemptAtUtc;

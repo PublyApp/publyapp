@@ -111,12 +111,19 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				SegmentPosition = 0,
 				Session = request.Session,
 				FirstAttemptAtUtc = request.ScheduledAtUtc,
+				// An existing root that holds other text was written before an edit (#2181).
+				ExpectedText = request.PostBody,
 			},
 			cancellationToken
 		);
 		switch (lookup) {
 			case ReconcileResult.SafeToResend:
 				return null;
+			case ReconcileResult.NeedsReview:
+				return new SegmentOutcome(
+					new PublishResult.ContentFailure(BlueskyPublishProvider._DifferentTextCause(isThread, 0)),
+					null
+				);
 			case ReconcileResult.Found found when isThread && found.Segment.Cid.Length == 0:
 				return new SegmentOutcome(
 					new PublishResult.TransientFailure(
@@ -198,6 +205,13 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		} catch (JsonException) {
 			return new ReconcileResult.Unavailable("the PDS answered the lookup with an unreadable body");
 		}
+	}
+
+	private static string _DifferentTextCause(bool isThread, int position) {
+		return $"{(isThread ? $"segment {position + 1}" : "the post")} already exists on Bluesky "
+			+ "with different text (an earlier attempt published it before the text was "
+			+ "edited), so it was not recorded as published. Check it on Bluesky, then "
+			+ "mark the publication published or republish";
 	}
 
 	/// <summary>Record key of a segment: position 0 keeps the legacy single-post key.</summary>
@@ -561,10 +575,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				if (differs is not null) {
 					return new SegmentOutcome(
 						new PublishResult.ContentFailure(
-							$"{(isThread ? $"segment {position + 1}" : "the post")} already exists on Bluesky "
-							+ "with different text (an earlier attempt published it before the text was "
-							+ "edited), so it was not recorded as published. Check it on Bluesky, then "
-							+ "mark the publication published or republish"
+							BlueskyPublishProvider._DifferentTextCause(isThread, position)
 						),
 						null
 					);
