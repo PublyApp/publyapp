@@ -15,7 +15,9 @@ public sealed class ImageAnimationSpec {
 
 	[Fact]
 	public void ItShouldCallAPngWithAnAnimationChunkBeforeItsImageDataAnimated() {
-		var apng = TestImages.WithChunk(TestImages.Png(8, 8), "acTL", ImageAnimationSpec._TwoFrames);
+		var apng = TestImages.WithChunk(
+			TestImages.Png(8, 8), "acTL", ImageAnimationSpec._TwoFrames
+		);
 
 		ImageAnimationSpec._IsAnimated(apng).Should().BeTrue();
 	}
@@ -45,15 +47,21 @@ public sealed class ImageAnimationSpec {
 
 	[Fact]
 	public void ItShouldSkipAMalformedAnimationChunkAndKeepWalkingToAValidOne() {
-		var stray = TestImages.WithChunk(TestImages.Png(8, 8), "acTL", [0, 0, 0, 2]);
-		var png = TestImages.WithChunk(stray, "acTL", ImageAnimationSpec._TwoFrames);
+		// WithChunk inserts right after IHDR, so the second call lands FIRST: the
+		// valid chunk is added first, then the stray one in front of it.
+		var valid = TestImages.WithChunk(
+			TestImages.Png(8, 8), "acTL", ImageAnimationSpec._TwoFrames
+		);
+		var png = TestImages.WithChunk(valid, "acTL", [0, 0, 0, 2]);
 
 		ImageAnimationSpec._IsAnimated(png).Should().BeTrue();
 	}
 
 	[Fact]
 	public void ItShouldNeverThrowOnATruncatedFile() {
-		var apng = TestImages.WithChunk(TestImages.Png(8, 8), "acTL", ImageAnimationSpec._TwoFrames);
+		var apng = TestImages.WithChunk(
+			TestImages.Png(8, 8), "acTL", ImageAnimationSpec._TwoFrames
+		);
 
 		ImageAnimationSpec._IsAnimated(apng[..40]).Should().BeFalse();
 	}

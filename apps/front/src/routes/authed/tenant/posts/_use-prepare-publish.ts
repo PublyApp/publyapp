@@ -9,6 +9,7 @@ import { invalidateTenantPosts, savePost } from '~/lib/query/tenant-posts';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import type { Attempt } from './_attempt';
 import type { DeferredImageSelection } from './_post-image-picker';
 import type { SegmentDraft } from './_segment-draft';
 import type { PreparedPost } from './_use-publish-submit';
@@ -54,6 +55,7 @@ export const usePreparePublish = ({
 	tryAttach: (
 		postId: string,
 		images: DeferredImageSelection[],
+		attempt: Attempt,
 	) => Promise<ReadonlyMap<string, string> | null>;
 }) => {
 	const qc = useQueryClient();
@@ -109,12 +111,18 @@ export const usePreparePublish = ({
 	 */
 	const syncImages = async (
 		postId: string,
+		attempt: Attempt,
 	): Promise<ReadonlyMap<string, string> | null> => {
-		const deletions = await Promise.allSettled(
-			removedAssetIds.map((assetId) =>
-				removeImage.mutateAsync({ postId, tenantId, assetId }),
+		const deletions = await attempt.run(
+			Promise.allSettled(
+				removedAssetIds.map((assetId) =>
+					removeImage.mutateAsync({ postId, tenantId, assetId }),
+				),
 			),
 		);
+		if (!attempt.isCurrent()) {
+			return null;
+		}
 		// Each id leaves the list as soon as its delete went through; a 404 means
 		// it is already gone. Only the failed ones are tried again.
 		const failed = deletions.flatMap((deletion, index) =>
@@ -131,13 +139,18 @@ export const usePreparePublish = ({
 			return new Map();
 		}
 
-		const attached = await tryAttach(postId, deferredImages);
+		const attached = await tryAttach(postId, deferredImages, attempt);
 		if (attached === null) {
-			setServerKeys(null);
+			if (attempt.isCurrent()) {
+				setServerKeys(null);
+			}
 			return null;
 		}
 		const keys = deferredImages.map((image) => image.id);
-		await reorderIfNeeded(postId, keys, attached);
+		await attempt.run(reorderIfNeeded(postId, keys, attached));
+		if (!attempt.isCurrent()) {
+			return null;
+		}
 		setServerKeys(keys);
 		setDeferredImages(
 			deferredImages.map((image) => ({
@@ -148,33 +161,48 @@ export const usePreparePublish = ({
 		return attached;
 	};
 
-	const prepare = async (): Promise<PreparedPost | null> => {
+	/** Saves the draft, brings its images in line and hands the post back, or
+	 * null when it must not go on: invalid form, a failed attach, or the
+	 * attempt superseded (Cancel, unmount, a newer click) after any await. */
+	const prepare = async (attempt: Attempt): Promise<PreparedPost | null> => {
 		const values = methods.getValues();
 		await methods.trigger();
-		if (!methods.formState.isValid || !values.body.trim()) {
+		if (
+			!attempt.isCurrent() ||
+			!methods.formState.isValid ||
+			!values.body.trim()
+		) {
 			return null;
 		}
 
-		const details = await savePost({
-			postId: createdPostId ?? undefined,
-			body: values.body,
-			projectId: values.projectId ?? null,
-			segments: values.segments.map((segment) => segment.text),
-			tenantId,
-		});
+		const details = await attempt.run(
+			savePost({
+				postId: createdPostId ?? undefined,
+				body: values.body,
+				projectId: values.projectId ?? null,
+				segments: values.segments.map((segment) => segment.text),
+				tenantId,
+			}),
+		);
+		if (!attempt.isCurrent()) {
+			return null;
+		}
 		setCreatedPostId(details.id);
 
-		const assetIdByKey = await syncImages(details.id);
+		const assetIdByKey = await syncImages(details.id, attempt);
 		if (assetIdByKey === null) {
 			return null;
 		}
-		await invalidateTenantPosts(qc, tenantId);
+		await attempt.run(invalidateTenantPosts(qc, tenantId));
+		if (!attempt.isCurrent()) {
+			return null;
+		}
 		methods.reset({
 			body: details.body,
 			projectId: details.projectId,
 			segments: values.segments,
 		});
-		return { postId: details.id, assetIdByKey };
+		return { postId: details.id, assetIdByKey, attempt };
 	};
 
 	return {

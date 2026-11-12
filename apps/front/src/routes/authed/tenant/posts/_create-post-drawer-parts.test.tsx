@@ -17,19 +17,15 @@ import { CreatePostActions } from './_create-post-drawer-parts';
 afterEach(cleanup);
 
 describe('CreatePostActions', () => {
-	test('Cancel is disabled while the images are attaching (#2179)', () => {
-		render(<CreatePostActions isSubmitting={false} busy onCancel={vi.fn()} />);
-
-		expect(
-			(screen.getByText('common:cancel') as HTMLButtonElement).disabled,
-		).toBe(true);
-	});
-
-	test('Cancel works when nothing is attaching', () => {
-		render(<CreatePostActions isSubmitting={false} onCancel={vi.fn()} />);
+	test('Cancel always works, even while a save or publish is in flight (#2179)', () => {
+		render(<CreatePostActions isSubmitting onCancel={vi.fn()} />);
 
 		expect(
 			(screen.getByText('common:cancel') as HTMLButtonElement).disabled,
 		).toBe(false);
+		expect(
+			(screen.getByTestId('tenant-posts-create-save') as HTMLButtonElement)
+				.disabled,
+		).toBe(true);
 	});
 });

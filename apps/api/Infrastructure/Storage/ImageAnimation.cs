@@ -5,8 +5,9 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// <summary>
 /// Animated PNG (APNG) detection by walking the chunk headers (#2179): an
 /// <c>acTL</c> chunk of length 8 declaring at least one frame, before the first
-/// <c>IDAT</c>; a malformed <c>acTL</c> is skipped. Bounded by the stream length, so a truncated or hostile file can
-/// neither throw nor seek past its end. Leaves the stream position unspecified.
+/// <c>IDAT</c>; a malformed <c>acTL</c> is skipped. Bounded by the stream
+/// length, so a truncated or hostile file can neither throw nor seek past its
+/// end. Leaves the stream position unspecified.
 /// </summary>
 public static class ImageAnimation {
 	private const int _SignatureLength = 8;

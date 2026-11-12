@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
 						assetIdByKey?: ReadonlyMap<string, string>;
 					} | null>;
 					onPublishInterrupted?: (resume: () => void) => void;
+					disabled?: boolean;
 			  }
 			| undefined,
 	},
@@ -86,6 +87,7 @@ vi.mock('./_publish-on-block', () => ({
 			assetIdByKey?: ReadonlyMap<string, string>;
 		} | null>;
 		onPublishInterrupted?: (resume: () => void) => void;
+		disabled?: boolean;
 	}) => {
 		mocks.publishBlockProps.current = props;
 		return (
@@ -330,6 +332,8 @@ vi.mock('~/components/ui/drawer', async () => {
 	};
 });
 
+import { ATTEMPT_TIMEOUT_MS } from './_attempt';
+// eslint-disable-next-line import/first
 import { CreatePostDrawer } from './_create-post-drawer';
 
 const PNG_FILE = new File(
@@ -407,6 +411,10 @@ beforeEach(() => {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	// clearAllMocks keeps queued once-implementations: drop what a test left.
+	mocks.savePost.mockReset();
+	mocks.attachMutateAsync.mockReset();
+	mocks.altMutateAsync.mockReset();
 });
 
 describe('CreatePostDrawer project picker query states (#2341)', () => {
@@ -471,6 +479,7 @@ describe('CreatePostDrawer publish preparation (#2172)', () => {
 		expect(prepared).toEqual({
 			postId: 'post-1',
 			assetIdByKey: new Map([[localKey as string, 'asset-1']]),
+			attempt: expect.anything(),
 		});
 	});
 
@@ -497,6 +506,7 @@ describe('CreatePostDrawer publish preparation (#2172)', () => {
 		expect(second).toEqual({
 			postId: 'post-1',
 			assetIdByKey: new Map([[localKey as string, 'asset-1']]),
+			attempt: expect.anything(),
 		});
 	});
 
@@ -761,7 +771,11 @@ describe('CreatePostDrawer publish preparation (#2172)', () => {
 		const prepared = await mocks.publishBlockProps.current?.onBeforePublish?.();
 
 		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
-		expect(prepared).toEqual({ postId: 'post-1', assetIdByKey: new Map() });
+		expect(prepared).toEqual({
+			postId: 'post-1',
+			assetIdByKey: new Map(),
+			attempt: expect.anything(),
+		});
 	});
 });
 
@@ -982,13 +996,19 @@ describe('CreatePostDrawer deferred image handoff', () => {
 		expect(resume).not.toHaveBeenCalled();
 	});
 
-	test('a later Publish whose attach works clears the stale handoff and its resume (#2179)', async () => {
+	test('a later Publish whose attach works clears the stale handoff, and a later Try again never publishes the old one (#2179)', async () => {
+		const onOpenChange = vi.fn();
 		const resumeA = vi.fn();
 		mocks.attachMutateAsync
 			.mockRejectedValueOnce(TOO_LARGE_PROBLEM)
 			.mockResolvedValue({ id: 'asset-1' });
-		renderDrawer(vi.fn());
+		mocks.altMutateAsync
+			.mockResolvedValueOnce(undefined)
+			.mockRejectedValueOnce(TOO_LARGE_PROBLEM)
+			.mockResolvedValue(undefined);
+		renderDrawer(onOpenChange);
 		await fillBodyAndPickImage('draft body');
+		// Publish A is stopped by the attach and leaves resumeA.
 		await act(async () => {
 			await mocks.publishBlockProps.current?.onBeforePublish?.();
 		});
@@ -999,18 +1019,32 @@ describe('CreatePostDrawer deferred image handoff', () => {
 			screen.getByTestId('tenant-posts-create-image-handoff'),
 		).toBeTruthy();
 
-		// Publish B: the attach now works (its send may still fail later).
+		// Publish B attaches fine (its send may fail later): the old failure and
+		// resumeA are gone.
 		await act(async () => {
 			await mocks.publishBlockProps.current?.onBeforePublish?.();
 		});
-
 		expect(
 			screen.queryByTestId('tenant-posts-create-image-handoff'),
 		).toBeNull();
+
+		// A Save then fails on the alt text and offers Try again: that retry is a
+		// plain save retry, it must not publish A.
+		await userEvent.click(screen.getByTestId('tenant-posts-create-save'));
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('tenant-posts-create-image-retry'),
+			).toBeTruthy(),
+		);
+		await userEvent.click(
+			screen.getByTestId('tenant-posts-create-image-retry'),
+		);
+
+		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
 		expect(resumeA).not.toHaveBeenCalled();
 	});
 
-	test('Cancel and close are held back while a Publish is being prepared (#2179)', async () => {
+	test('Cancel works during preparation and the publish never goes out (#2179)', async () => {
 		const onOpenChange = vi.fn();
 		let finishSave: (post: { id: string; body: string }) => void = () =>
 			undefined;
@@ -1027,22 +1061,91 @@ describe('CreatePostDrawer deferred image handoff', () => {
 		act(() => {
 			preparation = mocks.publishBlockProps.current?.onBeforePublish?.();
 		});
-
+		await waitFor(() => expect(mocks.savePost).toHaveBeenCalledTimes(1));
+		// Publish and Save wait while it runs, Cancel does not.
 		await waitFor(() =>
-			expect(
-				(screen.getByText('common:cancel') as HTMLButtonElement).disabled,
-			).toBe(true),
+			expect(mocks.publishBlockProps.current?.disabled).toBe(true),
 		);
-		await userEvent.click(screen.getByText('common:cancel'));
-		expect(onOpenChange).not.toHaveBeenCalled();
+		expect(
+			(screen.getByTestId('tenant-posts-create-save') as HTMLButtonElement)
+				.disabled,
+		).toBe(true);
+		const cancel = screen.getByText('common:cancel') as HTMLButtonElement;
+		expect(cancel.disabled).toBe(false);
 
+		await userEvent.click(cancel);
+		expect(onOpenChange).toHaveBeenCalledWith(false);
+
+		let prepared: unknown;
 		await act(async () => {
 			finishSave({ id: 'post-1', body: 'draft body' });
-			await preparation;
+			prepared = await preparation;
 		});
-		expect(
-			(screen.getByText('common:cancel') as HTMLButtonElement).disabled,
-		).toBe(false);
+		expect(prepared).toBeNull();
+		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('unmounting during preparation cancels it: nothing is uploaded or published (#2179)', async () => {
+		let finishSave: (post: { id: string; body: string }) => void = () =>
+			undefined;
+		mocks.savePost.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					finishSave = resolve;
+				}),
+		);
+		const view = renderDrawer(vi.fn());
+		await fillBodyAndPickImage('draft body');
+		let preparation: Promise<unknown> | undefined;
+		act(() => {
+			preparation = mocks.publishBlockProps.current?.onBeforePublish?.();
+		});
+
+		await waitFor(() => expect(mocks.savePost).toHaveBeenCalledTimes(1));
+
+		view.unmount();
+		let prepared: unknown;
+		await act(async () => {
+			finishSave({ id: 'post-1', body: 'draft body' });
+			prepared = await preparation;
+		});
+
+		expect(prepared).toBeNull();
+		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('a stalled save ends in a visible error and Cancel still works (#2179)', async () => {
+		vi.useFakeTimers({ shouldAdvanceTime: true });
+		try {
+			const onOpenChange = vi.fn();
+			mocks.savePost.mockImplementationOnce(() => new Promise(() => undefined));
+			renderDrawer(onOpenChange);
+			await fillBodyAndPickImage('draft body');
+
+			let prepared: { postId: string } | null | undefined;
+			let settled = false;
+			act(() => {
+				void mocks.publishBlockProps.current
+					?.onBeforePublish?.()
+					.then((value) => {
+						prepared = value;
+						settled = true;
+					});
+			});
+			await act(async () => {
+				await vi.advanceTimersByTimeAsync(ATTEMPT_TIMEOUT_MS + 1000);
+			});
+
+			expect(settled).toBe(true);
+			expect(prepared).toBeNull();
+			expect(screen.getByRole('alert').textContent).toContain(
+				'posts:attempt-timed-out',
+			);
+			await userEvent.click(screen.getByText('common:cancel'));
+			expect(onOpenChange).toHaveBeenCalledWith(false);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	test('discarding the failed image keeps the created post and closes cleanly', async () => {

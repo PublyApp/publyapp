@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
+import { AttemptTimedOutError, createAttemptRegistry } from './_attempt';
+import type { Attempt } from './_attempt';
 import type { DeferredImageSelection } from './_post-image-picker';
 import { useAttachDeferredImages } from './_use-attach-deferred-images';
 
@@ -10,12 +13,13 @@ import { useAttachDeferredImages } from './_use-attach-deferred-images';
  * memory), so it offers "Try again" / "Discard".
  *
  * A Publish or Schedule click that stopped because of that failure leaves a
- * resume (#2179): "Try again" attaches AND sends that request. The resume is
- * kept only when THIS attempt was stopped by the attach (the flag is reset at
- * the start of every attempt), and it dies with the drawer: every close goes
- * through `reset`, which also invalidates a retry still in flight.
+ * resume (#2179): "Try again" attaches AND sends that request. Every step runs
+ * inside an attempt (a generation): Cancel/close, unmount, a Save or a newer
+ * Publish supersede it, so nothing of the old attempt attaches, resumes or
+ * publishes afterwards. Cancel is never blocked.
  */
 export const useImageHandoff = (tenantId: string) => {
+	const { t } = useTranslation(['posts']);
 	const deferredAttach = useAttachDeferredImages(tenantId);
 	// The parent OWNS the deferred selection (the picker reports through
 	// `onSelect`), so the attachment survives the picker's re-renders and the
@@ -28,14 +32,15 @@ export const useImageHandoff = (tenantId: string) => {
 	const [resumeRequested, setResumeRequested] = useState(0);
 	const stoppedByAttachRef = useRef(false);
 	const resumeRef = useRef<(() => void) | null>(null);
-	// Bumped on every reset: an async step that began in an earlier session
-	// (the drawer was closed meanwhile) must not touch state or resume.
-	const sessionRef = useRef(0);
+	const [attempts] = useState(() => createAttemptRegistry());
 
 	const clearIntent = () => {
 		stoppedByAttachRef.current = false;
 		resumeRef.current = null;
 	};
+
+	// Unmount (route change, back) supersedes whatever is in flight.
+	useEffect(() => attempts.invalidate, [attempts]);
 
 	// Runs after the render that holds the attached images, so the resumed
 	// request sees them and uploads nothing twice.
@@ -50,17 +55,29 @@ export const useImageHandoff = (tenantId: string) => {
 
 	/**
 	 * Attaches the deferred images to the created post. Resolves the asset id
-	 * of each image (by its local id) when the handoff completed; null leaves
-	 * the handoff holding the images (the attached ones marked) with the
-	 * surfaced cause, so the drawer offers the retry/discard actions.
+	 * of each image (by its local id) when the handoff completed; null when it
+	 * failed (the handoff then holds the images, the attached ones marked, with
+	 * the surfaced cause) or when the attempt was superseded meanwhile.
 	 */
 	const attach = async (
 		forPostId: string,
 		images: DeferredImageSelection[],
+		attempt: Attempt,
 	): Promise<ReadonlyMap<string, string> | null> => {
-		const session = sessionRef.current;
-		const outcome = await deferredAttach.attachAll(forPostId, images);
-		if (session !== sessionRef.current) {
+		const outcome = await attempt
+			.run(deferredAttach.attachAll(forPostId, images, attempt.isCurrent))
+			.catch((error: unknown) => {
+				if (error instanceof AttemptTimedOutError) {
+					return {
+						ok: false as const,
+						remaining: images,
+						assetIds: new Map<string, string>(),
+						cause: t('posts:attempt-timed-out'),
+					};
+				}
+				return null;
+			});
+		if (outcome === null || !attempt.isCurrent()) {
 			return null;
 		}
 		if (outcome.ok) {
@@ -89,8 +106,9 @@ export const useImageHandoff = (tenantId: string) => {
 	const tryAttach = async (
 		forPostId: string,
 		images: DeferredImageSelection[],
+		attempt: Attempt,
 	): Promise<ReadonlyMap<string, string> | null> => {
-		const attached = await attach(forPostId, images);
+		const attached = await attach(forPostId, images, attempt);
 		if (attached !== null) {
 			setPostId(null);
 			setCause('');
@@ -105,17 +123,19 @@ export const useImageHandoff = (tenantId: string) => {
 		if (!postId || deferredImages.length === 0) {
 			return;
 		}
-		const session = sessionRef.current;
+		const attempt = attempts.begin();
+		const keptResume = resumeRef.current;
 		setCause('');
-		const attached = await attach(postId, deferredImages);
-		if (attached === null || session !== sessionRef.current) {
+		const attached = await attach(postId, deferredImages, attempt);
+		if (attached === null || !attempt.isCurrent()) {
 			return;
 		}
-		if (resumeRef.current === null) {
+		if (keptResume === null) {
 			await finish();
 			return;
 		}
 		// Keep the post, mark the images attached, and send the stopped request.
+		resumeRef.current = keptResume;
 		setDeferredImages(
 			deferredImages.map((image) => ({
 				...image,
@@ -136,11 +156,11 @@ export const useImageHandoff = (tenantId: string) => {
 		cause,
 		tryAttach,
 		retryAttach,
-		/** Call at the start of every Publish / Schedule / Save attempt. */
-		beginAttempt: () => {
-			stoppedByAttachRef.current = false;
-			// Each attempt owns its resume: an earlier one never outlives it.
-			resumeRef.current = null;
+		/** Starts a Publish / Schedule / Save attempt: it supersedes every
+		 * earlier one, its resume included. */
+		beginAttempt: (): Attempt => {
+			clearIntent();
+			return attempts.begin();
 		},
 		/** The block reports a stopped Publish/Schedule: keep it only when the
 		 * attach was the reason. */
@@ -150,9 +170,10 @@ export const useImageHandoff = (tenantId: string) => {
 			}
 		},
 		clearIntent,
-		/** Leaves no handoff, intent, selection or in-flight retry behind. */
+		/** Leaves no handoff, intent, selection or request of the old session
+		 * alive: supersedes the attempt in flight. */
 		reset: () => {
-			sessionRef.current += 1;
+			attempts.invalidate();
 			clearIntent();
 			setDeferredImages([]);
 			setPostId(null);

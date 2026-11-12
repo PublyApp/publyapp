@@ -21,6 +21,9 @@ import { getBrowserTimeZone } from '~/utils/format-time';
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { AttemptCancelledError, AttemptTimedOutError } from './_attempt';
+import type { Attempt } from './_attempt';
+
 /** A post that exists and is ready to be published. */
 export type PreparedPost = {
 	postId: string;
@@ -28,6 +31,9 @@ export type PreparedPost = {
 	 * publish (the creation drawer). A key it does not list is already an
 	 * asset id. */
 	assetIdByKey?: ReadonlyMap<string, string>;
+	/** The attempt that prepared the post (creation drawer): the request is
+	 * not sent once it was superseded, and its wait is bounded. */
+	attempt?: Attempt;
 };
 
 type PendingKind = 'publish' | 'schedule';
@@ -73,7 +79,7 @@ export const usePublishSubmit = ({
 	imageKeys,
 	onInterrupted,
 }: SubmitArgs) => {
-	const { t } = useTranslation(['common']);
+	const { t } = useTranslation(['common', 'posts']);
 	const translateResponseMessage = useResponseMessageTranslator();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
@@ -111,7 +117,13 @@ export const usePublishSubmit = ({
 				onInterrupted?.(() => void latestSubmit.current?.(kind, send));
 				return;
 			}
-			await send({
+			// Superseded (Cancel, unmount, another click) since the draft was
+			// prepared: the user no longer wants this request.
+			if (prepared.attempt && !prepared.attempt.isCurrent()) {
+				setPending(null);
+				return;
+			}
+			const sending = send({
 				tenantId,
 				postId: prepared.postId,
 				destinations: toWireDestinations({
@@ -122,12 +134,21 @@ export const usePublishSubmit = ({
 					assetIdByKey: prepared.assetIdByKey,
 				}),
 			});
+			await (prepared.attempt ? prepared.attempt.run(sending) : sending);
 			// The post's status follows its publications.
 			await invalidateTenantPosts(queryClient, tenantId);
 			await invalidateTenantPublications(queryClient, tenantId);
 			await invalidateTenantScheduledPublications(queryClient, tenantId);
 		} catch (error) {
 			setPending(null);
+			if (error instanceof AttemptCancelledError) {
+				// Cancelled while waiting: no message, no navigation.
+				return;
+			}
+			if (error instanceof AttemptTimedOutError) {
+				setFailureMessage(t('posts:attempt-timed-out'));
+				return;
+			}
 			setFailureMessage(
 				getFailureMessage(toApiFailure(error), {
 					fallback: t('common:an-error-occurred'),

@@ -63,10 +63,17 @@ vi.mock('~/lib/i18n/use-response-message-translator', () => ({
 	useResponseMessageTranslator: () => (message: string) => message,
 }));
 vi.mock('./_publish-schedule-row', () => ({
-	PublishScheduleRow: ({ onSchedule }: { onSchedule: (at: Date) => void }) => (
+	PublishScheduleRow: ({
+		onSchedule,
+		disabled,
+	}: {
+		onSchedule: (at: Date) => void;
+		disabled?: boolean;
+	}) => (
 		<button
 			type="button"
 			data-testid="stub-schedule"
+			disabled={disabled}
 			onClick={() => onSchedule(new Date('2030-01-01T10:00:00Z'))}
 		/>
 	),
@@ -75,10 +82,12 @@ vi.mock('./_publish-limit-counter', () => ({
 	PublishLimitCounter: () => null,
 }));
 
+import { createAttemptRegistry } from './_attempt';
 import { PublishOnBlock } from './_publish-on-block';
 // eslint-disable-next-line import/first
 import type { DestinationOverridesState } from './_use-destination-overrides';
 import type { PublishSelection } from './_use-publish-selection';
+import type { PreparedPost } from './_use-publish-submit';
 
 const selection: PublishSelection = {
 	targets: [],
@@ -111,7 +120,7 @@ const overrides: DestinationOverridesState = {
 };
 
 const renderBlock = (props: {
-	onBeforePublish: () => Promise<{ postId: string } | null>;
+	onBeforePublish: () => Promise<PreparedPost | null>;
 	onPublishInterrupted: (resume: () => void) => void;
 }) =>
 	render(
@@ -209,5 +218,87 @@ describe('PublishOnBlock interruption (#2179)', () => {
 				.disabled,
 		).toBe(true);
 		expect(mocks.publishNow).not.toHaveBeenCalled();
+	});
+
+	test('Schedule waits too while the caller is busy', async () => {
+		render(
+			<PublishOnBlock
+				selection={selection}
+				destinationOverrides={overrides}
+				body="hello"
+				onBeforePublish={async () => ({ postId: POST_ID })}
+				disabled
+			/>,
+		);
+
+		fireEvent.click(screen.getByTestId('stub-schedule'));
+		await new Promise((resolve) => setTimeout(resolve, 20));
+
+		expect(mocks.schedule).not.toHaveBeenCalled();
+	});
+
+	test('a request is not sent once its attempt was superseded (#2179)', async () => {
+		const registry = createAttemptRegistry();
+		renderBlock({
+			onBeforePublish: async () => {
+				const attempt = registry.begin();
+				registry.invalidate();
+				return { postId: POST_ID, attempt };
+			},
+			onPublishInterrupted: vi.fn(),
+		});
+
+		await userEvent.click(screen.getByTestId('tenant-posts-publish-now'));
+
+		await waitFor(() =>
+			expect(
+				(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
+					.disabled,
+			).toBe(false),
+		);
+		expect(mocks.publishNow).not.toHaveBeenCalled();
+		expect(mocks.navigate).not.toHaveBeenCalled();
+	});
+
+	test('cancelling while the request is in flight neither navigates nor shows an error (#2179)', async () => {
+		const registry = createAttemptRegistry();
+		const attempt = registry.begin();
+		mocks.publishNow.mockImplementationOnce(() => new Promise(() => undefined));
+		renderBlock({
+			onBeforePublish: async () => ({ postId: POST_ID, attempt }),
+			onPublishInterrupted: vi.fn(),
+		});
+
+		await userEvent.click(screen.getByTestId('tenant-posts-publish-now'));
+		await waitFor(() => expect(mocks.publishNow).toHaveBeenCalledTimes(1));
+		registry.invalidate();
+
+		await waitFor(() =>
+			expect(
+				(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
+					.disabled,
+			).toBe(false),
+		);
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		expect(screen.queryByRole('alert')).toBeNull();
+	});
+
+	test('a request that stalls ends in a visible message (#2179)', async () => {
+		const registry = createAttemptRegistry(30);
+		const attempt = registry.begin();
+		mocks.publishNow.mockImplementationOnce(() => new Promise(() => undefined));
+		renderBlock({
+			onBeforePublish: async () => ({ postId: POST_ID, attempt }),
+			onPublishInterrupted: vi.fn(),
+		});
+
+		await userEvent.click(screen.getByTestId('tenant-posts-publish-now'));
+
+		await waitFor(() =>
+			expect(screen.getByRole('alert').textContent).toContain(
+				'posts:attempt-timed-out',
+			),
+		);
+		expect(mocks.navigate).not.toHaveBeenCalled();
 	});
 });

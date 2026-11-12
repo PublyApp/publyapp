@@ -20,6 +20,7 @@ import { useTenantProjectsQuery } from '~/lib/query/tenant-projects';
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { AttemptCancelledError, AttemptTimedOutError } from './_attempt';
 import { CreatePostFields } from './_create-post-drawer-body';
 import { CreatePostActions } from './_create-post-drawer-parts';
 import { PublishOnBlock } from './_publish-on-block';
@@ -106,21 +107,31 @@ export const CreatePostDrawer = ({
 		onOpenChange(false);
 	};
 
-	// Every Publish / Schedule attempt starts a fresh intent; the block reports
-	// back when it was stopped.
-	// Closing is held back while a Publish / Schedule is being prepared (draft
-	// save, uploads): a close there would let the request go out for a post the
-	// user just cancelled, or arm a resume on a closed drawer.
+	// Each Publish / Schedule click is an attempt: Cancel/close, unmount, a Save
+	// or a newer click supersede it, and nothing of it is sent afterwards. Its
+	// waits are bounded, so a stalled request ends in a visible error. Cancel is
+	// never blocked.
 	const [preparing, setPreparing] = useState(false);
 	const prepareForPublish = async () => {
-		handoff.beginAttempt();
+		const attempt = handoff.beginAttempt();
 		setPreparing(true);
 		try {
-			return await publishPrep.prepare();
+			const prepared = await publishPrep.prepare(attempt);
+			// Immediately before the request goes out.
+			return attempt.isCurrent() ? prepared : null;
+		} catch (error) {
+			if (error instanceof AttemptTimedOutError) {
+				methods.setError('root', { message: t('posts:attempt-timed-out') });
+			} else if (!(error instanceof AttemptCancelledError)) {
+				throw error;
+			}
+			return null;
 		} finally {
 			setPreparing(false);
 		}
 	};
+	// While something is in flight Publish, Schedule, Save, Try again and
+	// Discard wait (a second click would repeat the draft save or the uploads).
 	const busy = handoff.isPending || preparing || methods.formState.isSubmitting;
 
 	const onSubmit = methods.handleSubmit(async (values) => {
@@ -135,21 +146,26 @@ export const CreatePostDrawer = ({
 				return;
 			}
 
-			// A plain save drops any publish intent an earlier click left behind.
-			handoff.clearIntent();
-			handoff.beginAttempt();
+			// A save is an attempt too: it supersedes any publish attempt and drops
+			// the intent an earlier click left behind.
+			const attempt = handoff.beginAttempt();
 			// A publish that failed earlier already created the post: save onto it.
-			const created = await savePost({
-				postId: publishPrep.createdPostId ?? undefined,
-				body: values.body,
-				projectId: values.projectId ?? null,
-				segments: values.segments.map((segment) => segment.text),
-				tenantId,
-			});
+			const created = await attempt.run(
+				savePost({
+					postId: publishPrep.createdPostId ?? undefined,
+					body: values.body,
+					projectId: values.projectId ?? null,
+					segments: values.segments.map((segment) => segment.text),
+					tenantId,
+				}),
+			);
+			if (!attempt.isCurrent()) {
+				return;
+			}
 
 			// The picker collects a deferred image selection while the post
 			// does not exist yet; it is attached right after creation.
-			const attached = await publishPrep.syncImages(created.id);
+			const attached = await publishPrep.syncImages(created.id, attempt);
 			if (attached === null) {
 				// The post was created and stays consistent (it keeps the
 				// images that did attach); the drawer stays open on the
@@ -158,8 +174,18 @@ export const CreatePostDrawer = ({
 				return;
 			}
 
+			if (!attempt.isCurrent()) {
+				return;
+			}
 			await completeAndClose();
 		} catch (error) {
+			if (error instanceof AttemptCancelledError) {
+				return;
+			}
+			if (error instanceof AttemptTimedOutError) {
+				methods.setError('root', { message: t('posts:attempt-timed-out') });
+				return;
+			}
 			const failure = toApiFailure(error);
 			if (failure.kind === 'validation' && failure.fieldErrors) {
 				for (const [k, msgs] of Object.entries(failure.fieldErrors)) {
@@ -199,9 +225,6 @@ export const CreatePostDrawer = ({
 	};
 
 	const handleOpenChange = (o: boolean) => {
-		if (!o && busy) {
-			return;
-		}
 		if (!o) {
 			resetAll();
 		}
@@ -253,8 +276,7 @@ export const CreatePostDrawer = ({
 								onPublishInterrupted={handoff.keepIntent}
 							/>
 							<CreatePostActions
-								isSubmitting={methods.formState.isSubmitting}
-								busy={busy}
+								isSubmitting={busy}
 								onCancel={() => handleOpenChange(false)}
 							/>
 						</div>

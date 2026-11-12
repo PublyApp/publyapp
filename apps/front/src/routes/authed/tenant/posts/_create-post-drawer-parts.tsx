@@ -60,24 +60,17 @@ export const HandoffPanel = ({
 
 export const CreatePostActions = ({
 	isSubmitting,
-	busy = false,
 	onCancel,
 }: {
+	/** A save or publish is in flight: Save waits, Cancel never does. */
 	isSubmitting: boolean;
-	/** Images are attaching: closing now would race the request. */
-	busy?: boolean;
 	onCancel: () => void;
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
 
 	return (
 		<div className="flex justify-end gap-2">
-			<Button
-				type="button"
-				variant="outline"
-				disabled={busy}
-				onClick={onCancel}
-			>
+			<Button type="button" variant="outline" onClick={onCancel}>
 				{t('common:cancel')}
 			</Button>
 			<Button

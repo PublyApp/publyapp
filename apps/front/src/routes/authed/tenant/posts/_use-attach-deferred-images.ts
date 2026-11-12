@@ -11,6 +11,7 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { AttemptCancelledError } from './_attempt';
 import type { DeferredImageSelection } from './_post-image-picker';
 
 export type AttachDeferredImagesOutcome =
@@ -51,10 +52,15 @@ export const useAttachDeferredImages = (tenantId: string) => {
 			remaining: DeferredImageSelection[];
 			assetIds: Map<string, string>;
 		},
+		isCurrent: () => boolean,
 	): Promise<void> => {
 		const [image, ...rest] = images;
 		if (!image) {
 			return;
+		}
+		// A superseded attempt (Cancel, unmount, a newer click) uploads nothing more.
+		if (!isCurrent()) {
+			throw new AttemptCancelledError();
 		}
 
 		let assetId = image.attachedAssetId;
@@ -88,19 +94,20 @@ export const useAttachDeferredImages = (tenantId: string) => {
 		progress.remaining = progress.remaining.filter(
 			(entry) => entry.id !== image.id,
 		);
-		await attachInOrder(postId, rest, progress);
+		await attachInOrder(postId, rest, progress, isCurrent);
 	};
 
 	const attachAll = async (
 		postId: string,
 		images: DeferredImageSelection[],
+		isCurrent: () => boolean = () => true,
 	): Promise<AttachDeferredImagesOutcome> => {
 		const progress = {
 			remaining: images,
 			assetIds: new Map<string, string>(),
 		};
 		try {
-			await attachInOrder(postId, images, progress);
+			await attachInOrder(postId, images, progress, isCurrent);
 			return { ok: true, assetIds: progress.assetIds };
 		} catch (error) {
 			return {
