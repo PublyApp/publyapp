@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
 		provider: 'mastodon' | 'pixelfed';
 		instance: string;
 	} | null,
+	// Providers the operator switched off (GET /publishing/capabilities).
+	disabledProviders: [] as string[],
 	needsReconnectAccounts: [] as Array<{
 		id: string;
 		displayHandle: string;
@@ -84,6 +86,20 @@ vi.mock('~/lib/query/needs-reconnect-accounts', async () => {
 		}),
 	};
 });
+
+vi.mock('~/lib/query/provider-capabilities', async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	useProviderCapabilitiesQuery: () => ({
+		data: {
+			items: ['bluesky', 'mastodon', 'pixelfed', 'discord_webhook'].map(
+				(provider) => ({
+					provider,
+					enabled: !mocks.disabledProviders.includes(provider),
+				}),
+			),
+		},
+	}),
+}));
 
 vi.mock('~/lib/query/tenant-projects', async (importOriginal) => ({
 	...(await importOriginal<object>()),
@@ -310,6 +326,7 @@ const needsReconnectAccount = {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	mocks.disabledProviders = [];
 	socialAccountsWire = [];
 	socialAccountsPending = false;
 	socialAccountsError = false;
@@ -511,6 +528,29 @@ describe('TenantSettingsIntegrationsPage', () => {
 		expect(screen.getByTestId('mastodon-drawer-stub').textContent).toBe(
 			'mastodon:connect',
 		);
+	});
+
+	test('ItShouldHideTheConnectButtonOfEveryProviderTheOperatorDisabled', () => {
+		mocks.disabledProviders = ['mastodon', 'discord_webhook'];
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(screen.queryByText('Connect Mastodon')).toBeNull();
+		expect(screen.queryByText('Connect Discord')).toBeNull();
+		expect(screen.getByText('Connect Pixelfed')).toBeTruthy();
+		expect(screen.getByText('Connect Bluesky')).toBeTruthy();
+	});
+
+	test('ItShouldOfferEveryConnectButtonWhenNoProviderIsDisabled', () => {
+		render(<TenantSettingsIntegrationsPage />);
+
+		for (const label of [
+			'Connect Mastodon',
+			'Connect Pixelfed',
+			'Connect Discord',
+			'Connect Bluesky',
+		]) {
+			expect(screen.getByText(label)).toBeTruthy();
+		}
 	});
 
 	test('ItShouldOpenTheSharedFediverseDrawerForPixelfedAndLabelItsRows', async () => {

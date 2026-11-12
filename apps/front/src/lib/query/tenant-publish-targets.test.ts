@@ -92,6 +92,45 @@ describe('toTenantPublishTargets', () => {
 			acceptedImageContentTypes: ['image/png'],
 			requiresMedia: false,
 			supportsThreads: true,
+			requiresText: true,
+			requiresAltText: false,
+			supportsVideo: false,
+		});
+	});
+
+	test('reads the optional capability facts and defaults them when the wire omits them (#2184)', () => {
+		const limits = {
+			textLimits: [{ unit: 'utf16', max: 500 }],
+			maxImages: 4,
+			maxImageBytes: 15_000_000,
+			acceptedImageContentTypes: ['image/jpeg'],
+		};
+		const rows = toTenantPublishTargets(
+			asItems([
+				{
+					id: guid(7),
+					label: 'photos',
+					provider: 'pixelfed',
+					limits: {
+						...limits,
+						requiresText: false,
+						requiresAltText: true,
+						supportsVideo: true,
+					},
+				},
+				{ id: guid(8), label: 'plain', provider: 'bluesky', limits },
+			]),
+		);
+
+		expect(rows[0]?.limits).toMatchObject({
+			requiresText: false,
+			requiresAltText: true,
+			supportsVideo: true,
+		});
+		expect(rows[1]?.limits).toMatchObject({
+			requiresText: true,
+			requiresAltText: false,
+			supportsVideo: false,
 		});
 	});
 
