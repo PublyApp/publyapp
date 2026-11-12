@@ -19,7 +19,9 @@ public static class ProviderCapabilityRegistry {
 		// 1,000,000 bytes, static JPEG/PNG/WebP only (#2170).
 		MaxImages: 4,
 		MaxImageBytes: 1_000_000,
-		AcceptedImageContentTypes: ["image/jpeg", "image/png", "image/webp"]
+		AcceptedImageContentTypes: ["image/jpeg", "image/png", "image/webp"],
+		// app.bsky.embed.video exists; alt text is encouraged, never required.
+		SupportsVideo: true
 	);
 
 	// Mastodon's stock instance values; an account's overrides replace them with
@@ -30,7 +32,8 @@ public static class ProviderCapabilityRegistry {
 		[new TextLimit(MastodonCountingRule.Default, 500)],
 		MaxImages: 4,
 		MaxImageBytes: 16_777_216,
-		AcceptedImageContentTypes: ["image/jpeg", "image/png", "image/webp"]
+		AcceptedImageContentTypes: ["image/jpeg", "image/png", "image/webp"],
+		SupportsVideo: true
 	);
 
 	// Pixelfed (#2175): photo-first, so an image is required and a caption is not.
@@ -55,7 +58,8 @@ public static class ProviderCapabilityRegistry {
 		MaxImages: 10,
 		MaxImageBytes: 8_388_608,
 		AcceptedImageContentTypes: ["image/jpeg", "image/png", "image/webp"],
-		SupportsThreads: false
+		SupportsThreads: false,
+		SupportsVideo: true
 	);
 
 	private static readonly JsonSerializerOptions _Json = new(JsonSerializerDefaults.Web);

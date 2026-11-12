@@ -19,7 +19,13 @@ public sealed record ProviderCapability(
 	bool RequiresMedia = false,
 	// False when the destination cannot publish follow-up segments (Pixelfed,
 	// Discord): a thread aimed at it is refused, never silently cut.
-	bool SupportsThreads = true
+	bool SupportsThreads = true,
+	// True when the destination refuses an image without alt text: a post aimed at it
+	// is refused until every image has one (no provider needs it yet, #2184).
+	bool RequiresAltText = false,
+	// True when the destination can carry a video. Informational today: the app attaches
+	// images only, so nothing publishes video yet (#2184).
+	bool SupportsVideo = false
 );
 
 /// <summary>

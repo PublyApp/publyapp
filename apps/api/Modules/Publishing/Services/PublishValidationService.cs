@@ -11,6 +11,8 @@ public enum PublishContentFailureKind {
 	TooLong,
 	TooManyImages,
 	UnsupportedImageType,
+	// The destination refuses an image without alt text and one has none (#2184).
+	AltTextRequired,
 	// A photo network (Pixelfed) was selected and the post has no image (#2175).
 	MediaRequired,
 	// A thread was aimed at a destination that cannot publish follow-ups (#2175).
@@ -38,7 +40,9 @@ public sealed record PublishContentFailure(
 	// The destination (account handle and id) the failure is about, once the content was
 	// resolved per destination (#2172); null on provider-level callers.
 	string? Destination = null,
-	Guid? SocialAccountId = null
+	Guid? SocialAccountId = null,
+	// The content types the destination accepts, for an UnsupportedImageType cause (#2184).
+	IReadOnlyList<string>? AcceptedImageContentTypes = null
 ) {
 	public string Cause {
 		get {
@@ -46,6 +50,35 @@ public sealed record PublishContentFailure(
 			cause = this.SegmentNumber > 0 ? $"Segment {this.SegmentNumber}: {cause}" : cause;
 			return this.Destination is null ? cause : $"{this.Destination}: {cause}";
 		}
+	}
+
+	// "image/jpeg", "image/png" -> "a JPEG or PNG image": derived from the capability, never
+	// from a provider's own list.
+	private static string _DescribeTypes(IReadOnlyList<string>? contentTypes) {
+		var names = (contentTypes ?? [])
+			.Select(PublishContentFailure._ImageTypeName)
+			.Distinct()
+			.ToList();
+		return names.Count switch {
+			0 => "a supported image type",
+			1 => $"a {names[0]} image",
+			_ => $"a {string.Join(", ", names.Take(names.Count - 1))} or {names[^1]} image",
+		};
+	}
+
+	private static readonly Dictionary<string, string> _ImageTypeNames = new(StringComparer.OrdinalIgnoreCase) {
+		["jpeg"] = "JPEG",
+		["png"] = "PNG",
+		["webp"] = "WebP",
+		["gif"] = "GIF",
+		["avif"] = "AVIF",
+	};
+
+	private static string _ImageTypeName(string contentType) {
+		var subtype = contentType.Split('/').Last();
+		return PublishContentFailure._ImageTypeNames.TryGetValue(subtype, out var name)
+			? name
+			: subtype.ToUpperInvariant();
 	}
 
 	private string _BaseCause {
@@ -76,7 +109,12 @@ public sealed record PublishContentFailure(
 
 			if (this.Kind == PublishContentFailureKind.UnsupportedImageType) {
 				return $"Image {this.ImageIndex} ({this.ContentType}) is not a type "
-					+ $"{this.Provider} accepts. Use a JPEG, PNG or static WebP image.";
+					+ $"{this.Provider} accepts. Use {PublishContentFailure._DescribeTypes(this.AcceptedImageContentTypes)}.";
+			}
+
+			if (this.Kind == PublishContentFailureKind.AltTextRequired) {
+				return $"{this.Provider} needs a description (alt text) on every image: "
+					+ $"image {this.ImageIndex} has none.";
 			}
 
 			return $"The post text is too long for {this.Provider}: {this.Actual} "
@@ -106,7 +144,8 @@ public static class PublishValidationService {
 			content.Body,
 			content.ImageContentTypes,
 			[ProviderCapabilityRegistry.Resolve(account)],
-			content.FollowUps
+			content.FollowUps,
+			content.ImageAltTexts
 		);
 		return failure is null
 			? null
@@ -120,7 +159,8 @@ public static class PublishValidationService {
 		string body,
 		IReadOnlyList<string> imageContentTypes,
 		IEnumerable<ProviderCapability> capabilities,
-		IReadOnlyList<string>? followUpBodies = null
+		IReadOnlyList<string>? followUpBodies = null,
+		IReadOnlyList<string?>? imageAltTexts = null
 	) {
 		var normalized = TextCounter.Normalize(body);
 		IReadOnlyList<string> followUps = followUpBodies ?? [];
@@ -182,8 +222,24 @@ public static class PublishValidationService {
 						limits.AcceptedImageContentTypes.Count,
 						imageContentTypes.Count,
 						index + 1,
-						imageContentTypes[index]
+						imageContentTypes[index],
+						AcceptedImageContentTypes: limits.AcceptedImageContentTypes
 					);
+				}
+			}
+
+			if (limits.RequiresAltText && imageAltTexts is not null) {
+				for (var index = 0; index < imageAltTexts.Count; index++) {
+					if (string.IsNullOrWhiteSpace(imageAltTexts[index])) {
+						return new PublishContentFailure(
+							PublishContentFailureKind.AltTextRequired,
+							name,
+							PublishValidationService.ImageUnit,
+							0,
+							imageAltTexts.Count,
+							index + 1
+						);
+					}
 				}
 			}
 
@@ -196,9 +252,9 @@ public static class PublishValidationService {
 			}
 
 			// Every follow-up obeys the same per-segment limits (#2171).
-			for (var index = 0; index < followUps.Count; index++) {
-				var followUp = TextCounter.Normalize(followUps[index]);
-				var number = index + 2;
+			// The root is segment 1, so the first follow-up is segment 2.
+			for (var number = 1 + 1; number <= followUps.Count + 1; number++) {
+				var followUp = TextCounter.Normalize(followUps[number - 1 - 1]);
 				if (followUp.Length == 0 && limits.RequiresText) {
 					return new PublishContentFailure(
 						PublishContentFailureKind.Empty,

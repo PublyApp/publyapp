@@ -45,6 +45,10 @@ public sealed record EffectiveContent(
 	public IReadOnlyList<string> ImageContentTypes {
 		get { return this.Images.Select(image => image.ContentType).ToList(); }
 	}
+
+	public IReadOnlyList<string?> ImageAltTexts {
+		get { return this.Images.Select(image => image.AltText).ToList(); }
+	}
 }
 
 /// <summary>Outcome of <see cref="RenditionResolver.StageRenditionsAsync"/>.</summary>

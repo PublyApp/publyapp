@@ -178,4 +178,45 @@ public sealed class PublishValidationServiceSpec {
 			"hi", ["image/png"], [ProviderCapabilityRegistry.Pixelfed], ["second"]
 		)).Kind.Should().Be(PublishContentFailureKind.ThreadsUnsupported);
 	}
+
+	// #2184: the image-type cause is templated from the destination's own accepted types,
+	// so it never promises a type (WebP) a destination refuses nor names another network's.
+	[Fact]
+	public void ItShouldListTheAcceptedImageTypesOfTheDestinationInTheCause() {
+		var pixelfed = PublishValidationService.Validate("hi", ["image/webp"], [ProviderCapabilityRegistry.Pixelfed]);
+		var bluesky = PublishValidationService.Validate("hi", ["image/gif"], [ProviderCapabilityRegistry.Bluesky]);
+
+		PublishValidationServiceSpec._Failure(pixelfed).Cause
+			.Should().Contain("Use a JPEG or PNG image.").And.NotContain("WebP");
+		PublishValidationServiceSpec._Failure(bluesky).Cause
+			.Should().Contain("Use a JPEG, PNG or WebP image.").And.NotContain("static");
+	}
+
+	[Fact]
+	public void ItShouldFollowACapabilityThatAcceptsASingleImageType() {
+		var onlyPng = ProviderCapabilityRegistry.Mastodon with { AcceptedImageContentTypes = ["image/png"] };
+
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate("hi", ["image/jpeg"], [onlyPng])).Cause
+			.Should().Contain("Use a PNG image.");
+	}
+
+	// #2184: alt text is a capability, not a Bluesky/Mastodon assumption.
+	[Fact]
+	public void ItShouldRequireAltTextOnEveryImageOnlyWhenTheCapabilityAsksForIt() {
+		var strict = ProviderCapabilityRegistry.Mastodon with { RequiresAltText = true };
+		string?[] alts = ["a cat", " "];
+
+		var failure = PublishValidationServiceSpec._Failure(PublishValidationService.Validate(
+			"hi", ["image/png", "image/png"], [strict], null, alts
+		));
+		failure.Kind.Should().Be(PublishContentFailureKind.AltTextRequired);
+		failure.ImageIndex.Should().Be(2);
+		failure.Cause.Should().Contain("image 2 has none");
+
+		PublishValidationService.Validate("hi", ["image/png", "image/png"], [strict], null, ["a cat", "a dog"])
+			.Should().BeNull();
+		PublishValidationService.Validate(
+			"hi", ["image/png", "image/png"], [ProviderCapabilityRegistry.Mastodon], null, alts
+		).Should().BeNull("no shipped provider requires alt text");
+	}
 }

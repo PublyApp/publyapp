@@ -370,6 +370,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ProjectNotFound = new("project-not-found");
 
 	/// <summary>
+	/// This provider is disabled and cannot be connected
+	/// </summary>
+	public static readonly TranslationKey ProviderDisabled = new("provider-disabled");
+
+	/// <summary>
 	/// The provider could not be reached; nothing was stored
 	/// </summary>
 	public static readonly TranslationKey ProviderUnreachable = new("provider-unreachable");
@@ -453,6 +458,11 @@ public static partial class ResponseKeys {
 	/// The post text is too long for this destination
 	/// </summary>
 	public static readonly TranslationKey PublishContentTooLong = new("publish-content-too-long");
+
+	/// <summary>
+	/// A destination needs alt text on every image of the post
+	/// </summary>
+	public static readonly TranslationKey PublishImageAltTextRequired = new("publish-image-alt-text-required");
 
 	/// <summary>
 	/// An image of the post is not a type this destination accepts

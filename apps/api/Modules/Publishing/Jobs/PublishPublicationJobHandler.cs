@@ -130,7 +130,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				effective.Body,
 				effective.ImageContentTypes,
 				[ProviderCapabilityRegistry.Resolve(targetAccount)],
-				followUps
+				followUps,
+				effective.ImageAltTexts
 			);
 			if (contentFailure is not null) {
 				await this._FailOrParkAsync(
