@@ -217,19 +217,31 @@ test('the relationship parser keeps only its own anchored keywords', () => {
 	assert.equal(isClosingRelationship('Refs #1'), false);
 });
 
+// #2406: the live GitHub call is network-bound; the default 5 s vitest timeout
+// flaked CI. Give it an explicit budget and retry once on failure only. The
+// recorded boundary (mock gh answering "true" for PRs) is asserted by the
+// non-live tests below.
+const LIVE_TIMEOUT_MS = 30_000;
+const LIVE_CALL_TIMEOUT_MS = 12_000;
+
 test.runIf(process.env.GITHUB_ACTIONS === 'true')(
 	'#2003 live boundary: GitHub exposes known PR #1987 through the issues endpoint',
 	() => {
-		const result = spawnSync(
-			'gh',
-			[
-				'api',
-				'repos/PublyApp/publyapp/issues/1987',
-				'--jq',
-				'.pull_request != null',
-			],
-			{ encoding: 'utf8' },
-		);
+		const callLive = () =>
+			spawnSync(
+				'gh',
+				[
+					'api',
+					'repos/PublyApp/publyapp/issues/1987',
+					'--jq',
+					'.pull_request != null',
+				],
+				{ encoding: 'utf8', timeout: LIVE_CALL_TIMEOUT_MS },
+			);
+		let result = callLive();
+		if (result.status !== 0) {
+			result = callLive();
+		}
 
 		assert.equal(result.status, 0, result.stderr);
 		assert.equal(
@@ -238,6 +250,7 @@ test.runIf(process.env.GITHUB_ACTIONS === 'true')(
 			'the live API must identify the known PR as a pull request',
 		);
 	},
+	LIVE_TIMEOUT_MS,
 );
 
 test.runIf(process.env.GITHUB_ACTIONS === 'true')(
@@ -253,6 +266,7 @@ test.runIf(process.env.GITHUB_ACTIONS === 'true')(
 		assert.equal(code, 1);
 		assert.match(stdout, /pull request/);
 	},
+	LIVE_TIMEOUT_MS,
 );
 
 test('the real waiver PASSES (exit 0) for dependabot[bot] with an empty body', () => {
