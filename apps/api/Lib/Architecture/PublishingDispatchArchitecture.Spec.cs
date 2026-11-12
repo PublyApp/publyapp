@@ -40,21 +40,26 @@ namespace PublyApp.Api.Lib.Architecture;
 /// due-scan lock IS the linearization point of concurrent dispatch; a second
 /// locker would silently fork the exactly-once guarantee proven by
 /// DispatchDuePostsConcurrencySpec. The guard reads the string literals of the
-/// COMPILED API assembly and is closed over an explicit inventory: any type
-/// holding a <c>SKIP LOCKED</c> literal (or fragments that join to it inside
-/// one method) that is neither the job nor a reviewed inventory entry fails,
-/// however its SQL is assembled (concatenation, interpolation, helper method or
-/// class, async method, table name or clause split across methods). An
-/// inventoried holder must not reference publications. Failures name
-/// type.method and file:line from the portable PDB. It does not reuse
-/// ArchitectureDiscovery because that excludes the Migrations namespace, where
-/// SQL lives. Retire when the claim sits behind one repository seam or
+/// COMPILED API assembly (not source text) and is closed over a METHOD-level
+/// inventory: any (type, declared method) whose literals, alone or joined in
+/// order, contain the clause must be the job or a reviewed entry that names its
+/// own table as a literal in the same method (so a table-parameter helper can
+/// never be inventoried) and never names publications. Concatenation,
+/// interpolation, helper methods/classes and async methods are all seen.
+/// Failures name type.method and file:line (portable PDB). Not reusing
+/// ArchitectureDiscovery: it excludes the Migrations namespace, where SQL lives.
+/// Maintenance cost: ~100 lines of IL decoding plus one inventory line per
+/// reviewed lock. Retire when the claim sits behind one repository seam or
 /// Postgres-side enforcement.</item>
 /// </list>
-/// Documented residual gap: a clause hidden behind a runtime-built string
-/// (reflection, a stored function that locks internally, or a clause split
-/// into fragments that never share a method and never spell SKIP LOCKED
-/// contiguously) is invisible to any static scan.
+/// Documented residual gaps (static scan of one assembly): only the API
+/// assembly is scanned (a sibling production project would need its own scan);
+/// runtime-built SQL (reflection, a table or clause fed from config/data),
+/// stored Postgres functions or views that lock internally, a clause split into
+/// fragments that never share a method and never spell SKIP LOCKED, and a
+/// comment between SKIP and LOCKED are invisible; an inventoried method's
+/// table is asserted by literal only. An executed check (command interceptor)
+/// would only cover paths a test runs, so it is not used.
 /// Proven RED by planting a second publications-row SKIP LOCKED claim and by
 /// stripping permission metadata from a publishing endpoint
 /// (.dump/mutation-rogue-schedule-writer.md).
@@ -137,23 +142,22 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	// ── (b) Single SKIP LOCKED claimant on publications ─────────────────────
 
-	// Reviewed closed inventory of every API type that may hold a SKIP LOCKED
-	// clause besides the sanctioned due-scan job. Adding a type here is the
-	// review checkpoint: it must not touch the publications table.
-	private static readonly IReadOnlySet<string> _SkipLockedInventory = new HashSet<string>(
-		[
-			"PublyApp.Api.Modules.Uploads.Jobs.UploadOrphanReclaimerHandler",
-			"PublyApp.Api.Modules.Messaging.Jobs.EmailLogRetentionHandler",
-			"PublyApp.Api.Modules.Messaging.Jobs.EmailPreparedSendsRetentionHandler",
-			"PublyApp.Api.Modules.Jobs.Seeders.SystemJobDefinitionSeeder",
-			"PublyApp.Api.Modules.Jobs.Jobs.DeadLetterRetentionHandler",
-			"PublyApp.Api.Modules.Jobs.Jobs.SystemJobOccurrenceRetentionHandler",
-			"PublyApp.Api.Modules.Auth.Jobs.CleanupExpiredSessionsHandler",
-			"PublyApp.Api.Infrastructure.Jobs.JobQueueProcessor",
-			"PublyApp.Api.Infrastructure.Messaging.Email.InvitationEmailOutboxDispatcher",
-		],
-		StringComparer.Ordinal
-	);
+	// Reviewed closed inventory of every (type, method) in the API assembly that
+	// may hold a SKIP LOCKED clause besides the sanctioned due-scan job. The
+	// value is the table the method must name as a literal; null marks a
+	// prose/data string that is not SQL. Never publications.
+	private static readonly IReadOnlyDictionary<string, string?> _SkipLockedInventory =
+		new Dictionary<string, string?>(StringComparer.Ordinal) {
+			["PublyApp.Api.Modules.Jobs.Seeders.SystemJobDefinitionSeeder._GetDefinitions"] = null,
+			["PublyApp.Api.Modules.Uploads.Jobs.UploadOrphanReclaimerHandler._ReclaimBatchAsync"] = "upload_assets",
+			["PublyApp.Api.Modules.Messaging.Jobs.EmailLogRetentionHandler.HandleAsync"] = "email_log",
+			["PublyApp.Api.Modules.Messaging.Jobs.EmailPreparedSendsRetentionHandler.HandleAsync"] = "email_prepared_sends",
+			["PublyApp.Api.Modules.Jobs.Jobs.DeadLetterRetentionHandler.HandleAsync"] = "job_dead_letter",
+			["PublyApp.Api.Modules.Jobs.Jobs.SystemJobOccurrenceRetentionHandler.HandleAsync"] = "system_job_occurrences",
+			["PublyApp.Api.Modules.Auth.Jobs.CleanupExpiredSessionsHandler.HandleAsync"] = "sessions",
+			["PublyApp.Api.Infrastructure.Messaging.Email.InvitationEmailOutboxDispatcher.ClaimBatchAsync"] = "invitation_email_outbox",
+			["PublyApp.Api.Infrastructure.Jobs.JobQueueProcessor.ClaimBatchAsync"] = "job_queue",
+		};
 
 	private readonly RouteMapFactory _Factory = new();
 
@@ -283,35 +287,36 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	// ── (b) Only the due-scan job SKIP LOCKs publications rows ──────────────
 
 	[Fact]
-	public void ItShouldLetOnlyTheDueScanJobLockPublicationRowsWithSkipLocked() {
+	public void ItShouldRejectUnreviewedSkipLockedHoldersWhenScanningTheApiAssembly() {
 		var scan = PublishingDispatchArchitectureSpec._ScanSkipLocked(
 			typeof(Program).Assembly,
 			PublishingDispatchArchitectureSpec._SkipLockedInventory
 		);
 
-		_ = scan.TotalHits.Should().BeGreaterThanOrEqualTo(
-			PublishingDispatchArchitectureSpec._SkipLockedInventory.Count + 1,
+		_ = scan.TotalHits.Should().BeGreaterThan(
+			PublishingDispatchArchitectureSpec._SkipLockedInventory.Count,
 			"the sanctioned due-scan claim and every inventoried holder must be "
 				+ "visible; a lower count means the compiled-literal scan collapsed "
 				+ "and failed open"
 		);
 
-		_ = scan.SanctionedHits.Should().BeGreaterThanOrEqualTo(
+		_ = scan.SanctionedNamingPublications.Should().BeGreaterThanOrEqualTo(
 			1,
-			"the D3 due scan must still be seen claiming publications rows with "
-				+ "SKIP LOCKED; if the job moved or changed shape, reconcile this "
-				+ "guard instead of trusting an empty result"
+			"the due scan must still be seen locking the PUBLICATIONS table "
+				+ "(FROM/UPDATE/JOIN publications … SKIP LOCKED) in {0}; a job that "
+				+ "locks another table, or moved its SQL, must reconcile this guard",
+			typeof(DispatchDuePostsJob).FullName
 		);
 
-		_ = scan.MissingInventoryTypes.Should().BeEmpty(
-			"every inventoried SKIP LOCKED holder must still be seen; a stale "
-				+ "entry hides a collapsed scan"
+		_ = scan.MissingInventory.Should().BeEmpty(
+			"every inventoried method must still be seen; a stale entry hides a "
+				+ "collapsed scan"
 		);
 
 		scan.Offenders.Should().BeEmpty(
-			"SKIP LOCKED is closed over an explicit inventory: only {0} may lock "
-				+ "publications rows, and any other type holding the clause must be "
-				+ "added to _SkipLockedInventory after review (and must not touch "
+			"SKIP LOCKED is closed over a method-level inventory: only {0} may lock "
+				+ "publications rows; any other method holding the clause must be added "
+				+ "to _SkipLockedInventory after review, naming its own table (never "
 				+ "publications). Found {1} offender(s):\n{2}",
 			typeof(DispatchDuePostsJob).FullName,
 			scan.Offenders.Count,
@@ -322,49 +327,89 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	// Non-vacuity, one assertion per claimed capability. Each fixture is red
 	// (missing from the offenders) if its capability is removed from the scan.
 	[Fact]
-	public void ItShouldSeeEveryPlantedClaimantShapeInCompiledCode() {
+	public void ItShouldReportEveryPlantedClaimantShapeWhenScanningCompiledCode() {
 		var scan = PublishingDispatchArchitectureSpec._ScanSkipLocked(
 			typeof(PublishingDispatchArchitectureSpec).Assembly,
 			PublishingDispatchArchitectureSpec._PlantedInventory
 		);
 		var offenders = scan.Offenders;
+		var all = string.Join("\n", offenders);
 
-		// Concatenation folded by the compiler into one literal.
-		_ = offenders.Should().Contain(o => o.Contains("PlantedClaimants.Concatenated "));
-		// Fragments around a runtime value: only the per-method join sees them.
-		_ = offenders.Should().Contain(o => o.Contains("PlantedClaimants.SplitAroundValue "));
-		// FormattableString interpolation.
-		_ = offenders.Should().Contain(o => o.Contains("PlantedClaimants.Interpolated "));
-		// Lock clause in another method of the same type, table elsewhere.
-		_ = offenders.Should().Contain(o => o.Contains("PlantedCrossMethod._Tail "));
-		// Lock clause in another class than the query.
-		_ = offenders.Should().Contain(o => o.Contains("PlantedLockClause.Tail "));
-		// Async method: named by its declared name with file:line, not MoveNext.
-		_ = offenders.Should().Contain(o =>
-			o.Contains("PlantedAsync.ClaimAsync ")
-				&& o.Contains("PublishingDispatchArchitecture.Spec.cs:")
+		// Rule 1: unknown holders, however the SQL is assembled.
+		foreach (var shape in new[] {
+			"PlantedClaimants.Concatenated ", // compiler-folded concatenation
+			"PlantedClaimants.SplitAroundValue ", // fragments joined per method
+			"PlantedClaimants.Interpolated ", // FormattableString
+			"PlantedClaimants.LowerCase ", // case-insensitive
+			"PlantedClaimants.NewlineBetween ", // whitespace between the words
+			"PlantedCrossMethod._Tail ", // clause in another method
+			"PlantedLockClause.Tail ", // clause in another class
+		}) {
+			_ = offenders.Should().Contain(
+				o => o.Contains(shape),
+				"{0} must be reported; offenders were:\n{1}",
+				shape,
+				all
+			);
+		}
+
+		// Async method: declared name, with file:line when a portable PDB exists.
+		var asyncOffender = offenders.SingleOrDefault(o => o.Contains("PlantedAsync.ClaimAsync "));
+		_ = asyncOffender.Should().NotBeNull(all);
+		if (!asyncOffender.Required().Contains("no portable PDB")) {
+			_ = asyncOffender.Should().Contain("PublishingDispatchArchitecture.Spec.cs:");
+		}
+
+		_ = all.Should().NotContain("MoveNext");
+
+		// Rule 2: a table-parameter helper can never be inventoried; its caller
+		// holds no clause and is not a holder at all.
+		_ = offenders.Should().Contain(
+			o => o.Contains("PlantedGenericHelper.Lock ") && o.Contains("does not name its table"),
+			all
 		);
-		_ = offenders.Should().NotContain(o => o.Contains("MoveNext"));
+		_ = all.Should().NotContain("PlantedHelperCaller");
 
-		// Inventoried types still may not touch publications (any form).
-		_ = offenders.Should().Contain(o => o.Contains("PlantedOnlyForm."));
-		_ = offenders.Should().Contain(o => o.Contains("PlantedSchemaForm."));
-		_ = offenders.Should().NotContain(o => o.Contains("PlantedOtherTable."));
-		// A type reading publications elsewhere but locking another table only
-		// fails when it is NOT inventoried (no per-statement guessing).
-		_ = offenders.Should().Contain(o => o.Contains("PlantedMixedStatements."));
+		// Rule 3: every SQL form naming publications is refused per method.
+		foreach (var form in new[] { "From", "Only", "Schema", "CommaJoin", "Update", "Join", "Into" }) {
+			_ = offenders.Should().Contain(
+				o => o.Contains($"PlantedPublicationsForms.{form} ")
+					&& o.Contains("names the publications table"),
+				"publications form {0} must be refused; offenders were:\n{1}",
+				form,
+				all
+			);
+		}
+
+		// Per-method: reading publications elsewhere does not taint a lock on
+		// another table, and a correct inventoried method passes.
+		_ = all.Should().NotContain("PlantedOtherTable.");
+		_ = all.Should().NotContain("PlantedMixedStatements.");
 	}
 
 	// Decoder guard: switch (variable-size operand), ldc.i8 and adjacent ldstr
 	// must not desynchronise the IL walk before the SKIP LOCKED literal.
 	[Fact]
-	public void ItShouldKeepDecodingLiteralsAfterSwitchAndWideConstants() {
+	public void ItShouldDecodeLiteralsAfterSwitchWithWideConstants() {
 		var scan = PublishingDispatchArchitectureSpec._ScanSkipLocked(
 			typeof(PublishingDispatchArchitectureSpec).Assembly,
 			PublishingDispatchArchitectureSpec._PlantedInventory
 		);
 
 		_ = scan.Offenders.Should().Contain(o => o.Contains("PlantedDecoder.AfterSwitch "));
+	}
+
+	[Fact]
+	public void ItShouldSizeEveryKnownOperandTypeAndRejectUnknownOnes() {
+		var il = new byte[16];
+		foreach (var type in Enum.GetValues<OperandType>()
+			.Where(type => type.ToString() != "InlinePhi")) {
+			var size = PublishingDispatchArchitectureSpec._OperandSize(type, il, 0);
+			_ = size.Should().BeInRange(0, 8, "operand type {0}", type);
+		}
+
+		var act = () => PublishingDispatchArchitectureSpec._OperandSize((OperandType)999, il, 0);
+		_ = act.Should().Throw<NotSupportedException>();
 	}
 
 
@@ -433,6 +478,14 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		public static FormattableString Interpolated(Guid id) {
 			return $"SELECT id FROM publications WHERE id = {id} FOR UPDATE SKIP LOCKED";
 		}
+
+		public static string LowerCase() {
+			return "select id from publications for update skip locked";
+		}
+
+		public static string NewlineBetween() {
+			return "SELECT id FROM publications FOR UPDATE SKIP\n  LOCKED";
+		}
 	}
 
 	private static class PlantedCrossMethod {
@@ -451,9 +504,17 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		}
 	}
 
-	private static class PlantedLockClauseUser {
-		public static string Query(string table) {
-			return "SELECT id FROM " + table + PlantedLockClause.Tail();
+	// A generic helper: the table arrives from the caller, so the helper can
+	// never name its own table and can never be inventoried.
+	private static class PlantedGenericHelper {
+		public static string Lock(string table) {
+			return "SELECT id FROM " + table + " WHERE x = 1 FOR UPDATE SKIP LOCKED";
+		}
+	}
+
+	private static class PlantedHelperCaller {
+		public static string Claim() {
+			return PlantedGenericHelper.Lock("publications");
 		}
 	}
 
@@ -465,15 +526,37 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		}
 	}
 
-	private static class PlantedOnlyForm {
-		public static string Sql() {
-			return "SELECT id FROM ONLY publications FOR UPDATE SKIP LOCKED";
+	// Inventoried (job_queue) yet each also names publications in a different
+	// SQL form; every form must be refused.
+	private static class PlantedPublicationsForms {
+		public static string From() {
+			return "SELECT id FROM publications p, job_queue FOR UPDATE SKIP LOCKED";
 		}
-	}
 
-	private static class PlantedSchemaForm {
-		public static FormattableString Sql(string schema) {
-			return $"SELECT id FROM {schema}.publications FOR UPDATE SKIP LOCKED";
+		public static string Only() {
+			return "SELECT id FROM job_queue, ONLY publications FOR UPDATE SKIP LOCKED";
+		}
+
+		public static FormattableString Schema(string schema) {
+			return $"SELECT id FROM {schema}.publications, job_queue FOR UPDATE SKIP LOCKED";
+		}
+
+		public static string CommaJoin() {
+			return "SELECT j.id FROM job_queue j, publications p FOR UPDATE OF j SKIP LOCKED";
+		}
+
+		public static string Update() {
+			return "UPDATE publications SET x = 1 WHERE id IN "
+				+ "(SELECT id FROM job_queue FOR UPDATE SKIP LOCKED)";
+		}
+
+		public static string Join() {
+			return "SELECT j.id FROM job_queue j JOIN publications p ON p.id = j.id "
+				+ "FOR UPDATE OF j SKIP LOCKED";
+		}
+
+		public static string Into() {
+			return "INSERT INTO publications SELECT * FROM job_queue FOR UPDATE SKIP LOCKED";
 		}
 	}
 
@@ -483,6 +566,8 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		}
 	}
 
+	// Publications is read in one method and another queue is locked in a
+	// different one: per-method rules must leave both alone.
 	private static class PlantedMixedStatements {
 		public static string Read(Guid id) {
 			return $"SELECT id FROM publications WHERE id = {id}";
@@ -505,22 +590,31 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		}
 	}
 
-	// Types that are allowed to hold SKIP LOCKED in this fixture scan, so the
-	// remaining rule (an inventoried type must not touch publications) is
-	// exercised in isolation. Everything else planted must surface as unknown.
-	private static readonly IReadOnlySet<string> _PlantedInventory = new HashSet<string>(
-		[
-			typeof(PlantedOnlyForm).FullName.Required(),
-			typeof(PlantedSchemaForm).FullName.Required(),
-			typeof(PlantedOtherTable).FullName.Required(),
-		],
-		StringComparer.Ordinal
-	);
+	private static string _Key(Type type, string method) {
+		return $"{type.FullName}.{method}";
+	}
+
+	// Reviewed holders for the fixture scan, so rules 2 and 3 are exercised
+	// in isolation. The value is the table the method must name.
+	private static readonly IReadOnlyDictionary<string, string?> _PlantedInventory =
+		new Dictionary<string, string?>(StringComparer.Ordinal) {
+			[PublishingDispatchArchitectureSpec._Key(typeof(PlantedOtherTable), nameof(PlantedOtherTable.Sql))] = "job_queue",
+			[PublishingDispatchArchitectureSpec._Key(typeof(PlantedMixedStatements), nameof(PlantedMixedStatements.Claim))] = "job_queue",
+			[PublishingDispatchArchitectureSpec._Key(typeof(PlantedGenericHelper), nameof(PlantedGenericHelper.Lock))] = "job_queue",
+			[PublishingDispatchArchitectureSpec._Key(typeof(PlantedPublicationsForms), nameof(PlantedPublicationsForms.From))] = "job_queue",
+			[PublishingDispatchArchitectureSpec._Key(typeof(PlantedPublicationsForms), nameof(PlantedPublicationsForms.Only))] = "job_queue",
+			[PublishingDispatchArchitectureSpec._Key(typeof(PlantedPublicationsForms), nameof(PlantedPublicationsForms.Schema))] = "job_queue",
+			[PublishingDispatchArchitectureSpec._Key(typeof(PlantedPublicationsForms), nameof(PlantedPublicationsForms.CommaJoin))] = "job_queue",
+			[PublishingDispatchArchitectureSpec._Key(typeof(PlantedPublicationsForms), nameof(PlantedPublicationsForms.Update))] = "job_queue",
+			[PublishingDispatchArchitectureSpec._Key(typeof(PlantedPublicationsForms), nameof(PlantedPublicationsForms.Join))] = "job_queue",
+			[PublishingDispatchArchitectureSpec._Key(typeof(PlantedPublicationsForms), nameof(PlantedPublicationsForms.Into))] = "job_queue",
+		};
 
 	private sealed record SkipLockedScan(
 		int TotalHits,
 		int SanctionedHits,
-		List<string> MissingInventoryTypes,
+		int SanctionedNamingPublications,
+		List<string> MissingInventory,
 		List<string> Offenders
 	);
 
@@ -539,20 +633,20 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		.ToDictionary(opCode => opCode.Value);
 
 	/// <summary>
-	/// Closed-inventory scan over the COMPILED API assembly (IL string
-	/// literals, not source text). Rules: (1) any type holding a SKIP LOCKED
-	/// literal, or fragments that join to it within one method, must be the
-	/// sanctioned due-scan job or be in the reviewed inventory — an unknown
-	/// holder fails loudly however its SQL is assembled (concatenation,
-	/// interpolation, helper method or class, async method); (2) an
-	/// inventoried holder must not reference the publications table anywhere
-	/// in the type. Because the clause itself is the trigger, splitting the
-	/// table name from the clause across methods no longer hides a claimant.
-	/// Offenders name type.method and file:line from the portable PDB.
+	/// Method-level closed-inventory scan over the COMPILED API assembly (IL
+	/// string literals, not source text). The unit is (declaring type,
+	/// declared method) of a method whose literals, alone or joined in order,
+	/// contain the lock clause. Rules: (1) a holder that is neither the
+	/// sanctioned due-scan job nor in the reviewed inventory fails, however
+	/// its SQL is assembled; (2) an inventoried holder must name its table as
+	/// a literal in the same method, so a helper whose table comes from a
+	/// caller can never be inventoried (null table = a prose/data string that
+	/// is not SQL); (3) only the due-scan job may name publications — per
+	/// method, not per type. Offenders name type.method and file:line.
 	/// </summary>
 	private static SkipLockedScan _ScanSkipLocked(
 		Assembly assembly,
-		IReadOnlySet<string> inventory
+		IReadOnlyDictionary<string, string?> inventory
 	) {
 		var sites = PublishingDispatchArchitectureSpec._ReadLiteralSites(assembly, out var pdb);
 		using var pdbOwner = pdb;
@@ -560,52 +654,78 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		var offenders = new List<string>();
 		var total = 0;
 		var sanctioned = 0;
+		var sanctionedNaming = 0;
 		var seen = new HashSet<string>(StringComparer.Ordinal);
 		var sanctionedType = typeof(DispatchDuePostsJob).FullName.Required();
 
-		foreach (var typeGroup in sites.GroupBy(site => site.Type, StringComparer.Ordinal)) {
-			var typeSites = typeGroup.ToList();
-			var hits = new List<LiteralSite>();
-			foreach (var site in typeSites) {
-				if (PublishingDispatchArchitectureSpec._SkipLockedRegex().IsMatch(site.Text)) {
-					hits.Add(site);
-				}
+		foreach (var methodGroup in sites.GroupBy(site => (site.Type, site.Method))) {
+			var methodSites = methodGroup.ToList();
+			var joined = string.Concat(methodSites.Select(site => site.Text));
+			var hit = methodSites.FirstOrDefault(site =>
+				PublishingDispatchArchitectureSpec._SkipLockedRegex().IsMatch(site.Text)
+			);
+			if (hit is null && PublishingDispatchArchitectureSpec._SkipLockedRegex().IsMatch(joined)) {
+				hit = methodSites[0];
 			}
 
-			foreach (var methodGroup in typeSites.GroupBy(site => site.Handle)) {
-				var joined = string.Concat(methodGroup.Select(site => site.Text));
-				if (hits.All(hit => hit.Handle != methodGroup.Key)
-					&& PublishingDispatchArchitectureSpec._SkipLockedRegex().IsMatch(joined)) {
-					hits.Add(methodGroup.First());
-				}
-			}
-
-			if (hits.Count == 0) {
+			if (hit is null) {
 				continue;
 			}
 
-			total += hits.Count;
-			_ = seen.Add(typeGroup.Key);
+			total++;
+			var key = $"{methodGroup.Key.Type}.{methodGroup.Key.Method}";
+			_ = seen.Add(key);
+			var namesPublications = PublishingDispatchArchitectureSpec._PublicationsRef().IsMatch(joined);
 
-			if (string.Equals(typeGroup.Key, sanctionedType, StringComparison.Ordinal)) {
-				sanctioned += hits.Count;
+			if (string.Equals(methodGroup.Key.Type, sanctionedType, StringComparison.Ordinal)
+				|| methodGroup.Key.Type.StartsWith(sanctionedType + "+", StringComparison.Ordinal)) {
+				sanctioned++;
+				if (namesPublications) {
+					sanctionedNaming++;
+				}
+
 				continue;
 			}
 
-			if (!inventory.Contains(typeGroup.Key)) {
-				offenders.AddRange(hits.Select(hit => PublishingDispatchArchitectureSpec._Describe(
-					hit, pdbReader, "holds SKIP LOCKED but is not in the reviewed inventory"
-				)));
-			} else if (PublishingDispatchArchitectureSpec._PublicationsRef().IsMatch(
-				string.Concat(typeSites.Select(site => site.Text)))) {
-				offenders.AddRange(hits.Select(hit => PublishingDispatchArchitectureSpec._Describe(
-					hit, pdbReader, "inventoried SKIP LOCKED holder references the publications table"
-				)));
+			var why = PublishingDispatchArchitectureSpec._Judge(
+				inventory, key, joined, namesPublications
+			);
+			if (why is not null) {
+				offenders.Add(PublishingDispatchArchitectureSpec._Describe(hit, pdbReader, why));
 			}
 		}
 
-		var missing = inventory.Where(type => !seen.Contains(type)).ToList();
-		return new SkipLockedScan(total, sanctioned, missing, offenders);
+		var missing = inventory.Keys.Where(key => !seen.Contains(key)).ToList();
+		return new SkipLockedScan(total, sanctioned, sanctionedNaming, missing, offenders);
+	}
+
+	private static string? _Judge(
+		IReadOnlyDictionary<string, string?> inventory,
+		string key,
+		string joined,
+		bool namesPublications
+	) {
+		if (!inventory.TryGetValue(key, out var table)) {
+			return "holds SKIP LOCKED but is not in the reviewed inventory";
+		}
+
+		if (namesPublications) {
+			return "inventoried SKIP LOCKED holder names the publications table";
+		}
+
+		if (table is not null && !PublishingDispatchArchitectureSpec._NamesTable(joined, table)) {
+			return $"inventoried SKIP LOCKED holder does not name its table '{table}' "
+				+ "as a literal in the same method (table-parameter helpers cannot be inventoried)";
+		}
+
+		return null;
+	}
+
+	private static bool _NamesTable(string sql, string table) {
+		return new Regex(
+			$@"\b(from|update|join|into|only)\s+\S*\b{Regex.Escape(table)}\b",
+			RegexOptions.IgnoreCase
+		).IsMatch(sql);
 	}
 
 	private static string _Describe(LiteralSite site, MetadataReader? pdb, string why) {
@@ -613,6 +733,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		return $"{site.Type}.{site.Method} {location}: {why}: "
 			+ PublishingDispatchArchitectureSpec._Flatten(site.Text);
 	}
+
 
 	// Reads every string literal of every method body with its IL offset.
 	// Compiler-generated nested types (async state machines, closures) are
@@ -756,11 +877,22 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			return 8;
 		}
 
-		// switch: a uint count then that many 4-byte targets; every other
-		// operand kind (tokens, branch targets, int32, float32) is 4 bytes.
-		return type == OperandType.InlineSwitch
-			? 4 + (4 * BitConverter.ToInt32(il, position))
-			: 4;
+		if (type == OperandType.InlineSwitch) {
+			// a count then that many 4-byte branch targets
+			return 4 + (4 * BitConverter.ToInt32(il, position));
+		}
+
+		if (type is OperandType.InlineBrTarget or OperandType.InlineField
+			or OperandType.InlineI or OperandType.InlineMethod
+			or OperandType.InlineSig or OperandType.InlineString
+			or OperandType.InlineTok or OperandType.InlineType
+			or OperandType.ShortInlineR) {
+			return 4;
+		}
+
+		throw new NotSupportedException(
+			$"Unsupported IL operand type {type}; extend the decoder instead of guessing"
+		);
 	}
 
 	private static List<(int Offset, string Text)> _StringLiterals(MetadataReader reader, byte[] il) {
@@ -798,9 +930,12 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	[GeneratedRegex(@"\bSKIP\s+LOCKED\b", RegexOptions.IgnoreCase)]
 	private static partial Regex _SkipLockedRegex();
 
-	// FROM/UPDATE/JOIN/INTO/ONLY, then an optional (possibly interpolated)
-	// schema, then publications.
-	[GeneratedRegex(@"\b(from|update|join|into|only)\s+\S*publications\b", RegexOptions.IgnoreCase)]
+	// FROM/UPDATE/JOIN/INTO/ONLY, then any comma-joined tables, then an optional
+	// (possibly interpolated) schema, then publications.
+	[GeneratedRegex(
+		@"\b(from|update|join|into|only)\s+(?:[^\s,;]+(?:\s+(?:as\s+)?\w+)?\s*,\s*)*\S*publications\b",
+		RegexOptions.IgnoreCase
+	)]
 	private static partial Regex _PublicationsRef();
 
 	[GeneratedRegex(@"\s+")]
