@@ -151,6 +151,7 @@
 	"schedule-label": "Planifier pour",
 	"schedule-submit": "Planifier",
 	"schedule-past": "Choisissez une date et une heure dans le futur.",
+	"schedule-time-invalid": "Saisissez une heure valide.",
 	"schedule-time-label": "Heure",
 	"scheduled-destinations-heading": "Destinations planifiées",
 	"scheduled-destinations-description": "Personnalisez ce que publie une destination, tant qu’elle n’est pas publiée.",

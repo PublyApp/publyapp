@@ -205,14 +205,14 @@ const blockCounter = () =>
 const publishNowButton = () =>
 	screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement;
 
-/** The date field commits on blur; the time field is a plain input. */
+/** Both localized fields commit on blur. */
 const setSchedule = (isoDate: string, time: string) => {
 	const date = screen.getByTestId('tenant-posts-schedule-date');
 	fireEvent.change(date, { target: { value: isoDate } });
 	fireEvent.blur(date);
-	fireEvent.change(screen.getByTestId('tenant-posts-schedule-time'), {
-		target: { value: time },
-	});
+	const timeField = screen.getByTestId('tenant-posts-schedule-time');
+	fireEvent.change(timeField, { target: { value: time } });
+	fireEvent.blur(timeField);
 };
 
 const openTab = async (

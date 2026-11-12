@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { IconAlertCircle } from '@tabler/icons-react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LocalizedDateInput } from '~/components/localized-date-input';
+import { LocalizedTimeInput } from '~/components/localized-time-input';
 import { Button } from '~/components/ui/button';
-import { Input } from '~/components/ui/input';
-import { Label } from '~/components/ui/label';
 
 /** "Schedule for": one date and time in the viewer's zone, applied to every
  * selected destination (the "same time for all" default). The date follows the
@@ -17,11 +17,16 @@ export const PublishScheduleRow = ({
 }) => {
 	const { t, i18n } = useTranslation(['posts', 'common']);
 	const [date, setDate] = useState<string | undefined>(undefined);
-	const [time, setTime] = useState('');
-	// The field refused what was typed: `date` is then the previous, stale value.
+	const [time, setTime] = useState<string | undefined>(undefined);
+	// A field refused what was typed: its value is then the previous, stale one.
 	const [isDateInvalid, setIsDateInvalid] = useState(false);
+	const [isTimeInvalid, setIsTimeInvalid] = useState(false);
+	const labelId = useId();
+	const dateErrorId = useId();
+	const timeErrorId = useId();
+	const locale = i18n.resolvedLanguage ?? i18n.language;
 	const value =
-		!isDateInvalid && date !== undefined && time !== ''
+		!isDateInvalid && !isTimeInvalid && date !== undefined && time !== undefined
 			? `${date}T${time}`
 			: '';
 	const [isPast, setIsPast] = useState(false);
@@ -37,16 +42,23 @@ export const PublishScheduleRow = ({
 	};
 
 	return (
-		<div className="space-y-1" data-testid="tenant-posts-schedule-row">
-			<Label htmlFor="post-schedule-time">{t('posts:schedule-label')}</Label>
-			<div className="flex flex-wrap items-center gap-2">
+		<div className="space-y-2" data-testid="tenant-posts-schedule-row">
+			<span id={labelId} className="block text-[13px] leading-none font-medium">
+				{t('posts:schedule-label')}
+			</span>
+			<div
+				role="group"
+				aria-labelledby={labelId}
+				className="grid grid-cols-2 gap-2"
+			>
 				<LocalizedDateInput
-					locale={i18n.resolvedLanguage ?? i18n.language}
+					locale={locale}
 					ariaLabel={t('common:date')}
 					errorMessage={t('common:invalid-date')}
+					errorId={dateErrorId}
+					hideError
 					testId="tenant-posts-schedule-date"
 					value={date}
-					className="md:w-36"
 					onChange={(next) => {
 						setDate(next);
 						setIsDateInvalid(false);
@@ -54,28 +66,44 @@ export const PublishScheduleRow = ({
 					}}
 					onInvalid={() => setIsDateInvalid(true)}
 				/>
-				<Input
-					id="post-schedule-time"
-					type="time"
-					aria-label={t('posts:schedule-time-label')}
+				<LocalizedTimeInput
+					locale={locale}
+					ariaLabel={t('posts:schedule-time-label')}
+					errorMessage={t('posts:schedule-time-invalid')}
+					errorId={timeErrorId}
+					hideError
+					testId="tenant-posts-schedule-time"
 					value={time}
-					className="md:w-32"
-					data-testid="tenant-posts-schedule-time"
-					onChange={(event) => {
-						setTime(event.target.value);
+					onChange={(next) => {
+						setTime(next);
+						setIsTimeInvalid(false);
 						setIsPast(false);
 					}}
+					onInvalid={() => setIsTimeInvalid(true)}
 				/>
-				<Button
-					type="button"
-					variant="outline"
-					disabled={disabled || value === ''}
-					data-testid="tenant-posts-schedule-submit"
-					onClick={submit}
-				>
-					{t('posts:schedule-submit')}
-				</Button>
 			</div>
+			{isDateInvalid || isTimeInvalid ? (
+				<p
+					id={isDateInvalid ? dateErrorId : timeErrorId}
+					className="publy-field-error"
+					role="alert"
+				>
+					<IconAlertCircle aria-hidden="true" />
+					{isDateInvalid
+						? t('common:invalid-date')
+						: t('posts:schedule-time-invalid')}
+				</p>
+			) : null}
+			<Button
+				type="button"
+				variant="outline"
+				className="w-full"
+				disabled={disabled || value === ''}
+				data-testid="tenant-posts-schedule-submit"
+				onClick={submit}
+			>
+				{t('posts:schedule-submit')}
+			</Button>
 			{isPast ? (
 				<p
 					className="text-xs text-[var(--publy-danger)]"
