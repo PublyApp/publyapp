@@ -235,6 +235,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey MastodonOauthStateInvalid = new("mastodon-oauth-state-invalid");
 
 	/// <summary>
+	/// You signed in with a different account than the one being reconnected. Nothing was changed.
+	/// </summary>
+	public static readonly TranslationKey MastodonReconnectAccountMismatch = new("mastodon-reconnect-account-mismatch");
+
+	/// <summary>
+	/// Too many new servers were connected recently. Try again later, or connect one you already used.
+	/// </summary>
+	public static readonly TranslationKey MastodonRegistrationQuotaExceeded = new("mastodon-registration-quota-exceeded");
+
+	/// <summary>
 	/// Max roles per user exceeded
 	/// </summary>
 	public static readonly TranslationKey MaxRolesPerUserExceeded = new("max-roles-per-user-exceeded");
@@ -563,6 +573,16 @@ public static partial class ResponseKeys {
 	/// Bluesky account reconnected
 	/// </summary>
 	public static readonly TranslationKey SocialAccountReconnected = new("social-account-reconnected");
+
+	/// <summary>
+	/// Only Mastodon and Pixelfed accounts have a post visibility
+	/// </summary>
+	public static readonly TranslationKey SocialAccountVisibilityUnsupported = new("social-account-visibility-unsupported");
+
+	/// <summary>
+	/// Default visibility updated
+	/// </summary>
+	public static readonly TranslationKey SocialAccountVisibilityUpdated = new("social-account-visibility-updated");
 
 	/// <summary>
 	/// Staff role created successfully
