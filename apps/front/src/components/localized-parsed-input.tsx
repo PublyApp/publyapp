@@ -121,7 +121,7 @@ export const LocalizedParsedInput = ({
 					}
 				}}
 				onKeyDown={(event) => {
-					if (event.key === 'Enter') {
+					if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
 						event.preventDefault();
 						commit(event.currentTarget.value);
 					}
