@@ -205,6 +205,16 @@ const blockCounter = () =>
 const publishNowButton = () =>
 	screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement;
 
+/** The date field commits on blur; the time field is a plain input. */
+const setSchedule = (isoDate: string, time: string) => {
+	const date = screen.getByTestId('tenant-posts-schedule-date');
+	fireEvent.change(date, { target: { value: isoDate } });
+	fireEvent.blur(date);
+	fireEvent.change(screen.getByTestId('tenant-posts-schedule-time'), {
+		target: { value: time },
+	});
+};
+
 const openTab = async (
 	user: ReturnType<typeof userEvent.setup>,
 	label: string,
@@ -680,9 +690,7 @@ describe('submitting', () => {
 		await customizeText(user);
 		await replaceText(user, 'short for B');
 
-		fireEvent.change(screen.getByTestId('tenant-posts-schedule-at'), {
-			target: { value: '2099-01-02T10:30' },
-		});
+		setSchedule('2099-01-02', '10:30');
 		await user.click(screen.getByTestId('tenant-posts-schedule-submit'));
 
 		await waitFor(() => {
@@ -716,9 +724,7 @@ describe('submitting', () => {
 		const user = userEvent.setup();
 		renderComposer({ initialBody: 'plain' });
 
-		fireEvent.change(screen.getByTestId('tenant-posts-schedule-at'), {
-			target: { value: '2000-01-02T10:30' },
-		});
+		setSchedule('2000-01-02', '10:30');
 		await user.click(screen.getByTestId('tenant-posts-schedule-submit'));
 
 		expect(screen.getByTestId('tenant-posts-schedule-past')).toBeTruthy();
@@ -752,9 +758,7 @@ describe('submitting', () => {
 			screen.getByTestId('tenant-posts-publish-too-many').textContent,
 		).toContain('20');
 		expect(publishNowButton().disabled).toBe(true);
-		fireEvent.change(screen.getByTestId('tenant-posts-schedule-at'), {
-			target: { value: '2099-01-02T10:30' },
-		});
+		setSchedule('2099-01-02', '10:30');
 		expect(
 			(screen.getByTestId('tenant-posts-schedule-submit') as HTMLButtonElement)
 				.disabled,

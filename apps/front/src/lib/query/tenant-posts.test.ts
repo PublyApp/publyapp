@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	patch: vi.fn(),
+	get: vi.fn(),
 	delete: vi.fn(),
 	invalidateTenantPublications: vi.fn(),
 }));
@@ -18,6 +19,7 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 			posts: {
 				byPostId: () => ({
 					patch: mocks.patch,
+					get: mocks.get,
 					delete: mocks.delete,
 				}),
 				post: mocks.patch,
@@ -43,6 +45,8 @@ import {
 	savePost,
 	useSavePostMutation,
 	useDeleteTenantPostMutation,
+	tenantPostCrumbQuery,
+	selectTenantPostCrumbName,
 } from './tenant-posts';
 import { TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY } from './tenant-scheduled-publications';
 
@@ -412,5 +416,32 @@ describe('useSavePostMutation invalidation coherence', () => {
 			});
 			expect(scheduledCall).toBeDefined();
 		});
+	});
+});
+
+describe('post breadcrumb (#2410)', () => {
+	afterEach(() => {
+		window.localStorage.clear();
+	});
+
+	test('fetches the post with the persisted workspace tenant instead of an empty one', async () => {
+		window.localStorage.setItem('publyapp:selected-tenant-id', 'tenant-1');
+		mocks.get.mockResolvedValue({ id: 'post-1', body: 'Launch day' });
+
+		const { queryKey, queryFn } = tenantPostCrumbQuery({ postId: 'post-1' });
+		const data = await queryFn();
+
+		expect(mocks.get).toHaveBeenCalledTimes(1);
+		expect(JSON.stringify(queryKey)).toContain('tenant-1');
+		expect(selectTenantPostCrumbName(data)).toBe('Launch day');
+	});
+
+	test('names the post by the first line of its body, shortened', () => {
+		expect(
+			selectTenantPostCrumbName({ id: 'p', body: `${'a'.repeat(200)}\nnext` }),
+		).toBe(`${'a'.repeat(59)}…`);
+		expect(selectTenantPostCrumbName({ id: 'p', body: 'one\ntwo' })).toBe(
+			'one',
+		);
 	});
 });

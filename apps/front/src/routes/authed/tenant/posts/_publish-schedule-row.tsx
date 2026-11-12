@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LocalizedDateInput } from '~/components/localized-date-input';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 
 /** "Schedule for": one date and time in the viewer's zone, applied to every
- * selected destination (the "same time for all" default). */
+ * selected destination (the "same time for all" default). The date follows the
+ * UI language (a native date input follows the browser's instead, #2410). */
 export const PublishScheduleRow = ({
 	disabled,
 	onSchedule,
@@ -13,8 +15,10 @@ export const PublishScheduleRow = ({
 	disabled: boolean;
 	onSchedule: (at: Date) => void;
 }) => {
-	const { t } = useTranslation(['posts']);
-	const [value, setValue] = useState('');
+	const { t, i18n } = useTranslation(['posts']);
+	const [date, setDate] = useState<string | undefined>(undefined);
+	const [time, setTime] = useState('');
+	const value = date !== undefined && time !== '' ? `${date}T${time}` : '';
 	const [isPast, setIsPast] = useState(false);
 
 	const submit = () => {
@@ -29,16 +33,29 @@ export const PublishScheduleRow = ({
 
 	return (
 		<div className="space-y-1" data-testid="tenant-posts-schedule-row">
-			<Label htmlFor="post-schedule-at">{t('posts:schedule-label')}</Label>
+			<Label htmlFor="post-schedule-time">{t('posts:schedule-label')}</Label>
 			<div className="flex flex-wrap items-center gap-2">
+				<LocalizedDateInput
+					locale={i18n.resolvedLanguage ?? i18n.language}
+					ariaLabel={t('posts:schedule-date-label')}
+					errorMessage={t('posts:schedule-date-invalid')}
+					testId="tenant-posts-schedule-date"
+					value={date}
+					className="md:w-36"
+					onChange={(next) => {
+						setDate(next);
+						setIsPast(false);
+					}}
+				/>
 				<Input
-					id="post-schedule-at"
-					type="datetime-local"
-					value={value}
-					className="md:w-56"
-					data-testid="tenant-posts-schedule-at"
+					id="post-schedule-time"
+					type="time"
+					aria-label={t('posts:schedule-time-label')}
+					value={time}
+					className="md:w-32"
+					data-testid="tenant-posts-schedule-time"
 					onChange={(event) => {
-						setValue(event.target.value);
+						setTime(event.target.value);
 						setIsPast(false);
 					}}
 				/>

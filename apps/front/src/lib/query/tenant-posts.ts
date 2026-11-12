@@ -13,6 +13,11 @@ import {
 import type { TenantPostImage } from '~/lib/query/tenant-post-images';
 import { invalidateTenantPublications } from '~/lib/query/tenant-publications';
 import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
+import {
+	resolveWorkspaceTenant,
+	tenantsForPickerQueryOptions,
+} from '~/lib/query/tenants-for-picker';
+import { readSelectedTenantId } from '~/lib/session/selected-tenant-storage';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
@@ -437,22 +442,50 @@ export const useDeleteTenantPostMutation = () => {
 
 // ── Breadcrumb helpers ─────────────────────────────────────────────
 
-export const tenantPostCrumbQuery = (params: Record<string, string>) => ({
-	queryKey: [
-		...scopedKey('tenant', TENANT_POST_DETAILS_QUERY_KEY),
-		{ postId: params.postId },
-	],
-	queryFn: () =>
-		tenantPostDetailsQueryOptions.fetcher({
-			postId: params.postId,
-			tenantId: params.tenantId ?? '',
-		}),
-});
+/** A breadcrumb has only the URL params, never the workspace tenant: it was
+ * fetching with an empty tenant id, which always failed and left the crumb on
+ * its error dash (#2410). The tenant is the persisted workspace selection (the
+ * key then matches the page's own, so a loaded post paints at once); with none
+ * stored, the picker resolves it the way the page does. */
+export const tenantPostCrumbQuery = (params: Record<string, string>) => {
+	const selectedTenantId = readSelectedTenantId();
+	const postId = params.postId ?? '';
 
+	return {
+		queryKey:
+			selectedTenantId === null
+				? [...scopedKey('tenant', TENANT_POST_DETAILS_QUERY_KEY), { postId }]
+				: tenantPostDetailsQueryOptions.queryKey({
+						postId,
+						tenantId: selectedTenantId,
+					}),
+		queryFn: async () => {
+			const tenantId =
+				selectedTenantId ??
+				resolveWorkspaceTenant(
+					await tenantsForPickerQueryOptions.fetcher({}),
+					null,
+				)?.id;
+			if (!tenantId) {
+				throw new Error('no workspace tenant for the post breadcrumb');
+			}
+
+			return tenantPostDetailsQueryOptions.fetcher({ postId, tenantId });
+		},
+	};
+};
+
+const CRUMB_NAME_MAX = 60;
+
+/** The first line of the body, shortened: a body can run to 20 000 characters. */
 export const selectTenantPostCrumbName = (data: unknown) => {
 	const d = toTenantPostDetails(data as PostDetail | null);
-	if (d) {
-		return d.body;
+	const firstLine = d?.body.trim().split('\n')[0]?.trim();
+	if (!firstLine) {
+		return undefined;
 	}
-	return undefined;
+	if (firstLine.length <= CRUMB_NAME_MAX) {
+		return firstLine;
+	}
+	return `${firstLine.slice(0, CRUMB_NAME_MAX - 1)}…`;
 };

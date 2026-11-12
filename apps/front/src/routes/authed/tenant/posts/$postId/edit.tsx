@@ -1,6 +1,6 @@
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useCanGoBack } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import type { UseFormReturn } from 'react-hook-form';
@@ -181,6 +181,9 @@ const TenantPostEditPage = () => {
 	const translateResponseMessage = useResponseMessageTranslator();
 	const { postId } = Route.useParams();
 	const navigate = Route.useNavigate();
+	// Only an in-app previous page is a safe `back`: a page opened directly
+	// (bookmark, new tab, e-mail link) would otherwise leave the app (#2410).
+	const canGoBack = useCanGoBack();
 	const qc = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
 	const queries = postEditQueries({ tenantId: tenantId ?? '', postId });
@@ -245,7 +248,7 @@ const TenantPostEditPage = () => {
 			// and is invalidated separately below.
 			await invalidateTenantScheduledPublications(qc, tenantId ?? '');
 			await invalidateTenantPublications(qc, tenantId ?? '');
-			if (window.history.length > 1) {
+			if (canGoBack) {
 				window.history.back();
 			} else {
 				void navigate({ to: '/tenant/posts/drafts', replace: true });
