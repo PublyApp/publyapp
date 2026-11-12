@@ -170,6 +170,115 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 		seenIds.Should().BeEquivalentTo(seeded);
 	}
 
+	[Fact]
+	public async Task ItShouldNotShowSegmentsAddedAfterPublishingAsPendingOnAPublishedThread() {
+		// One post per row: follow-ups are per post.
+		var ids = new List<Guid> {
+			(await this._SeedScheduledRowsAsync(1))[0],
+			(await this._SeedScheduledRowsAsync(1))[0],
+		};
+		var tenantId = await this._PublishWithSegmentsAsync(ids[0], publishedSegments: 3);
+		await this._PublishWithSegmentsAsync(ids[1], publishedSegments: 0);
+		// The thread had two follow-ups when it went out; two more arrive afterwards.
+		await this._AddFollowUpsAfterwardsAsync(ids[0], tenantId, count: 2, startAt: 1);
+		await this._AddFollowUpsAfterwardsAsync(ids[0], tenantId, count: 2, startAt: 3);
+		await this._AddFollowUpsAfterwardsAsync(ids[1], tenantId, count: 2, startAt: 1);
+
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get, FindPublicationsForTenantSpec._PublicationsUrl + "?status=published&limit=100"
+		).WithSessionToken(acmeToken).WithTenantId(acmeId);
+		using var response = await this._Http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var payload = await response.Content.ReadFromJsonAsync<FindPublicationsForTenantResponse>();
+		Assert.NotNull(payload);
+		var thread = payload.Data.Single(item => item.Id == ids[0]);
+		thread.SegmentsPublished.Should().Be(3);
+		thread.SegmentsTotal.Should().Be(3, "segments added after publishing belong to no publication yet");
+		var single = payload.Data.Single(item => item.Id == ids[1]);
+		single.SegmentsTotal.Should().Be(1, "a published single post stays a single post in history");
+	}
+
+	[Fact]
+	public async Task ItShouldKeepCountingEverySegmentForAPublicationThatHasNotPublishedYet() {
+		var ids = await this._SeedScheduledRowsAsync(1);
+		var tenantId = await this._PublishWithSegmentsAsync(ids[0], publishedSegments: -1);
+		await this._AddFollowUpsAfterwardsAsync(ids[0], tenantId, count: 2, startAt: 1);
+
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get, FindPublicationsForTenantSpec._PublicationsUrl + "?status=scheduled&limit=100"
+		).WithSessionToken(acmeToken).WithTenantId(acmeId);
+		using var response = await this._Http.SendAsync(request);
+
+		var payload = await response.Content.ReadFromJsonAsync<FindPublicationsForTenantResponse>();
+		Assert.NotNull(payload);
+		payload.Data.Single(item => item.Id == ids[0]).SegmentsTotal.Should().Be(3);
+
+		// Leave no Scheduled row behind: other specs page through the scheduled ones.
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var transitions = new PublicationStatusTransitionService(
+			scope.ServiceProvider.GetRequiredService<AppDbContext>()
+		);
+		await transitions.MarkInProgressAsync(
+			new MarkPublicationInProgressArgs(ids[0], tenantId), CancellationToken.None
+		);
+		await transitions.MarkFailedAsync(
+			new MarkPublicationFailedArgs(ids[0], tenantId, "spec cleanup"), CancellationToken.None
+		);
+	}
+
+	// Publishes the row through the transition service (never assigning Status) with
+	// `publishedSegments` stored results; a negative count leaves it Scheduled.
+	private async Task<Guid> _PublishWithSegmentsAsync(Guid publicationId, int publishedSegments) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var publication = await db.Publication.AsNoTracking().SingleAsync(row => row.Id == publicationId);
+		for (var position = 0; position < publishedSegments; position++) {
+			db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+				TenantId = publication.TenantId,
+				PublicationId = publicationId,
+				SegmentPosition = position,
+				ExternalRecordId = $"at://did.example/app.bsky.feed.post/s{position}",
+				ExternalCid = $"cid-{position}",
+				ExternalUrl = $"https://bsky.app/s{position}",
+			});
+		}
+
+		await db.SaveChangesAsync();
+		if (publishedSegments >= 0) {
+			var transitions = new PublicationStatusTransitionService(db);
+			await transitions.MarkInProgressAsync(
+				new MarkPublicationInProgressArgs(publicationId, publication.TenantId), CancellationToken.None
+			);
+			await transitions.MarkPublishedAsync(
+				new MarkPublicationPublishedArgs(
+					publicationId, publication.TenantId, "at://did.example/app.bsky.feed.post/s0", "https://bsky.app/s0"
+				),
+				CancellationToken.None
+			);
+		}
+
+		return publication.TenantId;
+	}
+
+	private async Task _AddFollowUpsAfterwardsAsync(Guid publicationId, Guid tenantId, int count, int startAt) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var postId = (await db.Publication.AsNoTracking().SingleAsync(row => row.Id == publicationId)).PostId;
+		for (var index = 0; index < count; index++) {
+			db.PostSegment.Add(new global::PublyApp.Api.Modules.Posts.Entities.PostSegment {
+				TenantId = tenantId,
+				PostId = postId,
+				Position = startAt + index,
+				Body = $"added later {index}",
+			});
+		}
+
+		await db.SaveChangesAsync();
+	}
+
 	// ── helpers ────────────────────────────────────────────────────────
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
