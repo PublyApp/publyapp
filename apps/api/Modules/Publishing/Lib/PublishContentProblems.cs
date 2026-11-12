@@ -25,6 +25,10 @@ public static class PublishContentProblems {
 			extensions["contentType"] = failure.ContentType;
 		}
 
+		if (failure.ProviderLabel is not null) {
+			extensions["providerLabel"] = failure.ProviderLabel;
+		}
+
 		if (failure.Destination is not null) {
 			extensions["destination"] = failure.Destination;
 			extensions["socialAccountId"] = failure.SocialAccountId;

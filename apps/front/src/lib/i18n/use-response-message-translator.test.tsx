@@ -111,10 +111,13 @@ describe('useResponseMessageTranslator in French', () => {
 		).toBeUndefined();
 	});
 
-	test('keeps the detail of the publish-time provider-disabled refusal, which names the destination', () => {
+	test('builds the publish-time provider-disabled refusal in French from the structured provider name', () => {
 		const translate = translatorFor('fr');
 
 		expect(translate('publish-provider-disabled', {})).toBeUndefined();
+		expect(
+			translate('publish-provider-disabled', { providerLabel: 'Bluesky' }),
+		).toContain("Bluesky est désactivé par l'opérateur");
 		expect(translate('provider-disabled', {})).toContain(
 			'Ce fournisseur est désactivé',
 		);

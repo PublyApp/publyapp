@@ -20,6 +20,7 @@ const AS_INFORMATIVE_AS_DETAIL: ReadonlySet<string> = new Set([
 ]);
 
 const RENDITION_INVALID_PROBLEM = 'publish-rendition-invalid';
+const PUBLISH_PROVIDER_DISABLED_PROBLEM = 'publish-provider-disabled';
 
 const asText = (value: unknown): string | undefined =>
 	typeof value === 'string' && value.length > 0 ? value : undefined;
@@ -78,6 +79,15 @@ export const useResponseMessageTranslator = () => {
 
 		if (translationKey === RENDITION_INVALID_PROBLEM) {
 			return translateRenditionInvalid(extensions);
+		}
+
+		if (translationKey === PUBLISH_PROVIDER_DISABLED_PROBLEM) {
+			// Built from the structured provider name, so the message still names it.
+			const provider = asText(extensions.providerLabel);
+			if (provider === undefined) {
+				return undefined;
+			}
+			return t(translationKey, { ns: RESPONSE_MESSAGE_NAMESPACE, provider });
 		}
 
 		if (!AS_INFORMATIVE_AS_DETAIL.has(translationKey)) {

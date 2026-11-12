@@ -214,7 +214,7 @@ const EN_LABELS: TestLabelMap = {
 	'integrations-list-title': 'Connected accounts',
 	'integrations-empty-title': 'No connected accounts yet',
 	'integrations-empty-description':
-		'Connect a Bluesky account to start publishing from your projects.',
+		'Connect an account to start publishing from your projects.',
 	'integrations-load-failed': 'Connected accounts could not be loaded',
 	'integrations-load-failed-description':
 		'The connected accounts list could not be loaded. Try again.',

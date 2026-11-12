@@ -55,7 +55,7 @@
 	"default-workspace-coming-later-description": "Le choix d'un espace de travail par défaut sera possible ici dès que les espaces de travail seront disponibles.",
 	"integrations-list-title": "Comptes connectés",
 	"integrations-empty-title": "Aucun compte connecté pour le moment",
-	"integrations-empty-description": "Connectez un compte Bluesky pour commencer à publier depuis vos projets.",
+	"integrations-empty-description": "Connectez un compte pour commencer à publier depuis vos projets.",
 	"integrations-load-failed": "Impossible de charger les comptes connectés",
 	"integrations-load-failed-description": "La liste des comptes connectés n'a pas pu être chargée. Réessayez.",
 	"mastodon-authorization-denied": "L'autorisation Mastodon a été annulée. Rien n'a été connecté.",

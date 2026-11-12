@@ -153,7 +153,7 @@
 	"publish-images-too-many": "The post has more images than this destination accepts",
 	"publish-image-unsupported-type": "An image of the post is not a type this destination accepts",
 	"publish-image-alt-text-required": "A destination needs alt text on every image of the post",
-	"publish-provider-disabled": "This destination's provider is disabled by the operator",
+	"publish-provider-disabled": "{{provider}} is disabled by the operator: deselect this destination or try again once it is enabled",
 	"publish-media-required": "This destination needs at least one image",
 	"publish-threads-unsupported": "This destination cannot publish a thread",
 	"publish-rendition-invalid": "The customized content of this destination is not valid",

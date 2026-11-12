@@ -243,7 +243,8 @@ export const Route = createFileRoute('/_authed-layout/tenant')({
 	// `/staff` -> `/staff/staff-users`. Every `/tenant/*` CHILD path renders
 	// inside the AppShell; an unresolved child redirects back to `/tenant`
 	// so the bare picker stays the single unresolved surface.
-	staticData: { crumbs: () => [] },
+	// `settings`: the app-shell needs-reconnect banner renders on every tenant route.
+	staticData: { crumbs: () => [], i18nNamespaces: ['settings'] },
 	loader: ({ context }) => {
 		preloadRouteQueries(context.queryClient, tenantPortalQueries());
 	},

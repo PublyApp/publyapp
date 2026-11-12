@@ -485,7 +485,7 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PublishNowSuccess = new("publish-now-success");
 
 	/// <summary>
-	/// This destination&apos;s provider is disabled by the operator
+	/// {{provider}} is disabled by the operator: deselect this destination or try again once it is enabled
 	/// </summary>
 	public static readonly TranslationKey PublishProviderDisabled = new("publish-provider-disabled");
 
