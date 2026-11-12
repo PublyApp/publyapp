@@ -89,6 +89,8 @@ export const MastodonConnectDrawer = ({
 				tenantId,
 				instance: values.instance,
 				provider,
+				// A reconnect must come back as this very account (#2186).
+				socialAccountId: account?.id,
 			});
 			window.location.assign(authorizeUrl);
 		} catch (error) {

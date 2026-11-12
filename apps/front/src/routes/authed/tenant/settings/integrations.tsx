@@ -1,5 +1,6 @@
 import {
 	IconApi,
+	IconEye,
 	IconGridDots,
 	IconPlugConnected,
 	IconPlugOff,
@@ -32,6 +33,7 @@ import {
 	toSocialAccountRows,
 	useSocialAccountsQuery,
 	type SocialAccountRow,
+	type SocialVisibility,
 } from '~/lib/query/social-accounts';
 import {
 	tenantProjectsQueryOptions,
@@ -51,16 +53,33 @@ import { DiscordConnectDrawer } from './_discord-connect-drawer';
 import { IntegrationsStatusPill } from './_integrations-status-pill';
 import { IntegrationsVisibleIn } from './_integrations-visible-in';
 import { MastodonConnectDrawer } from './_mastodon-connect-drawer';
+import { ReconnectMismatchDialog } from './_reconnect-mismatch-dialog';
 import {
 	useMastodonCallback,
 	validateMastodonCallbackSearch,
 } from './_use-mastodon-callback';
+import { VisibilityDrawer } from './_visibility-drawer';
 
 // The C2 list endpoint carries no sort/search contract yet: the table renders
 // the full list in one shot with client-side chrome only. Sort stays pinned;
 // size is the parity-contract default.
 const DEFAULT_SORT = { id: 'handle', order: 'asc' as const };
 const DEFAULT_SIZE = 100;
+
+/** Only Mastodon and Pixelfed posts have a visibility (#2186). */
+const hasVisibility = (provider: string): boolean =>
+	provider === 'mastodon' || provider === 'pixelfed';
+
+const visibilityLabelKey = (visibility: SocialVisibility): string => {
+	switch (visibility) {
+		case 'unlisted':
+			return 'visibility-unlisted';
+		case 'private':
+			return 'visibility-private';
+		default:
+			return 'visibility-public';
+	}
+};
 
 /** Wire provider -> label key; an unknown wire value falls back to Bluesky. */
 const providerLabelKey = (provider: string): string => {
@@ -82,13 +101,22 @@ type IntegrationsColumnContext = {
 	canManage: boolean;
 	query: ReturnType<typeof useTenantProjectsQuery>;
 	onReconnect: (account: SocialAccountRow) => void;
+	onVisibility: (account: SocialAccountRow) => void;
 	onDisconnect: (account: SocialAccountRow) => void;
 };
 
 const buildColumns = (
 	context: IntegrationsColumnContext,
 ): ColumnDef<SocialAccountRow>[] => {
-	const { t, locale, canManage, query, onReconnect, onDisconnect } = context;
+	const {
+		t,
+		locale,
+		canManage,
+		query,
+		onReconnect,
+		onVisibility,
+		onDisconnect,
+	} = context;
 
 	const columns: ColumnDef<SocialAccountRow>[] = [
 		{
@@ -119,6 +147,18 @@ const buildColumns = (
 			enableSorting: false,
 			meta: { width: '180px' },
 			cell: ({ row }) => <IntegrationsStatusPill row={row.original} />,
+		},
+		{
+			id: 'visibility',
+			header: t('col-visibility'),
+			enableSorting: false,
+			meta: { width: '160px', hideBelow: 1024 },
+			cell: ({ row }) =>
+				hasVisibility(row.original.provider) ? (
+					<span>{t(visibilityLabelKey(row.original.defaultVisibility))}</span>
+				) : (
+					<span aria-hidden="true">—</span>
+				),
 		},
 		{
 			id: 'last-success',
@@ -167,6 +207,12 @@ const buildColumns = (
 						<IconRefresh />
 						{t('reconnect')}
 					</DropdownMenuItem>
+					{hasVisibility(row.original.provider) ? (
+						<DropdownMenuItem onClick={() => onVisibility(row.original)}>
+							<IconEye />
+							{t('visibility-action')}
+						</DropdownMenuItem>
+					) : null}
 					<DropdownMenuItem
 						variant="destructive"
 						onClick={() => onDisconnect(row.original)}
@@ -190,6 +236,8 @@ type DrawerUiState = {
 	/** Non-null while the reconnect drawer targets a specific row. */
 	reconnectAccount: SocialAccountRow | null;
 	disconnectAccount: SocialAccountRow | null;
+	/** Non-null while the default-visibility drawer targets a row (#2186). */
+	visibilityAccount: SocialAccountRow | null;
 };
 
 const IDLE_DRAWER_UI: DrawerUiState = {
@@ -199,6 +247,7 @@ const IDLE_DRAWER_UI: DrawerUiState = {
 	discordOpen: false,
 	reconnectAccount: null,
 	disconnectAccount: null,
+	visibilityAccount: null,
 };
 
 /** Which fediverse network the shared drawer targets: the reconnecting row's
@@ -227,6 +276,7 @@ const PLACEHOLDER_ACCOUNT: SocialAccountRow = {
 	statusLabelKey: 'settings:status-active',
 	lastSuccessAt: null,
 	projectIds: [],
+	defaultVisibility: 'public',
 };
 
 /**
@@ -278,6 +328,8 @@ const TenantSettingsIntegrationsPage = () => {
 				query: projectsQuery,
 				onReconnect: (account) =>
 					setDrawerUi({ ...IDLE_DRAWER_UI, reconnectAccount: account }),
+				onVisibility: (account) =>
+					setDrawerUi({ ...IDLE_DRAWER_UI, visibilityAccount: account }),
 				onDisconnect: (account) =>
 					setDrawerUi({ ...IDLE_DRAWER_UI, disconnectAccount: account }),
 			}),
@@ -311,7 +363,11 @@ const TenantSettingsIntegrationsPage = () => {
 		reconnectAccount !== null && !isFediverseReconnect && !isDiscordReconnect;
 
 	// The instance sends the browser back here with `code` and `state` (#2174).
-	const mastodonDenied = useMastodonCallback(tenantId);
+	const {
+		denied: mastodonDenied,
+		mismatch: reconnectMismatch,
+		dismissMismatch,
+	} = useMastodonCallback(tenantId);
 
 	return (
 		<div className="space-y-5" data-testid="tenant-settings-integrations-page">
@@ -493,6 +549,20 @@ const TenantSettingsIntegrationsPage = () => {
 						}}
 						tenantId={tenantId}
 						account={reconnectAccount ?? undefined}
+					/>
+					<VisibilityDrawer
+						account={drawerUi.visibilityAccount}
+						tenantId={tenantId}
+						onOpenChange={(open) => {
+							if (!open) {
+								closeDrawerUi();
+							}
+						}}
+					/>
+					<ReconnectMismatchDialog
+						mismatch={reconnectMismatch}
+						tenantId={tenantId}
+						onClose={dismissMismatch}
 					/>
 					<DisconnectDialog
 						account={drawerUi.disconnectAccount ?? PLACEHOLDER_ACCOUNT}

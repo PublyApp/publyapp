@@ -137,6 +137,44 @@ describe('mastodon connect drawer', () => {
 		expect(assign).not.toHaveBeenCalled();
 	});
 
+	test('ItShouldAskTheFlowToComeBackAsTheSameAccountOnReconnect', async () => {
+		stubLocation();
+		startImpl = vi
+			.fn()
+			.mockResolvedValue('https://social.example/oauth/authorize?state=s3');
+
+		render(
+			<MastodonConnectDrawer
+				open
+				onOpenChange={vi.fn()}
+				tenantId="t1"
+				account={{
+					id: 'a1',
+					provider: 'mastodon',
+					displayHandle: 'me@social.example',
+					statusWire: 'needs_reconnect',
+					tone: 'warning',
+					statusLabelKey: 'settings:status-needs-reconnect',
+					lastSuccessAt: null,
+					projectIds: [],
+					defaultVisibility: 'public',
+				}}
+			/>,
+		);
+		await userEvent
+			.setup()
+			.click(screen.getByRole('button', { name: /continue to mastodon/i }));
+
+		await waitFor(() =>
+			expect(startImpl).toHaveBeenCalledWith({
+				tenantId: 't1',
+				instance: 'social.example',
+				provider: 'mastodon',
+				socialAccountId: 'a1',
+			}),
+		);
+	});
+
 	test('ItShouldPrefillAndLockTheInstanceOnReconnect', () => {
 		render(
 			<MastodonConnectDrawer
@@ -152,6 +190,7 @@ describe('mastodon connect drawer', () => {
 					statusLabelKey: 'settings:status-needs-reconnect',
 					lastSuccessAt: null,
 					projectIds: [],
+					defaultVisibility: 'public',
 				}}
 			/>,
 		);

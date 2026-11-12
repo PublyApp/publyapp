@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 type SearchMock = { code?: string; state?: string; error?: string };
@@ -67,7 +67,49 @@ describe('useMastodonCallback', () => {
 
 		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
 		expect(mocks.complete).not.toHaveBeenCalled();
-		await waitFor(() => expect(result.current).toBe(true));
+		await waitFor(() => expect(result.current.denied).toBe(true));
+	});
+
+	test('ItShouldReportAReconnectThatCameBackAsAnotherAccount', async () => {
+		mocks.search = { code: 'c1', state: 's1' };
+		mocks.complete.mockRejectedValue({
+			status: 422,
+			translationKey: 'mastodon-reconnect-account-mismatch',
+			errors: { state: ['You signed in with a different account.'] },
+			additionalData: {
+				expectedHandle: 'alice@social.example',
+				actualHandle: 'bob@social.example',
+				provider: 'mastodon',
+				instance: 'social.example',
+			},
+		});
+
+		const { result } = renderHook(() => useMastodonCallback('t1'));
+
+		await waitFor(() =>
+			expect(result.current.mismatch).toEqual({
+				expectedHandle: 'alice@social.example',
+				actualHandle: 'bob@social.example',
+				provider: 'mastodon',
+				instance: 'social.example',
+			}),
+		);
+		expect(mocks.navigate).toHaveBeenCalledTimes(1);
+		act(() => result.current.dismissMismatch());
+		expect(result.current.mismatch).toBeNull();
+	});
+
+	test('ItShouldNotReportOtherFailuresAsAMismatch', async () => {
+		mocks.search = { code: 'c1', state: 's1' };
+		mocks.complete.mockRejectedValue({
+			status: 422,
+			translationKey: 'mastodon-oauth-state-invalid',
+		});
+
+		const { result } = renderHook(() => useMastodonCallback('t1'));
+
+		await waitFor(() => expect(mocks.navigate).toHaveBeenCalledTimes(1));
+		expect(result.current.mismatch).toBeNull();
 	});
 
 	test('ItShouldDoNothingWithoutACallbackOrBeforeTheTenantResolves', () => {

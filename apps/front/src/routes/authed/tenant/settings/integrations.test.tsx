@@ -16,6 +16,12 @@ import type { TestLabelMap } from '~/lib/testing/test-label-map';
 
 const mocks = vi.hoisted(() => ({
 	mastodonDenied: false,
+	mismatch: null as {
+		expectedHandle: string;
+		actualHandle: string;
+		provider: 'mastodon' | 'pixelfed';
+		instance: string;
+	} | null,
 	needsReconnectAccounts: [] as Array<{
 		id: string;
 		displayHandle: string;
@@ -144,8 +150,40 @@ vi.mock('./_discord-connect-drawer', () => ({
 			: null,
 }));
 vi.mock('./_use-mastodon-callback', () => ({
-	useMastodonCallback: () => mocks.mastodonDenied,
+	useMastodonCallback: () => ({
+		denied: mocks.mastodonDenied,
+		mismatch: mocks.mismatch,
+		dismissMismatch: vi.fn(),
+	}),
 	validateMastodonCallbackSearch: () => ({}),
+}));
+vi.mock('./_visibility-drawer', () => ({
+	VisibilityDrawer: ({
+		account,
+	}: {
+		account: { displayHandle: string } | null;
+	}) =>
+		account
+			? createElement(
+					'div',
+					{ 'data-testid': 'visibility-drawer-stub' },
+					account.displayHandle,
+				)
+			: null,
+}));
+vi.mock('./_reconnect-mismatch-dialog', () => ({
+	ReconnectMismatchDialog: ({
+		mismatch,
+	}: {
+		mismatch: { expectedHandle: string; actualHandle: string } | null;
+	}) =>
+		mismatch
+			? createElement(
+					'div',
+					{ role: 'alertdialog', 'data-testid': 'mismatch-dialog-stub' },
+					`${mismatch.actualHandle} != ${mismatch.expectedHandle}`,
+				)
+			: null,
 }));
 vi.mock('./_disconnect-dialog', () => ({
 	DisconnectDialog: ({
@@ -194,6 +232,11 @@ const EN_LABELS: TestLabelMap = {
 	'col-provider': 'Provider',
 	'col-last-success': 'Last success',
 	'col-visible-in': 'Visible in',
+	'col-visibility': 'Visibility',
+	'visibility-action': 'Default visibility',
+	'visibility-public': 'Public',
+	'visibility-unlisted': 'Unlisted',
+	'visibility-private': 'Followers only',
 	retry: 'Retry',
 	// Placeholder cards kept from the pre-C3 screen (develop side).
 	'common:connected': 'Connected',
@@ -537,6 +580,66 @@ describe('TenantSettingsIntegrationsPage', () => {
 		await user.click(await screen.findByText('Reconnect'));
 		expect(screen.getByTestId('discord-drawer-stub').textContent).toBe('hook');
 		expect(screen.queryByTestId('bluesky-reconnect-drawer')).toBeNull();
+	});
+
+	test('ItShouldShowTheDefaultVisibilityOfFediverseAccountsOnly', () => {
+		socialAccountsWire = [
+			{
+				...activeAccount,
+				id: 'm1',
+				provider: 'mastodon',
+				displayHandle: 'me@social.example',
+				defaultVisibility: 'private',
+			},
+			activeAccount,
+		];
+		render(<TenantSettingsIntegrationsPage />);
+
+		const table = screen.getByTestId('tenant-settings-social-accounts-table');
+		expect(within(table).getByText('Followers only')).toBeTruthy();
+		expect(within(table).queryByText('Public')).toBeNull();
+	});
+
+	test('ItShouldOfferTheVisibilityActionOnFediverseRowsOnlyAndOpenItsDrawer', async () => {
+		const user = userEvent.setup();
+		socialAccountsWire = [
+			{
+				...activeAccount,
+				id: 'm1',
+				provider: 'mastodon',
+				displayHandle: 'me@social.example',
+			},
+			activeAccount,
+		];
+		render(<TenantSettingsIntegrationsPage />);
+
+		await user.click(screen.getByTestId('social-account-actions-a1'));
+		expect(await screen.findByText('Reconnect')).toBeTruthy();
+		expect(screen.queryByText('Default visibility')).toBeNull();
+		await user.keyboard('{Escape}');
+		cleanup();
+
+		render(<TenantSettingsIntegrationsPage />);
+		await user.click(screen.getByTestId('social-account-actions-m1'));
+		await user.click(await screen.findByText('Default visibility'));
+		expect(screen.getByTestId('visibility-drawer-stub').textContent).toBe(
+			'me@social.example',
+		);
+	});
+
+	test('ItShouldAskWhatToDoWhenAReconnectCameBackAsAnotherAccount', () => {
+		mocks.mismatch = {
+			expectedHandle: 'a@x.example',
+			actualHandle: 'b@x.example',
+			provider: 'mastodon',
+			instance: 'x.example',
+		};
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(screen.getByTestId('mismatch-dialog-stub').textContent).toBe(
+			'b@x.example != a@x.example',
+		);
+		mocks.mismatch = null;
 	});
 
 	test('ItShouldExplainWhenTheUserDeniedTheMastodonAuthorization', () => {
