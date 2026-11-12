@@ -166,6 +166,37 @@ namespace PublyApp.Api.Migrations
                     b.ToTable("sessions");
                 });
 
+            modelBuilder.Entity("PublyApp.Api.Modules.Impersonations.Entities.ImpersonationSessionEnd", b =>
+                {
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("session_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTime>("EndedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ended_at");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("reason");
+
+                    b.HasKey("SessionId")
+                        .HasName("pk_impersonation_session_ends");
+
+                    b.HasIndex("EndedAt", "SessionId")
+                        .HasDatabaseName("ix_impersonation_session_ends_ended_at_session_id");
+
+                    b.ToTable("impersonation_session_ends");
+                });
+
             modelBuilder.Entity("PublyApp.Api.Modules.Invitations.Entities.Invitation", b =>
                 {
                     b.Property<Guid>("Id")

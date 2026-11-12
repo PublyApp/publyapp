@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Auth.Entities;
+using PublyApp.Api.Modules.Impersonations.Entities;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
@@ -31,6 +32,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 
 	public DbSet<Session> Session {
 		get { return this.Set<Session>(); }
+	}
+	public DbSet<ImpersonationSessionEnd> ImpersonationSessionEnd {
+		get { return this.Set<ImpersonationSessionEnd>(); }
 	}
 	public DbSet<User> User {
 		get { return this.Set<User>(); }
