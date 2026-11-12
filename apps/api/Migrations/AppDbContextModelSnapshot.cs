@@ -17,7 +17,7 @@ namespace PublyApp.Api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.14")
+                .HasAnnotation("ProductVersion", "10.0.15")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "pg_trgm");
@@ -1207,6 +1207,10 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("relative_path");
 
+                    b.Property<Guid?>("SegmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("segment_id");
+
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint")
                         .HasColumnName("size_bytes");
@@ -1232,7 +1236,12 @@ namespace PublyApp.Api.Migrations
                     b.HasIndex("PostId", "Position")
                         .IsUnique()
                         .HasDatabaseName("ux_post_media_assets_live_post_position")
-                        .HasFilter("is_deleted = false");
+                        .HasFilter("is_deleted = false AND segment_id IS NULL");
+
+                    b.HasIndex("SegmentId", "Position")
+                        .IsUnique()
+                        .HasDatabaseName("ux_post_media_assets_live_segment_position")
+                        .HasFilter("is_deleted = false AND segment_id IS NOT NULL");
 
                     b.HasIndex("TenantId", "PostId")
                         .HasDatabaseName("ix_post_media_assets_tenant_post");
@@ -2733,6 +2742,11 @@ namespace PublyApp.Api.Migrations
                         .HasForeignKey("PostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("PublyApp.Api.Modules.Posts.Entities.PostSegment", null)
+                        .WithMany()
+                        .HasForeignKey("SegmentId")
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
                         .WithMany()

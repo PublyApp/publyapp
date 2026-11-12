@@ -59,9 +59,25 @@ public sealed class PostMediaAssetConfigurationSpec {
 		uniqueIndexValue.Properties.Select(property => property.Name).Should()
 			.Equal("PostId", "Position");
 		uniqueIndexValue.GetFilter().Should().Be(
-			"is_deleted = false",
-			"soft-deleted rows must not block attaching a fresh image"
+			"is_deleted = false AND segment_id IS NULL",
+			"soft-deleted rows must not block attaching a fresh image, and a "
+			+ "follow-up segment's images order independently of the post's own"
 		);
+	}
+
+	[Fact]
+	public void ItShouldOrderSegmentImagesIndependentlyPerSegment() {
+		using var dbContext = PostMediaAssetConfigurationSpec._CreateDesignTimeDbContext();
+		var entity = dbContext.GetService<IDesignTimeModel>().Model
+			.FindEntityType(typeof(PostMediaAsset));
+		var index = entity.Required().GetIndexes().SingleOrDefault(candidate =>
+			candidate.IsUnique
+			&& candidate.GetDatabaseName() == "ux_post_media_assets_live_segment_position"
+		);
+		index.Should().NotBeNull();
+		index.Required().Properties.Select(property => property.Name).Should()
+			.Equal("SegmentId", "Position");
+		index.Required().GetFilter().Should().Be("is_deleted = false AND segment_id IS NOT NULL");
 	}
 
 	[Fact]

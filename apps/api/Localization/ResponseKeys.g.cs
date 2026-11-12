@@ -360,6 +360,16 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PostScheduleCancelledSuccess = new("post-schedule-cancelled-success");
 
 	/// <summary>
+	/// A follow-up segment is empty: write it or remove it
+	/// </summary>
+	public static readonly TranslationKey PostSegmentBlank = new("post-segment-blank");
+
+	/// <summary>
+	/// No such segment on this post
+	/// </summary>
+	public static readonly TranslationKey PostSegmentNotFound = new("post-segment-not-found");
+
+	/// <summary>
 	/// Segments that are already published cannot be changed or removed
 	/// </summary>
 	public static readonly TranslationKey PostSegmentsLocked = new("post-segments-locked");

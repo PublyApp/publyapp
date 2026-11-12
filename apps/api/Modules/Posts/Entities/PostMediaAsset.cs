@@ -40,7 +40,15 @@ public class PostMediaAsset : BaseAttributes, ITenantEntity {
 	}
 	private Post? _Post;
 
-	/// <summary>0-based display/publish order among the post's live images.</summary>
+	/// <summary>
+	/// The follow-up segment this image belongs to (#2181), or null for the post's own
+	/// images (the first segment). Position is 0-based among the images of the SAME
+	/// owner: the post's own images, or one segment's.
+	/// </summary>
+	[Column("segment_id")]
+	public Guid? SegmentId { get; set; }
+
+	/// <summary>0-based display/publish order among the live images of the same owner.</summary>
 	[Column("position")]
 	public int Position { get; set; }
 
