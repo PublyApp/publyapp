@@ -77,6 +77,13 @@ export const resolveMutationFailureIntent = (
 	}
 
 	const translationKey = getFailureTranslationKey(failure);
+	if (
+		translationKey !== undefined &&
+		feedback.silentFailureKeys?.includes(translationKey)
+	) {
+		return { kind: 'silent', reason: 'local-error-owner' };
+	}
+
 	const fallbackMessage = getFailureFallbackMessage(failure);
 	const failureIntent: MutationFeedbackIntent = { kind: 'error', failure };
 	if (translationKey !== undefined) {

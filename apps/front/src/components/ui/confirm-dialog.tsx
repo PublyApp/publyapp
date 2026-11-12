@@ -24,6 +24,11 @@ export type ConfirmDialogProps = {
 	onOpenChange: (isOpen: boolean) => void;
 };
 
+// A long label (a handle in a reconnect prompt) wraps inside the button instead of pushing
+// it out of the dialog: the footer wraps, and each button never exceeds the footer.
+const footerButtonClass =
+	'h-auto min-h-9 max-w-full py-1.5 text-center whitespace-normal';
+
 export const ConfirmDialog = ({
 	isOpen,
 	title,
@@ -92,11 +97,12 @@ export const ConfirmDialog = ({
 					) : null}
 					<div
 						data-slot="confirm-dialog-footer"
-						className="flex items-center justify-end gap-2.5 border-t border-[color:var(--publy-row-border)] px-6 py-3.5"
+						className="flex flex-wrap items-center justify-end gap-2.5 border-t border-[color:var(--publy-row-border)] px-6 py-3.5"
 					>
 						<Button
 							type="button"
 							variant="ghost"
+							className={footerButtonClass}
 							onClick={() => onOpenChange(false)}
 							disabled={isPending}
 						>
@@ -105,7 +111,7 @@ export const ConfirmDialog = ({
 						<Button
 							type="button"
 							variant={tone === 'danger' ? 'destructive' : 'default'}
-							className="font-semibold"
+							className={`${footerButtonClass} font-semibold`}
 							onClick={onConfirm}
 							disabled={isPending || isConfirmDisabled}
 						>

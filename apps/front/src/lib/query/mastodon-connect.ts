@@ -67,6 +67,10 @@ export const useCompleteMastodonConnectMutation = () => {
 		},
 		onSuccess: (_data, variables) =>
 			invalidateSocialAccounts(queryClient, variables.tenantId),
-		meta: { successMessage: 'social-account-fediverse-connected' },
+		meta: {
+			successMessage: 'social-account-fediverse-connected',
+			// The reconnect-mismatch dialog is the feedback for this one failure.
+			silentFailureKeys: ['mastodon-reconnect-account-mismatch'],
+		},
 	});
 };

@@ -7,6 +7,26 @@ import {
 import type { MutationFailureFeedback, MutationSuccessFeedback } from './types';
 
 describe('resolveMutationFailureIntent', () => {
+	test('silences only the failure keys a local UI owns', () => {
+		const failure = (translationKey: string) =>
+			({
+				kind: 'validation',
+				status: 422,
+				translationKey,
+				detail: undefined,
+				title: undefined,
+				fieldErrors: {},
+			}) as const;
+		const feedback = { silentFailureKeys: ['owned-by-dialog'] };
+
+		expect(
+			resolveMutationFailureIntent(failure('owned-by-dialog'), feedback),
+		).toEqual({ kind: 'silent', reason: 'local-error-owner' });
+		expect(
+			resolveMutationFailureIntent(failure('something-else'), feedback).kind,
+		).toBe('error');
+	});
+
 	test('keeps aborted failures silent', () => {
 		expect(resolveMutationFailureIntent({ kind: 'abort' }, {})).toEqual({
 			kind: 'silent',

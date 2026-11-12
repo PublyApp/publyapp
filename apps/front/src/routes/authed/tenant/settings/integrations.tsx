@@ -124,7 +124,7 @@ const buildColumns = (
 			header: t('col-handle'),
 			accessorKey: 'displayHandle',
 			enableSorting: false,
-			meta: { width: '220px' },
+			meta: { width: '190px' },
 			cell: ({ getValue }) => {
 				const handle = getValue<string>();
 				return (
@@ -138,21 +138,21 @@ const buildColumns = (
 			id: 'provider',
 			header: t('col-provider'),
 			enableSorting: false,
-			meta: { width: '140px' },
+			meta: { width: '110px' },
 			cell: ({ row }) => t(providerLabelKey(row.original.provider)),
 		},
 		{
 			id: 'status',
 			header: t('common:status'),
 			enableSorting: false,
-			meta: { width: '180px' },
+			meta: { width: '140px' },
 			cell: ({ row }) => <IntegrationsStatusPill row={row.original} />,
 		},
 		{
 			id: 'visibility',
 			header: t('col-visibility'),
 			enableSorting: false,
-			meta: { width: '160px', hideBelow: 1024 },
+			meta: { width: '150px', hideBelow: 1024 },
 			cell: ({ row }) =>
 				hasVisibility(row.original.provider) ? (
 					<span>{t(visibilityLabelKey(row.original.defaultVisibility))}</span>
@@ -164,7 +164,7 @@ const buildColumns = (
 			id: 'last-success',
 			header: t('col-last-success'),
 			enableSorting: false,
-			meta: { width: '200px', hideBelow: 768 },
+			meta: { width: '180px', hideBelow: 768 },
 			cell: ({ row }) =>
 				row.original.lastSuccessAt === null ? (
 					<span>{t('last-success-never')}</span>
