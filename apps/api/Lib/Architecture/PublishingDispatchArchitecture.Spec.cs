@@ -43,32 +43,38 @@ namespace PublyApp.Api.Lib.Architecture;
 /// locker would silently fork the exactly-once guarantee proven by
 /// DispatchDuePostsConcurrencySpec. The guard is an EXACT inventory over the
 /// string literals of the COMPILED API assembly (not source text): each method's
-/// literals are cut into statements, comments are stripped, whitespace and case
-/// are normalised, and every statement containing <c>SKIP LOCKED</c> must be
-/// listed as (declaring type, method, full parameter types, SHA-256 of the
-/// normalised statement). Nothing about the SQL is interpreted — no table is
-/// extracted — so any edit to a reviewed statement, the same text in another
-/// method, overload or nested type, an unlisted statement of any shape (concatenated,
-/// interpolated, outer lock over a subquery, table from a parameter, clause in
-/// another method) and prose that merely mentions the clause all fail until a
-/// reviewer updates the inventory. The failure prints method, file:line (portable
-/// PDB) and the normalised statement. The job's statement is in the same
-/// inventory and is additionally pinned in full (<c>_SanctionedDueScanSql</c>)
-/// and asserted to read only publications. Not reusing ArchitectureDiscovery: it
-/// excludes the Migrations namespace, where SQL lives. Maintenance cost: ~100
-/// lines of IL decoding plus one hash per reviewed statement. Retire when the
-/// claim sits behind one repository seam or Postgres-side enforcement.</item>
+/// literals are cut into statements and every statement whose raw OR
+/// comment-stripped text contains <c>SKIP LOCKED</c> (detection never depends
+/// on stripping) must be listed as (declaring type, method, full parameter
+/// types, SHA-256 of the normalised statement, an entry per occurrence). The
+/// identity is the statement from its start through the literal that holds the
+/// clause; comments are stripped and whitespace/case folded. Nothing about the
+/// SQL is interpreted, so any edit to a reviewed statement, the same text in
+/// another method, overload or nested type, a duplicate occurrence, and any
+/// unlisted statement fail until a reviewer updates the inventory. A statement
+/// in a method that also assembles strings at runtime (string concatenation,
+/// interpolation, Format, Join, Replace, StringBuilder) is ALWAYS an offender and
+/// no inventory entry can clear it, so a table-parameter helper can never be
+/// reviewed in. The failure prints method, file:line (portable PDB) and the
+/// normalised statement. The job's statement is in the same inventory and
+/// is additionally pinned in full (<c>_SanctionedDueScanSql</c>). Not reusing
+/// ArchitectureDiscovery: it excludes the Migrations namespace, where SQL
+/// lives. Maintenance cost: ~150 lines of IL decoding plus one hash per
+/// reviewed statement. Retire when the claim sits behind one repository seam or
+/// Postgres-side enforcement.</item>
 /// </list>
 /// Documented residual gaps (static scan of one assembly): only the API
-/// assembly is scanned; SQL built at runtime (reflection, a clause or table fed
-/// from config/data), stored functions or views that lock internally, and a
-/// clause split into fragments that never spell SKIP LOCKED are invisible. The
-/// seeder's job description is an inventory entry like any other and its hash
-/// also depends on the neighbouring description literals of the same method, so
-/// editing those turns the guard red until a reviewer updates it. A reviewed
-/// statement is exact, not judged: the guard never decides what a statement
-/// locks, a reviewer does. An executed check (command interceptor) would only
-/// cover paths a test runs, so it is not used.
+/// assembly is scanned; SQL built at runtime in another method and handed in,
+/// stored functions or views that lock internally, and a clause split into
+/// fragments that never spell SKIP LOCKED are invisible; a method that merely
+/// logs with string interpolation AND holds a lock statement is flagged and must
+/// move the logging out. A caller that passes "publications" to a helper is
+/// covered only because the helper's statement cannot be cleared. The one
+/// non-SQL entry, the seeder's job description, is a prose run: its identity
+/// also covers the description literal(s) that precede the clause in the same
+/// statement run, so editing those needs a reviewer. The guard never decides
+/// what a statement locks, a reviewer does. An executed check (command
+/// interceptor) would only cover paths a test runs, so it is not used.
 /// Proven RED by the planted fixtures of this spec (each capability fails
 /// without its rule) and by stripping permission metadata from a publishing
 /// endpoint.
@@ -152,8 +158,12 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	// ── (b) Single SKIP LOCKED claimant on publications ─────────────────────
 
 	private static readonly string _SanctionedKey =
-		$"{typeof(DispatchDuePostsJob).FullName}.HandleAsync(PublyApp.Api.Infrastructure.Jobs.JobContext,System.Threading.CancellationToken)|"
-		+ PublishingDispatchArchitectureSpec._Hash(PublishingDispatchArchitectureSpec._SanctionedDueScanSql);
+		$"{typeof(DispatchDuePostsJob).FullName}.HandleAsync("
+		+ "PublyApp.Api.Infrastructure.Jobs.JobContext,"
+		+ "System.Threading.CancellationToken)|"
+		+ PublishingDispatchArchitectureSpec._Hash(
+			PublishingDispatchArchitectureSpec._SanctionedDueScanSql
+		);
 
 	// Reviewed closed inventory of EVERY SKIP LOCKED statement in the API assembly,
 	// including the sanctioned due-scan job's and the seeder's description, keyed
@@ -162,16 +172,37 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	private static readonly IReadOnlySet<string> _SkipLockedInventory = new HashSet<string>(
 		[
 			PublishingDispatchArchitectureSpec._SanctionedKey,
-			"PublyApp.Api.Modules.Jobs.Seeders.SystemJobDefinitionSeeder._GetDefinitions()|DD15A45EFAC025C3",
-			"PublyApp.Api.Modules.Uploads.Jobs.UploadOrphanReclaimerHandler._ReclaimBatchAsync(System.Threading.CancellationToken)|E5C5D2B5AC362B8A",
-			"PublyApp.Api.Modules.Uploads.Jobs.UploadOrphanReclaimerHandler._ReclaimBatchAsync(System.Threading.CancellationToken)|AF1D432419123381",
-			"PublyApp.Api.Modules.Messaging.Jobs.EmailLogRetentionHandler.HandleAsync(PublyApp.Api.Infrastructure.Jobs.JobContext,System.Threading.CancellationToken)|E82C4217D7A861A8",
-			"PublyApp.Api.Modules.Messaging.Jobs.EmailPreparedSendsRetentionHandler.HandleAsync(PublyApp.Api.Infrastructure.Jobs.JobContext,System.Threading.CancellationToken)|29B0382FF214CC3B",
-			"PublyApp.Api.Modules.Jobs.Jobs.DeadLetterRetentionHandler.HandleAsync(PublyApp.Api.Infrastructure.Jobs.JobContext,System.Threading.CancellationToken)|5D2F027278786870",
-			"PublyApp.Api.Modules.Jobs.Jobs.SystemJobOccurrenceRetentionHandler.HandleAsync(PublyApp.Api.Infrastructure.Jobs.JobContext,System.Threading.CancellationToken)|A2D27582DE81654F",
-			"PublyApp.Api.Modules.Auth.Jobs.CleanupExpiredSessionsHandler.HandleAsync(PublyApp.Api.Infrastructure.Jobs.JobContext,System.Threading.CancellationToken)|0225B72B22C4BFA6",
-			"PublyApp.Api.Infrastructure.Messaging.Email.InvitationEmailOutboxDispatcher.ClaimBatchAsync(PublyApp.Api.Data.DbContext.AppDbContext,System.Threading.CancellationToken)|BE6B6FC8AE38196E",
-			"PublyApp.Api.Infrastructure.Jobs.JobQueueProcessor.ClaimBatchAsync(PublyApp.Api.Data.DbContext.AppDbContext,System.String,System.Int32,System.Int32,System.Threading.CancellationToken)|CD66D70379262523",
+			"PublyApp.Api.Modules.Jobs.Seeders.SystemJobDefinitionSeeder."
+				+ "_GetDefinitions()|2B3CD83AB48CC2CE",
+			"PublyApp.Api.Modules.Uploads.Jobs.UploadOrphanReclaimerHandler."
+				+ "_ReclaimBatchAsync(System.Threading.CancellationToken)|"
+				+ "E5C5D2B5AC362B8A",
+			"PublyApp.Api.Modules.Uploads.Jobs.UploadOrphanReclaimerHandler."
+				+ "_ReclaimBatchAsync(System.Threading.CancellationToken)|"
+				+ "AF1D432419123381",
+			"PublyApp.Api.Modules.Messaging.Jobs.EmailLogRetentionHandler."
+				+ "HandleAsync(PublyApp.Api.Infrastructure.Jobs.JobContext,System."
+				+ "Threading.CancellationToken)|A88C03982BF29A56",
+			"PublyApp.Api.Modules.Messaging.Jobs."
+				+ "EmailPreparedSendsRetentionHandler.HandleAsync(PublyApp.Api."
+				+ "Infrastructure.Jobs.JobContext,System.Threading.CancellationToken)|"
+				+ "CEDECD613F5AE471",
+			"PublyApp.Api.Modules.Jobs.Jobs.DeadLetterRetentionHandler.HandleAsync("
+				+ "PublyApp.Api.Infrastructure.Jobs.JobContext,System.Threading."
+				+ "CancellationToken)|0C77FF9D7F1B1A92",
+			"PublyApp.Api.Modules.Jobs.Jobs.SystemJobOccurrenceRetentionHandler."
+				+ "HandleAsync(PublyApp.Api.Infrastructure.Jobs.JobContext,System."
+				+ "Threading.CancellationToken)|44CDD5E187F4EA67",
+			"PublyApp.Api.Modules.Auth.Jobs.CleanupExpiredSessionsHandler."
+				+ "HandleAsync(PublyApp.Api.Infrastructure.Jobs.JobContext,System."
+				+ "Threading.CancellationToken)|5C9A22733B508CE6",
+			"PublyApp.Api.Infrastructure.Messaging.Email."
+				+ "InvitationEmailOutboxDispatcher.ClaimBatchAsync(PublyApp.Api.Data."
+				+ "DbContext.AppDbContext,System.Threading.CancellationToken)|"
+				+ "BE6B6FC8AE38196E",
+			"PublyApp.Api.Infrastructure.Jobs.JobQueueProcessor.ClaimBatchAsync("
+				+ "PublyApp.Api.Data.DbContext.AppDbContext,System.String,System.Int32,"
+				+ "System.Int32,System.Threading.CancellationToken)|CD66D70379262523",
 		],
 		StringComparer.Ordinal
 	);
@@ -188,8 +219,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	/// The closed-set guard is now driven by an EXPLICIT INVENTORY of every
 	/// <c>/posts/*</c> route on the live route map. A route absent from the
 	/// inventory makes this fact RED, naming the unknown route — there is no
-	/// suffix fallback that could silently admit an unreviewed publishing route
-	/// (see .dump/URGENT-garde-routes-publiantes-aveugle.md).
+	/// suffix fallback that could silently admit an unreviewed publishing route.
 	/// </summary>
 	[Fact]
 	public void ItShouldRequirePermissionAndRateLimitOnEveryPublishingTenantEndpoint() {
@@ -334,7 +364,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	// The one statement that may lock publications is pinned in full: it must be
 	// the job's statement, exactly, and it must lock only publications.
 	[Fact]
-	public void ItShouldPinTheDueScanStatementLockingOnlyPublications() {
+	public void ItShouldPinTheDueScanStatementForPublicationsOnly() {
 		var key = PublishingDispatchArchitectureSpec._SanctionedKey;
 		var scan = PublishingDispatchArchitectureSpec._ScanSkipLocked(
 			typeof(Program).Assembly,
@@ -346,14 +376,15 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			"{0} must still hold exactly the pinned due-scan statement",
 			typeof(DispatchDuePostsJob).FullName
 		);
-		_ = scan.SeenText[key].Should().Be(PublishingDispatchArchitectureSpec._SanctionedDueScanSql);
-
-		var tables = PublishingDispatchArchitectureSpec._FromOrJoin()
-			.Matches(PublishingDispatchArchitectureSpec._SanctionedDueScanSql);
-		_ = tables.Should().ContainSingle(
-			"the pinned statement must read exactly one table"
+		_ = scan.SeenText[key].Should().Be(
+			PublishingDispatchArchitectureSpec._SanctionedDueScanSql
 		);
-		_ = tables[0].Groups["t"].Value.Should().Be("PUBLICATIONS");
+
+		_ = PublishingDispatchArchitectureSpec._SanctionedDueScanSql.Should()
+			.Contain("FROM PUBLICATIONS WHERE ")
+			.And.NotContain(" JOIN ")
+			.And.NotContain("PUBLICATIONS,")
+			.And.NotContain("(SELECT");
 		_ = PublishingDispatchArchitectureSpec._SanctionedDueScanSql
 			.Should().EndWith("FOR UPDATE SKIP LOCKED");
 	}
@@ -396,6 +427,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			"PlantedUnlisted.LowerCaseNewline ", // case + whitespace
 			"PlantedUnlisted.CommentBetween ", // comment inside the clause
 			"PlantedUnlisted.Tail ", // clause alone in another method
+			"PlantedUnlisted.ClauseThenLiteral ", // letters glued right after the clause
+			"PlantedUnlisted.QuotedLineMarker ", // '--' in a quoted value
+			"PlantedUnlisted.QuotedBlockMarker ", // '/*' in a quoted value
 			"PlantedUnlisted.TableParameter ", // table from a parameter
 			"PlantedUnlisted.OuterLockOverSubquery ", // outer lock, subquery names another table
 			"PlantedUnlisted.OuterLockOverComment ",
@@ -413,14 +447,22 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		}
 
 		_ = string.Join("\n", scan.Offenders).Should().NotContain("MoveNext");
-		_ = scan.Offenders.Should().OnlyContain(
-			o => o.Contains("normalised statement: "),
-			"every failure must print the normalised statement"
-		);
+
+		// A statement assembled at runtime is never clearable, even when a
+		// reviewer inventoried it: its pieces (and its callers) are invisible.
+		_ = scan.Offenders.Should().Contain(o =>
+			o.Contains("PlantedInventoriedHelper.Lock ")
+				&& o.Contains("assembled with non-literal pieces"));
+		_ = scan.Offenders.Should().Contain(o =>
+			o.Contains("PlantedUnlisted.TableParameter ")
+				&& o.Contains("assembled with non-literal pieces"));
+		_ = scan.Offenders.Should().Contain(o =>
+			o.Contains("PlantedUnlisted.SplitAroundValue ")
+				&& o.Contains("assembled with non-literal pieces"));
 	}
 
 	[Fact]
-	public void ItShouldClearOnlyTheExactReviewedMethodAndStatement() {
+	public void ItShouldClearOnlyTheExactReviewedStatementWhenMethodsAndTextMatch() {
 		var scan = PublishingDispatchArchitectureSpec._ScanPlanted();
 
 		// Reviewed, unedited, in the reviewed method: passes.
@@ -436,12 +478,21 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		// An edited reviewed statement fails, and its stale entry is reported.
 		PublishingDispatchArchitectureSpec._AssertOffender(scan, "PlantedEdited.Sql ");
 		_ = scan.MissingInventory.Should().Contain(k => k.Contains("PlantedEdited.Sql"));
+		// Every other reviewed fixture entry must have been seen; only the edited
+		// statement and the never-clearable helper leave a stale entry.
+		_ = scan.MissingInventory.Should().HaveCount(2)
+			.And.Contain(k => k.Contains("PlantedInventoriedHelper.Lock"));
 
 		// Comments, whitespace and case are not part of the identity.
 		// Two reviewed statements in one method are cut and judged separately.
 		PublishingDispatchArchitectureSpec._AssertClean(scan, "PlantedTwoStatements.Both ");
+		// An identical statement twice: one occurrence is reviewed, the other not.
+		_ = scan.Offenders.Should().ContainSingle(o => o.Contains("PlantedDuplicate.Both "));
+		_ = scan.Offenders.Single(o => o.Contains("PlantedDuplicate.Both "))
+			.Should().Contain("identical statement already occurs");
 		PublishingDispatchArchitectureSpec._AssertClean(scan, "PlantedCommented.Sql ");
 		PublishingDispatchArchitectureSpec._AssertClean(scan, "PlantedMessy.Sql ");
+		PublishingDispatchArchitectureSpec._AssertClean(scan, "PlantedTrailingLog.Sql ");
 		PublishingDispatchArchitectureSpec._AssertClean(scan, "PlantedSanctionedLike.Claim ");
 	}
 
@@ -457,7 +508,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 
 	[Fact]
-	public void ItShouldSizeEveryKnownOperandTypeExactlyAndRejectUnknownOnes() {
+	public void ItShouldSizeEveryKnownOperandTypeExactlyWhenDecodingAndRejectUnknownOnes() {
 		var il = new byte[16];
 		var expected = new Dictionary<OperandType, int> {
 			[OperandType.InlineNone] = 0,
@@ -543,11 +594,14 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	// bodies exist only so the compiler emits the literals.
 	private const string _SqlReviewed = "SELECT id FROM job_queue FOR UPDATE SKIP LOCKED";
 	private const string _SqlSecond = "SELECT id FROM email_log FOR UPDATE SKIP LOCKED";
-	private const string _SqlReviewedEdited = "SELECT id FROM job_queue LIMIT 5 FOR UPDATE SKIP LOCKED";
-	private const string _SqlReviewedOriginalOfEdited = "SELECT id FROM job_queue LIMIT 4 FOR UPDATE SKIP LOCKED";
+	private const string _SqlReviewedEdited =
+		"SELECT id FROM job_queue LIMIT 5 FOR UPDATE SKIP LOCKED";
+	private const string _SqlReviewedOriginalOfEdited =
+		"SELECT id FROM job_queue LIMIT 4 FOR UPDATE SKIP LOCKED";
 	private const string _SqlWithComments =
 		"SELECT id FROM job_queue -- keep this note\n /* and this */ FOR UPDATE SKIP LOCKED";
-	private const string _SqlWithCommentsCanonical = "SELECT ID FROM JOB_QUEUE FOR UPDATE SKIP LOCKED";
+	private const string _SqlWithCommentsCanonical =
+		"SELECT ID FROM JOB_QUEUE FOR UPDATE SKIP LOCKED";
 	private const string _SqlMessy = "select id\n   from job_queue\n\tfor update   skip locked";
 	private const string _SqlSanctionedLike = "SELECT ID FROM PUBLICATIONS FOR UPDATE SKIP LOCKED";
 
@@ -565,16 +619,26 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		}
 
 		public static string Claim(int unused) {
-			return PublishingDispatchArchitectureSpec._SqlReviewed + new string(' ', unused);
+			return unused > 0 ? PublishingDispatchArchitectureSpec._SqlReviewed : string.Empty;
 		}
 	}
 
 	// Two reviewed statements in ONE method: each is judged on its own text.
 	private static class PlantedTwoStatements {
-		public static string Both(string between) {
-			return PublishingDispatchArchitectureSpec._SqlReviewed
-				+ between
-				+ PublishingDispatchArchitectureSpec._SqlSecond;
+		public static string Both() {
+			var first = PublishingDispatchArchitectureSpec._SqlReviewed;
+			var second = PublishingDispatchArchitectureSpec._SqlSecond;
+			return first.Length > second.Length ? first : second;
+		}
+
+	}
+
+	// An identical statement twice: an entry matches exactly one occurrence.
+	private static class PlantedDuplicate {
+		public static string Both() {
+			var first = PublishingDispatchArchitectureSpec._SqlReviewed;
+			var second = PublishingDispatchArchitectureSpec._SqlReviewed;
+			return first.Length > second.Length ? first : second;
 		}
 	}
 
@@ -591,6 +655,20 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		}
 	}
 
+	// A log/copy literal after the statement is not part of its identity.
+	private static class PlantedTrailingLog {
+		public static string Sql() {
+			return PlantedTrailingLog._Pick(
+				PublishingDispatchArchitectureSpec._SqlReviewed,
+				"removed rows older than the retention window"
+			);
+		}
+
+		private static string _Pick(string statement, string log) {
+			return log.Length > statement.Length ? log : statement;
+		}
+	}
+
 	// Comments and whitespace/case are not part of the reviewed identity.
 	private static class PlantedCommented {
 		public static string Sql() {
@@ -601,6 +679,13 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	private static class PlantedMessy {
 		public static string Sql() {
 			return PublishingDispatchArchitectureSpec._SqlMessy;
+		}
+	}
+
+	// Reviewed, yet assembled at runtime from a parameter: never clearable.
+	private static class PlantedInventoriedHelper {
+		public static string Lock(string table) {
+			return "SELECT id FROM " + table + " WHERE x = 1 FOR UPDATE SKIP LOCKED";
 		}
 	}
 
@@ -630,6 +715,27 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			return " FOR UPDATE SKIP LOCKED";
 		}
 
+		// A literal right after the clause must not hide it from detection.
+		public static string ClauseThenLiteral() {
+			return PlantedUnlisted._Pick(
+				"SELECT id FROM publications FOR UPDATE SKIP LOCKED",
+				"deleted rows"
+			);
+		}
+
+		private static string _Pick(string statement, string log) {
+			return log.Length > statement.Length ? log : statement;
+		}
+
+		// Comment markers inside quoted values must not hide the clause.
+		public static string QuotedLineMarker() {
+			return "SELECT id FROM publications WHERE note LIKE '%--%' FOR UPDATE SKIP LOCKED";
+		}
+
+		public static string QuotedBlockMarker() {
+			return "SELECT id FROM publications WHERE note = '/*' FOR UPDATE SKIP LOCKED /* c */";
+		}
+
 		public static string TableParameter(string table) {
 			return "SELECT id FROM " + table + " WHERE x = 1 FOR UPDATE SKIP LOCKED";
 		}
@@ -641,7 +747,8 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		}
 
 		public static string OuterLockOverComment() {
-			return "SELECT id FROM publications -- select id from job_queue\n FOR UPDATE SKIP LOCKED";
+			return "SELECT id FROM publications -- select id from job_queue\n "
+				+ "FOR UPDATE SKIP LOCKED";
 		}
 
 		public static string OuterLockOverString() {
@@ -697,7 +804,8 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	// differences that do not change a statement's reviewed identity.
 	private static string _Normalise(string sql) {
 		var noLineComments = PublishingDispatchArchitectureSpec._LineComment().Replace(sql, " ");
-		var noComments = PublishingDispatchArchitectureSpec._BlockComment().Replace(noLineComments, " ");
+		var noComments = PublishingDispatchArchitectureSpec._BlockComment()
+			.Replace(noLineComments, " ");
 		return PublishingDispatchArchitectureSpec._WhitespaceRun().Replace(noComments, " ")
 			.Trim().ToUpperInvariant();
 	}
@@ -706,22 +814,50 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	// identity of one reviewed statement.
 	private static string _Key(Type type, string method, Type[] parameters, string sql) {
 		var signature = string.Join(",", parameters.Select(p => p.FullName ?? p.Name));
-		var hash = PublishingDispatchArchitectureSpec._Hash(PublishingDispatchArchitectureSpec._Normalise(sql));
+		var hash = PublishingDispatchArchitectureSpec._Hash(
+			PublishingDispatchArchitectureSpec._Normalise(sql)
+		);
 		return $"{type.FullName}.{method}({signature})|{hash}";
 	}
 
 	private static readonly IReadOnlySet<string> _PlantedInventory = new HashSet<string>(
 		[
-			PublishingDispatchArchitectureSpec._Key(typeof(PlantedReviewed), nameof(PlantedReviewed.Sql), [], PublishingDispatchArchitectureSpec._SqlReviewed),
-			PublishingDispatchArchitectureSpec._Key(typeof(PlantedOverload), nameof(PlantedOverload.Claim), [], PublishingDispatchArchitectureSpec._SqlReviewed),
+			PublishingDispatchArchitectureSpec._Key(
+				typeof(PlantedReviewed), nameof(PlantedReviewed.Sql),
+				[], PublishingDispatchArchitectureSpec._SqlReviewed),
+			PublishingDispatchArchitectureSpec._Key(
+				typeof(PlantedOverload), nameof(PlantedOverload.Claim),
+				[], PublishingDispatchArchitectureSpec._SqlReviewed),
+			PublishingDispatchArchitectureSpec._Key(
+				typeof(PlantedTwoStatements), nameof(PlantedTwoStatements.Both),
+				[], PublishingDispatchArchitectureSpec._SqlReviewed),
+			PublishingDispatchArchitectureSpec._Key(
+				typeof(PlantedTwoStatements), nameof(PlantedTwoStatements.Both),
+				[], PublishingDispatchArchitectureSpec._SqlSecond),
+			PublishingDispatchArchitectureSpec._Key(
+				typeof(PlantedDuplicate), nameof(PlantedDuplicate.Both),
+				[], PublishingDispatchArchitectureSpec._SqlReviewed),
 			// reviewed with an older text than the code now holds
-			PublishingDispatchArchitectureSpec._Key(typeof(PlantedTwoStatements), nameof(PlantedTwoStatements.Both), [typeof(string)], PublishingDispatchArchitectureSpec._SqlReviewed),
-			PublishingDispatchArchitectureSpec._Key(typeof(PlantedTwoStatements), nameof(PlantedTwoStatements.Both), [typeof(string)], PublishingDispatchArchitectureSpec._SqlSecond),
-			PublishingDispatchArchitectureSpec._Key(typeof(PlantedEdited), nameof(PlantedEdited.Sql), [], PublishingDispatchArchitectureSpec._SqlReviewedOriginalOfEdited),
+			PublishingDispatchArchitectureSpec._Key(
+				typeof(PlantedEdited), nameof(PlantedEdited.Sql),
+				[], PublishingDispatchArchitectureSpec._SqlReviewedOriginalOfEdited),
 			// reviewed as the comment-free, upper-case canonical text
-			PublishingDispatchArchitectureSpec._Key(typeof(PlantedCommented), nameof(PlantedCommented.Sql), [], PublishingDispatchArchitectureSpec._SqlWithCommentsCanonical),
-			PublishingDispatchArchitectureSpec._Key(typeof(PlantedMessy), nameof(PlantedMessy.Sql), [], PublishingDispatchArchitectureSpec._SqlReviewed),
-			PublishingDispatchArchitectureSpec._Key(typeof(PlantedSanctionedLike), nameof(PlantedSanctionedLike.Claim), [], PublishingDispatchArchitectureSpec._SqlSanctionedLike),
+			PublishingDispatchArchitectureSpec._Key(
+				typeof(PlantedCommented), nameof(PlantedCommented.Sql),
+				[], PublishingDispatchArchitectureSpec._SqlWithCommentsCanonical),
+			PublishingDispatchArchitectureSpec._Key(
+				typeof(PlantedTrailingLog), nameof(PlantedTrailingLog.Sql),
+				[], PublishingDispatchArchitectureSpec._SqlReviewed),
+			PublishingDispatchArchitectureSpec._Key(
+				typeof(PlantedMessy), nameof(PlantedMessy.Sql),
+				[], PublishingDispatchArchitectureSpec._SqlReviewed),
+			PublishingDispatchArchitectureSpec._Key(
+				typeof(PlantedSanctionedLike), nameof(PlantedSanctionedLike.Claim),
+				[], PublishingDispatchArchitectureSpec._SqlSanctionedLike),
+			// a reviewer approved this helper, but it is assembled at runtime
+			PublishingDispatchArchitectureSpec._Key(
+				typeof(PlantedInventoriedHelper), nameof(PlantedInventoriedHelper.Lock),
+				[typeof(string)], "SELECT id FROM WHERE x = 1 FOR UPDATE SKIP LOCKED"),
 		],
 		StringComparer.Ordinal
 	);
@@ -730,7 +866,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	// is the inventory entry of DispatchDuePostsJob.HandleAsync; editing the
 	// job's SQL (or this text) turns the guard red until a reviewer updates both.
 	private const string _SanctionedDueScanSql =
-		"SELECT ID AS \"VALUE\" FROM PUBLICATIONS WHERE STATUS = {0} AND IS_DELETED = FALSE AND SCHEDULED_AT_UTC <= NOW() ORDER BY SCHEDULED_AT_UTC, ID LIMIT {1} FOR UPDATE SKIP LOCKED"
+		"SELECT ID AS \"VALUE\" FROM PUBLICATIONS WHERE STATUS = {0} AND "
+		+ "IS_DELETED = FALSE AND SCHEDULED_AT_UTC <= NOW() ORDER BY "
+		+ "SCHEDULED_AT_UTC, ID LIMIT {1} FOR UPDATE SKIP LOCKED"
 		;
 
 	private sealed record SkipLockedScan(
@@ -746,7 +884,8 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		string Signature,
 		MethodDefinitionHandle Handle,
 		int ILOffset,
-		string Text
+		string Text,
+		bool Assembles
 	);
 
 	// One SQL statement of a method: consecutive literals, cut where a literal
@@ -787,30 +926,59 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		var total = 0;
 
 		foreach (var methodGroup in sites.GroupBy(site => (site.Type, site.Signature))) {
-			foreach (var statement in PublishingDispatchArchitectureSpec._Statements(methodGroup.ToList())) {
+			var assembles = methodGroup.Any(site => site.Assembles);
+			var occurrences = new Dictionary<string, int>(StringComparer.Ordinal);
+
+			var statements = PublishingDispatchArchitectureSpec._Statements(methodGroup.ToList());
+			foreach (var statement in statements) {
 				var raw = statement.Text.ToString();
-				var normalised = PublishingDispatchArchitectureSpec._Normalise(raw);
-				if (!PublishingDispatchArchitectureSpec._SkipLockedRegex().IsMatch(normalised)) {
+				var rawMatches = PublishingDispatchArchitectureSpec._SkipLockedRegex().Matches(raw);
+				// Detection looks at the raw text too: comment stripping must never
+				// be able to hide a clause (e.g. '--' inside a quoted value).
+				if (rawMatches.Count == 0 && !PublishingDispatchArchitectureSpec._SkipLockedRegex()
+					.IsMatch(PublishingDispatchArchitectureSpec._Normalise(raw))) {
 					continue;
 				}
 
 				total++;
-				var key = $"{methodGroup.Key.Type}.{methodGroup.Key.Signature}"
+				var holderIndex = rawMatches.Count == 0
+					? statement.Parts.Count - 1
+					: statement.Parts.FindLastIndex(part => part.Start <= rawMatches[^1].Index);
+				var cut = holderIndex + 1 < statement.Parts.Count
+					? raw[..statement.Parts[holderIndex + 1].Start]
+					: raw;
+				var normalised = PublishingDispatchArchitectureSpec._Normalise(cut);
+				var where = PublishingDispatchArchitectureSpec._Describe(
+					statement.Parts[holderIndex].Site, pdbReader);
+
+				if (assembles) {
+					offenders.Add(
+						$"{where}: SKIP LOCKED statement is assembled with non-literal pieces "
+							+ "(string concatenation, interpolation or Format in this method); "
+							+ "write it as one literal with parameter placeholders. No inventory "
+							+ "entry can clear it. Normalised statement: "
+							+ PublishingDispatchArchitectureSpec._Cap(normalised)
+					);
+					continue;
+				}
+
+				var baseKey = $"{methodGroup.Key.Type}.{methodGroup.Key.Signature}"
 					+ $"|{PublishingDispatchArchitectureSpec._Hash(normalised)}";
+				var occurrence = occurrences.GetValueOrDefault(baseKey) + 1;
+				occurrences[baseKey] = occurrence;
+				var key = occurrence == 1 ? baseKey : $"{baseKey}#{occurrence}";
 				seenText[key] = normalised;
 				if (inventory.Contains(key)) {
 					continue;
 				}
 
-				var holder = statement.Parts.LastOrDefault(part => part.Site.Text.Contains(
-					"SKIP", StringComparison.OrdinalIgnoreCase)).Site
-					?? statement.Parts[0].Site;
-				var where = PublishingDispatchArchitectureSpec._Describe(holder, pdbReader);
 				offenders.Add(
-					$"{where}: SKIP LOCKED statement is not in the reviewed inventory. "
-						+ "Inventory changes need a reviewer. "
-						+ $"Entry: \"{key}\"; normalised statement: "
-						+ PublishingDispatchArchitectureSpec._Cap(normalised)
+					$"{where}: SKIP LOCKED statement is not in the reviewed inventory"
+						+ (occurrence > 1
+							? " (an identical statement already occurs in this method)"
+							: "")
+						+ $". Inventory changes need a reviewer. Entry: \"{key}\"; normalised "
+						+ $"statement: {PublishingDispatchArchitectureSpec._Cap(normalised)}"
 				);
 			}
 		}
@@ -853,7 +1021,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	}
 
 	private static string _Describe(LiteralSite site, MetadataReader? pdb) {
-		var location = PublishingDispatchArchitectureSpec._Location(pdb, site.Handle, site.ILOffset);
+		var location = PublishingDispatchArchitectureSpec._Location(
+			pdb, site.Handle, site.ILOffset
+		);
 		return $"{site.Type}.{site.Method} {location}";
 	}
 
@@ -906,10 +1076,11 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				var signature = PublishingDispatchArchitectureSpec._DeclaredSignature(
 					assembly.ManifestModule, MetadataTokens.GetToken(methodHandle), methodName
 				);
-				foreach (var (offset, text) in
-					PublishingDispatchArchitectureSpec._StringLiterals(reader, il)) {
+				var (literals, assembles) =
+					PublishingDispatchArchitectureSpec._StringLiterals(reader, il);
+				foreach (var (offset, text) in literals) {
 					sites.Add(new LiteralSite(
-						typeName, methodName, signature, methodHandle, offset, text
+						typeName, methodName, signature, methodHandle, offset, text, assembles
 					));
 				}
 			}
@@ -1001,7 +1172,11 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		return name;
 	}
 
-	private static string _Location(MetadataReader? pdb, MethodDefinitionHandle method, int ilOffset) {
+	private static string _Location(
+		MetadataReader? pdb,
+		MethodDefinitionHandle method,
+		int ilOffset
+	) {
 		if (pdb is null) {
 			return "(no portable PDB: file:line unavailable)";
 		}
@@ -1073,8 +1248,44 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		);
 	}
 
-	private static List<(int Offset, string Text)> _StringLiterals(MetadataReader reader, byte[] il) {
+	// Calls that assemble a string at runtime: a statement built with any of them
+	// has non-literal pieces (a table, a clause, a fragment) and cannot be judged.
+	private static readonly string[] _StringAssemblyCallees = [
+		"System.String.Concat",
+		"System.String.Format",
+		"System.String.Join",
+		"System.String.Replace",
+		"System.String.Insert",
+		"System.Text.StringBuilder.Append",
+		"System.Runtime.CompilerServices.DefaultInterpolatedStringHandler.Append",
+	];
+
+	private static string? _CalleeName(MetadataReader reader, int token) {
+		var handle = MetadataTokens.EntityHandle(token);
+		if (handle.Kind == HandleKind.MethodSpecification) {
+			handle = reader.GetMethodSpecification((MethodSpecificationHandle)handle).Method;
+		}
+
+		if (handle.Kind != HandleKind.MemberReference) {
+			return null;
+		}
+
+		var member = reader.GetMemberReference((MemberReferenceHandle)handle);
+		if (member.Parent.Kind != HandleKind.TypeReference) {
+			return null;
+		}
+
+		var type = reader.GetTypeReference((TypeReferenceHandle)member.Parent);
+		return $"{reader.GetString(type.Namespace)}.{reader.GetString(type.Name)}"
+			+ $".{reader.GetString(member.Name)}";
+	}
+
+	private static (List<(int Offset, string Text)> Literals, bool Assembles) _StringLiterals(
+		MetadataReader reader,
+		byte[] il
+	) {
 		var literals = new List<(int, string)>();
+		var assembles = false;
 		var position = 0;
 		while (position < il.Length) {
 			var start = position;
@@ -1087,6 +1298,13 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				literals.Add((start, reader.GetUserString(
 					MetadataTokens.UserStringHandle(token & 0x00FFFFFF)
 				)));
+			} else if (opCode == OpCodes.Call || opCode == OpCodes.Callvirt
+				|| opCode == OpCodes.Newobj) {
+				var callee = PublishingDispatchArchitectureSpec._CalleeName(
+					reader, BitConverter.ToInt32(il, position));
+				assembles |= callee is not null
+					&& PublishingDispatchArchitectureSpec._StringAssemblyCallees.Any(prefix =>
+						callee.StartsWith(prefix, StringComparison.Ordinal));
 			}
 
 			position += PublishingDispatchArchitectureSpec._OperandSize(
@@ -1096,16 +1314,13 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			);
 		}
 
-		return literals;
+		return (literals, assembles);
 	}
 
 
-	private static string _Flatten(string snippet) {
-		var flattened = PublishingDispatchArchitectureSpec._WhitespaceRun().Replace(snippet, " ").Trim();
-		return flattened.Length <= 140 ? flattened : flattened[..140] + "…";
-	}
-
-	[GeneratedRegex(@"\bSKIP\s+LOCKED\b", RegexOptions.IgnoreCase)]
+	// No word boundaries: literals are joined without a separator, so a clause
+	// followed by the next literal ("…SKIP LOCKED" + "deleted rows") must still match.
+	[GeneratedRegex(@"SKIP\s+LOCKED", RegexOptions.IgnoreCase)]
 	private static partial Regex _SkipLockedRegex();
 
 	[GeneratedRegex(@"^\s*(select|update|delete|with|insert)\b", RegexOptions.IgnoreCase)]
@@ -1116,9 +1331,6 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	[GeneratedRegex(@"/\*.*?\*/", RegexOptions.Singleline)]
 	private static partial Regex _BlockComment();
-
-	[GeneratedRegex(@"\b(?:from|join)\s+(?:[\w""]+\.)?""?(?<t>[A-Za-z_]\w*)", RegexOptions.IgnoreCase)]
-	private static partial Regex _FromOrJoin();
 
 	[GeneratedRegex(@"\s+")]
 	private static partial Regex _WhitespaceRun();
