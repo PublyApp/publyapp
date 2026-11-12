@@ -8,6 +8,8 @@ import { ProjectsRequestBuilderRequestsMetadata, type ProjectsRequestBuilder } f
 // @ts-ignore
 import { ReconnectRequestBuilderRequestsMetadata, type ReconnectRequestBuilder } from './reconnect/index.js';
 // @ts-ignore
+import { type VisibilityRequestBuilder, VisibilityRequestBuilderRequestsMetadata } from './visibility/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -26,6 +28,10 @@ export interface WithSocialAccountItemRequestBuilder extends BaseRequestBuilder<
      * The reconnect property
      */
     get reconnect(): ReconnectRequestBuilder;
+    /**
+     * The visibility property
+     */
+    get visibility(): VisibilityRequestBuilder;
 }
 /**
  * Uri template for the request builder.
@@ -43,6 +49,9 @@ export const WithSocialAccountItemRequestBuilderNavigationMetadata: Record<Exclu
     },
     reconnect: {
         requestsMetadata: ReconnectRequestBuilderRequestsMetadata,
+    },
+    visibility: {
+        requestsMetadata: VisibilityRequestBuilderRequestsMetadata,
     },
 };
 /* tslint:enable */
