@@ -62,6 +62,7 @@ export const CreatePostActions = ({
 	isSubmitting,
 	onCancel,
 }: {
+	/** A save or publish is in flight: Save waits, Cancel never does. */
 	isSubmitting: boolean;
 	onCancel: () => void;
 }) => {

@@ -236,7 +236,7 @@ public sealed class BlueskyPublishProviderSpec {
 	public async Task ItShouldReconcileAsFoundWhenGetRecordFindsTheDeterministicRecordAndNeverWrite() {
 		var handler = new RecordingHandler(_ => BlueskyPublishProviderSpec._JsonResponse(
 			200, """{"uri":"at://did:plc:x/app.bsky.feed.post/pub-k","cid":"cid-9"}"""
-		));
+		), absentLookups: false);
 		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
 
 		var result = await provider.ReconcileAsync(BlueskyPublishProviderSpec._ReconcileRequest(), CancellationToken.None);
@@ -252,7 +252,7 @@ public sealed class BlueskyPublishProviderSpec {
 	public async Task ItShouldUseTheSegmentRkeyAndReportAbsentWhenReconcilingAThreadReply() {
 		var handler = new RecordingHandler(_ => BlueskyPublishProviderSpec._JsonResponse(
 			400, """{"error":"RecordNotFound","message":"Could not locate record"}"""
-		));
+		), absentLookups: false);
 		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
 
 		var result = await provider.ReconcileAsync(BlueskyPublishProviderSpec._ReconcileRequest(2), CancellationToken.None);
@@ -268,7 +268,7 @@ public sealed class BlueskyPublishProviderSpec {
 	public async Task ItShouldReconcileAsUnavailableWhenTheLookupItselfFails(int status) {
 		var handler = new RecordingHandler(_ => BlueskyPublishProviderSpec._JsonResponse(
 			status, """{"error":"InternalServerError"}"""
-		));
+		), absentLookups: false);
 		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
 
 		var result = await provider.ReconcileAsync(BlueskyPublishProviderSpec._ReconcileRequest(), CancellationToken.None);
@@ -278,7 +278,9 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldReconcileAsUnavailableOnATransportError() {
-		var handler = new RecordingHandler(_ => throw new HttpRequestException("reset"));
+		var handler = new RecordingHandler(
+			_ => throw new HttpRequestException("reset"), absentLookups: false
+		);
 		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
 
 		var result = await provider.ReconcileAsync(BlueskyPublishProviderSpec._ReconcileRequest(), CancellationToken.None);
@@ -325,9 +327,9 @@ public sealed class BlueskyPublishProviderSpec {
 
 		first.Should().BeOfType<PublishResult.Published>("the first delivery creates the record");
 		fakePds.StoredRkeys.Should().ContainSingle(
-			"the deterministic key means the replay collides with the SAME record"
+			"the deterministic key means the replay finds the SAME record"
 		);
-		fakePds.CreateAttempts.Should().Be(2, "two runs, but only ONE stored record");
+		fakePds.CreateAttempts.Should().Be(1, "the replay found the record and never wrote again");
 
 		second.Should().BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>();
 		var adopted = second.Should()
@@ -335,10 +337,10 @@ public sealed class BlueskyPublishProviderSpec {
 		adopted.RecordId.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
 		adopted.RecordUrl.Should().Be($"https://bsky.app/role/did:plc:x/post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
 
-		// The adoption went through the documented read-back: GET getRecord carrying
-		// the freshly derived rkey.
-		var readBack = fakePds.Requests.Should().ContainSingle(request =>
-			request.Method == HttpMethod.Get).Subject;
+		// The adoption went through the lookup before the write: GET getRecord
+		// carrying the freshly derived rkey (absent on run one, found on run two).
+		fakePds.Requests.Count(request => request.Method == HttpMethod.Get).Should().Be(2);
+		var readBack = fakePds.Requests.Last(request => request.Method == HttpMethod.Get);
 		var readBackUri = readBack.RequestUri.Required();
 		readBackUri.AbsolutePath.Should().EndWith("com.atproto.repo.getRecord");
 		var query = HttpUtility.ParseQueryString(readBackUri.Query);
@@ -375,6 +377,17 @@ public sealed class BlueskyPublishProviderSpec {
 		return request.RequestUri.Required().AbsolutePath.EndsWith(
 			"com.atproto.repo.uploadBlob", StringComparison.Ordinal
 		);
+	}
+
+	private static bool _IsGetRecord(HttpRequestMessage request) {
+		return request.Method == HttpMethod.Get
+			&& request.RequestUri.Required().AbsolutePath.EndsWith(
+				"com.atproto.repo.getRecord", StringComparison.Ordinal
+			);
+	}
+
+	private static HttpResponseMessage _RecordNotFound() {
+		return BlueskyPublishProviderSpec._JsonResponse(400, """{"error":"RecordNotFound"}""");
 	}
 
 	private static HttpResponseMessage _BlobResponse(int number, string mime = "image/png") {
@@ -599,6 +612,159 @@ public sealed class BlueskyPublishProviderSpec {
 		creates.Should().Be(1, "the failed upload never reached createRecord, so the retry creates the only record");
 	}
 
+	[Fact]
+	public async Task ItShouldNotReUploadImagesWhenTheRecordIsLive() {
+		var uploads = 0;
+		var creates = 0;
+		var handler = new RecordingHandler(request => {
+			if (BlueskyPublishProviderSpec._IsGetRecord(request)) {
+				return BlueskyPublishProviderSpec._SuccessResponse(
+					$"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}"
+				);
+			}
+
+			if (BlueskyPublishProviderSpec._IsUpload(request)) {
+				uploads += 1;
+				return BlueskyPublishProviderSpec._JsonResponse(401, """{"error":"ExpiredToken"}""");
+			}
+
+			creates += 1;
+			return BlueskyPublishProviderSpec._SuccessResponse("at://did:plc:x/app.bsky.feed.post/pub-k");
+		}, absentLookups: false);
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var request = BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()) with {
+			Media = [BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", "x", 10, 10)],
+		};
+
+		var result = await provider.PublishAsync(request, CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>();
+		uploads.Should().Be(0);
+		creates.Should().Be(0);
+	}
+
+	// A retry of a publication that is already live must never turn into a
+	// credential pause: expired token, text-only post, thread root.
+	private static BlueskyPublishProvider _ProviderFor(HttpMessageHandler handler) {
+		return new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+	}
+
+	[Fact]
+	public async Task ItShouldAdoptALiveTextOnlyPostWithoutWritingEvenWhenTheTokenIsExpired() {
+		var writes = 0;
+		var handler = new RecordingHandler(request => {
+			if (BlueskyPublishProviderSpec._IsGetRecord(request)) {
+				return BlueskyPublishProviderSpec._SuccessResponse(
+					$"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}"
+				);
+			}
+
+			writes += 1;
+			return BlueskyPublishProviderSpec._JsonResponse(401, """{"error":"ExpiredToken"}""");
+		}, absentLookups: false);
+		var provider = BlueskyPublishProviderSpec._ProviderFor(handler);
+
+		var result = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._NewRequest(
+			BlueskyPublishProviderSpec._NewSession()
+		),
+			CancellationToken.None
+		);
+
+		result.Should().BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>();
+		writes.Should().Be(0);
+	}
+
+	[Fact]
+	public async Task ItShouldAdoptALiveThreadRootAndContinueWithTheReplies() {
+		var created = 0;
+		var key = BlueskyPublishProviderSpec._IdempotencyKey;
+		var handler = new RecordingHandler(request => {
+			if (BlueskyPublishProviderSpec._IsGetRecord(request)) {
+				return BlueskyPublishProviderSpec._JsonResponse(
+					200,
+					$$"""{"uri":"at://did:plc:x/app.bsky.feed.post/pub-{{key}}","cid":"cid-root"}"""
+				);
+			}
+
+			created += 1;
+			return BlueskyPublishProviderSpec._JsonResponse(
+				200, $$"""{"uri":"at://did:plc:x/app.bsky.feed.post/s{{created}}","cid":"cid-{{created}}"}"""
+			);
+		}, absentLookups: false);
+		var provider = BlueskyPublishProviderSpec._ProviderFor(handler);
+
+		var result = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._ThreadRequest(["two"]),
+			CancellationToken.None
+		);
+
+		result.Should().BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>();
+		created.Should().Be(1, "only the reply is written; the live root is not written again");
+	}
+
+	[Fact]
+	public async Task ItShouldNotContinueAThreadFromALiveRootWithoutACid() {
+		var handler = new RecordingHandler(request => BlueskyPublishProviderSpec._JsonResponse(
+			200, """{"uri":"at://did:plc:x/app.bsky.feed.post/r0"}"""
+		), absentLookups: false);
+		var provider = BlueskyPublishProviderSpec._ProviderFor(handler);
+
+		var result = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._ThreadRequest(["two"]),
+			CancellationToken.None
+		);
+
+		result.Should().BeOfType<PublishResult.TransientFailure>();
+		handler.Requests.Should().NotContain(request => request.Method == HttpMethod.Post);
+	}
+
+	public enum LookupFailure { ServerError, Timeout, Unauthorized, Transport }
+
+	[Theory]
+	[InlineData(LookupFailure.ServerError, true)]
+	[InlineData(LookupFailure.Timeout, true)]
+	[InlineData(LookupFailure.Unauthorized, true)]
+	[InlineData(LookupFailure.Transport, true)]
+	[InlineData(LookupFailure.ServerError, false)]
+	[InlineData(LookupFailure.Timeout, false)]
+	[InlineData(LookupFailure.Unauthorized, false)]
+	public async Task ItShouldRetryLaterAndSendNothingWhenTheLiveRecordLookupCannotAnswer(
+		LookupFailure failure,
+		bool withImages
+	) {
+		var handler = new RecordingHandler(request => failure switch {
+			LookupFailure.ServerError => BlueskyPublishProviderSpec._JsonResponse(
+				500, """{"error":"InternalServerError"}"""
+			),
+			LookupFailure.Unauthorized => BlueskyPublishProviderSpec._JsonResponse(
+				401, """{"error":"AuthRequired"}"""
+			),
+			LookupFailure.Timeout => throw new TaskCanceledException("timed out"),
+			LookupFailure.Transport => throw new HttpRequestException("reset"),
+			_ => throw new ArgumentOutOfRangeException(nameof(failure)),
+		}, absentLookups: false);
+		var provider = BlueskyPublishProviderSpec._ProviderFor(handler);
+		var request = BlueskyPublishProviderSpec._NewRequest(
+			BlueskyPublishProviderSpec._NewSession()
+		);
+		if (withImages) {
+			request = request with {
+				Media = [BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", "x", 10, 10)],
+			};
+		}
+
+		var result = await provider.PublishAsync(request, CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.TransientFailure>(
+			"an unknown answer is not proof the post is absent, and never an account failure"
+		);
+		handler.Requests.Should().OnlyContain(
+			r => r.Method == HttpMethod.Get,
+			"nothing was uploaded or written"
+		);
+	}
+
 	private static PublishRequest _ThreadRequest(
 		IReadOnlyList<string> followUps,
 		IReadOnlyList<CompletedSegment>? completed = null,
@@ -777,13 +943,18 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldNotContinueAThreadFromAReadBackRecordWithoutACid() {
+		// The lookup says absent, the write then races into already-exists, and the
+		// read-back finds a record without a content id.
+		var lookups = 0;
 		var handler = new RecordingHandler(request => request.Method == HttpMethod.Post
 			? BlueskyPublishProviderSpec._JsonResponse(
 				400, """{"error":"InvalidRequest","message":"record_already_exists"}"""
 			)
-			: BlueskyPublishProviderSpec._JsonResponse(
-				200, """{"uri":"at://did:plc:x/app.bsky.feed.post/r0"}"""
-			));
+			: ++lookups == 1
+				? BlueskyPublishProviderSpec._RecordNotFound()
+				: BlueskyPublishProviderSpec._JsonResponse(
+					200, """{"uri":"at://did:plc:x/app.bsky.feed.post/r0"}"""
+				), absentLookups: false);
 		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
 
 		var result = await provider.PublishAsync(
@@ -800,8 +971,18 @@ public sealed class BlueskyPublishProviderSpec {
 		: HttpMessageHandler {
 		private readonly Func<HttpRequestMessage, HttpResponseMessage> _Responder;
 
-		public RecordingHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) {
+		private readonly bool _AbsentLookups;
+
+		// Every publish first asks "is the first record already live" (getRecord).
+		// Most specs are not about that: by default the lookup answers
+		// RecordNotFound and stays out of Requests. Specs about the lookup, and the
+		// reconcile specs, pass false and answer it themselves.
+		public RecordingHandler(
+			Func<HttpRequestMessage, HttpResponseMessage> responder,
+			bool absentLookups = true
+		) {
 			this._Responder = responder;
+			this._AbsentLookups = absentLookups;
 		}
 
 		public List<HttpRequestMessage> Requests { get; } = [];
@@ -817,6 +998,10 @@ public sealed class BlueskyPublishProviderSpec {
 			var raw = request.Content is null
 				? []
 				: await request.Content.ReadAsByteArrayAsync(cancellationToken);
+			if (this._AbsentLookups && BlueskyPublishProviderSpec._IsGetRecord(request)) {
+				return BlueskyPublishProviderSpec._RecordNotFound();
+			}
+
 			this.Requests.Add(request);
 			this.RawBodies.Add(raw);
 			this.Bodies.Add(Encoding.UTF8.GetString(raw));
@@ -866,6 +1051,10 @@ public sealed class BlueskyPublishProviderSpec {
 
 			var requestUri = request.RequestUri.Required();
 			var query = HttpUtility.ParseQueryString(requestUri.Query);
+			if (!this.StoredRkeys.Contains(query["rkey"] ?? string.Empty)) {
+				return _JsonResponse(400, """{"error":"RecordNotFound"}""");
+			}
+
 			return _JsonResponse(
 				200,
 				$$"""{"uri":"at://did:plc:x/app.bsky.feed.post/{{query["rkey"]}}","cid":"bafy-existing"}"""

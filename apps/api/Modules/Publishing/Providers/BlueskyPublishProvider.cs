@@ -55,7 +55,14 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 					continue;
 				}
 
-				var outcome = await BlueskyPublishProvider._CreateSegmentAsync(
+				// A retry after a write that actually landed must neither upload the
+				// images again nor write again: a credential error there would pause
+				// a publication that is already live (#2179). The lookup is read-only;
+				// when it cannot tell, nothing is sent (unknown is not "absent").
+				var outcome = position == 0
+					? await this._LookUpRootAsync(request, isThread, cancellationToken)
+					: null;
+				outcome ??= await BlueskyPublishProvider._CreateSegmentAsync(
 					client, request, position, texts[position], isThread, root, parent, cancellationToken
 				);
 				if (outcome.Segment is null) {
@@ -89,6 +96,50 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				LastErrorSanitiser.Sanitize($"the PDS did not answer in time: {exception.Message}")
 					?? "the PDS did not answer in time"
 			);
+		}
+	}
+
+	private async Task<SegmentOutcome?> _LookUpRootAsync(
+		PublishRequest request,
+		bool isThread,
+		CancellationToken cancellationToken
+	) {
+		var lookup = await this.ReconcileAsync(
+			new ReconcileRequest {
+				PublicationId = request.PublicationId,
+				IdempotencyKey = request.IdempotencyKey,
+				SegmentPosition = 0,
+				Session = request.Session,
+				FirstAttemptAtUtc = request.ScheduledAtUtc,
+			},
+			cancellationToken
+		);
+		switch (lookup) {
+			case ReconcileResult.SafeToResend:
+				return null;
+			case ReconcileResult.Found found when isThread && found.Segment.Cid.Length == 0:
+				return new SegmentOutcome(
+					new PublishResult.TransientFailure(
+						"Bluesky returned the existing first segment without a content id"
+					),
+					null
+				);
+			case ReconcileResult.Found found:
+				return new SegmentOutcome(
+					new PublishResult.AlreadyExistsTreatedAsPublished(
+						found.Segment.RecordId, found.Segment.RecordUrl
+					),
+					found.Segment
+				);
+			case ReconcileResult.Unavailable unavailable:
+				return new SegmentOutcome(
+					new PublishResult.TransientFailure(unavailable.Cause), null
+				);
+			default:
+				return new SegmentOutcome(
+					new PublishResult.TransientFailure("the existing record could not be checked"),
+					null
+				);
 		}
 	}
 
@@ -200,6 +251,27 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				null
 			);
 		}
+	}
+
+	/// <summary>The content failure for images the provider can never accept, or null.</summary>
+	private static PublishResult? _InvalidMedia(PublishRequest request) {
+		var limits = ProviderCapabilityRegistry.Bluesky;
+		if (request.Media.Count > limits.MaxImages) {
+			return new PublishResult.ContentFailure(
+				$"the post has {request.Media.Count} images, Bluesky accepts {limits.MaxImages}"
+			);
+		}
+
+		for (var index = 0; index < request.Media.Count; index++) {
+			var media = request.Media[index];
+			if (!limits.AcceptedImageContentTypes.Contains(media.ContentType)) {
+				return new PublishResult.ContentFailure(
+					$"image {index + 1} is {media.ContentType}, which Bluesky does not accept"
+				);
+			}
+		}
+
+		return null;
 	}
 
 	private static string _Clean(string text) {
@@ -362,27 +434,14 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 	) {
 		var limits = ProviderCapabilityRegistry.Bluesky;
 		var entries = new List<Dictionary<string, object?>>();
-		if (request.Media.Count > limits.MaxImages) {
-			return new UploadedImages(
-				entries,
-				new PublishResult.ContentFailure(
-					$"the post has {request.Media.Count} images, Bluesky accepts {limits.MaxImages}"
-				)
-			);
+		var invalid = BlueskyPublishProvider._InvalidMedia(request);
+		if (invalid is not null) {
+			return new UploadedImages(entries, invalid);
 		}
 
 		for (var index = 0; index < request.Media.Count; index++) {
 			var number = index + 1;
 			var media = request.Media[index];
-			if (!limits.AcceptedImageContentTypes.Contains(media.ContentType)) {
-				return new UploadedImages(
-					entries,
-					new PublishResult.ContentFailure(
-						$"image {number} is {media.ContentType}, which Bluesky does not accept"
-					)
-				);
-			}
-
 			var fitted = ImageDerivative.Fit(
 				media.Content, media.ContentType, media.WidthPx, media.HeightPx, limits.MaxImageBytes
 			);

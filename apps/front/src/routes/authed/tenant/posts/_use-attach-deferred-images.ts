@@ -11,7 +11,14 @@ import {
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
+import { AttemptCancelledError } from './_attempt';
 import type { DeferredImageSelection } from './_post-image-picker';
+
+/** What an attach run has done so far (filled in as images land). */
+export type AttachProgress = {
+	remaining: DeferredImageSelection[];
+	assetIds: Map<string, string>;
+};
 
 export type AttachDeferredImagesOutcome =
 	| {
@@ -47,14 +54,16 @@ export const useAttachDeferredImages = (tenantId: string) => {
 	const attachInOrder = async (
 		postId: string,
 		images: DeferredImageSelection[],
-		progress: {
-			remaining: DeferredImageSelection[];
-			assetIds: Map<string, string>;
-		},
+		progress: AttachProgress,
+		isCurrent: () => boolean,
 	): Promise<void> => {
 		const [image, ...rest] = images;
 		if (!image) {
 			return;
+		}
+		// A superseded attempt (Cancel, unmount, a newer click) uploads nothing more.
+		if (!isCurrent()) {
+			throw new AttemptCancelledError();
 		}
 
 		let assetId = image.attachedAssetId;
@@ -88,19 +97,21 @@ export const useAttachDeferredImages = (tenantId: string) => {
 		progress.remaining = progress.remaining.filter(
 			(entry) => entry.id !== image.id,
 		);
-		await attachInOrder(postId, rest, progress);
+		await attachInOrder(postId, rest, progress, isCurrent);
 	};
 
 	const attachAll = async (
 		postId: string,
 		images: DeferredImageSelection[],
-	): Promise<AttachDeferredImagesOutcome> => {
-		const progress = {
+		isCurrent: () => boolean = () => true,
+		// Owned by the caller so it can read what finished when it stops waiting.
+		progress: AttachProgress = {
 			remaining: images,
 			assetIds: new Map<string, string>(),
-		};
+		},
+	): Promise<AttachDeferredImagesOutcome> => {
 		try {
-			await attachInOrder(postId, images, progress);
+			await attachInOrder(postId, images, progress, isCurrent);
 			return { ok: true, assetIds: progress.assetIds };
 		} catch (error) {
 			return {

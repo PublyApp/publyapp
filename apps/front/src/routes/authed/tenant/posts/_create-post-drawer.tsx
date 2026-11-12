@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { Field } from '~/components/field';
 import {
 	Drawer,
 	DrawerContent,
@@ -21,17 +20,13 @@ import { useTenantProjectsQuery } from '~/lib/query/tenant-projects';
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
-import { ComposerDestinations } from './_composer-destinations';
-import { CreatePostActions, HandoffPanel } from './_create-post-drawer-parts';
-import { PostBodyCounter } from './_post-body-counter';
-import type { DeferredImageSelection } from './_post-image-picker';
-import { PostImagePicker } from './_post-image-picker';
-import { PostProjectField } from './_post-project-field';
-import { PostSegmentsEditor } from './_post-segments-editor';
+import { AttemptCancelledError, AttemptTimedOutError } from './_attempt';
+import { CreatePostFields } from './_create-post-drawer-body';
+import { CreatePostActions } from './_create-post-drawer-parts';
 import { PublishOnBlock } from './_publish-on-block';
 import { NO_SEGMENTS } from './_segment-draft';
-import { useAttachDeferredImages } from './_use-attach-deferred-images';
 import { useDestinationOverrides } from './_use-destination-overrides';
+import { useImageHandoff } from './_use-image-handoff';
 import { usePreparePublish } from './_use-prepare-publish';
 import { usePublishSelection } from './_use-publish-selection';
 
@@ -86,71 +81,58 @@ export const CreatePostDrawer = ({
 		segments.map((segment) => segment.id),
 	);
 
-	const deferredAttach = useAttachDeferredImages(tenantId);
-
-	// Declared before the handlers below so their closures read the same state.
-	// The parent OWNS the deferred selection (the picker reports through
-	// `onSelect`), so the attachment survives the picker's re-renders and the
-	// handoff state can hold it for a retry.
-	const [deferredImages, setDeferredImages] = useState<
-		DeferredImageSelection[]
-	>([]);
-
-	// The deferred handoff outcome: once the post EXISTS but its image is not
-	// attached yet, the drawer must NOT close. Closing here would strand a
-	// created post whose image silently never arrived — the user would come
-	// back to a phantom "image attached" memory with nothing on the post.
-	const [createdPostId, setCreatedPostId] = useState<string | null>(null);
-	const [handoffCause, setHandoffCause] = useState('');
-
-	/**
-	 * Attaches the deferred images to the created post. Resolves the asset id
-	 * of each image (by its local id) when the handoff completed; null leaves
-	 * the handoff state holding the images (the attached ones marked) with the
-	 * surfaced cause, so the drawer offers the retry/discard actions.
-	 */
-	const tryAttach = async (
-		postId: string,
-		images: DeferredImageSelection[],
-	): Promise<ReadonlyMap<string, string> | null> => {
-		const outcome = await deferredAttach.attachAll(postId, images);
-		if (outcome.ok) {
-			return outcome.assetIds;
-		}
-
-		setCreatedPostId(postId);
-		// Every image stays in the list, the attached ones marked: a retry
-		// uploads only the rest, and a reorder or an image override still sees
-		// all of them.
-		setDeferredImages(
-			images.map((image) => ({
-				...image,
-				attachedAssetId:
-					outcome.assetIds.get(image.id) ?? image.attachedAssetId,
-			})),
-		);
-		setHandoffCause(outcome.cause);
-		return null;
-	};
+	const handoff = useImageHandoff(tenantId);
+	const { deferredImages, setDeferredImages } = handoff;
 
 	const publishPrep = usePreparePublish({
 		methods,
 		tenantId,
 		deferredImages,
 		setDeferredImages,
-		tryAttach,
+		tryAttach: handoff.tryAttach,
 	});
 
-	const completeAndClose = async () => {
+	// The ONE way out of the drawer (Cancel, Escape, Discard, a finished save):
+	// no handoff, publish intent, selection or retry in flight survives it.
+	const resetAll = () => {
+		handoff.reset();
 		publishPrep.forget();
-		setDeferredImages([]);
-		setCreatedPostId(null);
-		setHandoffCause('');
 		destinationOverrides.resetAll();
+	};
+
+	const completeAndClose = async () => {
+		resetAll();
 		await invalidateTenantPosts(qc, tenantId);
 		methods.reset();
 		onOpenChange(false);
 	};
+
+	// Each Publish / Schedule click is an attempt: Cancel/close, unmount, a Save
+	// or a newer click supersede it, and nothing of it is sent afterwards. Its
+	// waits are bounded, so a stalled request ends in a visible error. Cancel is
+	// never blocked.
+	const [preparing, setPreparing] = useState(false);
+	const prepareForPublish = async () => {
+		const attempt = handoff.beginAttempt();
+		setPreparing(true);
+		try {
+			const prepared = await publishPrep.prepare(attempt);
+			// Immediately before the request goes out.
+			return attempt.isCurrent() ? prepared : null;
+		} catch (error) {
+			if (error instanceof AttemptTimedOutError) {
+				methods.setError('root', { message: t('posts:attempt-timed-out') });
+			} else if (!(error instanceof AttemptCancelledError)) {
+				throw error;
+			}
+			return null;
+		} finally {
+			setPreparing(false);
+		}
+	};
+	// While something is in flight Publish, Schedule, Save, Try again and
+	// Discard wait (a second click would repeat the draft save or the uploads).
+	const busy = handoff.isPending || preparing || methods.formState.isSubmitting;
 
 	const onSubmit = methods.handleSubmit(async (values) => {
 		try {
@@ -164,18 +146,26 @@ export const CreatePostDrawer = ({
 				return;
 			}
 
+			// A save is an attempt too: it supersedes any publish attempt and drops
+			// the intent an earlier click left behind.
+			const attempt = handoff.beginAttempt();
 			// A publish that failed earlier already created the post: save onto it.
-			const created = await savePost({
-				postId: publishPrep.createdPostId ?? undefined,
-				body: values.body,
-				projectId: values.projectId ?? null,
-				segments: values.segments.map((segment) => segment.text),
-				tenantId,
-			});
+			const created = await attempt.run(
+				savePost({
+					postId: publishPrep.createdPostId ?? undefined,
+					body: values.body,
+					projectId: values.projectId ?? null,
+					segments: values.segments.map((segment) => segment.text),
+					tenantId,
+				}),
+			);
+			if (!attempt.isCurrent()) {
+				return;
+			}
 
 			// The picker collects a deferred image selection while the post
 			// does not exist yet; it is attached right after creation.
-			const attached = await publishPrep.syncImages(created.id);
+			const attached = await publishPrep.syncImages(created.id, attempt);
 			if (attached === null) {
 				// The post was created and stays consistent (it keeps the
 				// images that did attach); the drawer stays open on the
@@ -184,8 +174,18 @@ export const CreatePostDrawer = ({
 				return;
 			}
 
+			if (!attempt.isCurrent()) {
+				return;
+			}
 			await completeAndClose();
 		} catch (error) {
+			if (error instanceof AttemptCancelledError) {
+				return;
+			}
+			if (error instanceof AttemptTimedOutError) {
+				methods.setError('root', { message: t('posts:attempt-timed-out') });
+				return;
+			}
 			const failure = toApiFailure(error);
 			if (failure.kind === 'validation' && failure.fieldErrors) {
 				for (const [k, msgs] of Object.entries(failure.fieldErrors)) {
@@ -214,42 +214,27 @@ export const CreatePostDrawer = ({
 		}
 	});
 
-	const handleRetryAttach = async () => {
-		if (!createdPostId || deferredImages.length === 0) {
-			return;
-		}
-		setHandoffCause('');
-		const attached = await tryAttach(createdPostId, deferredImages);
-		if (attached !== null) {
-			await completeAndClose();
-		}
-	};
-
 	const handleDiscardImage = () => {
 		// The created post is kept — it is consistent without the remaining
-		// images; only the failed attachment attempt is dropped. The list refresh makes the
-		// saved draft visible immediately.
-		setHandoffCause('');
-		setCreatedPostId(null);
-		publishPrep.forget();
-		destinationOverrides.resetAll();
+		// images; only the failed attachment attempt is dropped. The list
+		// refresh makes the saved draft visible immediately.
+		resetAll();
 		void invalidateTenantPosts(qc, tenantId);
 		methods.reset();
 		onOpenChange(false);
 	};
 
-	// Closing the drawer drops any unattached selection; the picker reopens
-	// with `selection: null` so no preview can outlive the state.
 	const handleOpenChange = (o: boolean) => {
 		if (!o) {
-			setDeferredImages([]);
-			publishPrep.forget();
-			destinationOverrides.resetAll();
+			// A save that was already on the wire may still create a draft: refresh
+			// the list so it does not appear out of nowhere later.
+			if (busy) {
+				void invalidateTenantPosts(qc, tenantId);
+			}
+			resetAll();
 		}
 		onOpenChange(o);
 	};
-
-	const isHandoffPending = createdPostId !== null;
 
 	return (
 		<Drawer open={open} onOpenChange={handleOpenChange}>
@@ -259,54 +244,28 @@ export const CreatePostDrawer = ({
 				</DrawerHeader>
 				<DrawerForm methods={methods} onSubmit={onSubmit}>
 					<DrawerBody>
-						<Field.Textarea
-							name="body"
-							label={t('posts:body-label')}
-							placeholder={t('posts:body-placeholder')}
-							rows={8}
-							aria-describedby="post-body-counter"
-							data-testid="tenant-posts-create-body"
-						/>
-						<PostBodyCounter length={body.length} id="post-body-counter" />
-						<PostSegmentsEditor
-							segments={segments}
-							publishedSegmentCount={0}
-							destinations={selection.destinations}
-							overrides={destinationOverrides.overrides}
-							onChange={(next) =>
-								methods.setValue('segments', next, { shouldDirty: true })
-							}
-						/>
-						{methods.formState.errors.root ? (
-							<p className="text-sm text-destructive" role="alert">
-								{methods.formState.errors.root.message}
-							</p>
-						) : null}
-						<PostProjectField projectsQuery={projectsQuery} />
-						{isHandoffPending ? (
-							<HandoffPanel
-								cause={handoffCause}
-								busy={deferredAttach.isPending}
-								onRetry={() => void handleRetryAttach()}
-								onDiscard={handleDiscardImage}
-							/>
-						) : (
-							<PostImagePicker
-								onSelect={publishPrep.selectImages}
-								selections={deferredImages}
-								limits={selection.imageLimits}
-							/>
-						)}
-						<ComposerDestinations
-							selection={selection}
-							destinationOverrides={destinationOverrides}
+						<CreatePostFields
 							body={body}
 							segments={segments}
-							images={deferredImages.map((image) => ({
-								key: image.id,
-								url: null,
-								altText: image.altText,
-							}))}
+							onSegmentsChange={(next) =>
+								methods.setValue('segments', next, { shouldDirty: true })
+							}
+							rootError={methods.formState.errors.root?.message}
+							projectsQuery={projectsQuery}
+							selection={selection}
+							destinationOverrides={destinationOverrides}
+							deferredImages={deferredImages}
+							onSelectImages={publishPrep.selectImages}
+							handoff={
+								handoff.postId === null
+									? null
+									: {
+											cause: handoff.cause,
+											busy,
+											onRetry: () => void handoff.retryAttach(completeAndClose),
+											onDiscard: handleDiscardImage,
+										}
+							}
 						/>
 					</DrawerBody>
 					<DrawerFooter>
@@ -317,11 +276,13 @@ export const CreatePostDrawer = ({
 								body={body}
 								segments={segments}
 								imageKeys={deferredImages.map((image) => image.id)}
-								onBeforePublish={publishPrep.prepare}
+								onBeforePublish={prepareForPublish}
+								disabled={busy}
+								onPublishInterrupted={handoff.keepIntent}
 							/>
 							<CreatePostActions
-								isSubmitting={methods.formState.isSubmitting}
-								onCancel={() => onOpenChange(false)}
+								isSubmitting={busy}
+								onCancel={() => handleOpenChange(false)}
 							/>
 						</div>
 					</DrawerFooter>

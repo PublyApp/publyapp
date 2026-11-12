@@ -91,7 +91,7 @@ Deploy flow:
 - **Bundle** built by the release publishers (`dotnet ef migrations bundle`, target the VPS runtime), shipped in a slim image; run by the one-shot migrate service. Runs `UseSeeding` (gated — see below).
 - **Expand/contract discipline:** no breaking schema change in a single release; destructive changes split across two releases (expand → deploy code using both → contract later). The automated guard from **#877 has shipped and #877 is closed**: `just ci-migration-expand-contract` (`packages/scripts-ts/src/check-migration-expand-contract.ts`, part of `just ci`) flags destructive migration operations and accepts a justified `// expand-contract-ok: <reason>` marker. It runs in the local pre-push gate, not as a GitHub workflow.
 - **Single DB credential** shared by migrator + runtime.
-- **Rollback:** prefer backward-compatible forward migrations + backups + forward fixes. Do **not** rely on automatic `Down()` in production (it can destroy newly-written data).
+- **Rollback:** prefer backward-compatible forward migrations + backups + forward fixes. Do **not** rely on automatic `Down()` in production (it can destroy newly-written data). Some migrations are forward-only by nature and say so in a comment on `Down()` (e.g. `AddPostMediaAssetPosition`: `Down` fails once a post has 2+ images, because the old one-image-per-post unique index cannot hold them) — never run such a `Down` against real data.
 
 ## Seeding
 

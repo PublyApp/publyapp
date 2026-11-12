@@ -25,6 +25,8 @@
 	"image-handoff-title": "Your post was saved, but its image was not attached.",
 	"image-help": "{{types}}, up to {{size}} each. Up to {{max}} images.",
 	"image-no-common-type": "No image type is accepted by every selected destination. Deselect a destination or publish without images.",
+	"attempt-timed-out": "This is taking too long. Check your posts before trying again, in case it went through.",
+	"image-timed-out": "Sending the images is taking too long. Some may already be attached: try again and only the missing ones are sent.",
 	"image-retry": "Try again",
 	"image-add": "Add images",
 	"image-alt-label-numbered": "Alt text for image {{index}}",

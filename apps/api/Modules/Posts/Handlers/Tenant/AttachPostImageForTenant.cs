@@ -18,7 +18,8 @@ namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 
 /// <summary>
 /// Appends ONE image to a post's ordered list (multipart <c>file</c> field; at
-/// most four, a fifth is a typed 422; GIF and animated images are refused). Type and
+/// most the registry's per-post cap, one more is a typed 422; GIF and animated
+/// images are refused). Type and
 /// dimensions come from server-side header parsing (never client claims);
 /// bytes pass the durable upload-admission pipeline (#807 F1). The blob
 /// reference is acquired HERE before the post-owned asset row commits and
@@ -73,7 +74,7 @@ public sealed class AttachPostImageForTenant {
 			);
 		}
 
-		// Cheap early refusal so a fifth image never reaches storage; the asset
+		// Cheap early refusal so an image over the cap never reaches storage; the asset
 		// service re-checks authoritatively at insert time.
 		var existingImages = await assetService.ListByPostAsync(
 			tenantId, postIdGuid, cancellationToken
@@ -112,10 +113,11 @@ public sealed class AttachPostImageForTenant {
 			(ImageInspector.Inspected)inspection;
 
 		// Publishing carries static JPEG/PNG/WebP only (ProviderCapabilityRegistry): refuse
-		// GIF and animated WebP here with a clear message instead of failing
+		// GIF, animated WebP and APNG here with a clear message instead of failing
 		// at publish time.
 		if (!ProviderCapabilityRegistry.AcceptedImageContentTypes.Contains(inspected.ContentType)
-			|| AttachPostImageForTenant._IsAnimatedWebP(uploadStream, inspected)) {
+			|| AttachPostImageForTenant._IsAnimatedWebP(uploadStream, inspected)
+			|| AttachPostImageForTenant._IsAnimatedPng(uploadStream, inspected)) {
 			return AttachPostImageForTenant._ValidationFailure(
 				"Animated and GIF images are not supported; use a JPEG, PNG, or static WebP image",
 				ResponseKeys.PostImageAnimatedUnsupported
@@ -327,6 +329,10 @@ public sealed class AttachPostImageForTenant {
 		return read == header.Length
 			&& header[12..16].SequenceEqual("VP8X"u8)
 			&& (header[20] & 0x02) != 0;
+	}
+
+	private static bool _IsAnimatedPng(Stream stream, ImageInspector.Inspected inspected) {
+		return inspected.ContentType == "image/png" && ImageAnimation.IsAnimatedPng(stream);
 	}
 
 	private static string? _RelativePathOrNull(string? candidate) {
