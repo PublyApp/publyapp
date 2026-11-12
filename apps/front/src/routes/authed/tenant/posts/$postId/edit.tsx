@@ -473,6 +473,7 @@ export const Route = createFileRoute(
 			{ kind: 'label', labelKey: 'drafts', to: '/tenant/posts/drafts' },
 			{
 				kind: 'entity',
+				workspaceTenant: true,
 				query: tenantPostCrumbQuery,
 				select: selectTenantPostCrumbName,
 			},

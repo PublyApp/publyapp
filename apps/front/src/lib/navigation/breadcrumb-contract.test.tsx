@@ -169,7 +169,7 @@ const buildSyntheticParams = (segments: string[]) =>
 type EntityRegistryEntry = {
 	query: (
 		params: Record<string, string>,
-		context: { queryClient: QueryClient },
+		context: { tenantId: string | null },
 	) => EntityCrumbQuery;
 	buildPayload: (marker: string) => Record<string, unknown>;
 };
@@ -442,9 +442,7 @@ describe('breadcrumb contract — route-tree walk (#973 Tier 2, guard A)', () =>
 			spec: Extract<CrumbSpec, { kind: 'entity' }>,
 			params: Record<string, string>,
 		): string =>
-			JSON.stringify(
-				spec.query(params, { queryClient: new QueryClient() }).queryKey,
-			);
+			JSON.stringify(spec.query(params, { tenantId: 'tenant-probe' }).queryKey);
 
 		for (const route of allRoutes) {
 			const segments = dynamicSegmentsOf(route.fullPath);

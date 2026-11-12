@@ -13,12 +13,6 @@ import {
 import type { TenantPostImage } from '~/lib/query/tenant-post-images';
 import { invalidateTenantPublications } from '~/lib/query/tenant-publications';
 import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
-import {
-	resolveWorkspaceTenant,
-	resolveWorkspaceTenantIdFromCache,
-	tenantsForPickerQueryOptions,
-} from '~/lib/query/tenants-for-picker';
-import { readSelectedTenantId } from '~/lib/session/selected-tenant-storage';
 import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
@@ -445,38 +439,29 @@ export const useDeleteTenantPostMutation = () => {
 
 /** A breadcrumb has only the URL params, never the workspace tenant: it was
  * fetching with an empty tenant id, which always failed and left the crumb on
- * its error dash (#2410). The tenant is resolved the way the page and its
- * loader do (cached picker + persisted selection, a single active tenant
- * auto-resolves), so the key IS the page's own and a loaded post paints at
- * once. With a cold picker cache it resolves it inside the query. */
+ * its error dash (#2410). The route declares `workspaceTenant`, so the crumb
+ * resolves the tenant like the page (shared picker query + same resolver),
+ * waits for it, and the key IS the page's own. `tenantId` is null only while
+ * that query is disabled. */
 export const tenantPostCrumbQuery = (
 	params: Record<string, string>,
-	{ queryClient }: { queryClient: QueryClient },
+	{ tenantId }: { tenantId: string | null },
 ) => {
-	const cachedTenantId = resolveWorkspaceTenantIdFromCache(queryClient);
 	const postId = params.postId ?? '';
 
-	return {
-		queryKey:
-			cachedTenantId === null
-				? [...scopedKey('tenant', TENANT_POST_DETAILS_QUERY_KEY), { postId }]
-				: tenantPostDetailsQueryOptions.queryKey({
-						postId,
-						tenantId: cachedTenantId,
-					}),
-		queryFn: async () => {
-			const tenantId =
-				cachedTenantId ??
-				resolveWorkspaceTenant(
-					await tenantsForPickerQueryOptions.fetcher({}),
-					readSelectedTenantId(),
-				)?.id;
-			if (!tenantId) {
-				throw new Error('no workspace tenant for the post breadcrumb');
-			}
+	if (tenantId === null) {
+		// The crumb's query is disabled until the tenant resolves.
+		return {
+			queryKey: [...TENANT_POSTS_QUERY_KEY, 'crumb-pending', postId],
+			queryFn: () => Promise.reject(new Error('workspace tenant not resolved')),
+		};
+	}
 
-			return tenantPostDetailsQueryOptions.fetcher({ postId, tenantId });
-		},
+	const variables = { postId, tenantId };
+
+	return {
+		queryKey: tenantPostDetailsQueryOptions.queryKey(variables),
+		queryFn: () => tenantPostDetailsQueryOptions.fetcher(variables),
 	};
 };
 
