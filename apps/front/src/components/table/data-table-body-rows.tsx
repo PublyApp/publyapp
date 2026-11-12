@@ -1,4 +1,3 @@
-import { flexRender } from '@tanstack/react-table';
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Checkbox } from '~/components/ui/checkbox';
@@ -6,6 +5,7 @@ import { TableBody, TableCell, TableRow } from '~/components/ui/table';
 
 import { columnDisplayMeta } from './column-display-meta';
 import type { Row } from './column-type';
+import { renderColumnDef } from './render-column-def';
 
 // v9 moved RowData to table-core; this alias keeps the constraint local.
 type RowData = Record<string, unknown>;
@@ -192,7 +192,10 @@ export const DataTableBodyRows = <TData extends RowData>({
 										handleCellNavigation(event, rowIndex, renderedCellIndex);
 									}}
 								>
-									{flexRender(cell.column.columnDef.cell, cell.getContext())}
+									{renderColumnDef(
+										cell.column.columnDef.cell,
+										cell.getContext(),
+									)}
 								</TableCell>
 							);
 						})}

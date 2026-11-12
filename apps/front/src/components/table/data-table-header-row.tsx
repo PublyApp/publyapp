@@ -3,7 +3,6 @@ import {
 	IconArrowUp,
 	IconArrowsSort,
 } from '@tabler/icons-react';
-import { flexRender } from '@tanstack/react-table';
 import type { KeyboardEvent, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Checkbox } from '~/components/ui/checkbox';
@@ -11,6 +10,7 @@ import { TableHead, TableHeader, TableRow } from '~/components/ui/table';
 
 import { columnDisplayMeta, resolveAriaSortState } from './column-display-meta';
 import type { TanStackTable } from './column-type';
+import { renderColumnDef } from './render-column-def';
 import type { SortState } from './sort-descriptor';
 
 // v9 moved RowData to table-core; this alias keeps the constraint local.
@@ -150,7 +150,7 @@ export const DataTableHeaderRow = <TData extends RowData>({
 											{displayMeta.headerIcon}
 										</span>
 									) : null}
-									{flexRender(
+									{renderColumnDef(
 										header.column.columnDef.header,
 										header.getContext(),
 									)}

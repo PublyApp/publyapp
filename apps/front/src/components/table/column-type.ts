@@ -40,6 +40,12 @@ type Identity<T> = T extends infer U ? U : never;
 type Prettify<T> = { [K in keyof T]: T[K] };
 type Distribute<T> = Identity<T> extends infer U ? Prettify<U> : never;
 
+/**
+ * Contract: a column's `cell` / `header` renderer is CALLED as a plain function
+ * during the table row's render (see `renderColumnDef`), not mounted as its own
+ * component. It must NOT call React hooks. For state or hooks, return an element
+ * of a real component instead: `cell: ({ row }) => <RowMenu row={row.original} />`.
+ */
 export type ColumnDef<TData extends RowData, TValue = unknown> = Distribute<
 	LegacyColumnDef<TData, TValue>
 >;
