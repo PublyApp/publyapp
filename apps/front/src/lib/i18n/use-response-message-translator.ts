@@ -16,6 +16,7 @@ const AS_INFORMATIVE_AS_DETAIL: ReadonlySet<string> = new Set([
 	'publication-rendition-superseded',
 	'publication-rendition-conflict',
 	'post-segments-locked',
+	'provider-disabled',
 ]);
 
 const RENDITION_INVALID_PROBLEM = 'publish-rendition-invalid';

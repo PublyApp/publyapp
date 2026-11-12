@@ -149,7 +149,8 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		AppDbContext db,
 		IPublishProvider publishProvider,
 		ISocialSessionProvider sessionProvider,
-		IFileStorage? storage = null
+		IFileStorage? storage = null,
+		IProviderAvailability? availability = null
 	) {
 		return new PublishPublicationJobHandler(
 			db,
@@ -157,7 +158,8 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			publishProvider,
 			sessionProvider,
 			new PublicationStatusTransitionService(db),
-			new PublishAttemptJournal(db)
+			new PublishAttemptJournal(db),
+			availability ?? new AllEnabled()
 		);
 	}
 
@@ -424,6 +426,36 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		publication.Status.Should().Be(PublicationStatus.Failed);
 		publication.LastError.Should().Contain("too long", "the cause names the content problem");
 		publication.LastError.Should().Contain("301");
+	}
+
+	// #2184: a disabled provider stops publishing for connected accounts too, with a
+	// cause the user can read; nothing reaches the provider.
+	[Fact]
+	public async Task ItShouldFailWithAClearCauseAndSendNothingWhenTheOperatorDisabledTheProvider() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		var publishProvider = new FakePublishProvider(new PublishResult.Published("remote-1", "https://example/1"));
+		var handler = PublishPublicationJobHandlerSpec._NewHandler(
+			db, publishProvider, FakeSessions.Opened(), null, new BlueskyDisabled()
+		);
+
+		var outcome = await handler.HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(
+				new PublishPublicationPayload {
+					PublicationId = seeded.PublicationId,
+					IdempotencyKey = seeded.IdempotencyKey,
+				}
+			),
+			CancellationToken.None
+		);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		var publication = await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId);
+		await db.Entry(publication).ReloadAsync();
+		publication.Status.Should().Be(PublicationStatus.Failed);
+		publication.LastError.Should().Contain("disabled by the operator");
+		publication.FailureCategory.Should().Be(PublicationFailureCategory.RetryLater);
+		publishProvider.Requests.Should().BeEmpty("a disabled provider is never contacted");
 	}
 
 	[Fact]
@@ -1349,6 +1381,18 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	// ── Write-attempt journal + reconciliation (#2176) ─────────────────────────
+
+	private sealed class AllEnabled : IProviderAvailability {
+		public bool IsEnabled(SocialProvider provider) {
+			return true;
+		}
+	}
+
+	private sealed class BlueskyDisabled : IProviderAvailability {
+		public bool IsEnabled(SocialProvider provider) {
+			return provider != SocialProvider.Bluesky;
+		}
+	}
 
 	private sealed class JournalingProvider : IPublishProvider {
 		private readonly Func<JournalingProvider, PublishRequest, CancellationToken, Task<PublishResult>> _Publish;

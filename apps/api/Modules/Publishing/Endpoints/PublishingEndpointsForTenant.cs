@@ -56,10 +56,12 @@ public static class PublishingEndpointsForTenant {
 				ApiRateLimitPolicies.AuthenticatedDefault
 			)
 			.WithSummary("List what each provider accepts and whether it can be connected")
-			// Read by the composer (publish) and by the connect screen (manage).
+			// Read by the composer (publish) and by the integrations page, which any
+			// holder of view can open (the connect buttons need manage on top).
 			.WithTenantPermission(permissions =>
 				permissions.Contains(AppPermissions.Tenant.SocialAccounts.PUBLISH.Key)
-				|| permissions.Contains(AppPermissions.Tenant.SocialAccounts.MANAGE.Key));
+				|| permissions.Contains(AppPermissions.Tenant.SocialAccounts.MANAGE.Key)
+				|| permissions.Contains(AppPermissions.Tenant.SocialAccounts.VIEW.Key));
 
 		return routes;
 	}

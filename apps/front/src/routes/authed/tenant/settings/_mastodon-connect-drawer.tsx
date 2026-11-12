@@ -14,6 +14,7 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
+import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import {
 	type FediverseProvider,
 	useStartMastodonConnectMutation,
@@ -71,6 +72,7 @@ export const MastodonConnectDrawer = ({
 	provider?: FediverseProvider;
 }) => {
 	const { t } = useTranslation(['settings']);
+	const translateResponseMessage = useResponseMessageTranslator();
 	const copy = COPY[provider];
 	const startMutation = useStartMastodonConnectMutation();
 	// Schema + resolver are built per language and per provider, not per render.
@@ -105,6 +107,7 @@ export const MastodonConnectDrawer = ({
 			}
 			methods.setError('root', {
 				message: getFailureMessage(failure, {
+					translate: translateResponseMessage,
 					fallback: t('common:an-error-occurred'),
 				}),
 			});

@@ -219,4 +219,35 @@ public sealed class PublishValidationServiceSpec {
 			"hi", ["image/png", "image/png"], [ProviderCapabilityRegistry.Mastodon], null, alts
 		).Should().BeNull("no shipped provider requires alt text");
 	}
+
+	// The enforcement fails closed: an absent or short alt-text list is missing alt text.
+	[Fact]
+	public void ItShouldTreatAnAbsentOrShortAltTextListAsMissingWhenTheCapabilityRequiresAltText() {
+		var strict = ProviderCapabilityRegistry.Mastodon with { RequiresAltText = true };
+
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate("hi", ["image/png"], [strict]))
+			.Kind.Should().Be(PublishContentFailureKind.AltTextRequired);
+		var short_ = PublishValidationServiceSpec._Failure(PublishValidationService.Validate(
+			"hi", ["image/png", "image/png"], [strict], null, ["a cat"]
+		));
+		short_.Kind.Should().Be(PublishContentFailureKind.AltTextRequired);
+		short_.ImageIndex.Should().Be(2);
+	}
+
+	// Limits come from the capability handed in, never from a literal in the validator:
+	// a capability with other limits changes the verdict on the same text and images.
+	[Fact]
+	public void ItShouldReadEveryLimitFromTheCapabilityItIsGiven() {
+		var tiny = ProviderCapabilityRegistry.Bluesky with {
+			TextLimits = [new TextLimit(GraphemeCountingRule.Instance, 5)],
+			MaxImages = 1,
+		};
+
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate("123456", [], [tiny]))
+			.Kind.Should().Be(PublishContentFailureKind.TooLong);
+		PublishValidationService.Validate("12345", [], [tiny]).Should().BeNull();
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate("hi", ["image/png", "image/png"], [tiny]))
+			.Kind.Should().Be(PublishContentFailureKind.TooManyImages);
+		PublishValidationService.Validate("123456", [], [ProviderCapabilityRegistry.Bluesky]).Should().BeNull();
+	}
 }

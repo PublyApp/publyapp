@@ -5,7 +5,6 @@ using FluentValidation;
 
 using Npgsql;
 
-using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Lib;
@@ -1441,8 +1440,7 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 
 		// A typo here would silently leave a provider enabled, so unknown names fail the boot.
 		this.RuleForEach(x => x.DISABLED_PUBLISH_PROVIDERS)
-			.Must(entry => Enum.GetValues<SocialProvider>()
-				.Any(provider => SocialAccountWire.FormatProvider(provider) == entry))
+			.Must(ProviderAvailability.IsKnownWireName)
 			.WithMessage(
 				"DISABLED_PUBLISH_PROVIDERS entries must be wire provider names "
 				+ "(bluesky, mastodon, pixelfed, discord_webhook)");

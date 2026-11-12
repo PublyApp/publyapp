@@ -13,6 +13,7 @@ import {
 	DrawerTitle,
 } from '~/components/ui/drawer';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
+import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import {
 	type SocialAccountRow,
 	useConnectDiscordWebhookMutation,
@@ -49,6 +50,7 @@ export const DiscordConnectDrawer = ({
 	account?: SocialAccountRow;
 }) => {
 	const { t } = useTranslation(['settings']);
+	const translateResponseMessage = useResponseMessageTranslator();
 	const connectMutation = useConnectDiscordWebhookMutation();
 	// Language-keyed resolver: schema + resolver built once per language, not
 	// once per render.
@@ -82,6 +84,7 @@ export const DiscordConnectDrawer = ({
 			}
 			methods.setError('root', {
 				message: getFailureMessage(failure, {
+					translate: translateResponseMessage,
 					fallback: t('common:an-error-occurred'),
 				}),
 			});

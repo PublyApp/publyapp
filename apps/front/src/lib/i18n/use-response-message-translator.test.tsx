@@ -55,6 +55,7 @@ describe('useResponseMessageTranslator in French', () => {
 		['publication-rendition-superseded', 'Une publication plus récente'],
 		['publication-rendition-conflict', 'modifié en même temps'],
 		['post-segments-locked', 'Les segments déjà publiés'],
+		['provider-disabled', 'Ce fournisseur est désactivé'],
 	])('translates %s, which says as much as the detail', (key, start) => {
 		expect(translatorFor('fr')(key, {})).toContain(start);
 	});

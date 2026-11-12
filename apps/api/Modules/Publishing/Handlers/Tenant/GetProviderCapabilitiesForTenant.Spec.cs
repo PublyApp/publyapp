@@ -22,6 +22,12 @@ namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 // operator's enabled switch. Read by the composer (publish verb) and the connect screen
 // (manage verb), so either verb opens it and nothing else does.
 public sealed class GetProviderCapabilitiesForTenantSpec : IClassFixture<ApiFixture> {
+	private sealed class AllOn : IProviderAvailability {
+		public bool IsEnabled(SocialProvider provider) {
+			return true;
+		}
+	}
+
 	private sealed class MastodonOff : IProviderAvailability {
 		public bool IsEnabled(SocialProvider provider) {
 			return provider != SocialProvider.Mastodon;
@@ -58,9 +64,13 @@ public sealed class GetProviderCapabilitiesForTenantSpec : IClassFixture<ApiFixt
 
 	[Fact]
 	public async Task ItShouldListEveryProviderWithItsRegistryLimitsAndEnabled() {
-		var (tenantId, token) = await this._LoginAsAdminAsync(this._Http);
+		var factory = this._Fixture.Factory.WithWebHostBuilder(builder => builder.ConfigureServices(
+			services => services.AddSingleton<IProviderAvailability>(new AllOn())
+		));
+		var http = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+		var (tenantId, token) = await this._LoginAsAdminAsync(http);
 
-		using var response = await GetProviderCapabilitiesForTenantSpec._GetAsync(this._Http, token, tenantId);
+		using var response = await GetProviderCapabilitiesForTenantSpec._GetAsync(http, token, tenantId);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var payload = await response.Content.ReadFromJsonAsync<Payload>(
@@ -121,6 +131,12 @@ public sealed class GetProviderCapabilitiesForTenantSpec : IClassFixture<ApiFixt
 	[Fact]
 	public async Task ItShouldOpenForTheComposerPublishVerb() {
 		await this._AssertStatusForVerbAsync(AppPermissions.Tenant.SocialAccounts.PUBLISH.Key, HttpStatusCode.OK);
+	}
+
+	// The integrations page (and its preloaded query) is readable with view alone.
+	[Fact]
+	public async Task ItShouldOpenForTheIntegrationsPageViewVerb() {
+		await this._AssertStatusForVerbAsync(AppPermissions.Tenant.SocialAccounts.VIEW.Key, HttpStatusCode.OK);
 	}
 
 	[Fact]

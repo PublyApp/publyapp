@@ -195,7 +195,7 @@ reports it on the non-routing `/health/drain` surface; it never affects routing)
 `EMAIL_LOG_RETENTION_DAYS`
 (180), `JOB_DEAD_LETTER_RETENTION_DAYS` (90), `EMAIL_PREPARED_SEND_RETENTION_DAYS` (7),
 `EMAIL_PREPARED_SWEEP_MAX_LAG_MINUTES` (60), `SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS` (30),
-`JOB_ALERT_LEASE_RETENTION_DAYS`, `JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST`, `DISABLED_PUBLISH_PROVIDERS` (comma-separated wire names such as `mastodon`; a disabled provider is hidden from the connect screen and refused by the connect endpoints).
+`JOB_ALERT_LEASE_RETENTION_DAYS`, `JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST`, `DISABLED_PUBLISH_PROVIDERS` (comma-separated wire names such as `mastodon`; a disabled provider cannot be connected or reconnected, is not offered as a publish target, and its queued publications fail with a clear cause).
 
 > **Source of truth:** the required vs optional split is enforced in `apps/api/Lib/AppEnvironment.cs`
 > (`GetRequiredString`/`GetRequiredInt` = required; `GetOptional*` = has a default). The committed

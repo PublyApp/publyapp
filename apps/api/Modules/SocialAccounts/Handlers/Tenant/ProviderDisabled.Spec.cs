@@ -22,8 +22,8 @@ namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
 
 // Operator switch per provider (#2184): a provider listed in DISABLED_PUBLISH_PROVIDERS is
 // refused by every connect endpoint with the same typed 422, before anything is stored or
-// contacted. Each test pairs with its control: the same request on an enabled provider does
-// NOT answer provider-disabled, so the refusal can only come from the switch.
+// contacted. The controls at the end send the same requests with the provider enabled and
+// expect their normal answer (the Bluesky connect has none: it would call Bluesky).
 public sealed class ProviderDisabledSpec : IClassFixture<ApiFixture> {
 	private sealed class FakeAvailability : IProviderAvailability {
 		private readonly HashSet<SocialProvider> _Disabled;
@@ -65,6 +65,12 @@ public sealed class ProviderDisabledSpec : IClassFixture<ApiFixture> {
 			.WithSessionToken(token).WithTenantId(tenantId);
 		request.Content = JsonContent.Create(body);
 		return await http.SendAsync(request);
+	}
+
+	private static async Task<ValidationProblemDetails> _ProblemAsync(HttpResponseMessage response) {
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		Assert.NotNull(problem);
+		return problem;
 	}
 
 	private static async Task _ExpectDisabledAsync(HttpResponseMessage response, string provider) {
@@ -178,5 +184,48 @@ public sealed class ProviderDisabledSpec : IClassFixture<ApiFixture> {
 			.Select(row => row.ConsumedAt)
 			.SingleAsync();
 		consumed.Should().BeNull("the refusal happens before the state is spent");
+	}
+
+	[Fact]
+	public async Task ItShouldAnswerTheNormalErrorWhenTheProviderIsEnabled() {
+		var http = this._Client();
+		var (tenantId, token) = await this._LoginAsync(http);
+
+		using var reconnect = await ProviderDisabledSpec._PostAsync(
+			http, token, tenantId, $"/{Guid.NewGuid()}/reconnect", new { appPassword = "abcd-efgh-ijkl-mnop" }
+		);
+		reconnect.StatusCode.Should().Be(HttpStatusCode.NotFound);
+
+		using var start = await ProviderDisabledSpec._PostAsync(
+			http, token, tenantId, "/mastodon/start", new { instance = "localhost" }
+		);
+		(await ProviderDisabledSpec._ProblemAsync(start)).TranslationKey
+			.Should().Be("mastodon-instance-invalid");
+
+		using var callback = await ProviderDisabledSpec._PostAsync(
+			http, token, tenantId, "/mastodon/callback", new { code = "c", state = "unknown-state" }
+		);
+		(await ProviderDisabledSpec._ProblemAsync(callback)).TranslationKey
+			.Should().Be("mastodon-oauth-state-invalid");
+
+		using var discord = await ProviderDisabledSpec._PostAsync(
+			http, token, tenantId, "/discord-webhook", new { webhookUrl = "https://example.com/not-a-webhook" }
+		);
+		(await ProviderDisabledSpec._ProblemAsync(discord)).TranslationKey
+			.Should().NotBe("provider-disabled");
+	}
+
+	[Fact]
+	public async Task ItShouldNameTheProviderForHumansInTheDetail() {
+		var http = this._Client(SocialProvider.DiscordWebhook);
+		var (tenantId, token) = await this._LoginAsync(http);
+
+		using var response = await ProviderDisabledSpec._PostAsync(
+			http, token, tenantId, "/discord-webhook", new { webhookUrl = "https://example.com/not-a-webhook" }
+		);
+
+		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		Assert.NotNull(problem);
+		problem.Detail.Should().StartWith("Discord is disabled").And.NotContain("discord_webhook");
 	}
 }

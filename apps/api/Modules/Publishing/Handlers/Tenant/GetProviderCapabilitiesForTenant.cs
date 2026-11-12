@@ -9,8 +9,8 @@ using PublyApp.Api.Modules.SocialAccounts.Services;
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 
 /// <summary>
-/// One provider's registry defaults: <c>Enabled</c> is the operator switch, so the
-/// connect screen needs no hardcoded provider list.
+/// One provider's registry defaults: <c>Enabled</c> is the operator switch the connect
+/// screen and the composer read.
 /// </summary>
 public record ProviderCapabilityItem {
 	public required string Provider { get; init; }

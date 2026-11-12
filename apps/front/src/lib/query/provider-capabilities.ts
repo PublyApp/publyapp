@@ -34,13 +34,22 @@ export const providerCapabilitiesQueryOptions = buildTenantQueryOptions<
 	{ clientAccessor: getClientManager() },
 );
 
-export const useProviderCapabilitiesQuery = (
-	variables: ProviderCapabilitiesQueryVariables,
-) =>
-	useQuery({
-		queryKey: providerCapabilitiesQueryOptions.queryKey(variables),
-		queryFn: () => providerCapabilitiesQueryOptions.fetcher(variables),
+/** The providers the operator switched off, for the current workspace tenant;
+ * empty until the answer is known (see `toDisabledProviders`). */
+export const useDisabledProviders = (
+	tenantId: string | null,
+): ReadonlySet<string> => {
+	const query = useQuery({
+		queryKey: providerCapabilitiesQueryOptions.queryKey({
+			tenantId: tenantId ?? '',
+		}),
+		queryFn: () =>
+			providerCapabilitiesQueryOptions.fetcher({ tenantId: tenantId ?? '' }),
+		enabled: tenantId !== null,
 	});
+
+	return toDisabledProviders(query.data);
+};
 
 /** Wire names of the providers the operator switched off. Fail-open: with no
  * answer yet nothing is hidden, the connect endpoints still refuse a disabled

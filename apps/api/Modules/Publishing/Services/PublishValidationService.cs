@@ -228,18 +228,17 @@ public static class PublishValidationService {
 				}
 			}
 
-			if (limits.RequiresAltText && imageAltTexts is not null) {
-				for (var index = 0; index < imageAltTexts.Count; index++) {
-					if (string.IsNullOrWhiteSpace(imageAltTexts[index])) {
-						return new PublishContentFailure(
-							PublishContentFailureKind.AltTextRequired,
-							name,
-							PublishValidationService.ImageUnit,
-							0,
-							imageAltTexts.Count,
-							index + 1
-						);
-					}
+			// Fail closed: a missing or short alt-text list counts as missing alt text.
+			for (var index = 0; limits.RequiresAltText && index < imageContentTypes.Count; index++) {
+				if (index >= (imageAltTexts?.Count ?? 0) || string.IsNullOrWhiteSpace(imageAltTexts?[index])) {
+					return new PublishContentFailure(
+						PublishContentFailureKind.AltTextRequired,
+						name,
+						PublishValidationService.ImageUnit,
+						0,
+						imageContentTypes.Count,
+						index + 1
+					);
 				}
 			}
 
@@ -252,9 +251,10 @@ public static class PublishValidationService {
 			}
 
 			// Every follow-up obeys the same per-segment limits (#2171).
-			// The root is segment 1, so the first follow-up is segment 2.
-			for (var number = 1 + 1; number <= followUps.Count + 1; number++) {
-				var followUp = TextCounter.Normalize(followUps[number - 1 - 1]);
+			for (var index = 0; index < followUps.Count; index++) {
+				var followUp = TextCounter.Normalize(followUps[index]);
+				// The root is segment 1, so follow-up `index` is segment index + 2.
+				var number = index + 2;
 				if (followUp.Length == 0 && limits.RequiresText) {
 					return new PublishContentFailure(
 						PublishContentFailureKind.Empty,

@@ -23,6 +23,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 let socialAccountsWire: Array<Record<string, unknown>> = [];
 let permissionKeys: string[] = ['*'];
+let disabledProviders: string[] = [];
 let socialAccountsState: 'success' | 'pending' | 'error' = 'success';
 
 vi.mock('~/lib/query/social-accounts', async (importOriginal) => ({
@@ -39,6 +40,11 @@ vi.mock('~/lib/query/social-accounts', async (importOriginal) => ({
 		error: socialAccountsState === 'error' ? new Error('boom') : null,
 		refetch: () => Promise.resolve(),
 	}),
+}));
+
+vi.mock('~/lib/query/provider-capabilities', async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	useDisabledProviders: () => new Set(disabledProviders),
 }));
 
 vi.mock('~/lib/permissions/use-has-tenant-permission', () => ({
@@ -86,6 +92,7 @@ afterEach(() => {
 	socialAccountsWire = [];
 	permissionKeys = ['*'];
 	socialAccountsState = 'success';
+	disabledProviders = [];
 });
 
 describe('needs-reconnect banner', () => {
@@ -102,6 +109,19 @@ describe('needs-reconnect banner', () => {
 		expect(link.getAttribute('href')).toContain(
 			'/tenant/settings/integrations',
 		);
+	});
+
+	test('ItShouldNotOfferReconnectForAProviderTheOperatorDisabled', () => {
+		disabledProviders = ['bluesky'];
+		socialAccountsWire = [
+			wireItem('a1', '@old.bsky.social', 'needs_reconnect'),
+		];
+
+		const { container } = render(<NeedsReconnectBanner tenantId="t1" />);
+
+		expect(
+			container.querySelector('[data-testid="needs-reconnect-banner"]'),
+		).toBeNull();
 	});
 
 	test('ItShouldRenderNullWhenEveryAccountIsActive', () => {
