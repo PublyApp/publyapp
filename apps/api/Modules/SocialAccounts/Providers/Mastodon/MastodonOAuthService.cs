@@ -131,7 +131,8 @@ public sealed class MastodonOAuthService {
 					account => account.Id == target
 						&& account.TenantId == tenantId
 						&& account.Provider == provider
-						&& !account.IsDeleted,
+						&& !account.IsDeleted
+						&& account.ExternalAccountId.EndsWith("@" + host),
 					cancellationToken
 				);
 			if (!known) {
@@ -232,7 +233,9 @@ public sealed class MastodonOAuthService {
 		var consumed = await this._Db.OAuthState
 			.Where(row => row.Id == pending.Id && row.ConsumedAt == null)
 			.ExecuteUpdateAsync(
-				setters => setters.SetProperty(row => row.ConsumedAt, now),
+				setters => setters
+					.SetProperty(row => row.ConsumedAt, now)
+					.SetProperty(row => row.ProtectedCodeVerifier, (string?)null),
 				cancellationToken
 			);
 		if (consumed != 1) {
@@ -388,9 +391,16 @@ public sealed class MastodonOAuthService {
 			}
 		}
 
+		Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? transaction = null;
 		if (existing is null) {
 			// A server nobody registered on yet: this is the write a stranger's server sees, so it
-			// is capped per tenant (see MaxNewHostRegistrationsPerTenant).
+			// is capped per tenant (see MaxNewHostRegistrationsPerTenant). The count and the insert
+			// run under a per-tenant advisory lock, so parallel starts cannot all read "4 of 5".
+			transaction = await this._Db.Database.BeginTransactionAsync(cancellationToken);
+			await this._Db.Database.ExecuteSqlInterpolatedAsync(
+				$"SELECT pg_advisory_xact_lock(hashtextextended({tenantId.ToString()}, 0))",
+				cancellationToken
+			);
 			var since = DateTime.UtcNow - MastodonOAuthService.NewHostRegistrationWindow;
 			var recent = await this._Db.OAuthAppRegistration
 				.AsNoTracking()
@@ -399,6 +409,7 @@ public sealed class MastodonOAuthService {
 					cancellationToken
 				);
 			if (recent >= MastodonOAuthService.MaxNewHostRegistrationsPerTenant) {
+				await transaction.DisposeAsync();
 				return (new MastodonResult<MastodonApp>.Unreachable(), true);
 			}
 		}
@@ -407,6 +418,10 @@ public sealed class MastodonOAuthService {
 			host, this.RedirectUri, scopes, cancellationToken
 		);
 		if (registered is not MastodonResult<MastodonApp>.Ok ok) {
+			if (transaction is not null) {
+				await transaction.DisposeAsync();
+			}
+
 			return (registered, false);
 		}
 
@@ -432,8 +447,15 @@ public sealed class MastodonOAuthService {
 
 		try {
 			await this._Db.SaveChangesAsync(cancellationToken);
+			if (transaction is not null) {
+				await transaction.CommitAsync(cancellationToken);
+			}
 		} catch (DbUpdateException) {
 			// A concurrent first registration won the unique index: use its row.
+			if (transaction is not null) {
+				await transaction.DisposeAsync();
+			}
+
 			this._Db.ChangeTracker.Clear();
 			var winner = await this._Db.OAuthAppRegistration
 				.AsNoTracking()
@@ -447,6 +469,10 @@ public sealed class MastodonOAuthService {
 			}
 
 			return (new MastodonResult<MastodonApp>.Ok(new MastodonApp(winner.ClientId, winnerSecret)), false);
+		}
+
+		if (transaction is not null) {
+			await transaction.DisposeAsync();
 		}
 
 		return (ok, false);

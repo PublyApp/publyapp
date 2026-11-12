@@ -16,10 +16,10 @@ public static partial class LastErrorSanitiser {
 	private static partial System.Text.RegularExpressions.Regex _BearerPattern();
 
 	// Query-string / form key=value: access_token=..., client_secret=..., code_verifier=... or
-	// token=... (unquoted, no whitespace). The Mastodon OAuth fields are named explicitly (#2186).
+	// token=... (unquoted, quoted or percent-encoded, no whitespace). The Mastodon OAuth fields are named explicitly (#2186).
 	// Capturing group keeps the field name in the replacement so the operator can tell
 	// WHICH field leaked (review r3): access_token=[redacted], not =\u200b[redacted].
-	[System.Text.RegularExpressions.GeneratedRegex(@"(access_token|refresh_token|client_secret|code_verifier|token)=[A-Za-z0-9\-._~+/]+=*")]
+	[System.Text.RegularExpressions.GeneratedRegex(@"(access_token|refresh_token|client_secret|code_verifier|token)=(?:""[^""\s]+""|'[^'\s]+'|[A-Za-z0-9\-._~+/%]+=*)")]
 	private static partial System.Text.RegularExpressions.Regex _QueryTokenPattern();
 
 	// JSON "access_token": "...", "refresh_token": "...", "client_secret": "..."

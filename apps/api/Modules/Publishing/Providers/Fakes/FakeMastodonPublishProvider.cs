@@ -48,7 +48,9 @@ public sealed class FakeMastodonPublishProvider : IPublishProvider {
 	) {
 		// Same refusal the real delivery makes, so an e2e of a Pixelfed post without an
 		// image sees the real failure rather than a fake success.
-		if (request.Provider == SocialProvider.Pixelfed && request.Media.Count == 0) {
+		// Only the root carries the image, so a thread resumed after its root is not asked again.
+		var rootDone = request.CompletedSegments.Any(segment => segment.Position == 0);
+		if (request.Provider == SocialProvider.Pixelfed && request.Media.Count == 0 && !rootDone) {
 			return new PublishResult.ContentFailure("Pixelfed posts need at least one image");
 		}
 
@@ -75,6 +77,10 @@ public sealed class FakeMastodonPublishProvider : IPublishProvider {
 			var url = $"{FakeMastodonPublishProvider._Host}/@e2e/{id}";
 			if (position == 0) {
 				rootResult = new PublishResult.Published(id, url);
+			}
+
+			if (!completed.Contains(position) && request.OnBeforeWrite is not null) {
+				await request.OnBeforeWrite(position, cancellationToken);
 			}
 
 			if (texts.Count > 1 && !completed.Contains(position) && request.OnSegmentCompleted is not null) {
@@ -109,5 +115,16 @@ public sealed class FakeRoutingPublishProvider : IPublishProvider {
 		return request.Provider is SocialProvider.Mastodon or SocialProvider.Pixelfed
 			? this._Mastodon.PublishAsync(request, cancellationToken)
 			: this._Bluesky.PublishAsync(request, cancellationToken);
+	}
+
+	// Mastodon's own reconcile rule (the 50 min window), so the e2e does not silently inherit
+	// the interface default for a provider whose real delivery overrides it.
+	Task<ReconcileResult> IPublishProvider.ReconcileAsync(
+		ReconcileRequest request,
+		CancellationToken cancellationToken
+	) {
+		return request.Provider is SocialProvider.Mastodon or SocialProvider.Pixelfed
+			? Task.FromResult(MastodonPublishProvider.Reconcile(request))
+			: ((IPublishProvider)this._Bluesky).ReconcileAsync(request, cancellationToken);
 	}
 }

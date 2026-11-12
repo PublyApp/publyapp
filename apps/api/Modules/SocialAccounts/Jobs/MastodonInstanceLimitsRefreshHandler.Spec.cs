@@ -28,10 +28,18 @@ public sealed class MastodonInstanceLimitsRefreshHandlerSpec : IClassFixture<Api
 	private sealed class RecordingClient : IMastodonClient {
 		public Dictionary<string, MastodonInstanceLimits?> LimitsByHost { get; } = [];
 
+		public HashSet<string> ThrowingHosts { get; } = [];
+
+		public bool ThrowEverywhere { get; set; }
+
 		public List<string> Requested { get; } = [];
 
 		public Task<MastodonInstanceLimits?> GetInstanceLimitsAsync(string host, CancellationToken cancellationToken) {
 			this.Requested.Add(host);
+			if (this.ThrowEverywhere || this.ThrowingHosts.Contains(host)) {
+				throw new InvalidOperationException("unexpected failure");
+			}
+
 			return Task.FromResult(this.LimitsByHost.GetValueOrDefault(host));
 		}
 
@@ -202,6 +210,42 @@ public sealed class MastodonInstanceLimitsRefreshHandlerSpec : IClassFixture<Api
 
 		ProviderCapabilityRegistry.Resolve(await this._ReadAsync(mastodon)).TextLimits.Single().Rule.Unit.Should().Be("characters");
 		ProviderCapabilityRegistry.Resolve(await this._ReadAsync(pixelfed)).TextLimits.Single().Rule.Unit.Should().Be("utf16");
+	}
+
+	[Fact]
+	public async Task ItShouldKeepRefreshingTheOtherServersWhenOneThrowsUnexpectedly() {
+		var (db, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var tenantId = await MastodonInstanceLimitsRefreshHandlerSpec._TenantAsync(db);
+		var bad = $"a-bad-{Guid.NewGuid():N}.example";
+		var good = $"z-good-{Guid.NewGuid():N}.example";
+		await MastodonInstanceLimitsRefreshHandlerSpec._AccountAsync(db, tenantId, bad);
+		var goodId = await MastodonInstanceLimitsRefreshHandlerSpec._AccountAsync(db, tenantId, good);
+		var client = new RecordingClient();
+		client.ThrowingHosts.Add(bad);
+		client.LimitsByHost[good] = new MastodonInstanceLimits(3210, 4, 23, null, null);
+
+		var outcome = await MastodonInstanceLimitsRefreshHandlerSpec._Handler(db, client)
+			.HandleAsync(MastodonInstanceLimitsRefreshHandlerSpec._Context(), CancellationToken.None);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		ProviderCapabilityRegistry.Resolve(await this._ReadAsync(goodId)).TextLimits.Single().Max.Should().Be(3210);
+	}
+
+	[Fact]
+	public async Task ItShouldNotReportSuccessWhenEveryServerFailedUnexpectedly() {
+		var (db, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var tenantId = await MastodonInstanceLimitsRefreshHandlerSpec._TenantAsync(db);
+		var client = new RecordingClient();
+		// The shared fixture may hold other specs' servers: make every requested host throw.
+		client.ThrowEverywhere = true;
+		await MastodonInstanceLimitsRefreshHandlerSpec._AccountAsync(db, tenantId, $"down-{Guid.NewGuid():N}.example");
+
+		var outcome = await MastodonInstanceLimitsRefreshHandlerSpec._Handler(db, client)
+			.HandleAsync(MastodonInstanceLimitsRefreshHandlerSpec._Context(), CancellationToken.None);
+
+		outcome.Should().BeOfType<JobOutcome.Retry>("a total outage must not look like a success in the staff job view");
 	}
 
 	[Fact]

@@ -93,6 +93,18 @@ public sealed class LastErrorSanitiserSpec {
 		sanitised.Should().Contain("[redacted]");
 	}
 
+	[Theory]
+	[InlineData("proxy echoed client_secret=\"cs_mastodon_9f8e7d\"", "cs_mastodon_9f8e7d")]
+	[InlineData("proxy echoed client_secret='cs_mastodon_9f8e7d'", "cs_mastodon_9f8e7d")]
+	[InlineData("body client_secret=cs%2Fabc123&x=1", "abc123")]
+	[InlineData("body access_token=tok%2Bplus%3Dtail end", "tail")]
+	public void ItShouldRedactQuotedAndUrlEncodedFormValues(string raw, string secret) {
+		var sanitised = LastErrorSanitiser.Sanitize(raw).Required();
+
+		sanitised.Should().NotContain(secret);
+		sanitised.Should().Contain("[redacted]");
+	}
+
 	[Fact]
 	public void ItShouldKeepTheReadableReasonOfAMastodonErrorBody() {
 		var raw = "publishing failed: 422 Validation failed: Text character limit of 500 exceeded";

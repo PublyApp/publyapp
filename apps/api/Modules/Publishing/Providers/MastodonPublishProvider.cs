@@ -119,10 +119,15 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		ReconcileRequest request,
 		CancellationToken cancellationToken
 	) {
+		return Task.FromResult(MastodonPublishProvider.Reconcile(request));
+	}
+
+	/// <summary>The reconcile rule itself, shared with the e2e fake so it cannot drift.</summary>
+	internal static ReconcileResult Reconcile(ReconcileRequest request) {
 		if (request.Provider == SocialProvider.Pixelfed) {
-			return Task.FromResult<ReconcileResult>(new ReconcileResult.NeedsReview(
+			return new ReconcileResult.NeedsReview(
 				"Pixelfed cannot confirm whether the post went out; check your role"
-			));
+			);
 		}
 
 		var age = DateTime.UtcNow - request.FirstAttemptAtUtc;
@@ -131,7 +136,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			: new ReconcileResult.NeedsReview(
 				"Mastodon can no longer confirm whether the post went out; check your role"
 			);
-		return Task.FromResult(result);
+		return result;
 	}
 
 	// Mastodon keeps an Idempotency-Key for about an hour; stay well inside it. The key is

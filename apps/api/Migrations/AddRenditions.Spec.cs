@@ -66,7 +66,8 @@ public sealed class AddRenditionsSpec : IAsyncLifetime {
 		await migrator.MigrateAsync(AddRenditionsSpec._PreviousMigrationId);
 
 		// Only the renditions table differs from the previous schema, so the other
-		// entities can be seeded through the current model.
+		// entities can be seeded through the current model, except social_accounts, which
+		// later migrations extended (default_visibility): it is seeded with plain SQL.
 		var tenant = new Tenant {
 			Name = $"mig-{Guid.NewGuid():N}",
 			Code = Guid.NewGuid().ToString("N")[..10],
@@ -78,19 +79,22 @@ public sealed class AddRenditionsSpec : IAsyncLifetime {
 		db.User.Add(user);
 		await db.SaveChangesAsync();
 		var post = new Post { TenantId = tenant.GetRequiredId(), Body = "legacy post", CreatedByUserId = user.GetRequiredId() };
-		var account = new SocialAccount {
-			TenantId = tenant.GetRequiredId(),
-			ExternalAccountId = $"did:plc:{Guid.NewGuid():N}",
-			DisplayHandle = "@legacy.bsky.social",
-			ProtectedCredentials = "enc-spec-blob",
-		};
+		var accountId = Guid.NewGuid();
+		var tenantGuid = tenant.GetRequiredId();
+		var externalId = $"did:plc:{Guid.NewGuid():N}";
+		var appPassword = (int)SocialCredentialType.AppPassword;
 		db.Post.Add(post);
-		db.SocialAccount.Add(account);
 		await db.SaveChangesAsync();
+		_ = await db.Database.ExecuteSqlAsync($"""
+			INSERT INTO social_accounts (id, tenant_id, provider, external_account_id, display_handle,
+				credential_type, protected_credentials, status, created_at, updated_at, is_deleted)
+			VALUES ({accountId}, {tenantGuid}, 0, {externalId}, '@legacy.bsky.social',
+				{appPassword}, 'enc-spec-blob', 10, now(), now(), false)
+			""");
 		var publication = new Publication {
 			TenantId = tenant.GetRequiredId(),
 			PostId = post.GetRequiredId(),
-			SocialAccountId = account.GetRequiredId(),
+			SocialAccountId = accountId,
 			ScheduledAtUtc = DateTime.UtcNow.AddHours(1),
 			ScheduledTimeZone = "Etc/UTC",
 			IdempotencyKey = "legacy",

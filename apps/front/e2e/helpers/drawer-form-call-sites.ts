@@ -65,6 +65,12 @@ export const DRAWER_FORM_CALL_SITES = [
 		sourceFile: 'src/routes/authed/tenant/settings/_discord-connect-drawer.tsx',
 		drawerTestId: 'discord-connect-drawer',
 	},
+	{
+		id: 'social-account-visibility',
+		name: 'social-account-visibility',
+		sourceFile: 'src/routes/authed/tenant/settings/_visibility-drawer.tsx',
+		drawerTestId: 'social-account-visibility-drawer',
+	},
 ] as const;
 
 export type DrawerFormCallSiteId =

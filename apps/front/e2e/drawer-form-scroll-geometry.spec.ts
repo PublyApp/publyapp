@@ -738,6 +738,48 @@ const openMastodonConnectDrawer = (page: Page) =>
 const openDiscordConnectDrawer = (page: Page) =>
 	openConnectDrawer(page, 'Connect Discord', 'discord-connect-drawer');
 
+/** The e2e seed has no Mastodon account, so the integrations list is answered
+ * with one: the visibility action only exists on a fediverse row. */
+const openVisibilityDrawer = async (page: Page): Promise<void> => {
+	await page.context().clearCookies();
+	await loginAsTenantUser(page, TENANT_ADMIN_CREDENTIALS);
+	await page.route(/\/social-accounts\/?(\?.*)?$/, async (route) => {
+		if (route.request().method() !== 'GET') {
+			await route.fallback();
+			return;
+		}
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				data: [
+					{
+						id: '0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d',
+						provider: 'mastodon',
+						externalAccountId: '1@social.example',
+						displayHandle: 'me@social.example',
+						status: 'active',
+						credentialType: 'oauth',
+						lastSuccessAt: null,
+						lastError: null,
+						projectIds: [],
+						defaultVisibility: 'public',
+					},
+				],
+				nextCursor: null,
+			}),
+		});
+	});
+	await page.goto('/tenant/settings/integrations');
+	await page
+		.getByTestId('social-account-actions-0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d')
+		.click();
+	await page.getByRole('menuitem', { name: 'Default visibility' }).click();
+	await expect(
+		page.getByTestId('social-account-visibility-drawer'),
+	).toBeVisible({ timeout: 10_000 });
+};
+
 const openDrawerByCallSiteId = {
 	'role-create': openRoleCreateDrawer,
 	'role-edit': openRoleEditDrawer,
@@ -749,6 +791,7 @@ const openDrawerByCallSiteId = {
 	'bluesky-connect': openBlueskyConnectDrawer,
 	'mastodon-connect': openMastodonConnectDrawer,
 	'discord-connect': openDiscordConnectDrawer,
+	'social-account-visibility': openVisibilityDrawer,
 } satisfies Record<DrawerFormCallSiteId, (page: Page) => Promise<void>>;
 
 test.describe(

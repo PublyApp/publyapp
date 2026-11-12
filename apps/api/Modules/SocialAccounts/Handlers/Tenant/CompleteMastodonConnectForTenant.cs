@@ -84,7 +84,8 @@ public sealed class CompleteMastodonConnectForTenant {
 					["actualHandle"] = mismatch.ActualHandle,
 					// What the front needs to offer "connect it as a new account instead".
 					["provider"] = SocialAccountWire.FormatProvider(mismatch.Provider),
-					["instance"] = mismatch.Host,
+					// Not "instance": that is a standard ProblemDetails member the client binds to a property.
+					["instanceHost"] = mismatch.Host,
 				}
 			);
 		}

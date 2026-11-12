@@ -69,11 +69,21 @@ public sealed class MastodonInstanceLimitsRefreshHandler : IJobHandler {
 
 		var refreshed = 0;
 		var unchanged = 0;
+		var failed = 0;
 		foreach (var target in targets) {
 			cancellationToken.ThrowIfCancellationRequested();
 
-			var limits = await this._Client.GetInstanceLimitsAsync(target.Host, cancellationToken);
-			var overrides = limits?.ToCapabilityOverrides(target.Provider);
+			string? overrides;
+			try {
+				var limits = await this._Client.GetInstanceLimitsAsync(target.Host, cancellationToken);
+				overrides = limits?.ToCapabilityOverrides(target.Provider);
+			} catch (Exception exception) when (exception is not OperationCanceledException) {
+				// One misbehaving server must not stop the others from being refreshed.
+				failed += 1;
+				this._Logger.LogWarning(exception, "mastodon-instance-limits-refresh could not read one server");
+				continue;
+			}
+
 			if (overrides is null) {
 				unchanged += 1;
 				continue;
@@ -106,6 +116,9 @@ public sealed class MastodonInstanceLimitsRefreshHandler : IJobHandler {
 			);
 		}
 
-		return JobOutcome.Succeeded;
+		// Every server failing is an outage, not a quiet day: surface it instead of a green run.
+		return failed > 0 && failed == targets.Count
+			? new JobOutcome.Retry(Error: "no server could be read")
+			: JobOutcome.Succeeded;
 	}
 }

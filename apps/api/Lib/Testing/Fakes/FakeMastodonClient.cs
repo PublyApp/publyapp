@@ -8,7 +8,10 @@ namespace PublyApp.Api.Lib.Testing.Fakes;
 /// service spec and the HTTP specs that swap it into the host.
 /// </summary>
 public sealed class FakeMastodonClient : IMastodonClient {
-	public List<string> Calls { get; } = [];
+	public System.Collections.Concurrent.ConcurrentQueue<string> Calls { get; } = new();
+
+	// Widens the window between "decide to register" and "registered" so a race is reproducible.
+	public TimeSpan RegisterDelay { get; set; }
 
 	public MastodonAccountInfo Account { get; set; } = new("109", "alice");
 
@@ -21,6 +24,9 @@ public sealed class FakeMastodonClient : IMastodonClient {
 	// When set, each registration gets its own client id (to tell two apps apart).
 	public bool UniqueClients { get; set; }
 
+	// When set, every registration answers with this instead of a new app.
+	public MastodonResult<MastodonApp>? RegisterResult { get; set; }
+
 	public string? LastExchangeClientId { get; private set; }
 
 	// Whether the fake instance advertises PKCE S256; false models an older Mastodon / Pixelfed.
@@ -28,31 +34,35 @@ public sealed class FakeMastodonClient : IMastodonClient {
 
 	public string? LastExchangeVerifier { get; private set; }
 
-	public Task<MastodonResult<MastodonApp>> RegisterAppAsync(string host, string redirectUri, string scopes, CancellationToken cancellationToken) {
-		this.Calls.Add($"register {host}");
+	public async Task<MastodonResult<MastodonApp>> RegisterAppAsync(string host, string redirectUri, string scopes, CancellationToken cancellationToken) {
+		this.Calls.Enqueue($"register {host}");
+		if (this.RegisterDelay > TimeSpan.Zero) {
+			await Task.Delay(this.RegisterDelay, cancellationToken);
+		}
+
 		var clientId = this.UniqueClients ? $"client-{scopes.Replace(' ', '-')}" : "client-id";
-		return Task.FromResult<MastodonResult<MastodonApp>>(new MastodonResult<MastodonApp>.Ok(new MastodonApp(clientId, "client-secret")));
+		return this.RegisterResult ?? new MastodonResult<MastodonApp>.Ok(new MastodonApp(clientId, "client-secret"));
 	}
 
 	public Task<bool> SupportsPkceAsync(string host, CancellationToken cancellationToken) {
-		this.Calls.Add($"pkce {host}");
+		this.Calls.Enqueue($"pkce {host}");
 		return Task.FromResult(this.SupportsPkce);
 	}
 
 	public Task<MastodonResult<string>> ExchangeCodeAsync(string host, MastodonApp app, string redirectUri, string code, string? codeVerifier, CancellationToken cancellationToken) {
-		this.Calls.Add($"exchange {host}");
+		this.Calls.Enqueue($"exchange {host}");
 		this.LastExchangeClientId = app.ClientId;
 		this.LastExchangeVerifier = codeVerifier;
 		return Task.FromResult(this.TokenResult ?? new MastodonResult<string>.Ok(this.Token));
 	}
 
 	public Task<MastodonResult<MastodonAccountInfo>> VerifyCredentialsAsync(string host, string accessToken, CancellationToken cancellationToken) {
-		this.Calls.Add($"verify {host}");
+		this.Calls.Enqueue($"verify {host}");
 		return Task.FromResult<MastodonResult<MastodonAccountInfo>>(new MastodonResult<MastodonAccountInfo>.Ok(this.Account));
 	}
 
 	public Task<MastodonInstanceLimits?> GetInstanceLimitsAsync(string host, CancellationToken cancellationToken) {
-		this.Calls.Add($"limits {host}");
+		this.Calls.Enqueue($"limits {host}");
 		return Task.FromResult(this.Limits);
 	}
 
@@ -63,7 +73,7 @@ public sealed class FakeMastodonClient : IMastodonClient {
 			throw this.RevokeFailure;
 		}
 
-		this.Calls.Add($"revoke {host} {accessToken} {app.ClientSecret}");
+		this.Calls.Enqueue($"revoke {host} {accessToken} {app.ClientSecret}");
 		return Task.CompletedTask;
 	}
 }

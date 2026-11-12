@@ -76,11 +76,14 @@ describe('useMastodonCallback', () => {
 			status: 422,
 			translationKey: 'mastodon-reconnect-account-mismatch',
 			errors: { state: ['You signed in with a different account.'] },
+			// Kiota binds the standard `instance` member to a property; only the
+			// non-standard members land in additionalData.
+			instance: '/social-accounts/mastodon/callback',
 			additionalData: {
 				expectedHandle: 'alice@social.example',
 				actualHandle: 'bob@social.example',
 				provider: 'mastodon',
-				instance: 'social.example',
+				instanceHost: 'social.example',
 			},
 		});
 

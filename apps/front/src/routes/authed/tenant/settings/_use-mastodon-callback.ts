@@ -37,17 +37,17 @@ const readMismatch = (error: unknown): ReconnectMismatch | null => {
 	) {
 		return null;
 	}
-	const { expectedHandle, actualHandle, provider, instance } =
+	const { expectedHandle, actualHandle, provider, instanceHost } =
 		failure.extensions ?? {};
 	if (
 		typeof expectedHandle !== 'string' ||
 		typeof actualHandle !== 'string' ||
-		typeof instance !== 'string' ||
+		typeof instanceHost !== 'string' ||
 		(provider !== 'mastodon' && provider !== 'pixelfed')
 	) {
 		return null;
 	}
-	return { expectedHandle, actualHandle, provider, instance };
+	return { expectedHandle, actualHandle, provider, instance: instanceHost };
 };
 
 export type MastodonCallbackResult = {

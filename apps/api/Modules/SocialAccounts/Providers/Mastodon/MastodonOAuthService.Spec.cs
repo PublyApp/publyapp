@@ -384,6 +384,79 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 		known.Should().BeOfType<StartMastodonConnectResult.Started>("a host already registered costs nothing");
 	}
 
+	// #2186 review M2: a count-then-register check is not a cap. Many concurrent starts of one
+	// tenant (separate scopes, as separate sessions would be) must still register at most
+	// the quota, and a refused host must never be contacted.
+	[Fact]
+	public async Task ItShouldNeverRegisterMoreThanTheQuotaWhenStartsRaceEachOther() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		h.Client.RegisterDelay = TimeSpan.FromMilliseconds(300);
+		var marker = $"race-{Guid.NewGuid():N}";
+		var attempts = MastodonOAuthService.MaxNewHostRegistrationsPerTenant * 3;
+
+		var results = await Task.WhenAll(Enumerable.Range(0, attempts).Select(async index => {
+			await using var racer = this._Fixture.Factory.Services.CreateAsyncScope();
+			var db = racer.ServiceProvider.GetRequiredService<AppDbContext>();
+			var protector = racer.ServiceProvider.GetRequiredService<ICredentialProtector>();
+			var service = new MastodonOAuthService(db, protector, h.Client);
+			return await service.StartAsync(h.TenantId, h.UserId, $"{marker}-{index}.example", default);
+		}));
+
+		results.Count(r => r is StartMastodonConnectResult.Started)
+			.Should().Be(MastodonOAuthService.MaxNewHostRegistrationsPerTenant);
+		results.Count(r => r is StartMastodonConnectResult.QuotaExceeded)
+			.Should().Be(attempts - MastodonOAuthService.MaxNewHostRegistrationsPerTenant);
+		h.Client.Calls.Count(c => c.StartsWith($"register {marker}", StringComparison.Ordinal))
+			.Should().Be(MastodonOAuthService.MaxNewHostRegistrationsPerTenant);
+		(await h.Db.OAuthAppRegistration.AsNoTracking().CountAsync(r => r.Host.StartsWith(marker)))
+			.Should().Be(MastodonOAuthService.MaxNewHostRegistrationsPerTenant, "no reservation is left behind");
+	}
+
+	[Fact]
+	public async Task ItShouldGiveTheQuotaSlotBackWhenTheInstanceRefusesTheRegistration() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		h.Client.RegisterResult = new MastodonResult<MastodonApp>.Refused("the instance answered 422");
+		for (var i = 0; i < MastodonOAuthService.MaxNewHostRegistrationsPerTenant + 2; i++) {
+			(await h.Service.StartAsync(h.TenantId, h.UserId, $"refused-{i}-{Guid.NewGuid():N}.example", default))
+				.Should().BeOfType<StartMastodonConnectResult.Refused>("a failed registration costs no quota");
+		}
+
+		h.Client.RegisterResult = null;
+		(await h.Service.StartAsync(h.TenantId, h.UserId, $"fine-{Guid.NewGuid():N}.example", default))
+			.Should().BeOfType<StartMastodonConnectResult.Started>();
+	}
+
+	[Fact]
+	public async Task ItShouldClearThePkceVerifierOnceTheStateIsConsumed() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		h.Client.SupportsPkce = true;
+		var state = MastodonOAuthServiceSpec._StateOf(await h.Service.StartAsync(h.TenantId, h.UserId, "clear.example", default));
+		(await h.Db.OAuthState.AsNoTracking().SingleAsync(s => s.TenantId == h.TenantId)).ProtectedCodeVerifier.Should().NotBeNull();
+
+		await h.Service.CompleteAsync(h.TenantId, h.UserId, "the-code", state, default);
+
+		(await h.Db.OAuthState.AsNoTracking().SingleAsync(s => s.TenantId == h.TenantId)).ProtectedCodeVerifier
+			.Should().BeNull("a consumed state keeps no secret");
+	}
+
+	[Fact]
+	public async Task ItShouldNotStartAReconnectAgainstAnotherHostThanTheAccountLivesOn() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var own = await MastodonOAuthServiceSpec._ConnectAsync(h, "home-host.example", "6");
+		var callsBefore = h.Client.Calls.Count;
+
+		var result = await h.Service.StartAsync(
+			h.TenantId, h.UserId, "elsewhere-host.example", default, SocialProvider.Mastodon, own.Account.GetRequiredId()
+		);
+
+		result.Should().BeOfType<StartMastodonConnectResult.ReconnectTargetNotFound>();
+		h.Client.Calls.Count.Should().Be(callsBefore, "no registration or request on the wrong server");
+	}
+
 	[Fact]
 	public async Task ItShouldCountTheQuotaPerTenantAndSlideTheWindow() {
 		var (h, scope) = await this._NewAsync();

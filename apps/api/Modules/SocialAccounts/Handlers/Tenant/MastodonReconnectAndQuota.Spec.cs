@@ -91,7 +91,9 @@ public sealed class MastodonReconnectAndQuotaSpec : IClassFixture<ApiFixture> {
 		problem.GetProperty("expectedHandle").GetString().Should().Be($"alice@{host}");
 		problem.GetProperty("actualHandle").GetString().Should().Be($"bob@{host}");
 		problem.GetProperty("provider").GetString().Should().Be("mastodon");
-		problem.GetProperty("instance").GetString().Should().Be(host);
+		problem.GetProperty("instanceHost").GetString().Should().Be(host);
+		// The standard ProblemDetails member stays the request path: our key must not shadow it.
+		problem.GetProperty("instance").GetString().Should().EndWith("/social-accounts/mastodon/callback");
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var stored = await db.SocialAccount.AsNoTracking().Where(a => a.TenantId == tenantId && a.ExternalAccountId.EndsWith("@" + host)).ToListAsync();

@@ -543,6 +543,7 @@
 	"social-account-reconnected": "Compte Bluesky reconnecté",
 	"social-account-projects-updated": "Attachements de projets mis à jour",
 	"social-account-visibility-updated": "Visibilité par défaut mise à jour",
+	"mastodon-reconnect-account-mismatch": "Vous vous êtes connecté avec un autre compte que celui à reconnecter. Rien n'a été modifié.",
 	"social-account-disconnected-success": "Compte social déconnecté et secret stocké effacé",
 	"social-accounts": "Comptes sociaux",
 	"recent-activity": "Activité récente",

@@ -262,6 +262,10 @@ vi.mock('~/lib/query/social-accounts', async (importOriginal) => ({
 		mutateAsync: vi.fn(),
 		isPending: false,
 	}),
+	useSetSocialAccountVisibilityMutation: () => ({
+		mutateAsync: vi.fn(),
+		isPending: false,
+	}),
 }));
 
 vi.mock('~/lib/query/tenant-posts', () => ({
@@ -435,6 +439,7 @@ import { CreatePostDrawer } from '../../routes/authed/tenant/posts/_create-post-
 import { BlueskyConnectDrawer } from '../../routes/authed/tenant/settings/_bluesky-connect-drawer';
 import { DiscordConnectDrawer } from '../../routes/authed/tenant/settings/_discord-connect-drawer';
 import { MastodonConnectDrawer } from '../../routes/authed/tenant/settings/_mastodon-connect-drawer';
+import { VisibilityDrawer } from '../../routes/authed/tenant/settings/_visibility-drawer';
 
 const noop = () => undefined;
 
@@ -9607,6 +9612,25 @@ const renderDrawerByCallSiteId = {
 	'discord-connect': () => {
 		render(
 			<DiscordConnectDrawer open tenantId="tenant-1" onOpenChange={noop} />,
+		);
+	},
+	'social-account-visibility': () => {
+		render(
+			<VisibilityDrawer
+				account={{
+					id: 'a1',
+					provider: 'mastodon',
+					displayHandle: 'me@social.example',
+					statusWire: 'active',
+					tone: 'success',
+					statusLabelKey: 'settings:status-active',
+					lastSuccessAt: null,
+					projectIds: [],
+					defaultVisibility: 'public',
+				}}
+				tenantId="tenant-1"
+				onOpenChange={noop}
+			/>,
 		);
 	},
 } satisfies Record<DrawerFormCallSiteId, () => void>;

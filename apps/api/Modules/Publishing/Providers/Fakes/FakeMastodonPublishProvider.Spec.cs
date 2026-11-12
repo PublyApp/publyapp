@@ -85,6 +85,62 @@ public sealed class FakeMastodonPublishProviderSpec {
 		result.Should().BeOfType<PublishResult.ContentFailure>().Which.Cause.Should().Contain("at least one image");
 	}
 
+	[Fact]
+	public async Task ItShouldResumeAPixelfedThreadAfterItsRootWithoutAskingForAnImageAgain() {
+		var request = FakeMastodonPublishProviderSpec._Request($"fake-m-{Guid.NewGuid():N}", SocialProvider.Pixelfed) with {
+			FollowUpSegments = ["two"],
+			CompletedSegments = [new CompletedSegment(0, "root-id", string.Empty, "https://x")],
+		};
+
+		var result = await new FakeMastodonPublishProvider().PublishAsync(request, CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.Published>("the real delivery only needs the image for the root");
+	}
+
+	[Fact]
+	public async Task ItShouldJournalEachNewSegmentBeforeItsWriteAndSkipTheCompletedOnes() {
+		var events = new List<string>();
+		var request = FakeMastodonPublishProviderSpec._Request($"fake-m-{Guid.NewGuid():N}") with {
+			FollowUpSegments = ["two", "three"],
+			CompletedSegments = [new CompletedSegment(0, "root-id", string.Empty, "https://x")],
+			OnBeforeWrite = (position, _) => {
+				events.Add($"before {position}");
+				return Task.CompletedTask;
+			},
+			OnSegmentCompleted = (segment, _) => {
+				events.Add($"done {segment.Position}");
+				return Task.CompletedTask;
+			},
+		};
+
+		await new FakeMastodonPublishProvider().PublishAsync(request, CancellationToken.None);
+
+		events.Should().Equal("before 1", "done 1", "before 2", "done 2");
+	}
+
+	[Theory]
+	[InlineData(10, true)]
+	[InlineData(61, false)]
+	public async Task ItShouldReconcileLikeTheRealDeliveryThroughTheRoutingProvider(int minutes, bool safe) {
+		var result = await ((IPublishProvider)new FakeRoutingPublishProvider()).ReconcileAsync(
+			new ReconcileRequest {
+				PublicationId = Guid.NewGuid(),
+				IdempotencyKey = "k",
+				SegmentPosition = 0,
+				Session = new SocialSession("1@m.example", "me@m.example", "jwt", "https://m.example"),
+				Provider = SocialProvider.Mastodon,
+				FirstAttemptAtUtc = DateTime.UtcNow - TimeSpan.FromMinutes(minutes),
+			},
+			CancellationToken.None
+		);
+
+		if (safe) {
+			result.Should().BeOfType<ReconcileResult.SafeToResend>();
+		} else {
+			result.Should().BeOfType<ReconcileResult.NeedsReview>();
+		}
+	}
+
 	[Theory]
 	[InlineData(SocialProvider.Mastodon, true)]
 	[InlineData(SocialProvider.Pixelfed, true)]

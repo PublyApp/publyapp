@@ -129,7 +129,8 @@ instance host (only its SHA-256 is stored, in `oauth_states`).
   reconnected as `socialAccountId` to `POST /social-accounts/mastodon/start`; the pending
   state remembers it. If the callback authenticates as a different Mastodon identity, the
   callback answers 422 `mastodon-reconnect-account-mismatch` (extensions `expectedHandle`,
-  `actualHandle`, `provider`, `instance`), nothing is linked, the other account's token is
+  `actualHandle`, `provider`, `instanceHost`; never `instance`, which is the standard
+  ProblemDetails member), nothing is linked, the other account's token is
   revoked, and the account being reconnected is untouched (still needing a reconnect, its
   scheduled posts still paused). The front asks the user to leave it or connect the other
   account as a new one. Never a silent switch.
