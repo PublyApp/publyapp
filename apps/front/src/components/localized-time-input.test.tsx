@@ -61,4 +61,20 @@ describe('LocalizedTimeInput (#2410)', () => {
 			'text',
 		);
 	});
+
+	test('`invalid` needs `hideError` and its `errorId`', () => {
+		render(
+			// @ts-expect-error `invalid` is only valid together with hideError + errorId
+			<LocalizedTimeInput
+				locale="fr"
+				value={undefined}
+				ariaLabel="Time"
+				errorMessage="Invalid time"
+				testId="time-invalid"
+				invalid
+				onChange={vi.fn()}
+			/>,
+		);
+		expect(screen.getByTestId('time-invalid')).toBeTruthy();
+	});
 });

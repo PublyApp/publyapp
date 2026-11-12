@@ -281,4 +281,65 @@ describe('PublishScheduleRow (#2410)', () => {
 				.getAttribute('aria-invalid'),
 		).toBeNull();
 	});
+
+	test('a language round-trip drops the typed text, so Schedule cannot submit what the fields no longer show', () => {
+		const onSchedule = vi.fn();
+		const { rerender } = render(
+			<PublishScheduleRow disabled={false} onSchedule={onSchedule} />,
+		);
+		lang.current = 'en';
+		rerender(<PublishScheduleRow disabled={false} onSchedule={onSchedule} />);
+
+		fireEvent.change(screen.getByTestId('tenant-posts-schedule-date'), {
+			target: { value: '01/02/2099' },
+		});
+		fireEvent.change(screen.getByTestId('tenant-posts-schedule-time'), {
+			target: { value: '10:30 AM' },
+		});
+		lang.current = 'fr';
+		rerender(<PublishScheduleRow disabled={false} onSchedule={onSchedule} />);
+		lang.current = 'en';
+		rerender(<PublishScheduleRow disabled={false} onSchedule={onSchedule} />);
+
+		expect(
+			(screen.getByTestId('tenant-posts-schedule-date') as HTMLInputElement)
+				.value,
+		).toBe('');
+		fireEvent.click(screen.getByTestId('tenant-posts-schedule-submit'));
+
+		expect(onSchedule).not.toHaveBeenCalled();
+		expect(screen.getByRole('alert').textContent).toContain(
+			'posts:schedule-incomplete',
+		);
+	});
+
+	test('a language change clears the refused-entry marking and message', () => {
+		const { rerender } = render(
+			<PublishScheduleRow disabled={false} onSchedule={vi.fn()} />,
+		);
+		fill('tenant-posts-schedule-time', '25:99');
+		expect(screen.getByRole('alert')).toBeTruthy();
+
+		lang.current = 'en';
+		rerender(<PublishScheduleRow disabled={false} onSchedule={vi.fn()} />);
+
+		expect(screen.queryByRole('alert')).toBeNull();
+		expect(
+			screen
+				.getByTestId('tenant-posts-schedule-time')
+				.getAttribute('aria-invalid'),
+		).toBeNull();
+	});
+
+	test('typing again clears the marking and message before the next commit', () => {
+		render(<PublishScheduleRow disabled={false} onSchedule={vi.fn()} />);
+		fill('tenant-posts-schedule-time', '25:99');
+		const time = screen.getByTestId('tenant-posts-schedule-time');
+		expect(time.getAttribute('aria-invalid')).toBe('true');
+
+		fireEvent.change(time, { target: { value: '10:3' } });
+
+		expect(time.getAttribute('aria-invalid')).toBeNull();
+		expect(screen.queryByRole('alert')).toBeNull();
+	});
 });

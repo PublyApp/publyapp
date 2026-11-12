@@ -1,5 +1,5 @@
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Input } from '~/components/ui/input';
 
 export type LocalizedParsedInputProps = {
@@ -27,14 +27,17 @@ export type LocalizedParsedInputProps = {
 	 * or empty: a caller that submits without a blur (assistive-tech click)
 	 * can still read and validate what the field shows. */
 	onDraftChange?: (text: string | null) => void;
-	/** The caller refused the entry itself (e.g. on submit, with no blur):
-	 * only meaningful with `hideError`, whose message the caller renders. */
-	invalid?: boolean;
 } & (
-	| { errorId?: undefined; hideError?: false }
+	| { errorId?: undefined; hideError?: false; invalid?: undefined }
 	/** The caller renders the message itself (element id = `errorId`), e.g. one
 	 * message under a row of fields. Every field then points at that id. */
-	| { errorId: string; hideError: true }
+	| {
+			errorId: string;
+			hideError: true;
+			/** The caller refused the entry itself (e.g. on submit, with no
+			 * blur): the field is marked and linked to the caller's message. */
+			invalid?: boolean;
+	  }
 );
 
 /** What the user typed, pinned to the external value it was typed against. */
@@ -59,6 +62,18 @@ export const LocalizedParsedInput = ({
 	onDraftChange,
 	invalid = false,
 }: LocalizedParsedInputProps) => {
+	// A remount (the language changed) drops the typed text: tell the caller, so
+	// it cannot submit a draft the field no longer shows.
+	const draftChangeRef = useRef(onDraftChange);
+	useEffect(() => {
+		draftChangeRef.current = onDraftChange;
+	});
+	useEffect(
+		() => () => {
+			draftChangeRef.current?.(null);
+		},
+		[],
+	);
 	const ownErrorId = useId();
 	const errorId = externalErrorId ?? ownErrorId;
 	const [draft, setDraft] = useState<Draft | null>(null);

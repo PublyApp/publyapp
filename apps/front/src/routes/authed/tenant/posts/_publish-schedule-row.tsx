@@ -9,6 +9,18 @@ import { parseLocalizedDate } from '~/lib/dates/localized-date';
 import { parseLocalizedTime } from '~/lib/dates/localized-time';
 
 type Draft = { text: string; locale: string };
+type Flags = {
+	isDateInvalid: boolean;
+	isTimeInvalid: boolean;
+	isIncomplete: boolean;
+};
+type Entry = Flags & { locale: string };
+
+const NO_FLAGS: Flags = {
+	isDateInvalid: false,
+	isTimeInvalid: false,
+	isIncomplete: false,
+};
 
 const scheduleMessage = (
 	t: (key: string) => string,
@@ -43,19 +55,23 @@ export const PublishScheduleRow = ({
 	const { t, i18n } = useTranslation(['posts', 'common']);
 	const [date, setDate] = useState<string | undefined>(undefined);
 	const [time, setTime] = useState<string | undefined>(undefined);
-	// A field refused what was typed: its value is then the previous, stale one.
-	const [isDateInvalid, setIsDateInvalid] = useState(false);
-	const [isTimeInvalid, setIsTimeInvalid] = useState(false);
 	const labelId = useId();
 	const errorId = useId();
 	const locale = i18n.resolvedLanguage ?? i18n.language;
+	// A field refused what was typed (its value is then the previous, stale
+	// one), or the entry is incomplete. Pinned to the locale: a language change
+	// remounts the fields, which drop their own error, so these go with it.
+	const [entry, setEntry] = useState<Entry>({ ...NO_FLAGS, locale });
+	const flags = entry.locale === locale ? entry : { ...NO_FLAGS, locale };
+	const { isDateInvalid, isTimeInvalid, isIncomplete } = flags;
+	const patch = (change: Partial<Flags>) =>
+		setEntry({ ...flags, ...change, locale });
 	// Typed text not yet committed. A click that does not blur the field
 	// (screen reader, voice control) must still schedule what the field shows,
 	// so submit reads these. Pinned to the locale: a locale change remounts the
 	// fields and drops their text.
 	const dateDraft = useRef<Draft | null>(null);
 	const timeDraft = useRef<Draft | null>(null);
-	const [isIncomplete, setIsIncomplete] = useState(false);
 	const [isPast, setIsPast] = useState(false);
 	const draftText = (draft: Draft | null): string | null =>
 		draft !== null && draft.locale === locale ? draft.text : null;
@@ -68,16 +84,15 @@ export const PublishScheduleRow = ({
 		const timeValue = timeText === null ? time : parseLocalizedTime(timeText);
 		const dateBad = dateText === null ? isDateInvalid : dateValue === undefined;
 		const timeBad = timeText === null ? isTimeInvalid : timeValue === undefined;
-		setIsDateInvalid(dateBad);
-		setIsTimeInvalid(timeBad);
 		if (dateBad || timeBad) {
+			patch({ isDateInvalid: dateBad, isTimeInvalid: timeBad });
 			return;
 		}
 		if (!dateValue || !timeValue) {
-			setIsIncomplete(true);
+			patch({ isDateInvalid: false, isTimeInvalid: false, isIncomplete: true });
 			return;
 		}
-		setIsIncomplete(false);
+		patch({ isDateInvalid: false, isTimeInvalid: false, isIncomplete: false });
 		const at = new Date(`${dateValue}T${timeValue}`);
 		if (Number.isNaN(at.valueOf()) || at.valueOf() <= Date.now()) {
 			setIsPast(true);
@@ -112,13 +127,15 @@ export const PublishScheduleRow = ({
 					value={date}
 					onChange={(next) => {
 						setDate(next);
-						setIsDateInvalid(false);
-						setIsIncomplete(false);
+						patch({ isDateInvalid: false, isIncomplete: false });
 						setIsPast(false);
 					}}
-					onInvalid={() => setIsDateInvalid(true)}
+					onInvalid={() => patch({ isDateInvalid: true })}
 					onDraftChange={(text) => {
 						dateDraft.current = text === null ? null : { text, locale };
+						if (text !== null) {
+							patch({ isDateInvalid: false, isIncomplete: false });
+						}
 					}}
 				/>
 				<LocalizedTimeInput
@@ -132,13 +149,15 @@ export const PublishScheduleRow = ({
 					value={time}
 					onChange={(next) => {
 						setTime(next);
-						setIsTimeInvalid(false);
-						setIsIncomplete(false);
+						patch({ isTimeInvalid: false, isIncomplete: false });
 						setIsPast(false);
 					}}
-					onInvalid={() => setIsTimeInvalid(true)}
+					onInvalid={() => patch({ isTimeInvalid: true })}
 					onDraftChange={(text) => {
 						timeDraft.current = text === null ? null : { text, locale };
+						if (text !== null) {
+							patch({ isTimeInvalid: false, isIncomplete: false });
+						}
 					}}
 				/>
 			</div>
