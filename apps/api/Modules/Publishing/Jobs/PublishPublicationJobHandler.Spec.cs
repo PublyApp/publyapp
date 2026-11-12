@@ -1644,6 +1644,24 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	[Fact]
+	public async Task ItShouldKeepAConfirmedLiveStatusInTheJournalWhenItsContentIsRefusedWithoutRetry() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var provider = new JournalingProvider(async (self, request, token) => {
+			await self.BeginWriteAsync(request, 0, token);
+			return new PublishResult.ContentFailure("a status already holds other text", StatusExists: true);
+		});
+
+		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(db, provider, seeded);
+
+		outcome.Should().NotBeOfType<JobOutcome.Retry>();
+		(await this._AttemptsAsync(seeded.PublicationId)).Should().ContainSingle()
+			.Which.SubmissionState.Should().Be(SubmissionState.Unknown, "a re-issue must still look for the live status");
+		(await PublishPublicationJobHandlerSpec._ReloadAsync(db, seeded.PublicationId)).Status
+			.Should().BeOneOf(PublicationStatus.Failed, PublicationStatus.Paused);
+	}
+
+	[Fact]
 	public async Task ItShouldNotWriteAndBackOffWhenTheLookupIsUnavailable() {
 		using var db = await this._NewDbAsync();
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);

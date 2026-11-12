@@ -107,9 +107,10 @@ export const useResponseMessageTranslator = () => {
 		// Names the follow-up's own image limit (not a post's).
 		if (translationKey === SEGMENT_IMAGE_LIMIT_PROBLEM) {
 			const limit = asPositiveInteger(extensions.limit);
-			return limit === undefined
-				? undefined
-				: t('posts:segment-image-limit', { limit });
+			if (limit === undefined) {
+				return undefined;
+			}
+			return t('posts:segment-image-limit', { limit });
 		}
 
 		if (!AS_INFORMATIVE_AS_DETAIL.has(translationKey)) {

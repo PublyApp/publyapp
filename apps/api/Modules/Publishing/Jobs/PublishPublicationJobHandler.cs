@@ -517,6 +517,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			PublishResult.AlreadyExistsTreatedAsPublished existing =>
 				(SubmissionState.Accepted, existing.RecordId, existing.RecordUrl),
 			PublishResult.Ambiguous => (SubmissionState.Unknown, null, null),
+			// A status is confirmed live: a re-issue must still look for it, never post again.
+			PublishResult.ContentFailure { StatusExists: true } => (SubmissionState.Unknown, null, null),
 			_ => (SubmissionState.Rejected, null, null),
 		};
 		await this._Journal.ResolveAsync(

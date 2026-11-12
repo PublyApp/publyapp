@@ -22,8 +22,12 @@ public abstract record PublishResult {
 	/// <summary>The credential/session was refused: reconnect the account.</summary>
 	public sealed record AccountFailure(string Cause) : PublishResult;
 
-	/// <summary>The content itself was refused (e.g. too long): retrying cannot help.</summary>
-	public sealed record ContentFailure(string Cause) : PublishResult;
+	/// <summary>
+	/// The content itself was refused (e.g. too long): retrying cannot help.
+	/// <paramref name="StatusExists"/> marks a failure found AFTER a status was confirmed live
+	/// (a deduped resend that does not match): the journal must keep that status in mind.
+	/// </summary>
+	public sealed record ContentFailure(string Cause, bool StatusExists = false) : PublishResult;
 
 	/// <summary>
 	/// The write may or may not have been applied (timeout, connection reset, 5xx,
