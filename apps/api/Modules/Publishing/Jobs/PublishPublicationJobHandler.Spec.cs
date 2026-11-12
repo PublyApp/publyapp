@@ -460,6 +460,28 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		sessions.Opens.Should().Be(0, "not even a session is opened for it");
 	}
 
+	// The scheduled path: a row still Scheduled at dispatch time goes straight to Failed.
+	[Fact]
+	public async Task ItShouldFailAScheduledPublicationOfADisabledProviderAtDispatch() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		var publishProvider = new FakePublishProvider(PublishPublicationJobHandlerSpec._Published());
+		var handler = PublishPublicationJobHandlerSpec._NewHandler(
+			db, publishProvider, FakeSessions.Opened(), null, new BlueskyDisabled()
+		);
+
+		await handler.HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(PublishPublicationJobHandlerSpec._PayloadOf(seeded)),
+			CancellationToken.None
+		);
+
+		var publication = await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId);
+		await db.Entry(publication).ReloadAsync();
+		publication.Status.Should().Be(PublicationStatus.Failed);
+		publication.LastError.Should().Contain("disabled by the operator");
+		publishProvider.Requests.Should().BeEmpty();
+	}
+
 	// A thread that already landed two segments keeps saying so in the disabled cause.
 	[Fact]
 	public async Task ItShouldKeepTheThreadProgressInTheDisabledCause() {

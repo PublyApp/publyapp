@@ -111,6 +111,15 @@ describe('useResponseMessageTranslator in French', () => {
 		).toBeUndefined();
 	});
 
+	test('keeps the detail of the publish-time provider-disabled refusal, which names the destination', () => {
+		const translate = translatorFor('fr');
+
+		expect(translate('publish-provider-disabled', {})).toBeUndefined();
+		expect(translate('provider-disabled', {})).toContain(
+			'Ce fournisseur est désactivé',
+		);
+	});
+
 	test('a translation that still has placeholders is treated as untranslated', () => {
 		const translate = translatorFor('fr', {
 			'post-segments-locked': 'Le segment {{index}} est verrouillé',

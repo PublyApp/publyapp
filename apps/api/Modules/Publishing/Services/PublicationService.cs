@@ -171,8 +171,7 @@ public record EditPostScheduleArgs(
 	PatchField<string> Body,
 	PatchField<DateTime> ScheduledAtLocal,
 	PatchField<string> TimeZone,
-	Guid ActorUserId,
-	Func<SocialProvider, bool>? IsProviderEnabled = null
+	Guid ActorUserId
 );
 
 /// <summary>
@@ -558,8 +557,7 @@ public sealed class PublicationService : IPublicationService {
 					editedSource,
 					renditions.TryGetValue(target.GetRequiredId(), out var overrides) ? overrides : null
 				),
-				account,
-				args.IsProviderEnabled
+				account
 			);
 			if (contentFailure is not null) {
 				return new EditPostScheduleResult.ContentInvalid(contentFailure);

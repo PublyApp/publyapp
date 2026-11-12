@@ -11,7 +11,7 @@ import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type Requ
  */
 export interface CapabilitiesRequestBuilder extends BaseRequestBuilder<CapabilitiesRequestBuilder> {
     /**
-     * List what each provider accepts and whether it can be connected
+     * List what each provider accepts and whether the operator enabled it
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {Promise<GetProviderCapabilitiesForTenantResponse>}
      * @throws {AppProblemDetails} error when the service returns a 400 status code
@@ -22,7 +22,7 @@ export interface CapabilitiesRequestBuilder extends BaseRequestBuilder<Capabilit
      */
      get(requestConfiguration?: RequestConfiguration<object> | undefined) : Promise<GetProviderCapabilitiesForTenantResponse | undefined>;
     /**
-     * List what each provider accepts and whether it can be connected
+     * List what each provider accepts and whether the operator enabled it
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
      * @returns {RequestInformation}
      */

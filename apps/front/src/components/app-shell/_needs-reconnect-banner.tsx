@@ -19,6 +19,7 @@ export const NeedsReconnectBanner = ({ tenantId }: { tenantId: string }) => {
 	const accountsQuery = useSocialAccountsQuery({ tenantId });
 	// preload-exempt: session-stable permission gate (staleTime Infinity), fetched once per workspace tenant
 	const canManage = useCanManageSocialAccounts();
+	// preload-exempt: app-shell widget on a resolved workspace tenant; static operator flag, fail-open until answered, Integrations preloads the same factory
 	const disabledProviders = useDisabledProviders(tenantId);
 
 	return (

@@ -130,7 +130,7 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		using var problem = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-		problem.RootElement.GetProperty("translationKey").GetString().Should().Be("provider-disabled");
+		problem.RootElement.GetProperty("translationKey").GetString().Should().Be("publish-provider-disabled");
 		var postIdGuid = Guid.Parse(postId);
 		(await db.Publication.CountAsync(p => p.PostId == postIdGuid)).Should().Be(0);
 	}

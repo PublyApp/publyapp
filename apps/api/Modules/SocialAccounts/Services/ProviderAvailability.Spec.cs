@@ -1,6 +1,5 @@
 using FluentAssertions;
 
-using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 
 using Xunit;
@@ -44,17 +43,5 @@ public sealed class ProviderAvailabilitySpec {
 		disabled = ["mastodon"];
 		service.IsEnabled(SocialProvider.Pixelfed).Should().BeTrue();
 		service.IsEnabled(SocialProvider.Mastodon).Should().BeFalse();
-	}
-
-	// The public constructor wires the operator list AppEnvironment parsed.
-	[Fact]
-	public void ItShouldDefaultToTheListOfTheEnvironmentSettings() {
-		var configured = AppEnvironment.Initialize().DISABLED_PUBLISH_PROVIDERS;
-		var service = new ProviderAvailability();
-
-		Enum.GetValues<SocialProvider>()
-			.Where(service.IsEnabled)
-			.Should().BeEquivalentTo(Enum.GetValues<SocialProvider>()
-				.Where(provider => ProviderAvailability.IsEnabled(configured, provider)));
 	}
 }

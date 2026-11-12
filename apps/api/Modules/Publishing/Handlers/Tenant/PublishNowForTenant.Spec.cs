@@ -107,7 +107,7 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		using var problem = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-		problem.RootElement.GetProperty("translationKey").GetString().Should().Be("provider-disabled");
+		problem.RootElement.GetProperty("translationKey").GetString().Should().Be("publish-provider-disabled");
 		problem.RootElement.GetProperty("detail").GetString().Should().Contain("Bluesky is disabled");
 		(await this._CountPublicationsAsync()).Should().Be(beforePublications);
 		(await this._CountAcmePublishJobsAsync(acmeId)).Should().Be(beforeJobs);

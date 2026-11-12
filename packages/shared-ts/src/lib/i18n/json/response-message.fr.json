@@ -153,6 +153,7 @@
 	"publish-images-too-many": "Le billet a plus d'images que cette destination n'en accepte",
 	"publish-image-unsupported-type": "Une image du billet n'est pas d'un type accepté par cette destination",
 	"publish-image-alt-text-required": "Une destination exige un texte alternatif sur chaque image du billet",
+	"publish-provider-disabled": "Le fournisseur de cette destination est désactivé par l'opérateur",
 	"publish-media-required": "Cette destination exige au moins une image",
 	"publish-threads-unsupported": "Cette destination ne peut pas publier un fil",
 	"publish-rendition-invalid": "Le contenu personnalisé de cette destination n'est pas valide",

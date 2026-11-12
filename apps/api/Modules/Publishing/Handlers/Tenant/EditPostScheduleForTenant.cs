@@ -16,7 +16,6 @@ using PublyApp.Api.Modules.Posts.Validation;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.Publishing.Services;
-using PublyApp.Api.Modules.SocialAccounts.Services;
 using PublyApp.Api.Modules.Tenants.Validation;
 
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
@@ -108,7 +107,6 @@ public sealed class EditPostScheduleForTenant {
 		[FromBody] EditPostScheduleBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPublicationService publicationService,
-		[FromServices] IProviderAvailability providerAvailability,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IPublicationStatusTransitionService transitions,
 		CancellationToken cancellationToken = default
@@ -164,8 +162,7 @@ public sealed class EditPostScheduleForTenant {
 				Body: postBody ?? PatchField<string>.Absent(),
 				ScheduledAtLocal: scheduledAtLocal,
 				TimeZone: timeZone,
-				ActorUserId: account.UserId,
-				IsProviderEnabled: providerAvailability.IsEnabled
+				ActorUserId: account.UserId
 			),
 			cancellationToken
 		);

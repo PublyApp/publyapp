@@ -55,7 +55,7 @@ public static class PublishingEndpointsForTenant {
 			.RequireRateLimiting(
 				ApiRateLimitPolicies.AuthenticatedDefault
 			)
-			.WithSummary("List what each provider accepts and whether it can be connected")
+			.WithSummary("List what each provider accepts and whether the operator enabled it")
 			// Read by the composer (publish) and by the integrations page, which any
 			// holder of view can open (the connect buttons need manage on top).
 			.WithTenantPermission(permissions =>

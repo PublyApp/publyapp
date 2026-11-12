@@ -41,12 +41,12 @@ export const useDisabledProviders = (
 	tenantId: string | null,
 ): ReadonlySet<string> => {
 	const query = useQuery({
-		// The tenant factory refuses an empty tenant id, so no tenant uses a
-		// placeholder key and the query stays disabled.
-		queryKey:
-			tenantId === null
-				? [...PROVIDER_CAPABILITIES_QUERY_KEY, 'no-tenant']
-				: providerCapabilitiesQueryOptions.queryKey({ tenantId }),
+		// The tenant factory refuses an empty tenant id: no tenant uses a
+		// placeholder id (the route-loader guard needs the factory call) and the
+		// query stays disabled.
+		queryKey: providerCapabilitiesQueryOptions.queryKey({
+			tenantId: tenantId ?? 'no-tenant',
+		}),
 		queryFn: () =>
 			providerCapabilitiesQueryOptions.fetcher({ tenantId: tenantId ?? '' }),
 		enabled: tenantId !== null,

@@ -485,6 +485,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PublishNowSuccess = new("publish-now-success");
 
 	/// <summary>
+	/// This destination&apos;s provider is disabled by the operator
+	/// </summary>
+	public static readonly TranslationKey PublishProviderDisabled = new("publish-provider-disabled");
+
+	/// <summary>
 	/// The customized content of this destination is not valid
 	/// </summary>
 	public static readonly TranslationKey PublishRenditionInvalid = new("publish-rendition-invalid");

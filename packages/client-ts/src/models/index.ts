@@ -7972,7 +7972,7 @@ export interface ProjectListItem extends AdditionalDataHolder, Parsable {
     name?: string | null;
 }
 /**
- * One provider's registry defaults: `Enabled` is the operator switch the connectscreen and the composer read.
+ * One provider's registry defaults: `Enabled` is the operator switch (connect,reconnect, publish target, publish and schedule) the connect screen and the composer read.
  */
 export interface ProviderCapabilityItem extends AdditionalDataHolder, Parsable {
     /**

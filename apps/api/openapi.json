@@ -14925,7 +14925,7 @@
         "tags": [
           "Publishing"
         ],
-        "summary": "List what each provider accepts and whether it can be connected",
+        "summary": "List what each provider accepts and whether the operator enabled it",
         "operationId": "GetProviderCapabilitiesForTenant",
         "responses": {
           "429": {
@@ -18131,7 +18131,7 @@
           "items": {
             "type": "array",
             "items": {
-              "description": "One provider's registry defaults: `Enabled` is the operator switch the connect\nscreen and the composer read.",
+              "description": "One provider's registry defaults: `Enabled` is the operator switch (connect,\nreconnect, publish target, publish and schedule) the connect screen and the composer read.",
               "$ref": "#/components/schemas/ProviderCapabilityItem"
             }
           }
@@ -19449,7 +19449,7 @@
             "$ref": "#/components/schemas/PublishTargetLimits"
           }
         },
-        "description": "One provider's registry defaults: `Enabled` is the operator switch the connect\nscreen and the composer read."
+        "description": "One provider's registry defaults: `Enabled` is the operator switch (connect,\nreconnect, publish target, publish and schedule) the connect screen and the composer read."
       },
       "PublicationListItem": {
         "required": [

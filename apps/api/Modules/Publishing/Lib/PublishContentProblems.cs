@@ -86,7 +86,7 @@ public static class PublishContentProblems {
 		}
 
 		if (kind == PublishContentFailureKind.ProviderDisabled) {
-			return ResponseKeys.ProviderDisabled;
+			return ResponseKeys.PublishProviderDisabled;
 		}
 
 		if (kind == PublishContentFailureKind.AltTextRequired) {
