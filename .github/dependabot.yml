@@ -2,7 +2,7 @@
 # Version updates are off: every ecosystem has open-pull-requests-limit: 0, so
 # Dependabot opens no routine bump PRs. Security updates ignore that limit and
 # still open a PR when an advisory affects a dependency. The ignore rules below
-# also apply to security updates, so they stay.
+# are kept unchanged for the day version updates are turned back on.
 # npm at "/" covers the pnpm workspace (pnpm-lock.yaml at root) — GitHub maps
 # pnpm to the npm ecosystem (docs: package-ecosystem npm supports pnpm v7-10).
 # Evidence: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file#package-ecosystem

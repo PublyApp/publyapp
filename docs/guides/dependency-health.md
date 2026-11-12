@@ -4,10 +4,10 @@ How we keep vulnerable dependencies from landing or staying on `develop`.
 
 ## What Dependabot watches
 
-`.github/dependabot.yml` — **security updates only** (owner decision, 12/11/2026, #2412). Every ecosystem sets `open-pull-requests-limit: 0`, so Dependabot opens no routine version-bump PRs; security updates ignore that limit and still open a PR when an advisory affects a dependency. Routine bumps are done on purpose, when a change needs them, not on a schedule. Label `technical-debt`; ecosystems watched:
+`.github/dependabot.yml` — **security updates only** (owner decision, 2026-11-12, #2412). Every ecosystem sets `open-pull-requests-limit: 0`, so Dependabot opens no routine version-bump PRs; security updates ignore that limit and still open a PR when an advisory affects a dependency. Routine bumps are done on purpose, when a change needs them, not on a schedule. Label `technical-debt`; ecosystems watched:
 
 - `npm` at `/` — covers the pnpm workspace (root `pnpm-lock.yaml` + `apps/*`/`packages/*`; GitHub maps pnpm to the `npm` ecosystem)
-- `nuget` at `/apps/api` and `/packages/scripts-cs`
+- `nuget` at `/apps/api`, `/packages/scripts-cs` and `/packages/lint-cs`
 - `github-actions` at `/`
 
 The `groups.minor-and-patch` block is kept so that, if version updates are ever turned back on, minor/patch bumps arrive as one PR; major bumps stay separate. All ecosystems use `commit-message.prefix: chore` + `include: scope`.
