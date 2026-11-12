@@ -245,6 +245,7 @@ public sealed class PostSegmentImagesSpec : IClassFixture<ApiFixture> {
 		var after = (await this._GetAsync(tenantId, token, postId)).Segments;
 		after.Should().ContainSingle().Which.Images.Select(image => image.Id).Should().Equal(kept.Id);
 		(await this._ReferenceCountAsync(dropped.Path)).Should().Be(0);
+		(await this._LiveSegmentImageCountAsync(postId)).Should().Be(1, "the dropped segment's image row is deleted too");
 	}
 
 	[Fact]
