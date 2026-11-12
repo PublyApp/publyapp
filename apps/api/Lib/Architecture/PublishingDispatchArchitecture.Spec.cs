@@ -1,3 +1,8 @@
+using System.Reflection;
+using System.Reflection.Emit;
+using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
+using System.Reflection.PortableExecutable;
 using System.Text.RegularExpressions;
 
 using FluentAssertions;
@@ -14,6 +19,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Filters;
 using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Modules.Publishing.Jobs;
 
 using Xunit;
 
@@ -33,13 +39,16 @@ namespace PublyApp.Api.Lib.Architecture;
 /// <c>SELECT … FOR UPDATE SKIP LOCKED</c> against the publications table. The
 /// due-scan lock IS the linearization point of concurrent dispatch; a second
 /// locker would silently fork the exactly-once guarantee proven by
-/// DispatchDuePostsConcurrencySpec. Detection is lexical but statement-scoped:
-/// each <c>SKIP LOCKED</c> occurrence is attributed to its enclosing SQL
-/// statement, which must reference the publications table.</item>
+/// DispatchDuePostsConcurrencySpec. Detection reads the string literals of the COMPILED
+/// API assembly (IL <c>ldstr</c>), so concatenated, interpolated and
+/// helper-built SQL is seen; each <c>SKIP LOCKED</c> is attributed to its
+/// enclosing statement within one method, which must reference the
+/// publications table. Retire when the claim moves behind a single repository
+/// seam or Postgres-side enforcement.</item>
 /// </list>
-/// Documented residual gap: SQL assembled dynamically from pieces can evade the
-/// statement window — same stance as the sibling guards (CanaryProbeContainment,
-/// PublicationArchitecture reflection gap).
+/// Documented residual gap: SQL whose pieces are assembled across different
+/// methods, or runtime-built table names, can still evade the per-method
+/// statement window.
 /// Proven RED by planting a second publications-row SKIP LOCKED claim and by
 /// stripping permission metadata from a publishing endpoint
 /// (.dump/mutation-rogue-schedule-writer.md).
@@ -122,15 +131,13 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	// ── (b) Single SKIP LOCKED claimant on publications ─────────────────────
 
-	private const string _DueScanJobRelativePath =
-		"Modules/Publishing/Jobs/DispatchDuePostsJob.cs";
+	private static readonly Type _DueScanJobType = typeof(DispatchDuePostsJob);
 
 	// The scan must see AT LEAST the sanctioned claim itself; zero means the
-	// lexical pass collapsed and failed open — never trust a silent empty scan.
+	// scan collapsed and failed open — never trust a silent empty scan.
 	private const int _MinimumTotalSkipLockedMatches = 1;
 
 	private const string _SkipLockedToken = "SKIP LOCKED";
-	private const string _PublicationsTableToken = "publications";
 
 	private readonly RouteMapFactory _Factory = new();
 
@@ -261,31 +268,19 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	[Fact]
 	public void ItShouldLetOnlyTheDueScanJobLockPublicationRowsWithSkipLocked() {
-		var apiRoot = PublishingDispatchArchitectureSpec._FindApiRoot();
-		var sources = PublishingDispatchArchitectureSpec._EnumerateApiSources(apiRoot);
-
-		_ = sources.Should().NotBeEmpty(
-			"an empty enumeration would silently drop the single-claimant "
-				+ "guarantee"
-		);
-
-		// Specs are excluded (same precedent as PublicationArchitectureSpec):
-		// they quote SQL corpora and host this detector's own doc comments.
 		var scan = PublishingDispatchArchitectureSpec._ScanForUpdateSkipLockedOnPublications(
-			sources.Where(entry => !entry.RelativePath.EndsWith(
-					".Spec.cs",
-					StringComparison.Ordinal
-				))
-				.ToList()
+			typeof(Program).Assembly
 		);
 
 		_ = scan.TotalMatches.Should().BeGreaterThanOrEqualTo(
 			PublishingDispatchArchitectureSpec._MinimumTotalSkipLockedMatches,
 			"the sanctioned due-scan claim alone must be visible; a near-zero "
-				+ "count means the lexical scan collapsed and failed open"
+				+ "count means the compiled-literal scan collapsed and failed open"
 		);
 
-		_ = scan.SanctionedByFile.GetValueOrDefault(PublishingDispatchArchitectureSpec._DueScanJobRelativePath)
+		_ = scan.SanctionedByType.GetValueOrDefault(
+				PublishingDispatchArchitectureSpec._DueScanJobType.FullName.Required()
+			)
 			.Should().BeGreaterThanOrEqualTo(
 				1,
 				"the D3 due scan must still be seen claiming publications rows "
@@ -297,10 +292,25 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			"only {0} may SELECT … FOR UPDATE SKIP LOCKED against the "
 				+ "publications table — a second claimant forks the "
 				+ "exactly-once dispatch guarantee; found {1} offender(s):\n{2}",
-			PublishingDispatchArchitectureSpec._DueScanJobRelativePath,
+			PublishingDispatchArchitectureSpec._DueScanJobType.FullName,
 			scan.Offenders.Count,
 			string.Join("\n", scan.Offenders.Take(20))
 		);
+	}
+
+	// Non-vacuity: claimants written the ways a source regex cannot see. These
+	// fixtures live in the test assembly, which the scan accepts like any other.
+	[Fact]
+	public void ItShouldSeeClaimantsBuiltByConcatenationInterpolationOrHelper() {
+		var scan = PublishingDispatchArchitectureSpec._ScanForUpdateSkipLockedOnPublications(
+			typeof(PublishingDispatchArchitectureSpec).Assembly
+		);
+
+		var offenders = string.Join("\n", scan.Offenders);
+		_ = offenders.Should().Contain(nameof(PlantedClaimants.Concatenated));
+		_ = offenders.Should().Contain(nameof(PlantedClaimants.Interpolated));
+		_ = offenders.Should().Contain("_Claim");
+		_ = offenders.Should().NotContain(nameof(PlantedClaimants.OtherTable));
 	}
 
 	// ── Helpers ──────────────────────────────────────────────────────────────
@@ -354,58 +364,88 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		bool IsPublishing
 	);
 
+	// Never executed: SQL shapes the guard must see in compiled code. Their
+	// bodies exist only so the compiler emits the literals.
+	private static class PlantedClaimants {
+		public static string Concatenated() {
+			return "SELECT id FROM publications " + "WHERE status = 1 FOR UPDATE SKIP " + "LOCKED";
+		}
+
+		public static FormattableString Interpolated(Guid id) {
+			return $"SELECT id FROM publications WHERE id = {id} FOR UPDATE SKIP LOCKED";
+		}
+
+		public static string HelperClaim() {
+			return PlantedClaimants._Claim("");
+		}
+
+		public static string OtherTable() {
+			return "SELECT id FROM job_queue FOR UPDATE SKIP LOCKED";
+		}
+
+		private static string _Claim(string table) {
+			return "SELECT id FROM publications WHERE x = 1 FOR UPDATE SKIP LOCKED" + table;
+		}
+	}
+
 	private sealed record ForUpdateScan(
 		int TotalMatches,
-		Dictionary<string, int> SanctionedByFile,
+		Dictionary<string, int> SanctionedByType,
 		List<string> Offenders
 	);
 
+	// Every opcode by encoded value, so the IL walker can size each instruction.
+	private static readonly Dictionary<short, OpCode> _OpCodes = typeof(OpCodes)
+		.GetFields(BindingFlags.Public | BindingFlags.Static)
+		.Select(field => (OpCode)field.GetValue(null).Required())
+		.ToDictionary(opCode => opCode.Value);
+
+	/// <summary>
+	/// Scans the COMPILED API assembly, not its source text: the compiler has
+	/// already folded literal concatenation (<c>"a" + "b"</c>) into one
+	/// <c>ldstr</c> and split interpolated SQL into literal fragments, so reading
+	/// the string literals of each method body sees SQL however the author wrote
+	/// it — concatenated, interpolated, or hidden in a helper method. Literals
+	/// are joined per method and cut at statement terminators.
+	/// </summary>
 	private static ForUpdateScan _ScanForUpdateSkipLockedOnPublications(
-		IReadOnlyList<(string RelativePath, string Source)> sources
+		Assembly assembly
 	) {
 		var offenders = new List<string>();
-		var sanctionedByFile = new Dictionary<string, int>(StringComparer.Ordinal);
+		var sanctionedByType = new Dictionary<string, int>(StringComparer.Ordinal);
 		var total = 0;
 
-		foreach (var (relativePath, rawSource) in sources) {
-			// Comments legitimately DISCUSS locking strategies (seeder docs, job
-			// docs); only executable code can claim rows. Ordinary string literals
-			// carry DESCRIPTIONS (data), so their contents are blanked too — raw
-			// string literals ("""…"""), where executable SQL lives, stay
-			// scannable. Both passes preserve length for line attribution.
-			var source = PublishingDispatchArchitectureSpec._BlankCommentsAndDataStrings(rawSource);
+		foreach (var (typeName, method, literals) in
+			PublishingDispatchArchitectureSpec._ReadMethodStringLiterals(assembly)) {
+			var text = string.Concat(literals);
 			var index = 0;
-			while ((index = source.IndexOf(
+			while ((index = text.IndexOf(
 						PublishingDispatchArchitectureSpec._SkipLockedToken,
 						index,
 						StringComparison.OrdinalIgnoreCase
 					)) >= 0) {
-				// Attribute the occurrence to its enclosing SQL statement:
-				// everything from the previous statement terminator to the token.
-				// A statement window (not a whole-file search) keeps co-located
-				// claims on OTHER tables (job_queue, email_prepared_sends, …)
-				// clean while still flagging any publications-row claimant.
-				var statementStart =
-					source.LastIndexOf(';', Math.Max(index - 1, 0)) + 1;
-				var statement = source[statementStart..index];
+				var statementStart = text.LastIndexOf(';', Math.Max(index - 1, 0)) + 1;
+				var statement = text[statementStart..index];
 
-				if (statement.Contains(
-						PublishingDispatchArchitectureSpec._PublicationsTableToken,
-						StringComparison.OrdinalIgnoreCase
-					)) {
+				// A real claim reads the table (FROM/UPDATE/JOIN publications);
+				// prose that merely mentions the word (job descriptions, XML
+				// docs) is data, not SQL.
+				if (PublishingDispatchArchitectureSpec._PublicationsTableRef().IsMatch(statement)) {
 					total++;
 
 					if (string.Equals(
-							relativePath,
-							PublishingDispatchArchitectureSpec._DueScanJobRelativePath,
+							typeName,
+							PublishingDispatchArchitectureSpec._DueScanJobType.FullName,
 							StringComparison.Ordinal
 						)) {
-						sanctionedByFile[relativePath] =
-							sanctionedByFile.GetValueOrDefault(relativePath) + 1;
+						sanctionedByType[typeName] =
+							sanctionedByType.GetValueOrDefault(typeName) + 1;
 					} else {
 						offenders.Add(
-							$"{relativePath}:{PublishingDispatchArchitectureSpec._LineOfOffset(source, index)}: "
-								+ $"{PublishingDispatchArchitectureSpec._Flatten(statement + PublishingDispatchArchitectureSpec._SkipLockedToken)}"
+							$"{typeName}.{method}: "
+								+ PublishingDispatchArchitectureSpec._Flatten(
+									statement + PublishingDispatchArchitectureSpec._SkipLockedToken
+								)
 						);
 					}
 				}
@@ -414,173 +454,106 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			}
 		}
 
-		return new ForUpdateScan(total, sanctionedByFile, offenders);
+		return new ForUpdateScan(total, sanctionedByType, offenders);
 	}
 
-	private static IReadOnlyList<(string RelativePath, string Source)>
-		_EnumerateApiSources(string apiRoot) {
-		return Directory
-			.EnumerateFiles(apiRoot, "*.cs", SearchOption.AllDirectories)
-			.Select(path => (
-				FullPath: path,
-				RelativePath: Path.GetRelativePath(apiRoot, path)
-					.Replace('\\', '/')
-			))
-			.Where(entry => !PublishingDispatchArchitectureSpec._IsGeneratedOutput(entry.RelativePath))
-			.OrderBy(entry => entry.RelativePath, StringComparer.Ordinal)
-			.Select(entry => (entry.RelativePath, File.ReadAllText(entry.FullPath)))
-			.ToList();
-	}
+	// Yields (top-level declaring type, method, string literals in IL order) for
+	// every method body. Nested types (async state machines, closures) are
+	// attributed to their top-level type.
+	private static IEnumerable<(string TypeName, string Method, List<string> Literals)>
+		_ReadMethodStringLiterals(Assembly assembly) {
+		using var stream = File.OpenRead(assembly.Location);
+		using var peReader = new PEReader(stream);
+		var reader = peReader.GetMetadataReader();
 
-	private static bool _IsGeneratedOutput(string relativePath) {
-		return relativePath.StartsWith("bin/", StringComparison.Ordinal)
-			|| relativePath.StartsWith("obj/", StringComparison.Ordinal)
-			|| relativePath.StartsWith(".artifacts/", StringComparison.Ordinal)
-			|| relativePath.Contains("/bin/", StringComparison.Ordinal)
-			|| relativePath.Contains("/obj/", StringComparison.Ordinal)
-			|| relativePath.Contains("/.artifacts/", StringComparison.Ordinal);
-	}
-
-	// The test assembly runs from apps/api/.artifacts/bin/...; walk up until the
-	// directory containing PublyApp.Api.csproj (the apps/api root).
-	private static string _FindApiRoot() {
-		var directory = new DirectoryInfo(AppContext.BaseDirectory);
-		while (directory is not null) {
-			if (File.Exists(
-					Path.Combine(directory.FullName, "PublyApp.Api.csproj")
-				)) {
-				return directory.FullName;
+		foreach (var typeHandle in reader.TypeDefinitions) {
+			var type = reader.GetTypeDefinition(typeHandle);
+			var top = type;
+			while (!top.GetDeclaringType().IsNil) {
+				top = reader.GetTypeDefinition(top.GetDeclaringType());
 			}
 
-			directory = directory.Parent;
-		}
+			var typeName = PublishingDispatchArchitectureSpec._QualifiedName(reader, top);
 
-		throw new InvalidOperationException(
-			"Could not locate the apps/api root (PublyApp.Api.csproj) above "
-				+ AppContext.BaseDirectory
-		);
-	}
-
-	private static string _BlankCommentsAndDataStrings(string source) {
-		var chars = source.ToCharArray();
-		var i = 0;
-		while (i < chars.Length) {
-			if (i + 1 < chars.Length && chars[i] == '/' && chars[i + 1] == '/') {
-				while (i < chars.Length && chars[i] != '\n') {
-					chars[i++] = ' ';
-				}
-			} else if (i + 1 < chars.Length && chars[i] == '/'
-				&& chars[i + 1] == '*') {
-				chars[i] = ' ';
-				chars[i + 1] = ' ';
-				i += 2;
-				while (i + 1 < chars.Length
-					&& !(chars[i] == '*' && chars[i + 1] == '/')) {
-					if (chars[i] != '\n') {
-						chars[i] = ' ';
-					}
-
-					i++;
+			foreach (var methodHandle in type.GetMethods()) {
+				var method = reader.GetMethodDefinition(methodHandle);
+				if (method.RelativeVirtualAddress == 0) {
+					continue;
 				}
 
-				if (i + 1 < chars.Length) {
-					chars[i] = ' ';
-					chars[i + 1] = ' ';
-					i += 2;
+				var il = peReader.GetMethodBody(method.RelativeVirtualAddress)
+					.GetILBytes().Required();
+				var literals = PublishingDispatchArchitectureSpec._StringLiterals(reader, il);
+				if (literals.Count > 0) {
+					yield return (typeName, reader.GetString(method.Name), literals);
 				}
-			} else if (PublishingDispatchArchitectureSpec._IsRawStringDelimiter(chars, i)) {
-				// Raw string literal: EXECUTABLE SQL territory — keep contents.
-				i += PublishingDispatchArchitectureSpec._RawStringLength(chars, i);
-			} else if (chars[i] == '"') {
-				// Ordinary/interpolated single-line string: data (descriptions,
-				// log text). Blank the contents but keep the delimiters so
-				// offsets — and therefore line numbers — stay valid.
-				i++;
-				while (i < chars.Length && chars[i] != '"' && chars[i] != '\n') {
-					if (chars[i] != '\\') {
-						chars[i] = ' ';
-					}
-
-					i += chars[i] == '\\' ? 2 : 1;
-				}
-
-				i++;
-			} else if (chars[i] == '\'') {
-				i++;
-				while (i < chars.Length && chars[i] != '\'' && chars[i] != '\n') {
-					i += chars[i] == '\\' ? 2 : 1;
-				}
-
-				i++;
-			} else {
-				i++;
 			}
 		}
-
-		return new string(chars);
 	}
 
-	// Detects the start of a raw string literal: optional '$', then three or
-	// more quotes (C# 11 raw strings — the shape every ExecuteSqlInterpolated
-	// claim in this repo uses).
-	private static bool _IsRawStringDelimiter(char[] chars, int i) {
-		if (chars[i] == '$') {
-			i++;
-		}
-
-		return i + 2 < chars.Length && chars[i] == '"'
-			&& chars[i + 1] == '"' && chars[i + 2] == '"';
+	private static string _QualifiedName(MetadataReader reader, TypeDefinition type) {
+		var name = reader.GetString(type.Name);
+		var ns = reader.GetString(type.Namespace);
+		return ns.Length == 0 ? name : $"{ns}.{name}";
 	}
 
-	// Walks a raw string literal starting at its delimiter and returns how far
-	// to jump: past the closing quote run of equal length.
-	private static int _RawStringLength(char[] chars, int start) {
-		var i = start;
-		var dollar = chars[i] == '$';
-		if (dollar) {
-			i++;
+	private static int _OperandSize(OperandType type, byte[] il, int position) {
+		if (type == OperandType.InlineNone) {
+			return 0;
 		}
 
-		var quotes = 0;
-		while (i < chars.Length && chars[i] == '"') {
-			quotes++;
-			i++;
+		if (type is OperandType.ShortInlineBrTarget or OperandType.ShortInlineI
+			or OperandType.ShortInlineVar) {
+			return 1;
 		}
 
-		while (i < chars.Length) {
-			if (chars[i] == '"') {
-				var run = 0;
-				while (i < chars.Length && chars[i] == '"') {
-					run++;
-					i++;
-				}
+		if (type == OperandType.InlineVar) {
+			return 2;
+		}
 
-				if (run == quotes) {
-					return i - start;
-				}
-			} else {
-				i++;
+		if (type is OperandType.InlineI8 or OperandType.InlineR) {
+			return 8;
+		}
+
+		// switch: a uint count then that many 4-byte targets; every other
+		// operand kind (tokens, branch targets, int32, float32) is 4 bytes.
+		return type == OperandType.InlineSwitch
+			? 4 + (4 * BitConverter.ToInt32(il, position))
+			: 4;
+	}
+
+	private static List<string> _StringLiterals(MetadataReader reader, byte[] il) {
+		var literals = new List<string>();
+		var position = 0;
+		while (position < il.Length) {
+			var code = il[position++];
+			var value = code == 0xFE ? (short)(0xFE00 | il[position++]) : code;
+			var opCode = PublishingDispatchArchitectureSpec._OpCodes[value];
+
+			if (opCode == OpCodes.Ldstr) {
+				var token = BitConverter.ToInt32(il, position);
+				literals.Add(reader.GetUserString(
+					MetadataTokens.UserStringHandle(token & 0x00FFFFFF)
+				));
 			}
+
+			position += PublishingDispatchArchitectureSpec._OperandSize(
+				opCode.OperandType,
+				il,
+				position
+			);
 		}
 
-		return i - start;
-	}
-
-	private static int _LineOfOffset(string source, int offset) {
-		var line = 1;
-		for (var i = 0; i < offset && i < source.Length; i++) {
-			if (source[i] == '\n') {
-				line++;
-			}
-		}
-
-		return line;
+		return literals;
 	}
 
 	private static string _Flatten(string snippet) {
 		var flattened = PublishingDispatchArchitectureSpec._WhitespaceRun().Replace(snippet, " ").Trim();
 		return flattened.Length <= 140 ? flattened : flattened[..140] + "…";
 	}
+
+	[GeneratedRegex(@"\b(from|update|join)\s+([\w""]+\.)?""?publications\b", RegexOptions.IgnoreCase)]
+	private static partial Regex _PublicationsTableRef();
 
 	[GeneratedRegex(@"\s+")]
 	private static partial Regex _WhitespaceRun();
