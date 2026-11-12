@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -107,10 +108,20 @@ export const CreatePostDrawer = ({
 
 	// Every Publish / Schedule attempt starts a fresh intent; the block reports
 	// back when it was stopped.
-	const prepareForPublish = () => {
+	// Closing is held back while a Publish / Schedule is being prepared (draft
+	// save, uploads): a close there would let the request go out for a post the
+	// user just cancelled, or arm a resume on a closed drawer.
+	const [preparing, setPreparing] = useState(false);
+	const prepareForPublish = async () => {
 		handoff.beginAttempt();
-		return publishPrep.prepare();
+		setPreparing(true);
+		try {
+			return await publishPrep.prepare();
+		} finally {
+			setPreparing(false);
+		}
 	};
+	const busy = handoff.isPending || preparing || methods.formState.isSubmitting;
 
 	const onSubmit = methods.handleSubmit(async (values) => {
 		try {
@@ -188,6 +199,9 @@ export const CreatePostDrawer = ({
 	};
 
 	const handleOpenChange = (o: boolean) => {
+		if (!o && busy) {
+			return;
+		}
 		if (!o) {
 			resetAll();
 		}
@@ -219,7 +233,7 @@ export const CreatePostDrawer = ({
 									? null
 									: {
 											cause: handoff.cause,
-											busy: handoff.isPending,
+											busy,
 											onRetry: () => void handoff.retryAttach(completeAndClose),
 											onDiscard: handleDiscardImage,
 										}
@@ -235,11 +249,12 @@ export const CreatePostDrawer = ({
 								segments={segments}
 								imageKeys={deferredImages.map((image) => image.id)}
 								onBeforePublish={prepareForPublish}
+								disabled={busy}
 								onPublishInterrupted={handoff.keepIntent}
 							/>
 							<CreatePostActions
 								isSubmitting={methods.formState.isSubmitting}
-								busy={handoff.isPending}
+								busy={busy}
 								onCancel={() => handleOpenChange(false)}
 							/>
 						</div>

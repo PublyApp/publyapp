@@ -5,7 +5,7 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// <summary>
 /// Animated PNG (APNG) detection by walking the chunk headers (#2179): an
 /// <c>acTL</c> chunk of length 8 declaring at least one frame, before the first
-/// <c>IDAT</c>. Bounded by the stream length, so a truncated or hostile file can
+/// <c>IDAT</c>; a malformed <c>acTL</c> is skipped. Bounded by the stream length, so a truncated or hostile file can
 /// neither throw nor seek past its end. Leaves the stream position unspecified.
 /// </summary>
 public static class ImageAnimation {
@@ -29,10 +29,13 @@ public static class ImageAnimation {
 
 			var length = BinaryPrimitives.ReadUInt32BigEndian(header[..4]);
 			var type = header[4..8];
-			if (type.SequenceEqual("acTL"u8)) {
-				return length == 8
-					&& position + ImageAnimation._ChunkHeaderLength + 4 <= total
-					&& ImageAnimation._ReadFrameCount(stream) > 0;
+			// A malformed acTL (wrong length, no frames) is skipped like any other
+			// chunk: a valid one may still follow before the image data.
+			if (type.SequenceEqual("acTL"u8)
+				&& length == 8
+				&& position + ImageAnimation._ChunkHeaderLength + 4 <= total
+				&& ImageAnimation._ReadFrameCount(stream) > 0) {
+				return true;
 			}
 
 			if (type.SequenceEqual("IDAT"u8) || type.SequenceEqual("IEND"u8)) {

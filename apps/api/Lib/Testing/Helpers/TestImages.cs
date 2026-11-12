@@ -69,6 +69,28 @@ public static class TestImages {
 		return [.. png[..at], .. chunk, .. png[at..]];
 	}
 
+	/// <summary>
+	/// Inserts a chunk right after IHDR (or just before IEND with
+	/// <paramref name="afterImageData"/>), with a valid CRC.
+	/// </summary>
+	public static byte[] WithChunk(
+		byte[] png,
+		string type,
+		byte[] data,
+		bool afterImageData = false
+	) {
+		byte[] typeAndData = [.. System.Text.Encoding.ASCII.GetBytes(type), .. data];
+		var crc = TestImages._Crc32(typeAndData);
+		byte[] chunk = [
+			(byte)(data.Length >> 24), (byte)(data.Length >> 16),
+			(byte)(data.Length >> 8), (byte)data.Length,
+			.. typeAndData,
+			(byte)(crc >> 24), (byte)(crc >> 16), (byte)(crc >> 8), (byte)crc,
+		];
+		var at = afterImageData ? png.Length - 12 : 8 + 25;
+		return [.. png[..at], .. chunk, .. png[at..]];
+	}
+
 	private static uint _Crc32(ReadOnlySpan<byte> data) {
 		var crc = 0xFFFFFFFFu;
 		foreach (var value in data) {

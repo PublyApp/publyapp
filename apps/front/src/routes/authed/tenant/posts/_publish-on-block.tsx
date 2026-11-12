@@ -44,6 +44,7 @@ export const PublishOnBlock = ({
 	isPostDirty = false,
 	onBeforePublish,
 	onPublishInterrupted,
+	disabled = false,
 }: {
 	/** Which targets are checked (owned by the composer so every counter and
 	 * the image picker follow the same selection). */
@@ -70,6 +71,8 @@ export const PublishOnBlock = ({
 	/** Called when `onBeforePublish` stopped the request: the function redoes
 	 * the same publish or schedule once the cause is fixed. */
 	onPublishInterrupted?: (resume: () => void) => void;
+	/** The caller is busy (images attaching): Publish and Schedule wait. */
+	disabled?: boolean;
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
 	const tenantId = useResolvedWorkspaceTenantId();
@@ -99,6 +102,7 @@ export const PublishOnBlock = ({
 	const cannotSubmit =
 		selectedIds.length === 0 ||
 		isPending ||
+		disabled ||
 		isPublishBlocked(problems) ||
 		mustSaveFirst;
 	const tooManyForNow = selectedIds.length > PUBLISH_NOW_MAX_DESTINATIONS;

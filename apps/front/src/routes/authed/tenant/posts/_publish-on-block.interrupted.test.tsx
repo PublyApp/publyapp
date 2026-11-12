@@ -190,4 +190,24 @@ describe('PublishOnBlock interruption (#2179)', () => {
 		await waitFor(() => expect(mocks.publishNow).toHaveBeenCalledTimes(1));
 		expect(onPublishInterrupted).not.toHaveBeenCalled();
 	});
+
+	test('Publish and Schedule wait while the caller is busy', async () => {
+		render(
+			<PublishOnBlock
+				selection={selection}
+				destinationOverrides={overrides}
+				body="hello"
+				onBeforePublish={async () => ({ postId: POST_ID })}
+				disabled
+			/>,
+		);
+
+		await userEvent.click(screen.getByTestId('tenant-posts-publish-now'));
+
+		expect(
+			(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
+				.disabled,
+		).toBe(true);
+		expect(mocks.publishNow).not.toHaveBeenCalled();
+	});
 });

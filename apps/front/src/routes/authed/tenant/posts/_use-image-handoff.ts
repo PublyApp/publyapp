@@ -54,7 +54,7 @@ export const useImageHandoff = (tenantId: string) => {
 	 * the handoff holding the images (the attached ones marked) with the
 	 * surfaced cause, so the drawer offers the retry/discard actions.
 	 */
-	const tryAttach = async (
+	const attach = async (
 		forPostId: string,
 		images: DeferredImageSelection[],
 	): Promise<ReadonlyMap<string, string> | null> => {
@@ -84,6 +84,21 @@ export const useImageHandoff = (tenantId: string) => {
 		return null;
 	};
 
+	/** The attach of a Publish / Schedule / Save attempt. A success ends any
+	 * earlier failure: no stale panel, cause or resume is left behind. */
+	const tryAttach = async (
+		forPostId: string,
+		images: DeferredImageSelection[],
+	): Promise<ReadonlyMap<string, string> | null> => {
+		const attached = await attach(forPostId, images);
+		if (attached !== null) {
+			setPostId(null);
+			setCause('');
+			resumeRef.current = null;
+		}
+		return attached;
+	};
+
 	/** "Try again": attaches what is left, then resumes the publish that was
 	 * stopped, or calls `finish` when it was a plain save. */
 	const retryAttach = async (finish: () => Promise<void>) => {
@@ -92,7 +107,7 @@ export const useImageHandoff = (tenantId: string) => {
 		}
 		const session = sessionRef.current;
 		setCause('');
-		const attached = await tryAttach(postId, deferredImages);
+		const attached = await attach(postId, deferredImages);
 		if (attached === null || session !== sessionRef.current) {
 			return;
 		}
@@ -124,6 +139,8 @@ export const useImageHandoff = (tenantId: string) => {
 		/** Call at the start of every Publish / Schedule / Save attempt. */
 		beginAttempt: () => {
 			stoppedByAttachRef.current = false;
+			// Each attempt owns its resume: an earlier one never outlives it.
+			resumeRef.current = null;
 		},
 		/** The block reports a stopped Publish/Schedule: keep it only when the
 		 * attach was the reason. */

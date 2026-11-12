@@ -962,11 +962,14 @@ describe('CreatePostDrawer deferred image handoff', () => {
 				screen.getByTestId('tenant-posts-create-image-retry'),
 			).toBeTruthy(),
 		);
-		// ...then a Publish attempt whose attach works is stopped for another
-		// reason: it must not leave a resume behind.
+		// ...then a Publish with an emptied body: prepare() answers null before
+		// any attach, and the block reports the stop like it really does.
+		setFieldValue('tenant-posts-create-body', '');
+		let prepared: { postId: string } | null | undefined;
 		await act(async () => {
-			await mocks.publishBlockProps.current?.onBeforePublish?.();
+			prepared = await mocks.publishBlockProps.current?.onBeforePublish?.();
 		});
+		expect(prepared).toBeNull();
 		act(() => {
 			mocks.publishBlockProps.current?.onPublishInterrupted?.(resume);
 		});
@@ -977,6 +980,69 @@ describe('CreatePostDrawer deferred image handoff', () => {
 
 		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
 		expect(resume).not.toHaveBeenCalled();
+	});
+
+	test('a later Publish whose attach works clears the stale handoff and its resume (#2179)', async () => {
+		const resumeA = vi.fn();
+		mocks.attachMutateAsync
+			.mockRejectedValueOnce(TOO_LARGE_PROBLEM)
+			.mockResolvedValue({ id: 'asset-1' });
+		renderDrawer(vi.fn());
+		await fillBodyAndPickImage('draft body');
+		await act(async () => {
+			await mocks.publishBlockProps.current?.onBeforePublish?.();
+		});
+		act(() => {
+			mocks.publishBlockProps.current?.onPublishInterrupted?.(resumeA);
+		});
+		expect(
+			screen.getByTestId('tenant-posts-create-image-handoff'),
+		).toBeTruthy();
+
+		// Publish B: the attach now works (its send may still fail later).
+		await act(async () => {
+			await mocks.publishBlockProps.current?.onBeforePublish?.();
+		});
+
+		expect(
+			screen.queryByTestId('tenant-posts-create-image-handoff'),
+		).toBeNull();
+		expect(resumeA).not.toHaveBeenCalled();
+	});
+
+	test('Cancel and close are held back while a Publish is being prepared (#2179)', async () => {
+		const onOpenChange = vi.fn();
+		let finishSave: (post: { id: string; body: string }) => void = () =>
+			undefined;
+		mocks.savePost.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					finishSave = resolve;
+				}),
+		);
+		renderDrawer(onOpenChange);
+		await fillBodyAndPickImage('draft body');
+
+		let preparation: Promise<unknown> | undefined;
+		act(() => {
+			preparation = mocks.publishBlockProps.current?.onBeforePublish?.();
+		});
+
+		await waitFor(() =>
+			expect(
+				(screen.getByText('common:cancel') as HTMLButtonElement).disabled,
+			).toBe(true),
+		);
+		await userEvent.click(screen.getByText('common:cancel'));
+		expect(onOpenChange).not.toHaveBeenCalled();
+
+		await act(async () => {
+			finishSave({ id: 'post-1', body: 'draft body' });
+			await preparation;
+		});
+		expect(
+			(screen.getByText('common:cancel') as HTMLButtonElement).disabled,
+		).toBe(false);
 	});
 
 	test('discarding the failed image keeps the created post and closes cleanly', async () => {
