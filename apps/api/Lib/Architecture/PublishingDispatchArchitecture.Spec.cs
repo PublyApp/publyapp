@@ -204,6 +204,11 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			"PublyApp.Api.Modules.Auth.Jobs.CleanupExpiredSessionsHandler."
 				+ "HandleAsync(PublyApp.Api.Infrastructure.Jobs.JobContext,System."
 				+ "Threading.CancellationToken)|5C9A22733B508CE6",
+			// Reviewed: locks impersonation_session_ends only (the tombstone retention
+			// sweep of #1519), never publications; unrelated to the dispatch claim.
+			"PublyApp.Api.Modules.Auth.Jobs.CleanupExpiredSessionsHandler."
+				+ "HandleAsync(PublyApp.Api.Infrastructure.Jobs.JobContext,System."
+				+ "Threading.CancellationToken)|F443DBC19C28C095",
 			"PublyApp.Api.Infrastructure.Messaging.Email."
 				+ "InvitationEmailOutboxDispatcher.ClaimBatchAsync(PublyApp.Api.Data."
 				+ "DbContext.AppDbContext,System.Threading.CancellationToken)|"
