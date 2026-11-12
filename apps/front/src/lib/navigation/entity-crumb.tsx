@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import QueryDisplay from '~/components/query-display';
 import { Skeleton } from '~/components/ui/skeleton';
 import type { CrumbSpec } from '~/lib/navigation/breadcrumbs';
@@ -34,7 +34,8 @@ export const EntityCrumb = ({
 	spec: EntityCrumbSpec;
 	params: Record<string, string>;
 }) => {
-	const { queryKey, queryFn } = spec.query(params);
+	const queryClient = useQueryClient();
+	const { queryKey, queryFn } = spec.query(params, { queryClient });
 	// preload-exempt: the key is the page's own *DetailsQueryOptions key, warmed by that page's loader
 	const query = useQuery({
 		queryKey: [...queryKey],

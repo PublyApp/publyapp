@@ -15,6 +15,7 @@ import { invalidateTenantPublications } from '~/lib/query/tenant-publications';
 import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
 import {
 	resolveWorkspaceTenant,
+	resolveWorkspaceTenantIdFromCache,
 	tenantsForPickerQueryOptions,
 } from '~/lib/query/tenants-for-picker';
 import { readSelectedTenantId } from '~/lib/session/selected-tenant-storage';
@@ -444,27 +445,31 @@ export const useDeleteTenantPostMutation = () => {
 
 /** A breadcrumb has only the URL params, never the workspace tenant: it was
  * fetching with an empty tenant id, which always failed and left the crumb on
- * its error dash (#2410). The tenant is the persisted workspace selection (the
- * key then matches the page's own, so a loaded post paints at once); with none
- * stored, the picker resolves it the way the page does. */
-export const tenantPostCrumbQuery = (params: Record<string, string>) => {
-	const selectedTenantId = readSelectedTenantId();
+ * its error dash (#2410). The tenant is resolved the way the page and its
+ * loader do (cached picker + persisted selection, a single active tenant
+ * auto-resolves), so the key IS the page's own and a loaded post paints at
+ * once. With a cold picker cache it resolves it inside the query. */
+export const tenantPostCrumbQuery = (
+	params: Record<string, string>,
+	{ queryClient }: { queryClient: QueryClient },
+) => {
+	const cachedTenantId = resolveWorkspaceTenantIdFromCache(queryClient);
 	const postId = params.postId ?? '';
 
 	return {
 		queryKey:
-			selectedTenantId === null
+			cachedTenantId === null
 				? [...scopedKey('tenant', TENANT_POST_DETAILS_QUERY_KEY), { postId }]
 				: tenantPostDetailsQueryOptions.queryKey({
 						postId,
-						tenantId: selectedTenantId,
+						tenantId: cachedTenantId,
 					}),
 		queryFn: async () => {
 			const tenantId =
-				selectedTenantId ??
+				cachedTenantId ??
 				resolveWorkspaceTenant(
 					await tenantsForPickerQueryOptions.fetcher({}),
-					null,
+					readSelectedTenantId(),
 				)?.id;
 			if (!tenantId) {
 				throw new Error('no workspace tenant for the post breadcrumb');

@@ -15,10 +15,15 @@ export const PublishScheduleRow = ({
 	disabled: boolean;
 	onSchedule: (at: Date) => void;
 }) => {
-	const { t, i18n } = useTranslation(['posts']);
+	const { t, i18n } = useTranslation(['posts', 'common']);
 	const [date, setDate] = useState<string | undefined>(undefined);
 	const [time, setTime] = useState('');
-	const value = date !== undefined && time !== '' ? `${date}T${time}` : '';
+	// The field refused what was typed: `date` is then the previous, stale value.
+	const [isDateInvalid, setIsDateInvalid] = useState(false);
+	const value =
+		!isDateInvalid && date !== undefined && time !== ''
+			? `${date}T${time}`
+			: '';
 	const [isPast, setIsPast] = useState(false);
 
 	const submit = () => {
@@ -37,15 +42,17 @@ export const PublishScheduleRow = ({
 			<div className="flex flex-wrap items-center gap-2">
 				<LocalizedDateInput
 					locale={i18n.resolvedLanguage ?? i18n.language}
-					ariaLabel={t('posts:schedule-date-label')}
-					errorMessage={t('posts:schedule-date-invalid')}
+					ariaLabel={t('common:date')}
+					errorMessage={t('common:invalid-date')}
 					testId="tenant-posts-schedule-date"
 					value={date}
 					className="md:w-36"
 					onChange={(next) => {
 						setDate(next);
+						setIsDateInvalid(false);
 						setIsPast(false);
 					}}
+					onInvalid={() => setIsDateInvalid(true)}
 				/>
 				<Input
 					id="post-schedule-time"

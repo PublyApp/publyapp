@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import {
 	getActiveRailItem,
 	getShellScope,
@@ -58,7 +59,10 @@ export type CrumbSpec =
 	| {
 			kind: 'entity';
 			to?: string;
-			query: (params: Record<string, string>) => EntityCrumbQuery;
+			query: (
+				params: Record<string, string>,
+				context: { queryClient: QueryClient },
+			) => EntityCrumbQuery;
 			select: (data: unknown) => string | undefined;
 	  };
 

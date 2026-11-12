@@ -9,17 +9,21 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
 	patch: vi.fn(),
 	get: vi.fn(),
+	clientFor: vi.fn(),
 	delete: vi.fn(),
 	invalidateTenantPublications: vi.fn(),
 }));
 
 vi.mock('~/lib/api-client/client-manager', () => ({
 	getClientManager: () => ({
-		getOrCreateClient: () => ({
+		getOrCreateClient: (tenantId: string) => ({
 			posts: {
 				byPostId: () => ({
 					patch: mocks.patch,
-					get: mocks.get,
+					get: () => {
+						mocks.clientFor(tenantId);
+						return mocks.get();
+					},
 					delete: mocks.delete,
 				}),
 				post: mocks.patch,
@@ -46,9 +50,11 @@ import {
 	useSavePostMutation,
 	useDeleteTenantPostMutation,
 	tenantPostCrumbQuery,
+	tenantPostDetailsQueryOptions,
 	selectTenantPostCrumbName,
 } from './tenant-posts';
 import { TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY } from './tenant-scheduled-publications';
+import { tenantsForPickerQueryOptions } from './tenants-for-picker';
 
 let activeQueryClient: QueryClient | undefined;
 
@@ -420,20 +426,75 @@ describe('useSavePostMutation invalidation coherence', () => {
 });
 
 describe('post breadcrumb (#2410)', () => {
-	afterEach(() => {
-		window.localStorage.clear();
+	const pickerData = (tenantIds: string[]) => ({
+		tenants: tenantIds.map((id) => ({
+			id,
+			name: id,
+			code: id,
+			status: 'Active' as const,
+		})),
+		activeCount: tenantIds.length,
+		totalCount: tenantIds.length,
+		hasDeletedTenants: false,
+		hasSuspendedTenants: false,
 	});
 
-	test('fetches the post with the persisted workspace tenant instead of an empty one', async () => {
-		window.localStorage.setItem('publyapp:selected-tenant-id', 'tenant-1');
+	afterEach(() => {
+		window.localStorage.clear();
+		vi.restoreAllMocks();
+		mocks.clientFor.mockClear();
+	});
+
+	test('a single-tenant account with nothing persisted uses the page key and its resolved tenant', async () => {
+		const queryClient = new QueryClient();
+		queryClient.setQueryData(
+			tenantsForPickerQueryOptions.queryKey({}),
+			pickerData(['tenant-1']),
+		);
 		mocks.get.mockResolvedValue({ id: 'post-1', body: 'Launch day' });
 
-		const { queryKey, queryFn } = tenantPostCrumbQuery({ postId: 'post-1' });
+		const { queryKey, queryFn } = tenantPostCrumbQuery(
+			{ postId: 'post-1' },
+			{ queryClient },
+		);
 		const data = await queryFn();
 
-		expect(mocks.get).toHaveBeenCalledTimes(1);
-		expect(JSON.stringify(queryKey)).toContain('tenant-1');
+		expect(queryKey).toEqual(
+			tenantPostDetailsQueryOptions.queryKey({
+				postId: 'post-1',
+				tenantId: 'tenant-1',
+			}),
+		);
+		expect(mocks.clientFor).toHaveBeenCalledWith('tenant-1');
 		expect(selectTenantPostCrumbName(data)).toBe('Launch day');
+	});
+
+	test('a stale persisted selection does not win over the tenant the page resolves', async () => {
+		window.localStorage.setItem('publyapp:selected-tenant-id', 'gone');
+		const queryClient = new QueryClient();
+		queryClient.setQueryData(
+			tenantsForPickerQueryOptions.queryKey({}),
+			pickerData(['tenant-1']),
+		);
+		mocks.get.mockResolvedValue({ id: 'post-1', body: 'x' });
+
+		await tenantPostCrumbQuery({ postId: 'post-1' }, { queryClient }).queryFn();
+
+		expect(mocks.clientFor).toHaveBeenCalledWith('tenant-1');
+	});
+
+	test('with a cold picker cache it resolves the tenant from the picker', async () => {
+		vi.spyOn(tenantsForPickerQueryOptions, 'fetcher').mockResolvedValue(
+			pickerData(['tenant-2']),
+		);
+		mocks.get.mockResolvedValue({ id: 'post-1', body: 'x' });
+
+		await tenantPostCrumbQuery(
+			{ postId: 'post-1' },
+			{ queryClient: new QueryClient() },
+		).queryFn();
+
+		expect(mocks.clientFor).toHaveBeenCalledWith('tenant-2');
 	});
 
 	test('names the post by the first line of its body, shortened', () => {

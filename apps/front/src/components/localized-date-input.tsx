@@ -18,6 +18,9 @@ type LocalizedDateInputProps = {
 	max?: string;
 	className?: string;
 	onChange: (isoDate: string | undefined) => void;
+	/** A typed date was refused (unparseable or out of range): the last value
+	 * passed to `onChange` is stale, so a caller that submits must not use it. */
+	onInvalid?: () => void;
 };
 
 /** What the user typed, pinned to the external value it was typed against. */
@@ -34,6 +37,7 @@ const LocalizedDateInputInner = ({
 	max,
 	className,
 	onChange,
+	onInvalid,
 }: LocalizedDateInputProps) => {
 	const errorId = useId();
 	const [draft, setDraft] = useState<Draft | null>(null);
@@ -55,11 +59,15 @@ const LocalizedDateInputInner = ({
 
 		if (parsed === undefined) {
 			setError({ message: raw.trim().length > 0 ? errorMessage : '', value });
+			if (raw.trim().length > 0) {
+				onInvalid?.();
+			}
 			return;
 		}
 
 		if (parsed !== '' && ((min && parsed < min) || (max && parsed > max))) {
 			setError({ message: errorMessage, value });
+			onInvalid?.();
 			return;
 		}
 
