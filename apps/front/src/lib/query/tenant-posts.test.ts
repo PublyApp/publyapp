@@ -225,7 +225,7 @@ describe('thread segments', () => {
 		expect(mocks.patch.mock.calls[0]?.[0].segments).toBeUndefined();
 	});
 
-	test('savePost sends the follow-ups without blanks, and [] clears them', async () => {
+	test('savePost sends every follow-up as typed (a blank one is flagged by the server, never dropped), and [] clears them', async () => {
 		await savePost({
 			postId: POST_ID,
 			body: 'Updated body',
@@ -246,7 +246,7 @@ describe('thread segments', () => {
 			sent
 				.getValue()
 				.map((node: { getValue: () => string }) => node.getValue()),
-		).toEqual(['two', 'three']);
+		).toEqual(['two', '  ', 'three']);
 		expect(mocks.patch.mock.calls[1]?.[0].segments.getValue()).toEqual([]);
 	});
 });

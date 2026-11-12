@@ -56,6 +56,7 @@ describe('useResponseMessageTranslator in French', () => {
 		['publication-rendition-conflict', 'modifié en même temps'],
 		['post-segments-locked', 'Les segments déjà publiés'],
 		['provider-disabled', 'Ce fournisseur est désactivé'],
+		['post-segment-not-found', 'segment'],
 	])('translates %s, which says as much as the detail', (key, start) => {
 		expect(translatorFor('fr')(key, {})).toContain(start);
 	});
@@ -123,6 +124,15 @@ describe('useResponseMessageTranslator in French', () => {
 		);
 	});
 
+	test('names the empty follow-up by its number, and keeps the detail without one', () => {
+		const translate = translatorFor('fr');
+
+		expect(translate('post-segment-blank', { segmentNumber: 3 })).toContain(
+			'Le segment 3 est vide',
+		);
+		expect(translate('post-segment-blank', {})).toBeUndefined();
+	});
+
 	test('a translation that still has placeholders is treated as untranslated', () => {
 		const translate = translatorFor('fr', {
 			'post-segments-locked': 'Le segment {{index}} est verrouillé',
@@ -134,6 +144,7 @@ describe('useResponseMessageTranslator in French', () => {
 
 describe('useResponseMessageTranslator in English', () => {
 	test.each([
+		['post-segment-blank', { segmentNumber: 3 }],
 		['publication-rendition-locked', {}],
 		['post-segments-locked', {}],
 		[

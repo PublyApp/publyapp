@@ -181,17 +181,13 @@ export const toTenantPostDetails = (
 		updatedAt: normalizeDate(result?.updatedAt),
 		image: toTenantPostImage(result?.image),
 		images: toTenantPostImages(result?.images),
-		segments: (result?.segments ?? []).flatMap((segment) => {
-			const text = segment.body ?? '';
-			return text ? [{ number: segment.number ?? 0, body: text }] : [];
-		}),
+		segments: (result?.segments ?? []).map((segment) => ({
+			number: segment.number ?? 0,
+			body: segment.body ?? '',
+		})),
 		publishedSegmentCount: result?.publishedSegmentCount ?? 0,
 	};
 };
-
-/** A blank follow-up carries nothing to publish: it is left out of the save. */
-const withoutBlankSegments = (segments: string[]): string[] =>
-	segments.filter((text) => text.trim() !== '');
 
 const toUntypedSegments = (segments: string[]) =>
 	createUntypedArray(segments.map((text) => createUntypedString(text)));
@@ -283,9 +279,9 @@ export const savePost = async (
 		}
 
 		if (input.segments !== undefined) {
-			patchBody.segments = toUntypedSegments(
-				withoutBlankSegments(input.segments),
-			);
+			// Blank follow-ups are sent as they are: the server names the empty
+			// segment (422) instead of the save silently renumbering the thread.
+			patchBody.segments = toUntypedSegments(input.segments);
 		}
 
 		const result = await client.posts.byPostId(input.postId).patch(patchBody);
@@ -313,7 +309,7 @@ export const savePost = async (
 		createBody.projectId = createUntypedString(input.projectId);
 	}
 
-	const followUps = withoutBlankSegments(input.segments ?? []);
+	const followUps = input.segments ?? [];
 	if (followUps.length > 0) {
 		createBody.segments = toUntypedSegments(followUps);
 	}
