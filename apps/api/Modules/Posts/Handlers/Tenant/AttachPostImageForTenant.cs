@@ -112,10 +112,11 @@ public sealed class AttachPostImageForTenant {
 			(ImageInspector.Inspected)inspection;
 
 		// Publishing carries static JPEG/PNG/WebP only (ProviderCapabilityRegistry): refuse
-		// GIF and animated WebP here with a clear message instead of failing
+		// GIF, animated WebP and APNG here with a clear message instead of failing
 		// at publish time.
 		if (!ProviderCapabilityRegistry.AcceptedImageContentTypes.Contains(inspected.ContentType)
-			|| AttachPostImageForTenant._IsAnimatedWebP(uploadStream, inspected)) {
+			|| AttachPostImageForTenant._IsAnimatedWebP(uploadStream, inspected)
+			|| AttachPostImageForTenant._IsAnimatedPng(uploadStream, inspected)) {
 			return AttachPostImageForTenant._ValidationFailure(
 				"Animated and GIF images are not supported; use a JPEG, PNG, or static WebP image",
 				ResponseKeys.PostImageAnimatedUnsupported
@@ -327,6 +328,33 @@ public sealed class AttachPostImageForTenant {
 		return read == header.Length
 			&& header[12..16].SequenceEqual("VP8X"u8)
 			&& (header[20] & 0x02) != 0;
+	}
+
+	// APNG: an acTL chunk before the first IDAT. Walks the chunk headers only
+	// (length + type); leaves the stream position unspecified, the caller rewinds.
+	private static bool _IsAnimatedPng(Stream stream, ImageInspector.Inspected inspected) {
+		if (inspected.ContentType != "image/png") {
+			return false;
+		}
+
+		stream.Position = 8;
+		Span<byte> header = stackalloc byte[8];
+		while (stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) == header.Length) {
+			var type = header[4..8];
+			if (type.SequenceEqual("acTL"u8)) {
+				return true;
+			}
+
+			if (type.SequenceEqual("IDAT"u8) || type.SequenceEqual("IEND"u8)) {
+				return false;
+			}
+
+			var length = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(header[..4]);
+			// Skip the chunk data and its 4-byte CRC.
+			stream.Seek(length + 4L, SeekOrigin.Current);
+		}
+
+		return false;
 	}
 
 	private static string? _RelativePathOrNull(string? candidate) {

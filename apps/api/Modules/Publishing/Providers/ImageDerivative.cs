@@ -8,7 +8,8 @@ namespace PublyApp.Api.Modules.Publishing.Providers;
 /// re-encode, stepping quality down, until the bytes fit. JPEG sources stay JPEG;
 /// PNG and WebP sources become lossy WebP (keeps transparency). The stored
 /// original is never touched — callers pass bytes in and get new bytes out.
-/// An image that already fits is returned unchanged.
+/// An upright image that already fits is returned unchanged; one that fits but
+/// carries an EXIF orientation is re-encoded with the rotation baked in.
 /// </summary>
 internal static class ImageDerivative {
 	public abstract record Outcome;
@@ -40,27 +41,37 @@ internal static class ImageDerivative {
 		int heightPx,
 		long maxBytes
 	) {
-		if (source.LongLength <= maxBytes) {
+		var fitsAsIs = source.LongLength <= maxBytes;
+
+		using var codec = SKCodec.Create(SKData.CreateCopy(source));
+		var needsRotation = codec is not null
+			&& codec.EncodedOrigin is not (SKEncodedOrigin.TopLeft or SKEncodedOrigin.Default);
+
+		// Within the cap and upright: nothing to do. Within the cap but carrying an
+		// EXIF orientation: the stored width/height describe the unrotated pixels,
+		// so re-encode with the rotation baked in (#2179).
+		if (fitsAsIs && !needsRotation) {
 			return new Fitted(source, contentType, widthPx, heightPx);
 		}
 
-		using var codec = SKCodec.Create(SKData.CreateCopy(source));
 		if (codec is null) {
 			return new CannotFit("the image could not be decoded");
 		}
 
 		if ((long)codec.Info.Width * codec.Info.Height > ImageDerivative._MaxDecodePixels) {
-			return new CannotFit("the image is too large to resize");
+			return fitsAsIs
+				? new Fitted(source, contentType, widthPx, heightPx)
+				: new CannotFit("the image is too large to resize");
 		}
 
 		using var decoded = SKBitmap.Decode(codec);
 		if (decoded is null) {
-			return new CannotFit("the image could not be decoded");
+			return fitsAsIs
+				? new Fitted(source, contentType, widthPx, heightPx)
+				: new CannotFit("the image could not be decoded");
 		}
 
 		// Only build a second bitmap when the orientation actually needs baking in.
-		var needsRotation = codec.EncodedOrigin
-			is not (SKEncodedOrigin.TopLeft or SKEncodedOrigin.Default);
 		using var rotated = needsRotation
 			? ImageDerivative._ApplyOrigin(decoded, codec.EncodedOrigin)
 			: null;
@@ -70,7 +81,12 @@ internal static class ImageDerivative {
 		var outputType = asJpeg ? "image/jpeg" : "image/webp";
 		var longest = Math.Max(oriented.Width, oriented.Height);
 
-		foreach (var edge in ImageDerivative._LongestEdgeSteps) {
+		// A source already under the cap only needs its rotation: keep full size first.
+		int[] edges = fitsAsIs
+			? [longest, .. ImageDerivative._LongestEdgeSteps]
+			: ImageDerivative._LongestEdgeSteps;
+
+		foreach (var edge in edges) {
 			var target = Math.Min(edge, longest);
 			using var resized = target < longest
 				? ImageDerivative._ScaleToLongestEdge(oriented, target)

@@ -29,6 +29,11 @@ namespace PublyApp.Api.Migrations
                 filter: "is_deleted = false");
         }
 
+        // FORWARD-ONLY once a post has 2 or more images (#2179): Down recreates the
+        // one-live-image-per-post unique index (ux_post_media_assets_live_post_id), which
+        // fails as soon as any post holds several live images. Down is only safe while no
+        // post has more than one; otherwise fix forward (see the rollback note in
+        // docs/deployment/production-deployment-design.md).
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {

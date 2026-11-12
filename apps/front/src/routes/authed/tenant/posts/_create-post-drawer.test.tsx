@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
 						postId: string;
 						assetIdByKey?: ReadonlyMap<string, string>;
 					} | null>;
+					onPublishInterrupted?: (resume: () => void) => void;
 			  }
 			| undefined,
 	},
@@ -84,6 +85,7 @@ vi.mock('./_publish-on-block', () => ({
 			postId: string;
 			assetIdByKey?: ReadonlyMap<string, string>;
 		} | null>;
+		onPublishInterrupted?: (resume: () => void) => void;
 	}) => {
 		mocks.publishBlockProps.current = props;
 		return (
@@ -884,6 +886,43 @@ describe('CreatePostDrawer deferred image handoff', () => {
 			}),
 		);
 		expect(onOpenChange).toHaveBeenCalledWith(false);
+	});
+
+	test('retrying after a failed attach that stopped a publish resumes the publish instead of closing (#2179)', async () => {
+		const onOpenChange = vi.fn();
+		const resume = vi.fn();
+		mocks.attachMutateAsync
+			.mockRejectedValueOnce(TOO_LARGE_PROBLEM)
+			.mockResolvedValueOnce({ id: 'asset-1' });
+		renderDrawer(onOpenChange);
+		await fillBodyAndPickImage('draft body');
+
+		// The Publish click: the draft is saved, the images do not attach, the
+		// submit stops, and the block hands the drawer a way to redo it.
+		let prepared: unknown;
+		await act(async () => {
+			prepared = await mocks.publishBlockProps.current?.onBeforePublish?.();
+		});
+		expect(prepared).toBeNull();
+		act(() => {
+			mocks.publishBlockProps.current?.onPublishInterrupted?.(resume);
+		});
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('tenant-posts-create-image-retry'),
+			).toBeTruthy(),
+		);
+
+		await userEvent.click(
+			screen.getByTestId('tenant-posts-create-image-retry'),
+		);
+
+		await waitFor(() => expect(resume).toHaveBeenCalledTimes(1));
+		expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(2);
+		expect(onOpenChange).not.toHaveBeenCalledWith(false);
+		expect(
+			screen.queryByTestId('tenant-posts-create-image-handoff'),
+		).toBeNull();
 	});
 
 	test('discarding the failed image keeps the created post and closes cleanly', async () => {

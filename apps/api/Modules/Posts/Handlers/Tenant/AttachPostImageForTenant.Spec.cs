@@ -347,7 +347,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldRejectAGifWithAClearMessageAndAcceptJpegPngAndWebp() {
+	public async Task ItShouldRejectGifAnimatedWebpAndApngWithAClearMessageAndAcceptJpegPngAndWebp() {
 		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		var postId = await this._CreatePostAsync(tenantId, token);
 
@@ -381,6 +381,23 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		);
 		using var animatedResponse = await this._Http.SendAsync(animatedWebp);
 		animatedResponse.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+
+		using var apng = new HttpRequestMessage(
+			HttpMethod.Post,
+			AttachPostImageForTenantSpec._AttachImageUrl(postId)
+		)
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		apng.Content = AttachPostImageForTenantSpec._BuildFileContent(
+			TestImages.Apng(20, 20),
+			contentType: "image/png",
+			fileName: "anim.png"
+		);
+		using var apngResponse = await this._Http.SendAsync(apng);
+		apngResponse.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		var apngProblem = await apngResponse.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		Assert.NotNull(apngProblem);
+		apngProblem.TranslationKey.Should().Be("post-image-animated-unsupported");
 
 		foreach (var (bytes, mime, name) in new[] {
 			(TestImages.Jpeg(20, 20), "image/jpeg", "a.jpg"),

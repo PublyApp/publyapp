@@ -43,6 +43,7 @@ export const PublishOnBlock = ({
 	imageKeys = NO_IMAGE_KEYS,
 	isPostDirty = false,
 	onBeforePublish,
+	onPublishInterrupted,
 }: {
 	/** Which targets are checked (owned by the composer so every counter and
 	 * the image picker follow the same selection). */
@@ -66,6 +67,9 @@ export const PublishOnBlock = ({
 	 * draft is saved and the caller hands back the created post before the
 	 * request fires. */
 	onBeforePublish?: () => Promise<PreparedPost | null>;
+	/** Called when `onBeforePublish` stopped the request: the function redoes
+	 * the same publish or schedule once the cause is fixed. */
+	onPublishInterrupted?: (resume: () => void) => void;
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
 	const tenantId = useResolvedWorkspaceTenantId();
@@ -78,6 +82,7 @@ export const PublishOnBlock = ({
 		overrides: destinationOverrides.overrides,
 		segmentKeys: [BODY_KEY, ...segments.map((segment) => segment.id)],
 		imageKeys,
+		onInterrupted: onPublishInterrupted,
 	});
 	const problems = findPublishProblems({
 		destinations,

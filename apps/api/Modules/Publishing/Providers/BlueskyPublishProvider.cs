@@ -160,6 +160,21 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 	) {
 		var rkey = BlueskyPublishProvider.RecordKey(request.IdempotencyKey, position);
 		var images = new List<Dictionary<string, object?>>();
+		if (position == 0
+			&& request.Media.Count > 0
+			&& BlueskyPublishProvider._InvalidMedia(request) is null) {
+			// A retry after a write that actually landed must not upload the images
+			// again: that is wasted work, and a credential error on the upload would
+			// pause a publication that is already live (#2179). The read is public
+			// and idempotent; anything but a found record continues as before.
+			var existing = await BlueskyPublishProvider._FindLiveRecordAsync(
+				client, request, rkey, position, isThread, cancellationToken
+			);
+			if (existing is not null) {
+				return existing;
+			}
+		}
+
 		if (position == 0) {
 			var uploaded = await BlueskyPublishProvider._UploadImagesAsync(
 				client, request, cancellationToken
@@ -199,6 +214,67 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				new PublishResult.Ambiguous("the PDS answered with an unreadable body"),
 				null
 			);
+		}
+	}
+
+	/// <summary>The content failure for a post whose images the provider can never accept, or null.</summary>
+	private static PublishResult? _InvalidMedia(PublishRequest request) {
+		var limits = ProviderCapabilityRegistry.Bluesky;
+		if (request.Media.Count > limits.MaxImages) {
+			return new PublishResult.ContentFailure(
+				$"the post has {request.Media.Count} images, Bluesky accepts {limits.MaxImages}"
+			);
+		}
+
+		for (var index = 0; index < request.Media.Count; index++) {
+			var media = request.Media[index];
+			if (!limits.AcceptedImageContentTypes.Contains(media.ContentType)) {
+				return new PublishResult.ContentFailure(
+					$"image {index + 1} is {media.ContentType}, which Bluesky does not accept"
+				);
+			}
+		}
+
+		return null;
+	}
+
+	private static async Task<SegmentOutcome?> _FindLiveRecordAsync(
+		HttpClient client,
+		PublishRequest request,
+		string rkey,
+		int position,
+		bool isThread,
+		CancellationToken cancellationToken
+	) {
+		var session = request.Session;
+		var url = $"{session.PdsHost.TrimEnd('/')}/xrpc/com.atproto.repo.getRecord"
+			+ $"?repo={Uri.EscapeDataString(session.Did)}"
+			+ $"&collection={Uri.EscapeDataString(BlueskyPublishProvider._Collection)}"
+			+ $"&rkey={Uri.EscapeDataString(rkey)}";
+		try {
+			using var response = await client.GetAsync(url, cancellationToken);
+			if (!response.IsSuccessStatusCode) {
+				return null;
+			}
+
+			var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
+			var recordId = BlueskyPublishProvider._RecordIdentity(payload, session.Did, rkey);
+			var cid = BlueskyPublishProvider._Cid(payload);
+			if (isThread && cid.Length == 0) {
+				return null;
+			}
+
+			var webUrl = BlueskyPublishProvider._WebUrl(recordId, session.Did, rkey);
+			return new SegmentOutcome(
+				new PublishResult.AlreadyExistsTreatedAsPublished(recordId, webUrl),
+				new CompletedSegment(position, recordId, cid, webUrl)
+			);
+		} catch (HttpRequestException) {
+			return null;
+		} catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested) {
+			return null;
+		} catch (JsonException) {
+			return null;
 		}
 	}
 
@@ -362,27 +438,14 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 	) {
 		var limits = ProviderCapabilityRegistry.Bluesky;
 		var entries = new List<Dictionary<string, object?>>();
-		if (request.Media.Count > limits.MaxImages) {
-			return new UploadedImages(
-				entries,
-				new PublishResult.ContentFailure(
-					$"the post has {request.Media.Count} images, Bluesky accepts {limits.MaxImages}"
-				)
-			);
+		var invalid = BlueskyPublishProvider._InvalidMedia(request);
+		if (invalid is not null) {
+			return new UploadedImages(entries, invalid);
 		}
 
 		for (var index = 0; index < request.Media.Count; index++) {
 			var number = index + 1;
 			var media = request.Media[index];
-			if (!limits.AcceptedImageContentTypes.Contains(media.ContentType)) {
-				return new UploadedImages(
-					entries,
-					new PublishResult.ContentFailure(
-						$"image {number} is {media.ContentType}, which Bluesky does not accept"
-					)
-				);
-			}
-
 			var fitted = ImageDerivative.Fit(
 				media.Content, media.ContentType, media.WidthPx, media.HeightPx, limits.MaxImageBytes
 			);

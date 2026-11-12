@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -102,6 +102,11 @@ export const CreatePostDrawer = ({
 	// back to a phantom "image attached" memory with nothing on the post.
 	const [createdPostId, setCreatedPostId] = useState<string | null>(null);
 	const [handoffCause, setHandoffCause] = useState('');
+	// A publish or schedule click that stopped because the images did not attach
+	// (#2179): "Try again" redoes it after attaching instead of just closing.
+	const attachFailedRef = useRef(false);
+	const resumePublishRef = useRef<(() => void) | null>(null);
+	const [resumeRequested, setResumeRequested] = useState(0);
 
 	/**
 	 * Attaches the deferred images to the created post. Resolves the asset id
@@ -118,6 +123,7 @@ export const CreatePostDrawer = ({
 			return outcome.assetIds;
 		}
 
+		attachFailedRef.current = true;
 		setCreatedPostId(postId);
 		// Every image stays in the list, the attached ones marked: a retry
 		// uploads only the rest, and a reorder or an image override still sees
@@ -141,7 +147,24 @@ export const CreatePostDrawer = ({
 		tryAttach,
 	});
 
+	const clearPublishIntent = () => {
+		attachFailedRef.current = false;
+		resumePublishRef.current = null;
+	};
+
+	// Runs after the render that holds the attached images, so the resumed
+	// request sees them and uploads nothing twice.
+	useEffect(() => {
+		if (resumeRequested === 0) {
+			return;
+		}
+		const resume = resumePublishRef.current;
+		clearPublishIntent();
+		resume?.();
+	}, [resumeRequested]);
+
 	const completeAndClose = async () => {
+		clearPublishIntent();
 		publishPrep.forget();
 		setDeferredImages([]);
 		setCreatedPostId(null);
@@ -164,6 +187,8 @@ export const CreatePostDrawer = ({
 				return;
 			}
 
+			// A plain save drops any publish intent an earlier click left behind.
+			clearPublishIntent();
 			// A publish that failed earlier already created the post: save onto it.
 			const created = await savePost({
 				postId: publishPrep.createdPostId ?? undefined,
@@ -219,13 +244,30 @@ export const CreatePostDrawer = ({
 			return;
 		}
 		setHandoffCause('');
+		attachFailedRef.current = false;
 		const attached = await tryAttach(createdPostId, deferredImages);
-		if (attached !== null) {
-			await completeAndClose();
+		if (attached === null) {
+			return;
 		}
+		if (resumePublishRef.current === null) {
+			await completeAndClose();
+			return;
+		}
+		// The click that started this was a publish or a schedule: keep the
+		// post, mark the images attached, and send that request now.
+		setDeferredImages(
+			deferredImages.map((image) => ({
+				...image,
+				attachedAssetId: attached.get(image.id) ?? image.attachedAssetId,
+			})),
+		);
+		setCreatedPostId(null);
+		setHandoffCause('');
+		setResumeRequested((count) => count + 1);
 	};
 
 	const handleDiscardImage = () => {
+		clearPublishIntent();
 		// The created post is kept — it is consistent without the remaining
 		// images; only the failed attachment attempt is dropped. The list refresh makes the
 		// saved draft visible immediately.
@@ -318,6 +360,12 @@ export const CreatePostDrawer = ({
 								segments={segments}
 								imageKeys={deferredImages.map((image) => image.id)}
 								onBeforePublish={publishPrep.prepare}
+								onPublishInterrupted={(resume) => {
+									// Only a stop caused by the images keeps the intent.
+									if (attachFailedRef.current) {
+										resumePublishRef.current = resume;
+									}
+								}}
 							/>
 							<CreatePostActions
 								isSubmitting={methods.formState.isSubmitting}

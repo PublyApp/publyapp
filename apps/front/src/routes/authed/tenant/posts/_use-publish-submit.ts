@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import { toWireDestinations } from '~/lib/publishing/destination-overrides';
@@ -32,6 +32,13 @@ export type PreparedPost = {
 
 type PendingKind = 'publish' | 'schedule';
 
+type SendArgs = {
+	tenantId: string;
+	postId: string;
+	destinations: WireDestination[];
+};
+type Send = (args: SendArgs) => Promise<void>;
+
 type SubmitArgs = {
 	/** Present once the post exists (edit page). */
 	postId: string | null | undefined;
@@ -43,6 +50,11 @@ type SubmitArgs = {
 	segmentKeys: readonly string[];
 	/** The post's images (keys): an override naming a removed one is not sent. */
 	imageKeys: readonly string[];
+	/** Called when `onBeforePublish` stopped the submit (null): hands back a
+	 * function that redoes the SAME request (publish now, or schedule at the
+	 * same instant) with the latest state, so the caller can resume it once
+	 * what stopped it (images that did not attach) is fixed (#2179). */
+	onInterrupted?: (resume: () => void) => void;
 };
 
 /** Publish now / Schedule for the composer: both send `destinations[]` (one
@@ -56,6 +68,7 @@ export const usePublishSubmit = ({
 	overrides,
 	segmentKeys,
 	imageKeys,
+	onInterrupted,
 }: SubmitArgs) => {
 	const { t } = useTranslation(['common']);
 	const translateResponseMessage = useResponseMessageTranslator();
@@ -74,14 +87,11 @@ export const usePublishSubmit = ({
 		return postId ? { postId } : null;
 	};
 
-	const handleSubmit = async (
-		kind: PendingKind,
-		send: (args: {
-			tenantId: string;
-			postId: string;
-			destinations: WireDestination[];
-		}) => Promise<void>,
-	) => {
+	const latestSubmit = useRef<
+		((kind: PendingKind, send: Send) => Promise<void>) | null
+	>(null);
+
+	const handleSubmit = async (kind: PendingKind, send: Send) => {
 		if (!tenantId) {
 			return;
 		}
@@ -93,6 +103,9 @@ export const usePublishSubmit = ({
 			const prepared = await prepare();
 			if (prepared === null) {
 				setPending(null);
+				// Resumed through the ref so it runs with the state of the render
+				// after the fix, not the one captured at this click.
+				onInterrupted?.(() => void latestSubmit.current?.(kind, send));
 				return;
 			}
 			await send({
@@ -129,6 +142,10 @@ export const usePublishSubmit = ({
 			ignoreBlocker: true,
 		});
 	};
+
+	useEffect(() => {
+		latestSubmit.current = handleSubmit;
+	});
 
 	return {
 		pending,

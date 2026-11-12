@@ -24,6 +24,32 @@ public sealed class ImageDerivativeSpec {
 	}
 
 	[Fact]
+	public void ItShouldBakeTheExifOrientationEvenWhenTheImageIsUnderTheCap() {
+		// A 60 x 40 phone photo stored sideways: EXIF orientation 6 displays it 40 x 60.
+		var photo = TestImages.JpegWithOrientation(60, 40, orientation: 6);
+		photo.LongLength.Should().BeLessThan(ImageDerivativeSpec._Limit);
+
+		var outcome = ImageDerivative.Fit(photo, "image/jpeg", 60, 40, ImageDerivativeSpec._Limit);
+
+		var fitted = outcome.Should().BeOfType<ImageDerivative.Fitted>().Subject;
+		fitted.Content.Should().NotBeSameAs(photo);
+		fitted.ContentType.Should().Be("image/jpeg");
+		(fitted.WidthPx, fitted.HeightPx).Should().Be((40, 60));
+		using var codec = SKCodec.Create(new MemoryStream(fitted.Content));
+		(codec.Info.Width, codec.Info.Height).Should().Be((40, 60));
+		codec.EncodedOrigin.Should().Be(SKEncodedOrigin.TopLeft);
+	}
+
+	[Fact]
+	public void ItShouldKeepAnUprightImageUnderTheCapByteForByte() {
+		var photo = TestImages.JpegWithOrientation(60, 40, orientation: 1);
+
+		var outcome = ImageDerivative.Fit(photo, "image/jpeg", 60, 40, ImageDerivativeSpec._Limit);
+
+		outcome.Should().BeOfType<ImageDerivative.Fitted>().Subject.Content.Should().BeSameAs(photo);
+	}
+
+	[Fact]
 	public void ItShouldShrinkAnOversizedJpegBelowTheLimitKeepingItJpegAndItsRatio() {
 		var big = TestImages.NoisyJpeg(3000, 2000);
 		big.Length.Should().BeGreaterThan(1_000_000);

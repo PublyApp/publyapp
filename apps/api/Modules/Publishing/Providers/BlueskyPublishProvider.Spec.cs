@@ -377,6 +377,17 @@ public sealed class BlueskyPublishProviderSpec {
 		);
 	}
 
+	private static bool _IsGetRecord(HttpRequestMessage request) {
+		return request.Method == HttpMethod.Get
+			&& request.RequestUri.Required().AbsolutePath.EndsWith(
+				"com.atproto.repo.getRecord", StringComparison.Ordinal
+			);
+	}
+
+	private static HttpResponseMessage _RecordNotFound() {
+		return BlueskyPublishProviderSpec._JsonResponse(400, """{"error":"RecordNotFound"}""");
+	}
+
 	private static HttpResponseMessage _BlobResponse(int number, string mime = "image/png") {
 		return BlueskyPublishProviderSpec._JsonResponse(
 			200,
@@ -400,6 +411,10 @@ public sealed class BlueskyPublishProviderSpec {
 	) {
 		var uploads = 0;
 		var handler = new RecordingHandler(request => {
+			if (BlueskyPublishProviderSpec._IsGetRecord(request)) {
+				return BlueskyPublishProviderSpec._RecordNotFound();
+			}
+
 			if (BlueskyPublishProviderSpec._IsUpload(request)) {
 				uploads += 1;
 				return responder(request, uploads);
@@ -408,7 +423,7 @@ public sealed class BlueskyPublishProviderSpec {
 			return BlueskyPublishProviderSpec._SuccessResponse(
 				$"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}"
 			);
-		});
+		}, trackRecordLookups: false);
 		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
 		var request = BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()) with {
 			Media = media,
@@ -575,6 +590,10 @@ public sealed class BlueskyPublishProviderSpec {
 		var creates = 0;
 		var attempt = 0;
 		var handler = new RecordingHandler(request => {
+			if (BlueskyPublishProviderSpec._IsGetRecord(request)) {
+				return BlueskyPublishProviderSpec._RecordNotFound();
+			}
+
 			if (BlueskyPublishProviderSpec._IsUpload(request)) {
 				return attempt == 1
 					? BlueskyPublishProviderSpec._JsonResponse(503, """{"error":"TemporarilyUnavailable"}""")
@@ -597,6 +616,37 @@ public sealed class BlueskyPublishProviderSpec {
 		first.Should().BeOfType<PublishResult.TransientFailure>();
 		second.Should().BeOfType<PublishResult.Published>();
 		creates.Should().Be(1, "the failed upload never reached createRecord, so the retry creates the only record");
+	}
+
+	[Fact]
+	public async Task ItShouldNotReUploadImagesWhenTheRecordAlreadyExistsAndSoNeverSurfaceACredentialErrorForALivePost() {
+		var uploads = 0;
+		var creates = 0;
+		var handler = new RecordingHandler(request => {
+			if (BlueskyPublishProviderSpec._IsGetRecord(request)) {
+				return BlueskyPublishProviderSpec._SuccessResponse(
+					$"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}"
+				);
+			}
+
+			if (BlueskyPublishProviderSpec._IsUpload(request)) {
+				uploads += 1;
+				return BlueskyPublishProviderSpec._JsonResponse(401, """{"error":"ExpiredToken"}""");
+			}
+
+			creates += 1;
+			return BlueskyPublishProviderSpec._SuccessResponse("at://did:plc:x/app.bsky.feed.post/pub-k");
+		});
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var request = BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()) with {
+			Media = [BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", "x", 10, 10)],
+		};
+
+		var result = await provider.PublishAsync(request, CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>();
+		uploads.Should().Be(0);
+		creates.Should().Be(0);
 	}
 
 	private static PublishRequest _ThreadRequest(
@@ -800,8 +850,16 @@ public sealed class BlueskyPublishProviderSpec {
 		: HttpMessageHandler {
 		private readonly Func<HttpRequestMessage, HttpResponseMessage> _Responder;
 
-		public RecordingHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) {
+		private readonly bool _TrackRecordLookups;
+
+		// The "is it already live" lookup before an image upload is not what most
+		// specs are about; they opt out of seeing it in Requests.
+		public RecordingHandler(
+			Func<HttpRequestMessage, HttpResponseMessage> responder,
+			bool trackRecordLookups = true
+		) {
 			this._Responder = responder;
+			this._TrackRecordLookups = trackRecordLookups;
 		}
 
 		public List<HttpRequestMessage> Requests { get; } = [];
@@ -817,9 +875,12 @@ public sealed class BlueskyPublishProviderSpec {
 			var raw = request.Content is null
 				? []
 				: await request.Content.ReadAsByteArrayAsync(cancellationToken);
-			this.Requests.Add(request);
-			this.RawBodies.Add(raw);
-			this.Bodies.Add(Encoding.UTF8.GetString(raw));
+			if (this._TrackRecordLookups || !BlueskyPublishProviderSpec._IsGetRecord(request)) {
+				this.Requests.Add(request);
+				this.RawBodies.Add(raw);
+				this.Bodies.Add(Encoding.UTF8.GetString(raw));
+			}
+
 			return this._Responder(request);
 		}
 	}
