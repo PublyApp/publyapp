@@ -12,6 +12,8 @@ import { PublishNowRequestBuilderRequestsMetadata, type PublishNowRequestBuilder
 // @ts-ignore
 import { ScheduleRequestBuilderRequestsMetadata, type ScheduleRequestBuilder } from './schedule/index.js';
 // @ts-ignore
+import { SegmentsRequestBuilderNavigationMetadata, type SegmentsRequestBuilder } from './segments/index.js';
+// @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
@@ -34,6 +36,10 @@ export interface WithPostItemRequestBuilder extends BaseRequestBuilder<WithPostI
      * The schedule property
      */
     get schedule(): ScheduleRequestBuilder;
+    /**
+     * The segments property
+     */
+    get segments(): SegmentsRequestBuilder;
     /**
      * Delete a post for the current tenant
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -111,6 +117,9 @@ export const WithPostItemRequestBuilderNavigationMetadata: Record<Exclude<keyof 
     },
     schedule: {
         requestsMetadata: ScheduleRequestBuilderRequestsMetadata,
+    },
+    segments: {
+        navigationMetadata: SegmentsRequestBuilderNavigationMetadata,
     },
 };
 /**

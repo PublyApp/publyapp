@@ -5081,6 +5081,8 @@ export function deserializeIntoPostListItem_image(postListItem_image: Partial<Po
 export function deserializeIntoPostSegmentReadModel(postSegmentReadModel: Partial<PostSegmentReadModel> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "body": n => { postSegmentReadModel.body = n.getStringValue(); },
+        "id": n => { postSegmentReadModel.id = n.getGuidValue(); },
+        "images": n => { postSegmentReadModel.images = n.getCollectionOfObjectValues<PostImageReadModel>(createPostImageReadModelFromDiscriminatorValue); },
         "number": n => { postSegmentReadModel.number = n.getNumberValue(); },
     }
 }
@@ -6462,6 +6464,7 @@ export function deserializeIntoUpdatePostBody(updatePostBody: Partial<UpdatePost
         "body": n => { updatePostBody.body = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "imageAltText": n => { updatePostBody.imageAltText = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "projectId": n => { updatePostBody.projectId = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "segmentIds": n => { updatePostBody.segmentIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "segments": n => { updatePostBody.segments = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
@@ -7922,6 +7925,14 @@ export interface PostSegmentReadModel extends AdditionalDataHolder, Parsable {
      * The body property
      */
     body?: string | null;
+    /**
+     * Stable id: image routes and `segmentIds` on update refer to it (#2181).
+     */
+    id?: Guid | null;
+    /**
+     * The segment's own images in publish order (up to four).
+     */
+    images?: PostImageReadModel[] | null;
     /**
      * The number property
      */
@@ -10487,6 +10498,8 @@ export function serializePostListItem_image(writer: SerializationWriter, postLis
 export function serializePostSegmentReadModel(writer: SerializationWriter, postSegmentReadModel: Partial<PostSegmentReadModel> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!postSegmentReadModel || isSerializingDerivedType) { return; }
     writer.writeStringValue("body", postSegmentReadModel.body);
+    writer.writeGuidValue("id", postSegmentReadModel.id);
+    writer.writeCollectionOfObjectValues<PostImageReadModel>("images", postSegmentReadModel.images, serializePostImageReadModel);
     writer.writeNumberValue("number", postSegmentReadModel.number);
     writer.writeAdditionalData(postSegmentReadModel.additionalData);
 }
@@ -11962,6 +11975,7 @@ export function serializeUpdatePostBody(writer: SerializationWriter, updatePostB
     writer.writeObjectValue("body", updatePostBody.body);
     writer.writeObjectValue("imageAltText", updatePostBody.imageAltText);
     writer.writeObjectValue("projectId", updatePostBody.projectId);
+    writer.writeObjectValue("segmentIds", updatePostBody.segmentIds);
     writer.writeObjectValue("segments", updatePostBody.segments);
     writer.writeAdditionalData(updatePostBody.additionalData);
 }
@@ -13565,6 +13579,10 @@ export interface UpdatePostBody extends AdditionalDataHolder, Parsable {
      * The projectId property
      */
     projectId?: UntypedNode | null;
+    /**
+     * The segmentIds property
+     */
+    segmentIds?: UntypedNode | null;
     /**
      * The segments property
      */

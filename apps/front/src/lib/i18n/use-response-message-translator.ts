@@ -97,9 +97,10 @@ export const useResponseMessageTranslator = () => {
 		// Names the empty follow-up by its number in the thread (#2181).
 		if (translationKey === SEGMENT_BLANK_PROBLEM) {
 			const index = asPositiveInteger(extensions.segmentNumber);
-			return index === undefined
-				? undefined
-				: t('posts:segment-blank', { index });
+			if (index === undefined) {
+				return undefined;
+			}
+			return t('posts:segment-blank', { index });
 		}
 
 		if (!AS_INFORMATIVE_AS_DETAIL.has(translationKey)) {

@@ -1,5 +1,6 @@
 import {
 	createUntypedArray,
+	createUntypedNull,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
 import type { QueryClient } from '@tanstack/react-query';
@@ -61,9 +62,13 @@ export type TenantPostDetails = {
 };
 
 type TenantPostSegment = {
+	/** Stable id: image routes and `segmentIds` on save refer to it. */
+	id: string;
 	/** 1-based place in the thread (2..N). */
 	number: number;
 	body: string;
+	/** The segment's own images in publish order. */
+	images: TenantPostImage[];
 };
 
 export type SavePostInput = {
@@ -72,6 +77,9 @@ export type SavePostInput = {
 	projectId: string | null;
 	/** Follow-up texts. Undefined leaves the post's segments untouched. */
 	segments?: string[];
+	/** The stored segment each follow-up text continues (undefined = a new one),
+	 * so a reorder or removal keeps every segment's images with its text. */
+	segmentIds?: (string | undefined)[];
 };
 
 // ── Normalization helpers ──────────────────────────────────────────
@@ -182,8 +190,10 @@ export const toTenantPostDetails = (
 		image: toTenantPostImage(result?.image),
 		images: toTenantPostImages(result?.images),
 		segments: (result?.segments ?? []).map((segment) => ({
+			id: segment.id?.toString() ?? '',
 			number: segment.number ?? 0,
 			body: segment.body ?? '',
+			images: toTenantPostImages(segment.images),
 		})),
 		publishedSegmentCount: result?.publishedSegmentCount ?? 0,
 	};
@@ -282,6 +292,13 @@ export const savePost = async (
 			// Blank follow-ups are sent as they are: the server names the empty
 			// segment (422) instead of the save silently renumbering the thread.
 			patchBody.segments = toUntypedSegments(input.segments);
+			if (input.segmentIds !== undefined) {
+				patchBody.segmentIds = createUntypedArray(
+					input.segmentIds.map((id) =>
+						id === undefined ? createUntypedNull() : createUntypedString(id),
+					),
+				);
+			}
 		}
 
 		const result = await client.posts.byPostId(input.postId).patch(patchBody);
