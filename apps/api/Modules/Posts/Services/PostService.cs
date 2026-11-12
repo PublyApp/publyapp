@@ -547,15 +547,18 @@ public class PostService : IPostService {
 
 		var released = new List<string>();
 		if (surplus.Count > 0) {
-			var surplusIds = surplus.Select(segment => segment.GetRequiredId()).ToList();
-			var orphanImages = await (
+			var surplusIds = surplus.Select(segment => segment.GetRequiredId()).ToHashSet();
+			// A post holds at most a few dozen segment images: filter in memory.
+			var segmentImages = await (
 				from asset in this._DbContext.PostMediaAsset
 				where asset.PostId == postId
 					&& asset.SegmentId != null
-					&& surplusIds.Contains(asset.SegmentId.GetValueOrDefault())
 					&& !asset.IsDeleted
 				select asset
 			).ToListAsync(cancellationToken);
+			var orphanImages = segmentImages
+				.Where(asset => surplusIds.Contains(asset.SegmentId.GetValueOrDefault()))
+				.ToList();
 			this._DbContext.ForceHardDeleteRange(orphanImages);
 			released.AddRange(orphanImages.Select(asset => asset.RelativePath));
 		}

@@ -92,7 +92,7 @@ public sealed class AttachPostImageForTenant {
 
 		if (segmentId is { } owningSegmentId) {
 			var segment = await assetService.FindOwnedSegmentAsync(
-				tenantId, postIdGuid, owningSegmentId, cancellationToken
+				new FindOwnedSegmentArgs(tenantId, postIdGuid, owningSegmentId), cancellationToken
 			);
 			if (segment is null) {
 				return TypedProblems.NotFound(
@@ -125,9 +125,11 @@ public sealed class AttachPostImageForTenant {
 
 		// Cheap early refusal so an image over the cap never reaches storage; the asset
 		// service re-checks authoritatively at insert time.
-		var existingImages = await assetService.ListByPostAsync(
-			tenantId, postIdGuid, cancellationToken, segmentId
-		);
+		var existingImages = segmentId is { } ownerSegment
+			? await assetService.ListBySegmentAsync(
+				new FindOwnedSegmentArgs(tenantId, postIdGuid, ownerSegment), cancellationToken
+			)
+			: await assetService.ListByPostAsync(tenantId, postIdGuid, cancellationToken);
 		if (existingImages.Count >= ProviderCapabilityRegistry.MaxImagesPerPost) {
 			return AttachPostImageForTenant._LimitReached();
 		}
@@ -421,9 +423,11 @@ public sealed class AttachPostImageForTenant {
 			// inverse bug. A live row holding OUR path therefore means "keep it";
 			// removing that row later releases this reference, so releasing here
 			// as well would double-release.
-			var liveAssets = await assetService.ListByPostAsync(
-				tenantId, postId, CancellationToken.None, segmentId
-			);
+			var liveAssets = segmentId is { } ownerSegment
+				? await assetService.ListBySegmentAsync(
+					new FindOwnedSegmentArgs(tenantId, postId, ownerSegment), CancellationToken.None
+				)
+				: await assetService.ListByPostAsync(tenantId, postId, CancellationToken.None);
 			if (liveAssets.Any(liveAsset => string.Equals(
 				liveAsset.RelativePath, relativePath, StringComparison.Ordinal
 			))) {

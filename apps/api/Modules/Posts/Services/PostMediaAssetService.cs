@@ -28,6 +28,12 @@ public record RemovePostMediaArgs(
 	Guid? SegmentId = null
 );
 
+public record FindOwnedSegmentArgs(
+	Guid TenantId,
+	Guid PostId,
+	Guid SegmentId
+);
+
 public record ReorderPostMediaArgs(
 	Guid TenantId,
 	Guid PostId,
@@ -75,9 +81,7 @@ public interface IPostMediaAssetService {
 	/// post's or another tenant's: invisible, #2181).
 	/// </summary>
 	Task<PostSegment?> FindOwnedSegmentAsync(
-		Guid tenantId,
-		Guid postId,
-		Guid segmentId,
+		FindOwnedSegmentArgs args,
 		CancellationToken cancellationToken = default
 	);
 
@@ -94,15 +98,17 @@ public interface IPostMediaAssetService {
 		CancellationToken cancellationToken = default
 	);
 
-	/// <summary>
-	/// The live images of ONE owner in publish order: the post's own images, or one
-	/// follow-up segment's when <paramref name="segmentId"/> is given (#2181).
-	/// </summary>
+	/// <summary>The post's OWN live images in publish order (follow-up segments keep theirs apart, #2181).</summary>
 	Task<IReadOnlyList<PostMediaAsset>> ListByPostAsync(
 		Guid tenantId,
 		Guid postId,
-		CancellationToken cancellationToken = default,
-		Guid? segmentId = null
+		CancellationToken cancellationToken = default
+	);
+
+	/// <summary>The live images of one follow-up segment in publish order (#2181).</summary>
+	Task<IReadOnlyList<PostMediaAsset>> ListBySegmentAsync(
+		FindOwnedSegmentArgs args,
+		CancellationToken cancellationToken = default
 	);
 
 	/// <summary>
@@ -179,11 +185,10 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 	}
 
 	public async Task<PostSegment?> FindOwnedSegmentAsync(
-		Guid tenantId,
-		Guid postId,
-		Guid segmentId,
+		FindOwnedSegmentArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var (tenantId, postId, segmentId) = (args.TenantId, args.PostId, args.SegmentId);
 		var query =
 			from segment in dbContext.PostSegment.AsNoTracking()
 			where segment.Id == segmentId
@@ -222,14 +227,28 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 	public async Task<IReadOnlyList<PostMediaAsset>> ListByPostAsync(
 		Guid tenantId,
 		Guid postId,
-		CancellationToken cancellationToken = default,
-		Guid? segmentId = null
+		CancellationToken cancellationToken = default
 	) {
 		var query =
 			from a in dbContext.PostMediaAsset.AsNoTracking()
 			where a.TenantId == tenantId
 				&& a.PostId == postId
-				&& a.SegmentId == segmentId
+				&& a.SegmentId == null
+				&& !a.IsDeleted
+			orderby a.Position
+			select a;
+		return await query.ToListAsync(cancellationToken);
+	}
+
+	public async Task<IReadOnlyList<PostMediaAsset>> ListBySegmentAsync(
+		FindOwnedSegmentArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var query =
+			from a in dbContext.PostMediaAsset.AsNoTracking()
+			where a.TenantId == args.TenantId
+				&& a.PostId == args.PostId
+				&& a.SegmentId == args.SegmentId
 				&& !a.IsDeleted
 			orderby a.Position
 			select a;

@@ -85,7 +85,7 @@ public sealed class RemovePostImageForTenant {
 
 		if (segmentId is { } owningSegmentId) {
 			var segment = await assetService.FindOwnedSegmentAsync(
-				tenantId, postIdGuid, owningSegmentId, cancellationToken
+				new FindOwnedSegmentArgs(tenantId, postIdGuid, owningSegmentId), cancellationToken
 			);
 			if (segment is null) {
 				return TypedProblems.NotFound(
