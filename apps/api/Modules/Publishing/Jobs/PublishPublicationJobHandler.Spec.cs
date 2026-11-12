@@ -1865,6 +1865,294 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		);
 	}
 
+	// ── Per-segment images and re-issued threads (#2181) ──────────────────────
+
+	private static async Task<Guid> _AddSegmentAsync(
+		AppDbContext db,
+		SeededPublication seeded,
+		int position,
+		string body,
+		IFileStorage storage,
+		params (string ContentType, string Extension, byte[] Bytes, string? Alt)[] images
+	) {
+		var post = await db.Post.SingleAsync(p =>
+			p.Id == db.Publication.Single(x => x.Id == seeded.PublicationId).PostId);
+		var segment = new PostSegment {
+			TenantId = seeded.TenantId,
+			PostId = post.GetRequiredId(),
+			Position = position,
+			Body = body,
+		};
+		db.PostSegment.Add(segment);
+		await db.SaveChangesAsync();
+		for (var index = 0; index < images.Length; index++) {
+			using var stream = new MemoryStream(images[index].Bytes);
+			var path = await storage.SaveAsync(stream, images[index].Extension);
+			db.PostMediaAsset.Add(new PostMediaAsset {
+				TenantId = seeded.TenantId,
+				PostId = post.GetRequiredId(),
+				SegmentId = segment.GetRequiredId(),
+				Position = index,
+				RelativePath = path,
+				ContentType = images[index].ContentType,
+				AltText = images[index].Alt,
+				WidthPx = 10,
+				HeightPx = 10,
+				SizeBytes = images[index].Bytes.Length,
+				UploadedByUserId = post.CreatedByUserId,
+			});
+		}
+
+		await db.SaveChangesAsync();
+		return segment.GetRequiredId();
+	}
+
+	[Fact]
+	public async Task ItShouldHandEachFollowUpItsOwnImagesAndKeepThemOffTheRootSegment() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		var storage = PublishPublicationJobHandlerSpec._NewStorage();
+		var rootBytes = TestImages.Png(12, 12);
+		var secondBytes = TestImages.Jpeg(14, 14);
+		var thirdBytes = TestImages.Png(16, 16);
+		await PublishPublicationJobHandlerSpec._SeedImagesAsync(
+			db, storage, seeded.PublicationId, ("image/png", ".png", rootBytes, "root alt")
+		);
+		await PublishPublicationJobHandlerSpec._AddSegmentAsync(
+			db, seeded, 1, "two", storage, ("image/jpeg", ".jpg", secondBytes, "second alt")
+		);
+		await PublishPublicationJobHandlerSpec._AddSegmentAsync(db, seeded, 2, "three", storage);
+		await PublishPublicationJobHandlerSpec._AddSegmentAsync(
+			db, seeded, 3, "four", storage, ("image/png", ".png", thirdBytes, null)
+		);
+		var provider = new FakePublishProvider(new PublishResult.Published("at://r", "https://r"));
+
+		var outcome = await PublishPublicationJobHandlerSpec._NewHandler(
+			db, provider, FakeSessions.Opened(), storage
+		).HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(PublishPublicationJobHandlerSpec._PayloadOf(seeded)),
+			CancellationToken.None
+		);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		var request = provider.Requests.Should().ContainSingle().Subject;
+		request.Media.Should().ContainSingle().Which.Content.Should().Equal(rootBytes);
+		request.FollowUpMedia.Should().HaveCount(3);
+		request.FollowUpMedia[0].Should().ContainSingle().Which.AltText.Should().Be("second alt");
+		request.FollowUpMedia[0][0].Content.Should().Equal(secondBytes);
+		request.FollowUpMedia[1].Should().BeEmpty();
+		request.FollowUpMedia[2].Should().ContainSingle().Which.Content.Should().Equal(thirdBytes);
+	}
+
+	[Fact]
+	public async Task ItShouldFailWithoutRetryNamingTheSegmentWhenAFollowUpImageIsMissingFromStorage() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		var storage = PublishPublicationJobHandlerSpec._NewStorage();
+		await PublishPublicationJobHandlerSpec._AddSegmentAsync(
+			db, seeded, 1, "two", storage, ("image/png", ".png", TestImages.Png(12, 12), null)
+		);
+		var asset = await db.PostMediaAsset.SingleAsync(media => media.SegmentId != null);
+		await storage.DeleteAsync(asset.RelativePath);
+		var provider = new FakePublishProvider(null);
+
+		await PublishPublicationJobHandlerSpec._NewHandler(db, provider, FakeSessions.Opened(), storage).HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(PublishPublicationJobHandlerSpec._PayloadOf(seeded)),
+			CancellationToken.None
+		);
+
+		provider.Requests.Should().BeEmpty();
+		var publication = await PublishPublicationJobHandlerSpec._ReloadAsync(db, seeded.PublicationId);
+		publication.Status.Should().Be(PublicationStatus.Failed);
+		publication.LastError.Should().Contain("image 1 of segment 2 is no longer available");
+	}
+
+	[Fact]
+	public async Task ItShouldFailAtDispatchNamingTheSegmentWhenAFollowUpHasMoreImagesThanTheDestinationTakes() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		var storage = PublishPublicationJobHandlerSpec._NewStorage();
+		var five = Enumerable.Range(0, 5)
+			.Select(index => ("image/png", ".png", TestImages.Png(10 + index, 10), (string?)null))
+			.ToArray();
+		await PublishPublicationJobHandlerSpec._AddSegmentAsync(db, seeded, 1, "two", storage, five);
+		var provider = new FakePublishProvider(null);
+
+		await PublishPublicationJobHandlerSpec._NewHandler(db, provider, FakeSessions.Opened(), storage).HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(PublishPublicationJobHandlerSpec._PayloadOf(seeded)),
+			CancellationToken.None
+		);
+
+		provider.Requests.Should().BeEmpty();
+		var publication = await PublishPublicationJobHandlerSpec._ReloadAsync(db, seeded.PublicationId);
+		publication.Status.Should().Be(PublicationStatus.Failed);
+		publication.LastError.Should().Contain("Segment 2").And.Contain("too many images");
+	}
+
+	// A re-issued publication (new row, new key) next to the failed one it replaces.
+	private static async Task<(SeededPublication Failed, SeededPublication Fresh)> _SeedReissueAsync(
+		AppDbContext db,
+		params (int Position, SubmissionState State)[] failedAttempts
+	) {
+		var failed = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Failed);
+		var postId = (await db.Publication.SingleAsync(p => p.Id == failed.PublicationId)).PostId;
+		foreach (var (position, state) in failedAttempts) {
+			db.PublishAttempt.Add(new PublishAttempt {
+				TenantId = failed.TenantId,
+				PublicationId = failed.PublicationId,
+				SegmentPosition = position,
+				AttemptNumber = 1,
+				Operation = position == 0 ? "create_post" : "create_reply",
+				ContentFingerprint = "fp",
+				IdempotencyKey = failed.IdempotencyKey,
+				SubmissionState = state,
+			});
+		}
+
+		await db.SaveChangesAsync();
+		var publication = new Publication {
+			TenantId = failed.TenantId,
+			PostId = postId,
+			SocialAccountId = failed.SocialAccountId,
+			Status = PublicationStatus.Scheduled,
+			ScheduledAtUtc = DateTime.UtcNow.AddHours(1),
+			ScheduledTimeZone = "Etc/UTC",
+			IdempotencyKey = "placeholder",
+		};
+		db.Publication.Add(publication);
+		await db.SaveChangesAsync();
+		publication.IdempotencyKey = PublicationIdempotencyKey.For(publication.GetRequiredId());
+		await db.SaveChangesAsync();
+		return (
+			failed,
+			new SeededPublication(
+				failed.TenantId, failed.SocialAccountId, publication.GetRequiredId(), publication.IdempotencyKey
+			)
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldAdoptTheRecordAFailedPublicationWroteButNeverRecordedInsteadOfPostingItAgain() {
+		using var db = await this._NewDbAsync();
+		var (failed, fresh) = await PublishPublicationJobHandlerSpec._SeedReissueAsync(db, (0, SubmissionState.Unknown));
+		var found = new CompletedSegment(0, "at://did:plc:x/app.bsky.feed.post/pub-old", "cid-old", "https://bsky.app/p/old");
+		var provider = new JournalingProvider(
+			(_, request, _) => Task.FromResult<PublishResult>(new PublishResult.Published(
+				request.CompletedSegments[0].RecordId, request.CompletedSegments[0].RecordUrl
+			)),
+			new ReconcileResult.Found(found)
+		);
+
+		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(db, provider, fresh);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		provider.Writes.Should().Be(0, "the record already exists under the failed publication's key");
+		var lookup = provider.Reconciles.Should().ContainSingle().Subject;
+		lookup.IdempotencyKey.Should().Be(failed.IdempotencyKey);
+		lookup.PublicationId.Should().Be(fresh.PublicationId);
+		var publication = await PublishPublicationJobHandlerSpec._ReloadAsync(db, fresh.PublicationId);
+		publication.Status.Should().Be(PublicationStatus.Published);
+		publication.ExternalRecordId.Should().Be(found.RecordId);
+	}
+
+	[Fact]
+	public async Task ItShouldWriteNormallyWhenTheFailedPublicationsWriteIsConfirmedAbsent() {
+		using var db = await this._NewDbAsync();
+		var (failed, fresh) = await PublishPublicationJobHandlerSpec._SeedReissueAsync(db, (0, SubmissionState.Superseded));
+		var provider = new JournalingProvider(
+			async (self, request, token) => {
+				await self.BeginWriteAsync(request, 0, token);
+				return new PublishResult.Published("at://new", "https://new");
+			},
+			new ReconcileResult.SafeToResend()
+		);
+
+		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(db, provider, fresh);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		provider.Reconciles.Should().ContainSingle().Which.IdempotencyKey.Should().Be(failed.IdempotencyKey);
+		provider.Writes.Should().Be(1);
+	}
+
+	[Fact]
+	public async Task ItShouldParkAReissuedPublicationForReviewWhenTheFailedWriteCannotBeConfirmed() {
+		using var db = await this._NewDbAsync();
+		var (_, fresh) = await PublishPublicationJobHandlerSpec._SeedReissueAsync(db, (0, SubmissionState.Unknown));
+		var provider = new JournalingProvider(
+			(_, _, _) => throw new InvalidOperationException("no write expected"),
+			new ReconcileResult.NeedsReview("this provider cannot confirm whether the post went out")
+		);
+
+		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(db, provider, fresh);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		provider.Requests.Should().BeEmpty();
+		var publication = await PublishPublicationJobHandlerSpec._ReloadAsync(db, fresh.PublicationId);
+		publication.Status.Should().Be(PublicationStatus.Paused);
+		publication.FailureCategory.Should().Be(PublicationFailureCategory.NeedsReview);
+	}
+
+	[Fact]
+	public async Task ItShouldNotLookUpAFailedWriteThatWasProvablyRefused() {
+		using var db = await this._NewDbAsync();
+		var (_, fresh) = await PublishPublicationJobHandlerSpec._SeedReissueAsync(db, (0, SubmissionState.Rejected));
+		var provider = new JournalingProvider(
+			async (self, request, token) => {
+				await self.BeginWriteAsync(request, 0, token);
+				return new PublishResult.Published("at://new", "https://new");
+			}
+		);
+
+		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(db, provider, fresh);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		provider.Reconciles.Should().BeEmpty();
+		provider.Writes.Should().Be(1);
+	}
+
+	[Fact]
+	public async Task ItShouldContinueAReissuedThreadAfterTheSegmentTheFailedPublicationCreatedButNeverRecorded() {
+		using var db = await this._NewDbAsync();
+		var (failed, fresh) = await PublishPublicationJobHandlerSpec._SeedReissueAsync(db, (1, SubmissionState.Unknown));
+		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, fresh, "two", "three");
+		// What re-issuing already carried over: segment 1 is recorded on the fresh row.
+		db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+			TenantId = fresh.TenantId,
+			PublicationId = fresh.PublicationId,
+			SegmentPosition = 0,
+			ExternalRecordId = "at://r/0",
+			ExternalCid = "cid-0",
+			ExternalUrl = "https://u/0",
+		});
+		await db.SaveChangesAsync();
+		var found = new CompletedSegment(1, "at://r/old-1", "cid-old-1", "https://u/old-1");
+		var provider = new JournalingProvider(
+			async (self, request, token) => {
+				request.CompletedSegments.Select(segment => segment.Position).Should().Equal(0, 1);
+				await self.BeginWriteAsync(request, 2, token);
+				await JournalingProvider.LandAsync(
+					request, new CompletedSegment(2, "at://r/2", "cid-2", "https://u/2"), token
+				);
+				return new PublishResult.Published("at://r/0", "https://u/0");
+			},
+			new ReconcileResult.Found(found)
+		);
+
+		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(db, provider, fresh);
+
+		outcome.Should().BeOfType<JobOutcome.Success>();
+		provider.Writes.Should().Be(1, "only the third segment is written");
+		var lookup = provider.Reconciles.Should().ContainSingle().Subject;
+		lookup.SegmentPosition.Should().Be(1);
+		lookup.IdempotencyKey.Should().Be(failed.IdempotencyKey);
+		lookup.ExpectedText.Should().Be("two");
+		var stored = await db.PublicationSegmentResult
+			.Where(result => result.PublicationId == fresh.PublicationId)
+			.Select(result => result.SegmentPosition)
+			.ToListAsync();
+		stored.Order().Should().Equal(0, 1, 2);
+	}
+
 	// Lands the first N not-yet-completed segments through the progress callback
 	// (like the real provider does), then ends with the configured outcome.
 	private sealed class ThreadPublishProvider : IPublishProvider {

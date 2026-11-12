@@ -276,6 +276,23 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			}
 		}
 
+		// A re-issued publication has a NEW key: a write the failed one made but never
+		// recorded would be sent again under it. Look under the old key first (#2181).
+		if (unresolved is null) {
+			var predecessor = await this._ReconcilePredecessorAsync(
+				publication,
+				opened.Session,
+				targetAccount?.Provider ?? SocialProvider.Bluesky,
+				effectiveTexts,
+				completedSegments,
+				context,
+				cancellationToken
+			);
+			if (predecessor is not null) {
+				return predecessor;
+			}
+		}
+
 		Guid? openAttempt = null;
 		var result = await this._PublishProvider.PublishAsync(
 			new PublishRequest {
@@ -370,6 +387,114 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					$"Unhandled PublishResult kind '{result.GetType().Name}'."
 				);
 		}
+	}
+
+	/// <summary>
+	/// For the next segment to write, asks the provider about the writes that earlier,
+	/// failed publications of the same post and account may have made under THEIR keys
+	/// without ever recording them (journal rows still NotSent, Unknown or Superseded, with
+	/// no stored result): a record found is adopted as this publication's segment, an absent
+	/// one is safe to write, and an uncertain answer parks the publication for review
+	/// instead of risking a duplicate. Returns the job outcome when the run must stop here.
+	/// </summary>
+	private async Task<JobOutcome?> _ReconcilePredecessorAsync(
+		Publication publication,
+		SocialSession session,
+		SocialProvider provider,
+		IReadOnlyList<string> effectiveTexts,
+		List<CompletedSegment> completedSegments,
+		JobContext context,
+		CancellationToken cancellationToken
+	) {
+		var done = completedSegments.Select(segment => segment.Position).ToHashSet();
+		var next = 0;
+		while (done.Contains(next)) {
+			next += 1;
+		}
+
+		if (next >= effectiveTexts.Count) {
+			return null;
+		}
+
+		var publicationId = publication.GetRequiredId();
+		var attempts = await (
+			from attempt in this._Db.PublishAttempt.AsNoTracking()
+			join earlier in this._Db.Publication.AsNoTracking()
+				on attempt.PublicationId equals earlier.Id
+			where earlier.PostId == publication.PostId
+				&& earlier.SocialAccountId == publication.SocialAccountId
+				&& earlier.TenantId == publication.TenantId
+				&& earlier.Id != publicationId
+				&& earlier.CreatedAt < publication.CreatedAt
+				&& (earlier.Status == PublicationStatus.Failed || earlier.IsDeleted)
+				&& attempt.SegmentPosition == next
+				&& !attempt.IsDeleted
+			select attempt
+		).ToListAsync(cancellationToken);
+		var recorded = await (
+			from result in this._Db.PublicationSegmentResult.AsNoTracking()
+			where result.SegmentPosition == next
+				&& !result.IsDeleted
+				&& attempts.Select(attempt => attempt.PublicationId).Contains(result.PublicationId)
+			select result.PublicationId
+		).ToListAsync(cancellationToken);
+		var suspicious = attempts
+			.Where(attempt => attempt.SubmissionState is SubmissionState.NotSent
+					or SubmissionState.Unknown
+					or SubmissionState.Superseded
+				&& !recorded.Contains(attempt.PublicationId))
+			.GroupBy(attempt => attempt.IdempotencyKey)
+			.Select(group => new {
+				Key = group.Key,
+				First = group.Min(attempt => attempt.CreatedAt),
+			})
+			.OrderBy(entry => entry.First)
+			.ToList();
+		foreach (var entry in suspicious) {
+			var reconciled = await this._PublishProvider.ReconcileAsync(
+				new ReconcileRequest {
+					PublicationId = publicationId,
+					IdempotencyKey = entry.Key,
+					SegmentPosition = next,
+					Session = session,
+					Provider = provider,
+					FirstAttemptAtUtc = entry.First,
+					ExpectedText = effectiveTexts[next],
+				},
+				cancellationToken
+			);
+			switch (reconciled) {
+				case ReconcileResult.Found found:
+					this._Db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+						TenantId = publication.TenantId,
+						PublicationId = publicationId,
+						SegmentPosition = found.Segment.Position,
+						ExternalRecordId = found.Segment.RecordId,
+						ExternalCid = found.Segment.Cid,
+						ExternalUrl = found.Segment.RecordUrl,
+					});
+					await this._Db.SaveChangesAsync(cancellationToken);
+					completedSegments.Add(found.Segment);
+					return null;
+				case ReconcileResult.SafeToResend:
+					break;
+				case ReconcileResult.NeedsReview review:
+					await this._ParkForReviewAsync(
+						publicationId, publication.TenantId, review.Cause, cancellationToken
+					);
+					return JobOutcome.Succeeded;
+				case ReconcileResult.Unavailable unavailable:
+					return await this._RetryUnresolvedAsync(
+						publication, unavailable.Cause, context, cancellationToken, null
+					);
+				default:
+					throw new InvalidOperationException(
+						$"Unhandled ReconcileResult kind '{reconciled.GetType().Name}'."
+					);
+			}
+		}
+
+		return null;
 	}
 
 	/// <summary>Records how the write that was just attempted ended, on its journal row.</summary>
