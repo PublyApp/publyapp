@@ -411,6 +411,11 @@ test.describe(
 			await expect(
 				page.getByTestId('app-shell-user-menu-trigger'),
 			).toBeVisible();
+			// While the current user is loading, the chip shows a placeholder and
+			// the label has no name part; read the name only once it is there.
+			await expect(
+				page.getByTestId('app-shell-user-menu-trigger'),
+			).toHaveAttribute('aria-label', /^Menu du compte — .+$/);
 			const visibleName =
 				(await page.locator('.app-shell-user-name').textContent())?.trim() ??
 				'';
