@@ -125,9 +125,12 @@ const readSharedIdentity = (): string => {
 			['-C', ROOT, 'config', '--local', '--get-regexp', '^user\\.'],
 			{ encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] },
 		);
-	} catch {
-		// Exit 1 = no user.* key at all.
-		return '';
+	} catch (error) {
+		// Exit status 1 = no user.* key at all; anything else is a broken read.
+		if ((error as { status?: number }).status === 1) {
+			return '';
+		}
+		throw error;
 	}
 };
 
@@ -197,7 +200,14 @@ test('a fresh worktree lets an unformatted commit through unchanged (issue #1852
 		// Issue #2411: the proof must not leak an identity into the clone's
 		// shared config (compared with before: the developer may have one).
 		// Asserted BEFORE the bug assertion, which fails by design once fixed.
-		expect(readSharedIdentity()).toBe(identityBefore);
+		// A plain Error (not expect): the kept-red classifier counts an
+		// AssertionError as "failed as expected" and would hide a regression;
+		// MESURE IMPOSSIBLE makes it return CORRUPT PROOF (red CI).
+		if (readSharedIdentity() !== identityBefore) {
+			throw new Error(
+				'MESURE IMPOSSIBLE: the proof changed the clone shared git config (user.*) — issue #2411.',
+			);
+		}
 
 		expect(committed).toBe(UNFORMATTED_PROBE);
 	} finally {
