@@ -246,7 +246,7 @@
 		"oxc-transform-react": "0.156.0",
 		"postcss": "8.5.31",
 		"shadcn": "4.23.0",
-		"tailwindcss": "4.3.3",
+		"tailwindcss": "4.3.5",
 		"ts-morph": "catalog:",
 		"typescript": "catalog:",
 		"vite": "8.3.5",
