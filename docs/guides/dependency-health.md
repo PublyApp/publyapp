@@ -4,13 +4,13 @@ How we keep vulnerable dependencies from landing or staying on `develop`.
 
 ## What Dependabot watches
 
-`.github/dependabot.yml` (weekly, label `technical-debt`, security updates on):
+`.github/dependabot.yml` — **security updates only** (owner decision, 12/11/2026, #2412). Every ecosystem sets `open-pull-requests-limit: 0`, so Dependabot opens no routine version-bump PRs; security updates ignore that limit and still open a PR when an advisory affects a dependency. Routine bumps are done on purpose, when a change needs them, not on a schedule. Label `technical-debt`; ecosystems watched:
 
 - `npm` at `/` — covers the pnpm workspace (root `pnpm-lock.yaml` + `apps/*`/`packages/*`; GitHub maps pnpm to the `npm` ecosystem)
 - `nuget` at `/apps/api` and `/packages/scripts-cs`
 - `github-actions` at `/`
 
-`npm` version updates are grouped `minor`+`patch` (`groups.minor-and-patch`) so minor/patch bumps arrive as one PR per week; major bumps stay separate. All ecosystems use `commit-message.prefix: chore` + `include: scope`.
+The `groups.minor-and-patch` block is kept so that, if version updates are ever turned back on, minor/patch bumps arrive as one PR; major bumps stay separate. All ecosystems use `commit-message.prefix: chore` + `include: scope`.
 
 A dependency used by two or more workspaces is declared once, at its exact version, in the `catalog:` block of `pnpm-workspace.yaml` and referenced as `"<name>": "catalog:"` (AGENTS.md); Dependabot updates the catalog entry, so a bump is one line instead of one per workspace. A dependency pinned by `pnpm.overrides` (root `package.json`) stays there, not in the catalog: the override wins over any catalog entry, so a catalog bump for it would be inert — bump it in the override instead.
 
