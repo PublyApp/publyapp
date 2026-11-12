@@ -5,7 +5,6 @@ using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Auth.Entities;
-using PublyApp.Api.Modules.Impersonations.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Modules.Impersonations.Services;
 
@@ -23,8 +22,10 @@ public record EndImpersonationSessionArgs(
 
 /// <summary>
 /// Outcome of ending an impersonation session. <see cref="NotFound"/> means the id is
-/// unknown (never existed, or its tombstone aged out); <see cref="AlreadyEnded"/> means the
-/// session is known to be over (expired, revoked or swept) — durable past the sweep (#1519).
+/// unknown (never existed, or its tombstone aged out after the retention window);
+/// <see cref="AlreadyEnded"/> means the session is known to be over — expired (swept, deleted
+/// at presentation), revoked (ended, revoke-all) or cascaded away with its user. Every
+/// removal of an impersonation row writes the tombstone via a database trigger (#1519).
 /// </summary>
 public enum ImpersonationEndResult {
 	Ended,
@@ -145,27 +146,25 @@ public class ImpersonationService : IImpersonationService {
 		}
 
 		if (!session.IsImpersonationValid()) {
-			// Expired but not swept yet: already over; the sweep removes the row and
-			// writes the tombstone.
+			// Expired but not removed yet: already over; whichever path removes the row
+			// later writes the tombstone (trigger).
 			return ImpersonationEndResult.AlreadyEnded;
 		}
 
-		var endedAt = DateTime.UtcNow;
+		// Atomic claim: the DELETE is the arbiter between concurrent ends. Whoever
+		// removes the row wins and writes the audit row; the loser sees 0 rows and
+		// answers AlreadyEnded. The tombstone is written by the sessions delete trigger.
 		await using var tx = await this._DbContext.Database.BeginTransactionAsync(cancellationToken);
-		try {
-			_ = this._DbContext.Session.Remove(session);
-			_ = this._DbContext.ImpersonationSessionEnd.Add(new ImpersonationSessionEnd {
-				SessionId = sessionId,
-				EndedAt = endedAt,
-				Reason = ImpersonationEndReason.Revoked
-			});
-			this._AddEndAuditEntry(args, session);
-			await this._DbContext.SaveChangesAsync(cancellationToken);
-			await tx.CommitAsync(cancellationToken);
-		} catch (DbUpdateConcurrencyException) {
-			// A concurrent end or sweep removed the row between read and delete.
+		var removed = await this._DbContext.Session
+			.Where(s => s.Id == sessionId && s.IsImpersonation)
+			.ExecuteDeleteAsync(cancellationToken);
+		if (removed == 0) {
 			return ImpersonationEndResult.AlreadyEnded;
 		}
+
+		this._AddEndAuditEntry(args, session);
+		await this._DbContext.SaveChangesAsync(cancellationToken);
+		await tx.CommitAsync(cancellationToken);
 
 		return ImpersonationEndResult.Ended;
 	}
@@ -178,7 +177,8 @@ public class ImpersonationService : IImpersonationService {
 			targetId: args.SessionId,
 			details: new {
 				ImpersonatedUserId = session.UserId,
-				ImpersonatingStaffUserId = session.ImpersonatingStaffUserId
+				ImpersonatingStaffUserId = session.ImpersonatingStaffUserId,
+				Reason = session.ImpersonationReason
 			},
 			ipAddress: httpContext?.Connection.RemoteIpAddress?.ToString(),
 			userAgent: httpContext?.Request.Headers.UserAgent.ToString()
