@@ -50,6 +50,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 		EmailPreparedSendsRetentionHandler.JobKey,
 		PublyApp.Api.Modules.Uploads.Jobs.UploadOrphanReclaimerHandler.JobKey,
 		PublyApp.Api.Modules.Publishing.Jobs.DispatchDuePostsJob.JobKey,
+		PublyApp.Api.Modules.SocialAccounts.Jobs.MastodonInstanceLimitsRefreshHandler.JobKey,
 	];
 
 	public SystemJobDefinitionSeederSpec(ApiFixture fixture) {

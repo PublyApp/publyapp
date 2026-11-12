@@ -181,6 +181,17 @@ public class SystemJobDefinitionSeeder : IEntitySeeder {
 					+ "(releases committed_bytes) and stale Reserved rows past "
 					+ "UPLOAD_STALE_RESERVATION_TTL_MINUTES (releases reserved_bytes).",
 			},
+			new SystemJobDefinition {
+				JobKey = PublyApp.Api.Modules.SocialAccounts.Jobs
+					.MastodonInstanceLimitsRefreshHandler.JobKey,
+				// Daily at 04:45, after the retention sweeps. The limits move rarely and a
+				// published post is validated against the stored values, so once a day is
+				// timely enough and keeps the load on strangers' servers to one request each.
+				CronExpression = "0 45 4 * * ?",
+				Description =
+					"Re-read the advertised limits of every connected Mastodon and Pixelfed "
+					+ "server and update the accounts on it (last known values kept on failure).",
+			},
 		];
 	}
 }
