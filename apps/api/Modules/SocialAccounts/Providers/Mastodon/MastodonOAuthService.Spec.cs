@@ -302,6 +302,176 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldSendAPkceChallengeAndKeepTheVerifierEncryptedWhenTheInstanceAdvertisesS256() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		h.Client.SupportsPkce = true;
+
+		var started = await h.Service.StartAsync(h.TenantId, h.UserId, "pkce.example", default);
+
+		var query = System.Web.HttpUtility.ParseQueryString(
+			new Uri(started.Should().BeOfType<StartMastodonConnectResult.Started>().Subject.AuthorizeUrl).Query
+		);
+		query["code_challenge_method"].Should().Be("S256");
+		query["code_challenge"].Should().HaveLength(43, "the base64url of a SHA-256");
+		var row = await h.Db.OAuthState.AsNoTracking().SingleAsync(s => s.TenantId == h.TenantId);
+		row.ProtectedCodeVerifier.Should().NotBeNullOrEmpty();
+
+		var result = await h.Service.CompleteAsync(h.TenantId, h.UserId, "the-code", query["state"] ?? string.Empty, default);
+
+		result.Should().BeOfType<CompleteMastodonConnectResult.Connected>();
+		var verifier = h.Client.LastExchangeVerifier.Should().NotBeNull().And.Subject;
+		row.ProtectedCodeVerifier.Should().NotContain(verifier, "only the encrypted verifier is stored");
+		var expected = Convert.ToBase64String(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.ASCII.GetBytes(verifier)))
+			.TrimEnd('=').Replace('+', '-').Replace('/', '_');
+		query["code_challenge"].Should().Be(expected, "the challenge is S256(verifier) per RFC 7636");
+	}
+
+	[Fact]
+	public async Task ItShouldConnectWithoutPkceWhenTheInstanceDoesNotAdvertiseIt() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		h.Client.SupportsPkce = false;
+
+		var started = await h.Service.StartAsync(h.TenantId, h.UserId, "nopkce.example", default);
+
+		var query = System.Web.HttpUtility.ParseQueryString(
+			new Uri(started.Should().BeOfType<StartMastodonConnectResult.Started>().Subject.AuthorizeUrl).Query
+		);
+		query["code_challenge"].Should().BeNull();
+		query["code_challenge_method"].Should().BeNull();
+		(await h.Db.OAuthState.AsNoTracking().SingleAsync(s => s.TenantId == h.TenantId)).ProtectedCodeVerifier.Should().BeNull();
+
+		var result = await h.Service.CompleteAsync(h.TenantId, h.UserId, "the-code", query["state"] ?? string.Empty, default);
+
+		result.Should().BeOfType<CompleteMastodonConnectResult.Connected>();
+		h.Client.LastExchangeVerifier.Should().BeNull("the confidential client alone authenticates the exchange");
+	}
+
+	[Fact]
+	public async Task ItShouldRefuseAPkceFlowWhoseVerifierCannotBeRead() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		h.Client.SupportsPkce = true;
+		var state = MastodonOAuthServiceSpec._StateOf(await h.Service.StartAsync(h.TenantId, h.UserId, "lostverifier.example", default));
+		await h.Db.OAuthState.Where(s => s.TenantId == h.TenantId)
+			.ExecuteUpdateAsync(s => s.SetProperty(x => x.ProtectedCodeVerifier, "garbage"));
+
+		var result = await h.Service.CompleteAsync(h.TenantId, h.UserId, "the-code", state, default);
+
+		result.Should().BeOfType<CompleteMastodonConnectResult.InvalidState>();
+		h.Client.Calls.Should().NotContain(c => c.StartsWith("exchange", StringComparison.Ordinal));
+	}
+
+	[Fact]
+	public async Task ItShouldRefuseANewHostRegistrationBeyondTheTenantQuotaButKeepKnownHostsWorking() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var hosts = Enumerable.Range(0, MastodonOAuthService.MaxNewHostRegistrationsPerTenant)
+			.Select(_ => $"quota-{Guid.NewGuid():N}.example")
+			.ToList();
+		foreach (var host in hosts) {
+			(await h.Service.StartAsync(h.TenantId, h.UserId, host, default)).Should().BeOfType<StartMastodonConnectResult.Started>();
+		}
+
+		var refused = await h.Service.StartAsync(h.TenantId, h.UserId, $"one-too-many-{Guid.NewGuid():N}.example", default);
+		var known = await h.Service.StartAsync(h.TenantId, h.UserId, hosts[0], default);
+
+		refused.Should().BeOfType<StartMastodonConnectResult.QuotaExceeded>();
+		h.Client.Calls.Count(c => c.StartsWith("register", StringComparison.Ordinal))
+			.Should().Be(MastodonOAuthService.MaxNewHostRegistrationsPerTenant, "the refused host was never contacted");
+		known.Should().BeOfType<StartMastodonConnectResult.Started>("a host already registered costs nothing");
+	}
+
+	[Fact]
+	public async Task ItShouldCountTheQuotaPerTenantAndSlideTheWindow() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var (other, otherScope) = await this._NewAsync();
+		await using var __ = otherScope;
+		for (var i = 0; i < MastodonOAuthService.MaxNewHostRegistrationsPerTenant; i++) {
+			await h.Service.StartAsync(h.TenantId, h.UserId, $"slide-{Guid.NewGuid():N}.example", default);
+		}
+
+		var blocked = await h.Service.StartAsync(h.TenantId, h.UserId, $"blocked-{Guid.NewGuid():N}.example", default);
+		var otherTenant = await other.Service.StartAsync(other.TenantId, other.UserId, $"other-{Guid.NewGuid():N}.example", default);
+		await h.Db.OAuthAppRegistration
+			.Where(r => r.RegisteredByTenantId == h.TenantId)
+			.ExecuteUpdateAsync(r => r.SetProperty(x => x.RegisteredAt, DateTime.UtcNow - MastodonOAuthService.NewHostRegistrationWindow - TimeSpan.FromMinutes(1)));
+		var later = await h.Service.StartAsync(h.TenantId, h.UserId, $"later-{Guid.NewGuid():N}.example", default);
+
+		blocked.Should().BeOfType<StartMastodonConnectResult.QuotaExceeded>();
+		otherTenant.Should().BeOfType<StartMastodonConnectResult.Started>("the quota is per tenant");
+		later.Should().BeOfType<StartMastodonConnectResult.Started>("registrations older than the window no longer count");
+	}
+
+	[Fact]
+	public async Task ItShouldRefuseAReconnectThatComesBackAsADifferentAccountAndLeaveBothUntouched() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var original = await MastodonOAuthServiceSpec._ConnectAsync(h, "swap.example", "109");
+		original.Account.Status = SocialAccountStatus.NeedsReconnect;
+		original.Account.LastError = "token rejected";
+		await h.Db.SaveChangesAsync();
+		var originalCredentials = original.Account.ProtectedCredentials;
+		h.Client.Account = new MastodonAccountInfo("777", "bob");
+		h.Client.Token = "access-token-bob";
+
+		var started = await h.Service.StartAsync(
+			h.TenantId, h.UserId, "swap.example", default, SocialProvider.Mastodon, original.Account.GetRequiredId()
+		);
+		var result = await h.Service.CompleteAsync(h.TenantId, h.UserId, "the-code", MastodonOAuthServiceSpec._StateOf(started), default);
+
+		var mismatch = result.Should().BeOfType<CompleteMastodonConnectResult.AccountMismatch>().Subject;
+		mismatch.ExpectedHandle.Should().Be("alice@swap.example");
+		mismatch.ActualHandle.Should().Be("bob@swap.example");
+		(await h.Db.SocialAccount.CountAsync(a => a.TenantId == h.TenantId)).Should().Be(1, "the other account is not linked");
+		var stored = await h.Db.SocialAccount.AsNoTracking().SingleAsync(a => a.TenantId == h.TenantId);
+		stored.Status.Should().Be(SocialAccountStatus.NeedsReconnect);
+		stored.ProtectedCredentials.Should().Be(originalCredentials);
+		h.Client.Calls.Should().Contain(c => c.StartsWith("revoke swap.example access-token-bob", StringComparison.Ordinal),
+			"the token of the account that was not meant to connect is revoked, not left behind");
+	}
+
+	[Fact]
+	public async Task ItShouldReconnectNormallyWhenTheSameAccountComesBack() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var original = await MastodonOAuthServiceSpec._ConnectAsync(h, "same.example", "109");
+		original.Account.Status = SocialAccountStatus.NeedsReconnect;
+		await h.Db.SaveChangesAsync();
+		h.Client.Token = "access-token-2";
+
+		var started = await h.Service.StartAsync(
+			h.TenantId, h.UserId, "same.example", default, SocialProvider.Mastodon, original.Account.GetRequiredId()
+		);
+		var result = await h.Service.CompleteAsync(h.TenantId, h.UserId, "the-code", MastodonOAuthServiceSpec._StateOf(started), default);
+
+		var connected = result.Should().BeOfType<CompleteMastodonConnectResult.Connected>().Subject;
+		connected.WasKnown.Should().BeTrue();
+		connected.Account.Status.Should().Be(SocialAccountStatus.Active);
+		h.Client.Calls.Should().NotContain(c => c.StartsWith("revoke", StringComparison.Ordinal));
+	}
+
+	[Fact]
+	public async Task ItShouldNotStartAReconnectForAnAccountOutsideTheTenantOrNetwork() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var (other, otherScope) = await this._NewAsync();
+		await using var __ = otherScope;
+		var foreign = await MastodonOAuthServiceSpec._ConnectAsync(other, "foreign-acct.example", "5");
+		var own = await MastodonOAuthServiceSpec._ConnectAsync(h, "own-acct.example", "6");
+
+		var unknown = await h.Service.StartAsync(h.TenantId, h.UserId, "own-acct.example", default, SocialProvider.Mastodon, Guid.NewGuid());
+		var otherTenants = await h.Service.StartAsync(h.TenantId, h.UserId, "own-acct.example", default, SocialProvider.Mastodon, foreign.Account.GetRequiredId());
+		var wrongNetwork = await h.Service.StartAsync(h.TenantId, h.UserId, "own-acct.example", default, SocialProvider.Pixelfed, own.Account.GetRequiredId());
+
+		unknown.Should().BeOfType<StartMastodonConnectResult.ReconnectTargetNotFound>();
+		otherTenants.Should().BeOfType<StartMastodonConnectResult.ReconnectTargetNotFound>();
+		wrongNetwork.Should().BeOfType<StartMastodonConnectResult.ReconnectTargetNotFound>();
+	}
+
+	[Fact]
 	public async Task ItShouldRevokeTheTokenBestEffortWithTheStoredAppSecret() {
 		var (h, scope) = await this._NewAsync();
 		await using var _ = scope;
@@ -376,15 +546,26 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 
 		public string? LastExchangeClientId { get; private set; }
 
+		// Whether the fake instance advertises PKCE S256; false models an older Mastodon / Pixelfed.
+		public bool SupportsPkce { get; set; }
+
+		public string? LastExchangeVerifier { get; private set; }
+
 		public Task<MastodonResult<MastodonApp>> RegisterAppAsync(string host, string redirectUri, string scopes, CancellationToken cancellationToken) {
 			this.Calls.Add($"register {host}");
 			var clientId = this.UniqueClients ? $"client-{scopes.Replace(' ', '-')}" : "client-id";
 			return Task.FromResult<MastodonResult<MastodonApp>>(new MastodonResult<MastodonApp>.Ok(new MastodonApp(clientId, "client-secret")));
 		}
 
-		public Task<MastodonResult<string>> ExchangeCodeAsync(string host, MastodonApp app, string redirectUri, string code, CancellationToken cancellationToken) {
+		public Task<bool> SupportsPkceAsync(string host, CancellationToken cancellationToken) {
+			this.Calls.Add($"pkce {host}");
+			return Task.FromResult(this.SupportsPkce);
+		}
+
+		public Task<MastodonResult<string>> ExchangeCodeAsync(string host, MastodonApp app, string redirectUri, string code, string? codeVerifier, CancellationToken cancellationToken) {
 			this.Calls.Add($"exchange {host}");
 			this.LastExchangeClientId = app.ClientId;
+			this.LastExchangeVerifier = codeVerifier;
 			return Task.FromResult(this.TokenResult ?? new MastodonResult<string>.Ok(this.Token));
 		}
 

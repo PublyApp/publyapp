@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
@@ -26,6 +25,12 @@ public abstract record StartMastodonConnectResult {
 	public sealed record Refused(string Reason) : StartMastodonConnectResult;
 
 	public sealed record Unreachable() : StartMastodonConnectResult;
+
+	/// <summary>The tenant registered PublyApp on too many new servers recently (#2186).</summary>
+	public sealed record QuotaExceeded() : StartMastodonConnectResult;
+
+	/// <summary>The account to reconnect is not one of this tenant's accounts on that network.</summary>
+	public sealed record ReconnectTargetNotFound() : StartMastodonConnectResult;
 }
 
 public abstract record CompleteMastodonConnectResult {
@@ -38,6 +43,13 @@ public abstract record CompleteMastodonConnectResult {
 	public sealed record Refused(string Reason) : CompleteMastodonConnectResult;
 
 	public sealed record Unreachable() : CompleteMastodonConnectResult;
+
+	/// <summary>
+	/// A reconnect came back signed in as a different account than the one being reconnected.
+	/// Nothing was stored, the new token was revoked and the old account is untouched (#2186).
+	/// </summary>
+	public sealed record AccountMismatch(string ExpectedHandle, string ActualHandle)
+		: CompleteMastodonConnectResult;
 }
 
 /// <summary>
@@ -54,6 +66,18 @@ public sealed class MastodonOAuthService {
 	// Pixelfed only knows the coarse OAuth scopes.
 	public const string PixelfedScopes = "read write";
 	public const string CallbackPath = "/tenant/settings/integrations";
+
+	/// <summary>
+	/// How many NEW servers one tenant may register PublyApp on per rolling window (#2186, L6).
+	/// Registering is a write on a stranger's server triggered by any signed-in user, and the row
+	/// is shared by every tenant, so without a cap one account could make PublyApp register on
+	/// arbitrarily many hosts. Five covers a person who connects a few fediverse accounts in a
+	/// day; reconnecting or connecting on a server another tenant already registered costs
+	/// nothing, and the window slides, so a tenant is never locked out for good.
+	/// </summary>
+	public const int MaxNewHostRegistrationsPerTenant = 5;
+
+	public static readonly TimeSpan NewHostRegistrationWindow = TimeSpan.FromHours(24);
 
 	private static readonly TimeSpan _StateLifetime = TimeSpan.FromMinutes(10);
 
@@ -88,15 +112,37 @@ public sealed class MastodonOAuthService {
 		Guid userId,
 		string rawInstance,
 		CancellationToken cancellationToken,
-		SocialProvider provider = SocialProvider.Mastodon
+		SocialProvider provider = SocialProvider.Mastodon,
+		Guid? reconnectAccountId = null
 	) {
 		var host = MastodonHostGuard.NormalizeHost(rawInstance);
 		if (host is null) {
 			return new StartMastodonConnectResult.InvalidInstance();
 		}
 
+		if (reconnectAccountId is { } target) {
+			var known = await this._Db.SocialAccount
+				.AsNoTracking()
+				.AnyAsync(
+					account => account.Id == target
+						&& account.TenantId == tenantId
+						&& account.Provider == provider
+						&& !account.IsDeleted,
+					cancellationToken
+				);
+			if (!known) {
+				return new StartMastodonConnectResult.ReconnectTargetNotFound();
+			}
+		}
+
 		var scopes = MastodonOAuthService._ScopesFor(provider);
-		var app = await this._FindOrRegisterAppAsync(host, provider, scopes, cancellationToken);
+		var (app, quotaExceeded) = await this._FindOrRegisterAppAsync(
+			tenantId, host, provider, scopes, cancellationToken
+		);
+		if (quotaExceeded) {
+			return new StartMastodonConnectResult.QuotaExceeded();
+		}
+
 		if (app is MastodonResult<MastodonApp>.Refused refused) {
 			return new StartMastodonConnectResult.Refused(refused.Reason);
 		}
@@ -111,6 +157,12 @@ public sealed class MastodonOAuthService {
 			.Where(state => state.TenantId == tenantId && state.ExpiresAt < cutoff)
 			.ExecuteDeleteAsync(cancellationToken);
 
+		// PKCE (RFC 7636, S256) when the instance advertises it; an instance that does not
+		// (older Mastodon, Pixelfed) connects exactly as before, with the stored client secret.
+		var verifier = await this._Client.SupportsPkceAsync(host, cancellationToken)
+			? MastodonOAuthService._Base64Url(RandomNumberGenerator.GetBytes(32))
+			: null;
+
 		var state = MastodonOAuthService._Base64Url(RandomNumberGenerator.GetBytes(32));
 		await this._Db.OAuthState.AddAsync(new OAuthState {
 			TenantId = tenantId,
@@ -118,17 +170,29 @@ public sealed class MastodonOAuthService {
 			StateHash = MastodonOAuthService.Hash(state),
 			Provider = provider,
 			InstanceHost = host,
+			ProtectedCodeVerifier = verifier is null
+				? null
+				: this._Protector.Protect(verifier, SocialProvider.Mastodon),
+			ReconnectSocialAccountId = reconnectAccountId,
 			ExpiresAt = DateTime.UtcNow.Add(MastodonOAuthService._StateLifetime),
 		}, cancellationToken);
 		await this._Db.SaveChangesAsync(cancellationToken);
 
-		var query = string.Join("&", new Dictionary<string, string> {
+		var parameters = new Dictionary<string, string> {
 			["response_type"] = "code",
 			["client_id"] = registered.Value.ClientId,
 			["redirect_uri"] = this.RedirectUri,
 			["scope"] = scopes,
 			["state"] = state,
-		}.Select(pair => $"{pair.Key}={Uri.EscapeDataString(pair.Value)}"));
+		};
+		if (verifier is not null) {
+			parameters["code_challenge"] = MastodonOAuthService._Base64Url(
+				SHA256.HashData(Encoding.ASCII.GetBytes(verifier))
+			);
+			parameters["code_challenge_method"] = "S256";
+		}
+
+		var query = string.Join("&", parameters.Select(pair => $"{pair.Key}={Uri.EscapeDataString(pair.Value)}"));
 		return new StartMastodonConnectResult.Started($"https://{host}/oauth/authorize?{query}");
 	}
 
@@ -148,7 +212,13 @@ public sealed class MastodonOAuthService {
 				&& row.UserId == userId
 				&& row.ConsumedAt == null
 				&& row.ExpiresAt > now)
-			.Select(row => new { row.Id, row.InstanceHost, row.Provider })
+			.Select(row => new {
+				row.Id,
+				row.InstanceHost,
+				row.Provider,
+				row.ProtectedCodeVerifier,
+				row.ReconnectSocialAccountId,
+			})
 			.FirstOrDefaultAsync(cancellationToken);
 		if (pending is null) {
 			return new CompleteMastodonConnectResult.InvalidState();
@@ -177,8 +247,19 @@ public sealed class MastodonOAuthService {
 			return new CompleteMastodonConnectResult.InvalidState();
 		}
 
+		string? verifier = null;
+		if (pending.ProtectedCodeVerifier is not null) {
+			verifier = this._Protector.Unprotect(pending.ProtectedCodeVerifier, SocialProvider.Mastodon).Plaintext;
+			if (verifier is null) {
+				// The instance holds the challenge: without the verifier no exchange can succeed.
+				return new CompleteMastodonConnectResult.InvalidState();
+			}
+		}
+
 		var app = new MastodonApp(registration.ClientId, secret);
-		var token = await this._Client.ExchangeCodeAsync(host, app, this.RedirectUri, code, cancellationToken);
+		var token = await this._Client.ExchangeCodeAsync(
+			host, app, this.RedirectUri, code, verifier, cancellationToken
+		);
 		if (token is MastodonResult<string>.Refused refusedToken) {
 			return new CompleteMastodonConnectResult.Refused(refusedToken.Reason);
 		}
@@ -196,17 +277,26 @@ public sealed class MastodonOAuthService {
 			return new CompleteMastodonConnectResult.Unreachable();
 		}
 
+		if (pending.ReconnectSocialAccountId is { } reconnecting) {
+			var expected = await this._Db.SocialAccount
+				.AsNoTracking()
+				.Where(row => row.Id == reconnecting && row.TenantId == tenantId && !row.IsDeleted)
+				.Select(row => new { row.ExternalAccountId, row.DisplayHandle })
+				.FirstOrDefaultAsync(cancellationToken);
+			if (expected is not null && expected.ExternalAccountId != $"{account.Value.Id}@{host}") {
+				// A different account signed in: never link it silently, and never leave its
+				// token behind. The account being reconnected stays exactly as it was.
+				await this.RevokeBestEffortAsync(
+					new MastodonRevocation(host, app, accessToken.Value), cancellationToken
+				);
+				return new CompleteMastodonConnectResult.AccountMismatch(
+					expected.DisplayHandle, $"{account.Value.Acct}@{host}"
+				);
+			}
+		}
+
 		var limits = await this._Client.GetInstanceLimitsAsync(host, cancellationToken);
-		var overrides = limits is null
-			? null
-			: CapabilityOverridesFactory.ForMastodon(
-				limits.MaxCharacters,
-				limits.MaxMediaAttachments,
-				limits.CharactersReservedPerUrl,
-				limits.ImageSizeLimit,
-				limits.SupportedMimeTypes,
-				pending.Provider
-			);
+		var overrides = limits?.ToCapabilityOverrides(pending.Provider);
 
 		return await this._StoreAccountAsync(
 			tenantId, pending.Provider, host, account.Value, accessToken.Value, overrides, cancellationToken
@@ -275,7 +365,8 @@ public sealed class MastodonOAuthService {
 		}
 	}
 
-	private async Task<MastodonResult<MastodonApp>> _FindOrRegisterAppAsync(
+	private async Task<(MastodonResult<MastodonApp> App, bool QuotaExceeded)> _FindOrRegisterAppAsync(
+		Guid tenantId,
 		string host,
 		SocialProvider provider,
 		string scopes,
@@ -289,7 +380,22 @@ public sealed class MastodonOAuthService {
 		if (existing is not null && existing.RedirectUri == this.RedirectUri && existing.Scopes == scopes) {
 			var secret = this._Protector.Unprotect(existing.ProtectedClientSecret, SocialProvider.Mastodon);
 			if (secret.Plaintext is not null) {
-				return new MastodonResult<MastodonApp>.Ok(new MastodonApp(existing.ClientId, secret.Plaintext));
+				return (new MastodonResult<MastodonApp>.Ok(new MastodonApp(existing.ClientId, secret.Plaintext)), false);
+			}
+		}
+
+		if (existing is null) {
+			// A server nobody registered on yet: this is the write a stranger's server sees, so it
+			// is capped per tenant (see MaxNewHostRegistrationsPerTenant).
+			var since = DateTime.UtcNow - MastodonOAuthService.NewHostRegistrationWindow;
+			var recent = await this._Db.OAuthAppRegistration
+				.AsNoTracking()
+				.CountAsync(
+					row => row.RegisteredByTenantId == tenantId && row.RegisteredAt > since,
+					cancellationToken
+				);
+			if (recent >= MastodonOAuthService.MaxNewHostRegistrationsPerTenant) {
+				return (new MastodonResult<MastodonApp>.Unreachable(), true);
 			}
 		}
 
@@ -297,7 +403,7 @@ public sealed class MastodonOAuthService {
 			host, this.RedirectUri, scopes, cancellationToken
 		);
 		if (registered is not MastodonResult<MastodonApp>.Ok ok) {
-			return registered;
+			return (registered, false);
 		}
 
 		var protectedSecret = this._Protector.Protect(ok.Value.ClientSecret, SocialProvider.Mastodon);
@@ -315,6 +421,8 @@ public sealed class MastodonOAuthService {
 				ProtectedClientSecret = protectedSecret,
 				Scopes = scopes,
 				RedirectUri = this.RedirectUri,
+				RegisteredByTenantId = tenantId,
+				RegisteredAt = DateTime.UtcNow,
 			}, cancellationToken);
 		}
 
@@ -331,13 +439,13 @@ public sealed class MastodonOAuthService {
 				);
 			var winnerSecret = this._ClientSecret(winner?.ProtectedClientSecret);
 			if (winner is null || winnerSecret is null) {
-				return new MastodonResult<MastodonApp>.Unreachable();
+				return (new MastodonResult<MastodonApp>.Unreachable(), false);
 			}
 
-			return new MastodonResult<MastodonApp>.Ok(new MastodonApp(winner.ClientId, winnerSecret));
+			return (new MastodonResult<MastodonApp>.Ok(new MastodonApp(winner.ClientId, winnerSecret)), false);
 		}
 
-		return ok;
+		return (ok, false);
 	}
 
 	private async Task<CompleteMastodonConnectResult> _StoreAccountAsync(

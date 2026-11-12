@@ -71,6 +71,21 @@ public sealed class CompleteMastodonConnectForTenant {
 			);
 		}
 
+		if (result is CompleteMastodonConnectResult.AccountMismatch mismatch) {
+			// A reconnect that came back as someone else: nothing was linked and the account
+			// being reconnected is untouched. The front asks what to do next (#2186).
+			const string reason = "You signed in with a different account than the one being reconnected. Nothing was changed.";
+			return TypedProblems.ValidationProblem(
+				reason,
+				ResponseKeys.MastodonReconnectAccountMismatch,
+				new Dictionary<string, string[]> { ["state"] = [reason] },
+				new Dictionary<string, object?> {
+					["expectedHandle"] = mismatch.ExpectedHandle,
+					["actualHandle"] = mismatch.ActualHandle,
+				}
+			);
+		}
+
 		if (result is CompleteMastodonConnectResult.Refused refused) {
 			return TypedProblems.ValidationProblem(
 				refused.Reason,
