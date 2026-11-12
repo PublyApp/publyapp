@@ -150,7 +150,10 @@ public sealed class PostSegmentImagesSpec : IClassFixture<ApiFixture> {
 		);
 
 		overCap.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		(await PostSegmentImagesSpec._ProblemAsync(overCap)).GetProperty("translationKey").GetString().Should().Be("post-image-limit-reached");
+		(await PostSegmentImagesSpec._ProblemAsync(overCap)).GetProperty("translationKey").GetString().Should().Be("post-segment-image-limit-reached");
+		var problem = await PostSegmentImagesSpec._ProblemAsync(overCap);
+		problem.GetProperty("limit").GetInt32().Should().Be(4);
+		problem.GetProperty("detail").GetString().Should().Contain("follow-up segment").And.Contain("4");
 		await this._AttachAsync(tenantId, token, postId, segments[1].Id, 50);
 	}
 
@@ -356,6 +359,43 @@ public sealed class PostSegmentImagesSpec : IClassFixture<ApiFixture> {
 
 		unknown.StatusCode.Should().Be(HttpStatusCode.NotFound);
 		foreign.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	}
+
+	[Fact]
+	public async Task ItShouldHideForeignTenantsAndForeignAssetsOnTheSegmentAltTextRoute() {
+		var (tenantId, token) = await this._LoginAsync();
+		var postId = await this._CreateThreadAsync(tenantId, token, "two", "three");
+		var otherPostId = await this._CreateThreadAsync(tenantId, token, "other two");
+		var segments = (await this._GetAsync(tenantId, token, postId)).Segments;
+		var otherSegment = (await this._GetAsync(tenantId, token, otherPostId)).Segments[0];
+		var mine = await this._AttachAsync(tenantId, token, postId, segments[0].Id, 10);
+		var onOtherPost = await this._AttachAsync(tenantId, token, otherPostId, otherSegment.Id, 20);
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var otherTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			this._Http, staffToken, SeedConstants.Tenants.TechStartName
+		);
+		var otherToken = await this._AuthClient.LoginAsync(
+			TestConstants.TechStartAdminEmail, TestConstants.SeedPassword
+		);
+		var body = new { altText = "intruder" };
+
+		using var foreignTenant = await this._SendAsync(
+			otherTenantId, otherToken, HttpMethod.Patch,
+			$"/posts/{postId}/segments/{segments[0].Id}/images/{mine.Id}", JsonContent.Create(body)
+		);
+		using var assetOfAnotherPost = await this._SendAsync(
+			tenantId, token, HttpMethod.Patch,
+			$"/posts/{postId}/segments/{segments[0].Id}/images/{onOtherPost.Id}", JsonContent.Create(body)
+		);
+		using var assetOfAnotherSegment = await this._SendAsync(
+			tenantId, token, HttpMethod.Patch,
+			$"/posts/{postId}/segments/{segments[1].Id}/images/{mine.Id}", JsonContent.Create(body)
+		);
+
+		foreignTenant.StatusCode.Should().Be(HttpStatusCode.NotFound);
+		assetOfAnotherPost.StatusCode.Should().Be(HttpStatusCode.NotFound);
+		assetOfAnotherSegment.StatusCode.Should().Be(HttpStatusCode.NotFound);
+		(await this._GetAsync(tenantId, token, postId)).Segments[0].Images.Single().AltText.Should().BeNull();
 	}
 
 	[Fact]

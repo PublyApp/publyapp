@@ -133,6 +133,15 @@ describe('useResponseMessageTranslator in French', () => {
 		expect(translate('post-segment-blank', {})).toBeUndefined();
 	});
 
+	test('names the follow-up image limit it was given, and keeps the detail without one', () => {
+		const translate = translatorFor('fr');
+
+		expect(
+			translate('post-segment-image-limit-reached', { limit: 4 }),
+		).toContain('au plus 4 images');
+		expect(translate('post-segment-image-limit-reached', {})).toBeUndefined();
+	});
+
 	test('a translation that still has placeholders is treated as untranslated', () => {
 		const translate = translatorFor('fr', {
 			'post-segments-locked': 'Le segment {{index}} est verrouillé',

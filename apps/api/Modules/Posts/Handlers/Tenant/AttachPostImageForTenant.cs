@@ -138,7 +138,7 @@ public sealed class AttachPostImageForTenant {
 			? ProviderCapabilityRegistry.MaxImagesPerPost
 			: ProviderCapabilityRegistry.MaxImagesPerFollowUp;
 		if (existingImages.Count >= imageCap) {
-			return AttachPostImageForTenant._LimitReached(imageCap);
+			return AttachPostImageForTenant._LimitReached(imageCap, segmentId is not null);
 		}
 		var maxBytes = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
 		if (file.Length > maxBytes) {
@@ -311,7 +311,7 @@ public sealed class AttachPostImageForTenant {
 				);
 				if (segmentResult is AttachSegmentMediaResult.LimitReached segmentLimit) {
 					await uploadReferences.TryReleaseReferenceAsync(relativePath, cancellationToken);
-					return AttachPostImageForTenant._LimitReached(segmentLimit.MaxImages);
+					return AttachPostImageForTenant._LimitReached(segmentLimit.MaxImages, forSegment: true);
 				}
 
 				var segmentAttached = ((AttachSegmentMediaResult.Attached)segmentResult).Asset;
@@ -387,11 +387,13 @@ public sealed class AttachPostImageForTenant {
 		);
 	}
 
-	private static AppValidationProblemHttpResult _LimitReached(int max) {
-		var message = $"A post can have at most {max} images";
+	private static AppValidationProblemHttpResult _LimitReached(int max, bool forSegment = false) {
+		var message = forSegment
+			? $"A follow-up segment can have at most {max} images"
+			: $"A post can have at most {max} images";
 		return TypedProblems.ValidationProblem(
 			message,
-			ResponseKeys.PostImageLimitReached,
+			forSegment ? ResponseKeys.PostSegmentImageLimitReached : ResponseKeys.PostImageLimitReached,
 			new Dictionary<string, string[]> {
 				{ "file", [message] }
 			},

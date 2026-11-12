@@ -11,7 +11,6 @@ namespace PublyApp.Api.Modules.Publishing.Lib;
 /// plain queries the post, schedule and publish paths all need identically.
 /// </summary>
 public static class ThreadSegments {
-	/// <summary>The post's follow-up segment texts (segments 2..N) in order.</summary>
 	/// <summary>Follow-up segments as (Id, Body) in one query, so ids and bodies never drift apart.</summary>
 	public static async Task<IReadOnlyList<(Guid Id, string Body)>> FollowUpsAsync(
 		AppDbContext db,
@@ -27,6 +26,7 @@ public static class ThreadSegments {
 		return rows.Select(row => (row.Id.GetValueOrDefault(), row.Body)).ToList();
 	}
 
+	/// <summary>The post's follow-up segment texts (segments 2..N) in order.</summary>
 	public static async Task<IReadOnlyList<string>> FollowUpBodiesAsync(
 		AppDbContext db,
 		Guid postId,

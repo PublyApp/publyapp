@@ -23,6 +23,7 @@ const AS_INFORMATIVE_AS_DETAIL: ReadonlySet<string> = new Set([
 const RENDITION_INVALID_PROBLEM = 'publish-rendition-invalid';
 const PUBLISH_PROVIDER_DISABLED_PROBLEM = 'publish-provider-disabled';
 const SEGMENT_BLANK_PROBLEM = 'post-segment-blank';
+const SEGMENT_IMAGE_LIMIT_PROBLEM = 'post-segment-image-limit-reached';
 
 const asText = (value: unknown): string | undefined =>
 	typeof value === 'string' && value.length > 0 ? value : undefined;
@@ -101,6 +102,14 @@ export const useResponseMessageTranslator = () => {
 				return undefined;
 			}
 			return t('posts:segment-blank', { index });
+		}
+
+		// Names the follow-up's own image limit (not a post's).
+		if (translationKey === SEGMENT_IMAGE_LIMIT_PROBLEM) {
+			const limit = asPositiveInteger(extensions.limit);
+			return limit === undefined
+				? undefined
+				: t('posts:segment-image-limit', { limit });
 		}
 
 		if (!AS_INFORMATIVE_AS_DETAIL.has(translationKey)) {

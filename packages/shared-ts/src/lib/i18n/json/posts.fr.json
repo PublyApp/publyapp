@@ -143,6 +143,7 @@
 	"destination-media-include": "Publier l’image {{index}} ici",
 	"destination-media-empty": "Aucune image ne sera publiée sur cette destination.",
 	"override-over-limit": "{{destination}} : le texte personnalisé du segment {{index}} est trop long. Raccourcissez-le, ou revenez au texte partagé pour cette destination.",
+	"segment-image-limit": "Un segment de suite peut avoir au plus {{limit}} images.",
 	"segment-blank": "Le segment {{index}} est vide. Rédigez-le, ou supprimez-le.",
 	"override-blank": "{{destination}} : le texte personnalisé du segment {{index}} est vide. Rédigez-le, ou désactivez la personnalisation.",
 	"override-segment-missing": "{{destination}} : le segment {{index}} n’existe plus dans le post. Rechargez la page puis réessayez.",

@@ -158,7 +158,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 	// docs/guides/social-accounts.md, "Idempotency beyond about an hour".
 	internal static readonly TimeSpan IdempotencyWindow = TimeSpan.FromMinutes(50);
 
-	private sealed record Outcome(PublishResult Result, CompletedSegment? Segment);
+	private sealed record Outcome(PublishResult Result, CompletedSegment? Segment, string? Content = null);
 
 	private async Task<Outcome> _CreateSegmentAsync(
 		HttpClient client,
@@ -214,9 +214,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 				client, httpRequest, position, MastodonPublishProvider._Network(request), cancellationToken
 			);
 			if (sent.Segment is not null && request.ResendPosition == position) {
-				return await MastodonPublishProvider._VerifyDedupedTextAsync(
-					client, request, sent, text, cancellationToken
-				);
+				return MastodonPublishProvider._VerifyDedupedText(sent, text);
 			}
 
 			return sent;
@@ -268,44 +266,54 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		var url = body.GetStringPropertyOrNull("url")
 			?? body.GetStringPropertyOrNull("uri")
 			?? string.Empty;
-		return new Outcome(new PublishResult.Published(id, url), new CompletedSegment(position, id, string.Empty, url));
+		return new Outcome(
+			new PublishResult.Published(id, url),
+			new CompletedSegment(position, id, string.Empty, url),
+			body.GetStringPropertyOrNull("content")
+		);
 	}
 
 	/// <summary>
-	/// A resend under the same key is answered with the original status: confirm it still
-	/// holds the text being sent, so an edited segment never records the old text as published.
+	/// A resend under the same key is answered with the ORIGINAL status object: its
+	/// rendered <c>content</c> must still read as the text being sent, so an edited segment
+	/// never records the old text as published. Needs no extra scope (no source lookup).
+	/// A status that cannot be confirmed is live: fail without a retry, never loop.
 	/// </summary>
-	private static async Task<Outcome> _VerifyDedupedTextAsync(
-		HttpClient client,
-		PublishRequest request,
-		Outcome sent,
-		string text,
-		CancellationToken cancellationToken
-	) {
+	private static Outcome _VerifyDedupedText(Outcome sent, string text) {
 		if (sent.Segment is null) {
 			return sent;
 		}
 
-		using var lookup = MastodonPublishProvider._Request(
-			HttpMethod.Get, request, $"/api/v1/statuses/{Uri.EscapeDataString(sent.Segment.RecordId)}/source"
-		);
-		using var response = await client.SendAsync(lookup, cancellationToken);
-		if (!response.IsSuccessStatusCode) {
-			return new Outcome(new PublishResult.Ambiguous(
-				"the instance could not confirm the text of the status it already holds"
-			), null);
-		}
-
-		var body = await MastodonPublishProvider._ReadJsonAsync(response, cancellationToken);
-		var existing = body.GetStringPropertyOrNull("text");
-		if (existing is null || string.Equals(existing, text, StringComparison.Ordinal)) {
+		if (sent.Content is not null
+			&& MastodonPublishProvider._Plain(sent.Content) == MastodonPublishProvider._Plain(text)) {
 			return sent;
 		}
 
 		return new Outcome(new PublishResult.ContentFailure(
-			"An earlier attempt already posted this segment with different text. "
-			+ "Delete that status on your instance, then publish again."
+			"The instance already holds a status for this segment that does not match its text. "
+			+ "Check it on your profile, delete it if it is outdated, then publish again."
 		), null);
+	}
+
+	/// <summary>
+	/// Text as readers see it: tags dropped, entities decoded, whitespace removed, so the
+	/// HTML the instance renders (paragraphs, line breaks, links) compares with the plain
+	/// text that was sent.
+	/// </summary>
+	private static string _Plain(string value) {
+		var kept = new StringBuilder(value.Length);
+		var inTag = false;
+		foreach (var character in value) {
+			if (character == '<') {
+				inTag = true;
+			} else if (character == '>' && inTag) {
+				inTag = false;
+			} else if (!inTag) {
+				kept.Append(character);
+			}
+		}
+
+		return string.Concat(System.Net.WebUtility.HtmlDecode(kept.ToString()).Where(c => !char.IsWhiteSpace(c)));
 	}
 
 	private sealed record Uploaded(List<string> Ids, PublishResult? Failure);

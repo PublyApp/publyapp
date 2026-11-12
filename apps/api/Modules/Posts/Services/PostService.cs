@@ -351,9 +351,9 @@ public class PostService : IPostService {
 			return new UpdatePostResult.NotFound();
 		}
 
-		// Reordering follow-ups moves unique positions around: one transaction keeps the
-		// parking step and the final write atomic (#2181).
-		IDbContextTransaction? transaction = args.SegmentIds is null
+		// Moving follow-ups parks rows on negative positions before the final write, by id or
+		// by position alike: one transaction keeps the two saves atomic (#2181).
+		IDbContextTransaction? transaction = args.Segments is null
 			? null
 			: await this._DbContext.Database.BeginTransactionAsync(cancellationToken);
 		await using var transactionScope = transaction;

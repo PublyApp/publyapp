@@ -365,6 +365,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PostSegmentBlank = new("post-segment-blank");
 
 	/// <summary>
+	/// A follow-up segment has reached its image limit
+	/// </summary>
+	public static readonly TranslationKey PostSegmentImageLimitReached = new("post-segment-image-limit-reached");
+
+	/// <summary>
 	/// No such segment on this post
 	/// </summary>
 	public static readonly TranslationKey PostSegmentNotFound = new("post-segment-not-found");

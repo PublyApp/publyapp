@@ -506,30 +506,50 @@ public sealed class MastodonPublishProviderSpec {
 		handler.Requests.Should().BeEmpty();
 	}
 
-	[Fact]
-	public async Task ItShouldRefuseToRecordTheOldTextWhenADedupedResendReturnsAStatusWithOtherText() {
-		var handler = new RecordingHandler(request => MastodonPublishProviderSpec._IsStatus(request)
-			? MastodonPublishProviderSpec._Status("111")
-			: MastodonPublishProviderSpec._Json(200, """{"id":"111","text":"the text before the edit"}"""));
-
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(
-			MastodonPublishProviderSpec._Request() with { ResendPosition = 0 }, CancellationToken.None
+	private static HttpResponseMessage _StatusWithContent(string id, string html) {
+		return MastodonPublishProviderSpec._Json(
+			200, JsonSerializer.Serialize(new { id, url = $"https://social.example/@me/{id}", content = html })
 		);
-
-		result.Should().BeOfType<PublishResult.ContentFailure>().Which.Cause.Should().Contain("different text");
 	}
 
 	[Fact]
-	public async Task ItShouldRecordADedupedResendWhoseStatusStillHoldsTheTextBeingSent() {
-		var handler = new RecordingHandler(request => MastodonPublishProviderSpec._IsStatus(request)
-			? MastodonPublishProviderSpec._Status("111")
-			: MastodonPublishProviderSpec._Json(200, """{"id":"111","text":"hello fediverse"}"""));
+	public async Task ItShouldRefuseToRecordTheOldTextWhenADedupedResendReturnsAStatusWithOtherText() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._StatusWithContent(
+			"111", "<p>the text before the edit</p>"
+		));
 
 		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(
 			MastodonPublishProviderSpec._Request() with { ResendPosition = 0 }, CancellationToken.None
 		);
 
+		result.Should().BeOfType<PublishResult.ContentFailure>().Which.Cause.Should().Contain("does not match");
+		handler.Requests.Should().ContainSingle("no extra lookup: the read scope is not granted");
+	}
+
+	[Fact]
+	public async Task ItShouldRecordADedupedResendWhoseRenderedContentStillReadsAsTheTextSent() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._StatusWithContent(
+			"111", "<p>hello <a href=\"https://x.example/a\" rel=\"nofollow\"><span class=\"invisible\">https://</span>x.example/a</a> &amp; fediverse<br />line two</p><p>para</p>"
+		));
+		var request = MastodonPublishProviderSpec._Request() with {
+			PostBody = "hello https://x.example/a & fediverse\nline two\n\npara",
+			ResendPosition = 0,
+		};
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+
 		result.Should().BeOfType<PublishResult.Published>().Which.RecordId.Should().Be("111");
+	}
+
+	[Fact]
+	public async Task ItShouldNotRetryAResendWhoseStatusCarriesNoContentToCompare() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("111"));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(
+			MastodonPublishProviderSpec._Request() with { ResendPosition = 0 }, CancellationToken.None
+		);
+
+		result.Should().BeOfType<PublishResult.ContentFailure>("a live status must not burn retries as Ambiguous");
 	}
 
 	[Fact]
