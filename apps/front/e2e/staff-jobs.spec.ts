@@ -102,8 +102,6 @@ test.describe('staff jobs dashboard', { tag: ['@staff-jobs', '@1454'] }, () => {
 		page,
 	}) => {
 		await loginAsStaffAdmin(page);
-		// Deterministic action-gating: see mockStaffAuthScope above.
-		await mockStaffAuthScope(page);
 
 		// --- Queue section renders rows from the mocked list endpoint.
 		await mockQueueList(page, [queueRow]);
