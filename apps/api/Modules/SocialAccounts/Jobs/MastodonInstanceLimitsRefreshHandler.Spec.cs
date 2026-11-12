@@ -249,6 +249,20 @@ public sealed class MastodonInstanceLimitsRefreshHandlerSpec : IClassFixture<Api
 	}
 
 	[Fact]
+	public async Task ItShouldNotReportSuccessWhenEveryServerIsUnreachable() {
+		var (db, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var tenantId = await MastodonInstanceLimitsRefreshHandlerSpec._TenantAsync(db);
+		await MastodonInstanceLimitsRefreshHandlerSpec._AccountAsync(db, tenantId, $"offline-{Guid.NewGuid():N}.example");
+
+		// The real client answers null for a transport failure; no host has limits configured.
+		var outcome = await MastodonInstanceLimitsRefreshHandlerSpec._Handler(db, new RecordingClient())
+			.HandleAsync(MastodonInstanceLimitsRefreshHandlerSpec._Context(), CancellationToken.None);
+
+		outcome.Should().BeOfType<JobOutcome.Retry>("an unreachable fleet is an outage, not a quiet day");
+	}
+
+	[Fact]
 	public async Task ItShouldBeHarmlessToRunTwice() {
 		var (db, scope) = await this._NewAsync();
 		await using var _ = scope;

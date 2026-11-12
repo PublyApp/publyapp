@@ -42,12 +42,14 @@ namespace PublyApp.Api.Migrations
                 type: "uuid",
                 nullable: true);
 
-            // NOT VALID then VALIDATE: the ADD takes only a brief lock and the full-table
-            // check runs without blocking writes.
+            // NOT VALID then VALIDATE, with the VALIDATE outside the migration transaction: in
+            // one transaction the ACCESS EXCLUSIVE lock of the ADD would still be held during
+            // the full-table scan. Run on its own, VALIDATE only takes a lock that lets writes in.
             migrationBuilder.Sql(
                 "ALTER TABLE social_accounts ADD CONSTRAINT \"CK_SocialAccount_DefaultVisibility\" CHECK (default_visibility IN (0, 1, 2)) NOT VALID;");
             migrationBuilder.Sql(
-                "ALTER TABLE social_accounts VALIDATE CONSTRAINT \"CK_SocialAccount_DefaultVisibility\";");
+                "ALTER TABLE social_accounts VALIDATE CONSTRAINT \"CK_SocialAccount_DefaultVisibility\";",
+                suppressTransaction: true);
 
             migrationBuilder.CreateIndex(
                 name: "ix_oauth_app_registrations_registered_by_tenant",

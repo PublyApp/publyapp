@@ -413,6 +413,140 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 			.Should().Be(MastodonOAuthService.MaxNewHostRegistrationsPerTenant, "no reservation is left behind");
 	}
 
+	// #2186 round-2 N1: the per-tenant lock and the DB connection must be released before the
+	// slow outbound registration, not held for its whole duration.
+	[Fact]
+	public async Task ItShouldNotHoldTheLockOrBlockOthersWhileASlowRegistrationIsInFlight() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var slow = $"slow-{Guid.NewGuid():N}.example";
+		var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		h.Client.OnRegister = async (host, _) => {
+			if (host == slow) {
+				entered.SetResult();
+				await release.Task;
+			}
+		};
+
+		var first = Task.Run(async () => {
+			await using var racer = this._Fixture.Factory.Services.CreateAsyncScope();
+			var db = racer.ServiceProvider.GetRequiredService<AppDbContext>();
+			var service = new MastodonOAuthService(db, racer.ServiceProvider.GetRequiredService<ICredentialProtector>(), h.Client);
+			return await service.StartAsync(h.TenantId, h.UserId, slow, default);
+		});
+		await entered.Task.WaitAsync(TimeSpan.FromSeconds(20));
+
+		// 1. the tenant lock is free: a second start for another host completes meanwhile.
+		await using var second = this._Fixture.Factory.Services.CreateAsyncScope();
+		var secondService = new MastodonOAuthService(
+			second.ServiceProvider.GetRequiredService<AppDbContext>(),
+			second.ServiceProvider.GetRequiredService<ICredentialProtector>(),
+			h.Client
+		);
+		var other = await secondService
+			.StartAsync(h.TenantId, h.UserId, $"fast-{Guid.NewGuid():N}.example", default)
+			.WaitAsync(TimeSpan.FromSeconds(10));
+		other.Should().BeOfType<StartMastodonConnectResult.Started>();
+
+		// 2. the advisory lock itself is not held by the in-flight start.
+		await using var probe = this._Fixture.Factory.Services.CreateAsyncScope();
+		var probeDb = probe.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var tx = await probeDb.Database.BeginTransactionAsync();
+		var free = await probeDb.Database
+			.SqlQuery<bool>($"SELECT pg_try_advisory_xact_lock(hashtextextended({h.TenantId.ToString()}, 0)) AS \"Value\"")
+			.SingleAsync();
+		free.Should().BeTrue("the lock is only held while counting and reserving");
+
+		// 3. the slow start still finishes once the instance answers.
+		release.SetResult();
+		(await first.WaitAsync(TimeSpan.FromSeconds(20))).Should().BeOfType<StartMastodonConnectResult.Started>();
+	}
+
+	[Fact]
+	public async Task ItShouldLeaveNoReservationBehindWhenTheRegistrationIsCancelledOrRefused() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var marker = $"gone-{Guid.NewGuid():N}";
+		using var cts = new CancellationTokenSource();
+		h.Client.OnRegister = async (host, token) => {
+			if (host.StartsWith(marker + "-cancel", StringComparison.Ordinal)) {
+				await cts.CancelAsync();
+				await Task.Delay(Timeout.Infinite, token);
+			}
+		};
+
+		var act = async () => await h.Service.StartAsync(h.TenantId, h.UserId, $"{marker}-cancel.example", cts.Token);
+		await act.Should().ThrowAsync<OperationCanceledException>();
+
+		h.Client.OnRegister = null;
+		h.Client.RegisterResult = new MastodonResult<MastodonApp>.Refused("the instance answered 422");
+		(await h.Service.StartAsync(h.TenantId, h.UserId, $"{marker}-refused.example", default))
+			.Should().BeOfType<StartMastodonConnectResult.Refused>();
+
+		(await h.Db.OAuthAppRegistration.AsNoTracking().CountAsync(r => r.Host.StartsWith(marker)))
+			.Should().Be(0, "a cancelled or refused registration frees its slot");
+	}
+
+	[Fact]
+	public async Task ItShouldCountAnInFlightReservationAgainstTheQuota() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var marker = $"hold-{Guid.NewGuid():N}";
+		var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		var inFlight = 0;
+		var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+		h.Client.OnRegister = async (host, _) => {
+			if (host.StartsWith(marker, StringComparison.Ordinal)) {
+				if (Interlocked.Increment(ref inFlight) == MastodonOAuthService.MaxNewHostRegistrationsPerTenant) {
+					entered.SetResult();
+				}
+
+				await release.Task;
+			}
+		};
+
+		var held = Enumerable.Range(0, MastodonOAuthService.MaxNewHostRegistrationsPerTenant).Select(index => Task.Run(async () => {
+			await using var racer = this._Fixture.Factory.Services.CreateAsyncScope();
+			var db = racer.ServiceProvider.GetRequiredService<AppDbContext>();
+			var service = new MastodonOAuthService(db, racer.ServiceProvider.GetRequiredService<ICredentialProtector>(), h.Client);
+			return await service.StartAsync(h.TenantId, h.UserId, $"{marker}-{index}.example", default);
+		})).ToList();
+		await entered.Task.WaitAsync(TimeSpan.FromSeconds(30));
+
+		var extra = await h.Service.StartAsync(h.TenantId, h.UserId, $"over-{Guid.NewGuid():N}.example", default);
+		extra.Should().BeOfType<StartMastodonConnectResult.QuotaExceeded>("slots in flight already count");
+
+		release.SetResult();
+		await Task.WhenAll(held);
+	}
+
+	[Fact]
+	public async Task ItShouldNotLetAnotherTenantReuseAFreshPlaceholderButReclaimAStaleOne() {
+		var (h, scope) = await this._NewAsync();
+		await using var _ = scope;
+		var fresh = $"fresh-{Guid.NewGuid():N}.example";
+		var stale = $"stale-{Guid.NewGuid():N}.example";
+		foreach (var (host, age) in new[] { (fresh, TimeSpan.FromSeconds(5)), (stale, TimeSpan.FromHours(1)) }) {
+			h.Db.OAuthAppRegistration.Add(new OAuthAppRegistration {
+				Host = host,
+				ClientId = string.Empty,
+				ProtectedClientSecret = string.Empty,
+				Scopes = "read",
+				RedirectUri = "https://x/cb",
+				RegisteredByTenantId = Guid.NewGuid(),
+				RegisteredAt = DateTime.UtcNow - age,
+			});
+		}
+
+		await h.Db.SaveChangesAsync();
+
+		(await h.Service.StartAsync(h.TenantId, h.UserId, fresh, default))
+			.Should().BeOfType<StartMastodonConnectResult.Unreachable>("another start is registering this host right now");
+		(await h.Service.StartAsync(h.TenantId, h.UserId, stale, default))
+			.Should().BeOfType<StartMastodonConnectResult.Started>("a reservation nobody finalised is reclaimed");
+	}
+
 	[Fact]
 	public async Task ItShouldGiveTheQuotaSlotBackWhenTheInstanceRefusesTheRegistration() {
 		var (h, scope) = await this._NewAsync();

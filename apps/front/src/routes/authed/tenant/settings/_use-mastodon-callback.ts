@@ -16,7 +16,7 @@ export type MastodonCallbackSearch = {
 
 const INTEGRATIONS_PATH = '/tenant/settings/integrations';
 
-const MISMATCH_KEY = 'mastodon-reconnect-account-mismatch';
+const mismatchTranslationKey = 'mastodon-reconnect-account-mismatch';
 
 /** A reconnect that came back signed in as another account (#2186): nothing was
  * linked, and the user decides what happens next. */
@@ -33,7 +33,7 @@ const readMismatch = (error: unknown): ReconnectMismatch | null => {
 	// the parser could not read is still this problem, so match on the key alone.
 	if (
 		(failure.kind !== 'validation' && failure.kind !== 'problem') ||
-		failure.translationKey !== MISMATCH_KEY
+		failure.translationKey !== mismatchTranslationKey
 	) {
 		return null;
 	}

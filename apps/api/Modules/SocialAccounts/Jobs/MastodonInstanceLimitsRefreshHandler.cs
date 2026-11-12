@@ -76,7 +76,13 @@ public sealed class MastodonInstanceLimitsRefreshHandler : IJobHandler {
 			string? overrides;
 			try {
 				var limits = await this._Client.GetInstanceLimitsAsync(target.Host, cancellationToken);
-				overrides = limits?.ToCapabilityOverrides(target.Provider);
+				if (limits is null) {
+					// The client answers null when the server cannot be reached.
+					failed += 1;
+					continue;
+				}
+
+				overrides = limits.ToCapabilityOverrides(target.Provider);
 			} catch (Exception exception) when (exception is not OperationCanceledException) {
 				// One misbehaving server must not stop the others from being refreshed.
 				failed += 1;
@@ -109,10 +115,11 @@ public sealed class MastodonInstanceLimitsRefreshHandler : IJobHandler {
 
 		if (targets.Count > 0 && this._Logger.IsEnabled(LogLevel.Information)) {
 			this._Logger.LogInformation(
-				"mastodon-instance-limits-refresh refreshed {Refreshed} of {Servers} server(s); {Unchanged} advertised nothing usable or were unreachable",
+				"mastodon-instance-limits-refresh refreshed {Refreshed} of {Servers} server(s); {Unchanged} advertised nothing usable; {Failed} could not be read",
 				refreshed,
 				targets.Count,
-				unchanged
+				unchanged,
+				failed
 			);
 		}
 

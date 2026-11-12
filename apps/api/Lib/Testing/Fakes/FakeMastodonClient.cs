@@ -13,6 +13,9 @@ public sealed class FakeMastodonClient : IMastodonClient {
 	// Widens the window between "decide to register" and "registered" so a race is reproducible.
 	public TimeSpan RegisterDelay { get; set; }
 
+	// Lets a spec hold one registration open (or cancel it midway) while it checks what else proceeds.
+	public Func<string, CancellationToken, Task>? OnRegister { get; set; }
+
 	public MastodonAccountInfo Account { get; set; } = new("109", "alice");
 
 	public MastodonInstanceLimits? Limits { get; set; }
@@ -36,6 +39,10 @@ public sealed class FakeMastodonClient : IMastodonClient {
 
 	public async Task<MastodonResult<MastodonApp>> RegisterAppAsync(string host, string redirectUri, string scopes, CancellationToken cancellationToken) {
 		this.Calls.Enqueue($"register {host}");
+		if (this.OnRegister is not null) {
+			await this.OnRegister(host, cancellationToken);
+		}
+
 		if (this.RegisterDelay > TimeSpan.Zero) {
 			await Task.Delay(this.RegisterDelay, cancellationToken);
 		}
