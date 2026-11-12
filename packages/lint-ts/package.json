@@ -14,7 +14,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"devDependencies": {
-		"@oxlint/plugins": "1.90.0",
+		"@oxlint/plugins": "1.92.0",
 		"oxlint": "catalog:",
 		"ts-morph": "catalog:",
 		"vitest": "catalog:"
