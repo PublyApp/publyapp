@@ -2277,3 +2277,49 @@ test('central manifest evidence mutations are RED for all Sol examples and gener
 		await rm(rootDir, { recursive: true, force: true });
 	}
 });
+
+type WorkflowStep = {
+	id?: string;
+	uses?: string;
+	with?: Record<string, unknown>;
+};
+
+/** Checkout steps that override which commit is checked out, as `job.step`. */
+export const findCheckoutOverrides = (
+	jobs: Record<string, { steps?: WorkflowStep[] }>,
+): string[] =>
+	Object.entries(jobs).flatMap(([jobId, job]) =>
+		(job.steps ?? [])
+			.filter(
+				(step) =>
+					step.uses?.startsWith('actions/checkout@') === true &&
+					(step.with?.ref !== undefined || step.with?.repository !== undefined),
+			)
+			.map((step) => `${jobId}.${step.id ?? '?'}`),
+	);
+
+// #1726: a PR's e2e run must build images and read specs from ONE tree, the
+// PR merge ref (base + head). An e2e job that checked out the base (or any
+// other ref) would run a spec shipped by a feature the branch predates against
+// an app tree that lacks the feature, and the timeout would blame the PR.
+// The only allowed override is the classifier's sparse base copy.
+test('central workflow checks out the PR merge ref in every job but the classifier base copy (#1726)', async () => {
+	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
+		jobs: Record<string, { steps?: WorkflowStep[] }>;
+	};
+
+	assert.deepEqual(findCheckoutOverrides(workflow.jobs), [
+		'classify.base_checkout',
+	]);
+
+	const mutated = structuredClone(workflow.jobs);
+	const e2eCheckout = mutated['e2e-test']?.steps?.find(
+		(step) => step.id === 'checkout',
+	);
+	assert.ok(e2eCheckout, 'e2e-test checkout step must exist');
+	e2eCheckout.with = { ref: '${{ github.event.pull_request.base.sha }}' };
+	assert.ok(
+		findCheckoutOverrides(mutated).includes('e2e-test.checkout'),
+		'a base checkout in an e2e job must be detected',
+	);
+});
