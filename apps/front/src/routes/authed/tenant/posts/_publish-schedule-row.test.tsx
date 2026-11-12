@@ -270,8 +270,15 @@ describe('PublishScheduleRow (#2410)', () => {
 		fireEvent.click(screen.getByTestId('tenant-posts-schedule-submit'));
 
 		expect(onSchedule).not.toHaveBeenCalled();
-		expect(screen.getByRole('alert').textContent).toContain(
-			'posts:schedule-time-invalid',
-		);
+		const alert = screen.getByRole('alert');
+		expect(alert.textContent).toContain('posts:schedule-time-invalid');
+		const time = screen.getByTestId('tenant-posts-schedule-time');
+		expect(time.getAttribute('aria-invalid')).toBe('true');
+		expect(time.getAttribute('aria-describedby')).toBe(alert.id);
+		expect(
+			screen
+				.getByTestId('tenant-posts-schedule-date')
+				.getAttribute('aria-invalid'),
+		).toBeNull();
 	});
 });

@@ -27,6 +27,9 @@ export type LocalizedParsedInputProps = {
 	 * or empty: a caller that submits without a blur (assistive-tech click)
 	 * can still read and validate what the field shows. */
 	onDraftChange?: (text: string | null) => void;
+	/** The caller refused the entry itself (e.g. on submit, with no blur):
+	 * only meaningful with `hideError`, whose message the caller renders. */
+	invalid?: boolean;
 } & (
 	| { errorId?: undefined; hideError?: false }
 	/** The caller renders the message itself (element id = `errorId`), e.g. one
@@ -54,6 +57,7 @@ export const LocalizedParsedInput = ({
 	hideError = false,
 	inputMode = 'numeric',
 	onDraftChange,
+	invalid = false,
 }: LocalizedParsedInputProps) => {
 	const ownErrorId = useId();
 	const errorId = externalErrorId ?? ownErrorId;
@@ -70,6 +74,7 @@ export const LocalizedParsedInput = ({
 	const shown = activeDraft?.text ?? format(value);
 	const visibleError =
 		error !== null && error.value === value ? error.message : '';
+	const isMarkedInvalid = Boolean(visibleError) || (hideError && invalid);
 
 	const commit = (raw: string): void => {
 		const parsed = parse(raw);
@@ -103,9 +108,9 @@ export const LocalizedParsedInput = ({
 				autoComplete="off"
 				spellCheck={false}
 				aria-label={ariaLabel}
-				aria-invalid={visibleError ? true : undefined}
-				aria-errormessage={visibleError ? errorId : undefined}
-				aria-describedby={visibleError ? errorId : undefined}
+				aria-invalid={isMarkedInvalid ? true : undefined}
+				aria-errormessage={isMarkedInvalid ? errorId : undefined}
+				aria-describedby={isMarkedInvalid ? errorId : undefined}
 				placeholder={placeholder}
 				data-testid={testId}
 				value={shown}

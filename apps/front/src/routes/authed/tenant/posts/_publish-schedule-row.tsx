@@ -107,6 +107,7 @@ export const PublishScheduleRow = ({
 					errorMessage={t('common:invalid-date')}
 					errorId={errorId}
 					hideError
+					invalid={isDateInvalid}
 					testId="tenant-posts-schedule-date"
 					value={date}
 					onChange={(next) => {
@@ -126,6 +127,7 @@ export const PublishScheduleRow = ({
 					errorMessage={t('posts:schedule-time-invalid')}
 					errorId={errorId}
 					hideError
+					invalid={isTimeInvalid}
 					testId="tenant-posts-schedule-time"
 					value={time}
 					onChange={(next) => {
