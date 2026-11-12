@@ -37,6 +37,19 @@ public sealed record PublishRequest {
 	// The post's images in publish order (empty for a text-only post).
 	public IReadOnlyList<PublishMedia> Media { get; init; } = [];
 
+	// The images of each follow-up segment, aligned with FollowUpSegments (#2181);
+	// missing entries mean no images.
+	public IReadOnlyList<IReadOnlyList<PublishMedia>> FollowUpMedia { get; init; } = [];
+
+	/// <summary>The images of segment <paramref name="position"/> (0-based, 0 = the root).</summary>
+	public IReadOnlyList<PublishMedia> MediaAt(int position) {
+		if (position == 0) {
+			return this.Media;
+		}
+
+		return position - 1 < this.FollowUpMedia.Count ? this.FollowUpMedia[position - 1] : [];
+	}
+
 	// Thread follow-ups (#2171): the texts of segments 2..N in order, each published
 	// as a reply to the segment before it. Empty = a plain single post.
 	public IReadOnlyList<string> FollowUpSegments { get; init; } = [];

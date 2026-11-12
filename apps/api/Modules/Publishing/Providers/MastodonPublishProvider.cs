@@ -161,10 +161,10 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		CancellationToken cancellationToken
 	) {
 		var mediaIds = new List<string>();
-		if (position == 0) {
-			var uploaded = await this._UploadImagesAsync(client, request, cancellationToken);
+		if (request.MediaAt(position).Count > 0) {
+			var uploaded = await this._UploadImagesAsync(client, request, position, cancellationToken);
 			if (uploaded.Failure is not null) {
-				return new Outcome(uploaded.Failure, null);
+				return new Outcome(PublishResultSegments.Name(uploaded.Failure, position), null);
 			}
 
 			mediaIds = uploaded.Ids;
@@ -261,19 +261,21 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 	private async Task<Uploaded> _UploadImagesAsync(
 		HttpClient client,
 		PublishRequest request,
+		int position,
 		CancellationToken cancellationToken
 	) {
+		var mediaList = request.MediaAt(position);
 		var limits = request.Capability ?? ProviderCapabilityRegistry.For(request.Provider);
 		var ids = new List<string>();
-		if (request.Media.Count > limits.MaxImages) {
+		if (mediaList.Count > limits.MaxImages) {
 			return new Uploaded(ids, new PublishResult.ContentFailure(
-				$"the post has {request.Media.Count} images, this instance accepts {limits.MaxImages}"
+				$"the post has {mediaList.Count} images, this instance accepts {limits.MaxImages}"
 			));
 		}
 
-		for (var index = 0; index < request.Media.Count; index++) {
+		for (var index = 0; index < mediaList.Count; index++) {
 			var number = index + 1;
-			var media = request.Media[index];
+			var media = mediaList[index];
 			if (!limits.AcceptedImageContentTypes.Contains(media.ContentType)) {
 				return new Uploaded(ids, new PublishResult.ContentFailure(
 					$"image {number} is {media.ContentType}, which this instance does not accept"

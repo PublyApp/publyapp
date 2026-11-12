@@ -22,7 +22,9 @@ public sealed record ContentAsset(
 public sealed record SourceContent(
 	string Body,
 	IReadOnlyList<string> FollowUps,
-	IReadOnlyList<ContentAsset> Assets
+	IReadOnlyList<ContentAsset> Assets,
+	// The images of each follow-up, aligned with FollowUps (#2181); null = none anywhere.
+	IReadOnlyList<IReadOnlyList<ContentAsset>>? FollowUpAssets = null
 );
 
 /// <summary>
@@ -32,8 +34,32 @@ public sealed record SourceContent(
 /// </summary>
 public sealed record EffectiveContent(
 	IReadOnlyList<string> Texts,
-	IReadOnlyList<ContentAsset> Images
+	IReadOnlyList<ContentAsset> Images,
+	// The images of each follow-up, aligned with FollowUps; empty when none carry any (#2181).
+	IReadOnlyList<IReadOnlyList<ContentAsset>>? FollowUpImageSets = null
 ) {
+	/// <summary>The images of segment <paramref name="position"/> (0-based, 0 = the root).</summary>
+	public IReadOnlyList<ContentAsset> ImagesAt(int position) {
+		if (position == 0) {
+			return this.Images;
+		}
+
+		return this.FollowUpImageSets is { } sets && position - 1 < sets.Count
+			? sets[position - 1]
+			: [];
+	}
+
+	/// <summary>The content types of each follow-up's images, aligned with FollowUps.</summary>
+	public IReadOnlyList<IReadOnlyList<string>> FollowUpImageContentTypes {
+		get {
+			return Enumerable.Range(1, this.Texts.Count - 1)
+				.Select(position => (IReadOnlyList<string>)this.ImagesAt(position)
+					.Select(image => image.ContentType)
+					.ToList())
+				.ToList();
+		}
+	}
+
 	public string Body {
 		get { return this.Texts[0]; }
 	}
@@ -79,7 +105,7 @@ public static class RenditionResolver {
 		texts.AddRange(source.FollowUps);
 		var images = source.Assets;
 		if (overrides is null) {
-			return new EffectiveContent(texts, images);
+			return new EffectiveContent(texts, images, source.FollowUpAssets);
 		}
 
 		foreach (var (position, text) in overrides.Texts) {
@@ -104,7 +130,7 @@ public static class RenditionResolver {
 				.ToList();
 		}
 
-		return new EffectiveContent(texts, images);
+		return new EffectiveContent(texts, images, source.FollowUpAssets);
 	}
 
 	/// <summary>The effective root text, for previews that only show the first segment.</summary>
@@ -121,25 +147,47 @@ public static class RenditionResolver {
 	) {
 		var postId = post.GetRequiredId();
 		var followUps = await ThreadSegments.FollowUpBodiesAsync(db, postId, cancellationToken);
-		var assets = await (
+		var allAssets = await (
 			from media in db.PostMediaAsset.AsNoTracking()
 			where media.PostId == postId && !media.IsDeleted
 			orderby media.Position
 			select media
 		).ToListAsync(cancellationToken);
+		var segmentIds = followUps.Count == 0
+			? []
+			: await (
+				from segment in db.PostSegment.AsNoTracking()
+				where segment.PostId == postId && !segment.IsDeleted
+				orderby segment.Position
+				select segment.Id
+			).ToListAsync(cancellationToken);
+		var bySegment = allAssets
+			.Where(media => media.SegmentId is not null)
+			.ToLookup(media => media.SegmentId.GetValueOrDefault());
+		var followUpAssets = segmentIds
+			.Select(id => (IReadOnlyList<ContentAsset>)bySegment[id.GetValueOrDefault()]
+				.Select(RenditionResolver._ToContentAsset)
+				.ToList())
+			.ToList();
 		return new SourceContent(
 			post.Body,
 			followUps,
-			assets
-				.Select(media => new ContentAsset(
-					media.GetRequiredId(),
-					media.RelativePath,
-					media.ContentType,
-					media.AltText,
-					media.WidthPx,
-					media.HeightPx
-				))
-				.ToList()
+			allAssets
+				.Where(media => media.SegmentId is null)
+				.Select(RenditionResolver._ToContentAsset)
+				.ToList(),
+			followUpAssets.Any(set => set.Count > 0) ? followUpAssets : null
+		);
+	}
+
+	private static ContentAsset _ToContentAsset(PostMediaAsset media) {
+		return new ContentAsset(
+			media.GetRequiredId(),
+			media.RelativePath,
+			media.ContentType,
+			media.AltText,
+			media.WidthPx,
+			media.HeightPx
 		);
 	}
 

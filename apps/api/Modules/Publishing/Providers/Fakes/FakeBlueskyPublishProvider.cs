@@ -28,7 +28,12 @@ public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 
 	public sealed record RecordedImage(string ContentType, string? AltText, int SizeBytes);
 
-	public sealed record RecordedPublish(string IdempotencyKey, IReadOnlyList<RecordedImage> Images);
+	public sealed record RecordedPublish(
+		string IdempotencyKey,
+		IReadOnlyList<RecordedImage> Images,
+		// The images of each follow-up, aligned with the follow-up segments (#2181).
+		IReadOnlyList<IReadOnlyList<RecordedImage>>? FollowUpImages = null
+	);
 
 	public async Task<PublishResult> PublishAsync(
 		PublishRequest request,
@@ -39,6 +44,11 @@ public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 				request.IdempotencyKey,
 				request.Media
 					.Select(media => new RecordedImage(media.ContentType, media.AltText, media.Content.Length))
+					.ToList(),
+				request.FollowUpMedia
+					.Select(set => (IReadOnlyList<RecordedImage>)set
+						.Select(media => new RecordedImage(media.ContentType, media.AltText, media.Content.Length))
+						.ToList())
 					.ToList()
 			)
 		);

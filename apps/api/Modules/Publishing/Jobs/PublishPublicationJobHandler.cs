@@ -103,7 +103,6 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		var effective = await RenditionResolver.ResolveForPublicationAsync(
 			this._Db, publication.TenantId, publicationId, post, cancellationToken
 		);
-		var assets = effective.Images;
 		var followUps = effective.FollowUps;
 		var storedResults = await this._Db.PublicationSegmentResult
 			.AsNoTracking()
@@ -150,7 +149,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				effective.ImageContentTypes,
 				[ProviderCapabilityRegistry.Resolve(targetAccount)],
 				followUps,
-				effective.ImageAltTexts
+				effective.ImageAltTexts,
+				effective.FollowUpImageContentTypes
 			);
 			if (contentFailure is not null) {
 				await this._FailOrParkAsync(
@@ -168,33 +168,48 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 
 		// Resolve the image bytes before touching the account: a file gone from
 		// storage is a content failure naming the image, never retried (#2170).
-		var media = new List<PublishMedia>(assets.Count);
-		var rootAlreadyPublished = completedSegments.Any(segment => segment.Position == 0);
-		for (var index = 0; !rootAlreadyPublished && index < assets.Count; index++) {
-			var content = await this._FileStorage.ReadAsync(
-				assets[index].RelativePath, cancellationToken
-			);
-			if (content is null) {
-				await this._FailOrParkAsync(
-					new MarkPublicationFailedArgs(
-						publicationId,
-						publication.TenantId,
-						$"image {index + 1} is no longer available",
-						PublicationFailureCategory.FixContent
-					),
-					cancellationToken
-				);
-				return JobOutcome.Succeeded;
+		// Segments a previous attempt already published are never sent again: their
+		// images are not read either.
+		var publishedPositions = completedSegments.Select(segment => segment.Position).ToHashSet();
+		var mediaBySegment = new List<List<PublishMedia>>(totalSegments);
+		for (var position = 0; position < totalSegments; position++) {
+			var segmentMedia = new List<PublishMedia>();
+			mediaBySegment.Add(segmentMedia);
+			if (publishedPositions.Contains(position)) {
+				continue;
 			}
 
-			media.Add(new PublishMedia {
-				Content = content,
-				ContentType = assets[index].ContentType,
-				AltText = assets[index].AltText,
-				WidthPx = assets[index].WidthPx,
-				HeightPx = assets[index].HeightPx,
-			});
+			var segmentAssets = effective.ImagesAt(position);
+			for (var index = 0; index < segmentAssets.Count; index++) {
+				var content = await this._FileStorage.ReadAsync(
+					segmentAssets[index].RelativePath, cancellationToken
+				);
+				if (content is null) {
+					await this._FailOrParkAsync(
+						new MarkPublicationFailedArgs(
+							publicationId,
+							publication.TenantId,
+							position == 0
+								? $"image {index + 1} is no longer available"
+								: $"image {index + 1} of segment {position + 1} is no longer available",
+							PublicationFailureCategory.FixContent
+						),
+						cancellationToken
+					);
+					return JobOutcome.Succeeded;
+				}
+
+				segmentMedia.Add(new PublishMedia {
+					Content = content,
+					ContentType = segmentAssets[index].ContentType,
+					AltText = segmentAssets[index].AltText,
+					WidthPx = segmentAssets[index].WidthPx,
+					HeightPx = segmentAssets[index].HeightPx,
+				});
+			}
 		}
+
+		var media = mediaBySegment[0];
 
 		var sessionResult = await this._SocialSessionProvider.OpenSessionAsync(
 			publication.SocialAccountId, cancellationToken
@@ -216,6 +231,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			);
 		}
 
+		var effectiveTexts = effective.Texts.Select(TextCounter.Normalize).ToList();
+
 		// A journal row that never resolved means an earlier write may have landed
 		// (timeout, crash, stale-job recovery): look BEFORE writing again (#2176).
 		var unresolved = await this._FindUnresolvedAsync(publicationId, cancellationToken);
@@ -228,6 +245,9 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 					Session = opened.Session,
 					Provider = targetAccount?.Provider ?? SocialProvider.Bluesky,
 					FirstAttemptAtUtc = unresolved.FirstAttemptAtUtc,
+					ExpectedText = unresolved.SegmentPosition < effectiveTexts.Count
+						? effectiveTexts[unresolved.SegmentPosition]
+						: null,
 				},
 				cancellationToken
 			);
@@ -256,7 +276,6 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			}
 		}
 
-		var effectiveTexts = effective.Texts.Select(TextCounter.Normalize).ToList();
 		Guid? openAttempt = null;
 		var result = await this._PublishProvider.PublishAsync(
 			new PublishRequest {
@@ -269,6 +288,9 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				Capability = targetAccount is null ? null : ProviderCapabilityRegistry.Resolve(targetAccount),
 				Visibility = targetAccount?.DefaultVisibility ?? SocialPostVisibility.Public,
 				Media = media,
+				FollowUpMedia = mediaBySegment.Skip(1)
+					.Select(set => (IReadOnlyList<PublishMedia>)set)
+					.ToList(),
 				FollowUpSegments = effectiveTexts.Skip(1).ToList(),
 				CompletedSegments = completedSegments,
 				OnBeforeWrite = async (position, token) => {
@@ -280,7 +302,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 							publication.Attempts,
 							PublishAttemptJournal.Fingerprint(
 								effectiveTexts[position],
-								position == 0 ? assets.Select(asset => asset.Id) : []
+								effective.ImagesAt(position).Select(asset => asset.Id)
 							),
 							publication.IdempotencyKey
 						),
