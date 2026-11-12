@@ -28,6 +28,7 @@
 	"attempt-timed-out": "This is taking too long. Check your posts before trying again, in case it went through.",
 	"image-timed-out": "Sending the images is taking too long. Some may already be attached: try again and only the missing ones are sent.",
 	"image-retry": "Try again",
+	"image-retrying": "Sending images…",
 	"image-add": "Add images",
 	"image-alt-label-numbered": "Alt text for image {{index}}",
 	"image-alt-nudge": "Add alt text so everyone can follow your post.",

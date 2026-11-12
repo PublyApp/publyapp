@@ -41,7 +41,7 @@ export const HandoffPanel = ({
 					onClick={onRetry}
 					data-testid="tenant-posts-create-image-retry"
 				>
-					{busy ? t('posts:saving') : t('posts:image-retry')}
+					{busy ? t('posts:image-retrying') : t('posts:image-retry')}
 				</Button>
 				<Button
 					type="button"
