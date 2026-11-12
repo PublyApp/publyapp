@@ -121,6 +121,8 @@
 	"jobs-job-staff-joined-notification-description": "Prévient les administrateurs qu’un membre a rejoint le staff.",
 	"jobs-job-social-account-token-refresh-label": "Renouvellement de jeton",
 	"jobs-job-social-account-token-refresh-description": "Renouvelle l’accès à un compte social avant son expiration.",
+	"jobs-job-mastodon-instance-limits-refresh-label": "Actualisation des limites des serveurs Mastodon et Pixelfed",
+	"jobs-job-mastodon-instance-limits-refresh-description": "Relit les limites de publication de chaque serveur Mastodon et Pixelfed connecté.",
 	"jobs-job-upload-orphan-reclaim-label": "Nettoyage des fichiers orphelins",
 	"jobs-job-upload-orphan-reclaim-description": "Supprime les médias téléversés qu’aucune publication n’utilise.",
 	"jobs-job-session-cleanup-label": "Purge des sessions expirées",

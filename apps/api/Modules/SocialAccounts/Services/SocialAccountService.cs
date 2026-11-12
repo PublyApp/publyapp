@@ -67,6 +67,15 @@ public abstract record SetSocialAccountProjectsResult {
 	public sealed record InvalidProject(Guid ProjectId) : SetSocialAccountProjectsResult;
 }
 
+public abstract record SetSocialAccountVisibilityResult {
+	public sealed record Applied(SocialAccount Account) : SetSocialAccountVisibilityResult;
+
+	public sealed record NotFound() : SetSocialAccountVisibilityResult;
+
+	/// <summary>Only Mastodon and Pixelfed posts have a visibility.</summary>
+	public sealed record Unsupported(SocialProvider Provider) : SetSocialAccountVisibilityResult;
+}
+
 public record SocialAccountListItem {
 	public required Guid Id { get; init; }
 	public required string Provider { get; init; }
@@ -77,6 +86,8 @@ public record SocialAccountListItem {
 	public required DateTime? LastSuccessAt { get; init; }
 	public required string? LastError { get; init; }
 	public required IReadOnlyList<Guid> ProjectIds { get; init; }
+	/// <summary>public | unlisted | private: who sees posts published to the account (#2186).</summary>
+	public required string DefaultVisibility { get; init; }
 }
 
 /// <summary>
@@ -111,6 +122,25 @@ public static class SocialAccountWire {
 			SocialCredentialType.OAuth => "oauth",
 			SocialCredentialType.WebhookUrl => "webhook_url",
 			_ => throw new ArgumentOutOfRangeException(nameof(type), type, "Unhandled SocialCredentialType"),
+		};
+	}
+
+	public static string FormatVisibility(SocialPostVisibility visibility) {
+		return visibility switch {
+			SocialPostVisibility.Public => "public",
+			SocialPostVisibility.Unlisted => "unlisted",
+			SocialPostVisibility.Private => "private",
+			_ => throw new ArgumentOutOfRangeException(nameof(visibility), visibility, "Unhandled SocialPostVisibility"),
+		};
+	}
+
+	/// <summary>The visibility for a wire word, or null when it is not one of ours.</summary>
+	public static SocialPostVisibility? ParseVisibility(string? wire) {
+		return wire switch {
+			"public" => SocialPostVisibility.Public,
+			"unlisted" => SocialPostVisibility.Unlisted,
+			"private" => SocialPostVisibility.Private,
+			_ => null,
 		};
 	}
 
@@ -510,6 +540,35 @@ public sealed class SocialAccountService {
 		);
 	}
 
+	// ── Default visibility (Mastodon / Pixelfed, #2186) ───────────────────────
+
+	public async Task<SetSocialAccountVisibilityResult> SetDefaultVisibilityForTenantAsync(
+		Guid tenantId,
+		Guid socialAccountId,
+		SocialPostVisibility visibility,
+		CancellationToken cancellationToken = default
+	) {
+		var account = await (
+			from a in this._Db.SocialAccount
+			where a.Id == socialAccountId
+				&& a.TenantId == tenantId
+				&& !a.IsDeleted
+			select a
+		).FirstOrDefaultAsync(cancellationToken);
+
+		if (account is null) {
+			return new SetSocialAccountVisibilityResult.NotFound();
+		}
+
+		if (account.Provider is not (SocialProvider.Mastodon or SocialProvider.Pixelfed)) {
+			return new SetSocialAccountVisibilityResult.Unsupported(account.Provider);
+		}
+
+		account.DefaultVisibility = visibility;
+		await this._Db.SaveChangesAsync(cancellationToken);
+		return new SetSocialAccountVisibilityResult.Applied(account);
+	}
+
 	// ── helpers ────────────────────────────────────────────────────────────────
 
 	private async Task _LoadProjectLinksAsync(
@@ -556,6 +615,7 @@ public sealed class SocialAccountService {
 				.Select(p => p.ProjectId)
 				.OrderBy(id => id)
 				.ToList(),
+			DefaultVisibility = SocialAccountWire.FormatVisibility(account.DefaultVisibility),
 		};
 	}
 }

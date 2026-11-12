@@ -48,6 +48,27 @@ describe('ConfirmDialog', () => {
 		).not.toBeNull();
 	});
 
+	// A long label must stay inside the dialog: the footer wraps and each button can wrap
+	// its text (a handle in a reconnect prompt overflowed to the left otherwise).
+	test('lets long footer labels wrap instead of overflowing the dialog', () => {
+		render(
+			<ConfirmDialog
+				{...baseProps}
+				isOpen
+				cancelLabel="Leave a-very-long-handle@some-very-long-instance.example as is"
+			/>,
+		);
+
+		const footer = screen
+			.getByRole('alertdialog')
+			.querySelector('[data-slot="confirm-dialog-footer"]');
+		expect(footer?.className).toContain('flex-wrap');
+		for (const button of footer?.querySelectorAll('button') ?? []) {
+			expect(button.className).toContain('whitespace-normal');
+			expect(button.className).toContain('max-w-full');
+		}
+	});
+
 	// F1: consumes the shared z-index tokens instead of hardcoded numeric
 	// stacking values.
 	test('the popup and backdrop use the shared z-index tokens, not hardcoded magic numbers', () => {

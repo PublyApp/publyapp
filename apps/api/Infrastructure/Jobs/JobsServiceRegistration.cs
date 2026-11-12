@@ -9,6 +9,7 @@ using PublyApp.Api.Modules.Jobs.Jobs;
 using PublyApp.Api.Modules.Messaging.Jobs;
 using PublyApp.Api.Modules.Publishing.Jobs;
 using PublyApp.Api.Modules.Roles.Jobs;
+using PublyApp.Api.Modules.SocialAccounts.Jobs;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 using PublyApp.Api.Modules.Uploads.Jobs;
 
@@ -174,6 +175,11 @@ public static class JobsServiceRegistration {
 		);
 		builder.AddJobHandler<EmailPreparedSendsRetentionHandler>(
 			EmailPreparedSendsRetentionHandler.JobKey
+		);
+		// Daily refresh of Mastodon / Pixelfed instance limits (#2186). Needs IMastodonClient,
+		// registered in every role by AddAppServices, so the worker resolves it like the API.
+		builder.AddJobHandler<MastodonInstanceLimitsRefreshHandler>(
+			MastodonInstanceLimitsRefreshHandler.JobKey
 		);
 		// Upload lifecycle sweeper (#807 F6): the only deleter that removes
 		// orphaned blobs and releases their bytes from the durable budgets.

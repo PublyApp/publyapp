@@ -18,15 +18,22 @@ export const useStartMastodonConnectMutation = () =>
 			tenantId,
 			instance,
 			provider,
+			socialAccountId,
 		}: {
 			tenantId: string;
 			instance: string;
 			provider: FediverseProvider;
+			/** Set by a reconnect: the flow must come back as this account (#2186). */
+			socialAccountId?: string;
 		}) => {
 			const client = getClientManager().getOrCreateClient(tenantId);
 			const result = await client.socialAccounts.mastodon.start.post({
 				instance: createUntypedString(instance),
 				provider: createUntypedString(provider),
+				socialAccountId:
+					socialAccountId === undefined
+						? undefined
+						: createUntypedString(socialAccountId),
 			});
 			if (!result?.authorizeUrl) {
 				throw new Error('mastodon authorize url was empty');
@@ -60,6 +67,10 @@ export const useCompleteMastodonConnectMutation = () => {
 		},
 		onSuccess: (_data, variables) =>
 			invalidateSocialAccounts(queryClient, variables.tenantId),
-		meta: { successMessage: 'social-account-fediverse-connected' },
+		meta: {
+			successMessage: 'social-account-fediverse-connected',
+			// The reconnect-mismatch dialog is the feedback for this one failure.
+			silentFailureKeys: ['mastodon-reconnect-account-mismatch'],
+		},
 	});
 };

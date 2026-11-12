@@ -8,6 +8,7 @@ using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
+using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Providers;
 
@@ -118,10 +119,15 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		ReconcileRequest request,
 		CancellationToken cancellationToken
 	) {
+		return Task.FromResult(MastodonPublishProvider.Reconcile(request));
+	}
+
+	/// <summary>The reconcile rule itself, shared with the e2e fake so it cannot drift.</summary>
+	internal static ReconcileResult Reconcile(ReconcileRequest request) {
 		if (request.Provider == SocialProvider.Pixelfed) {
-			return Task.FromResult<ReconcileResult>(new ReconcileResult.NeedsReview(
+			return new ReconcileResult.NeedsReview(
 				"Pixelfed cannot confirm whether the post went out; check your role"
-			));
+			);
 		}
 
 		var age = DateTime.UtcNow - request.FirstAttemptAtUtc;
@@ -130,10 +136,16 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			: new ReconcileResult.NeedsReview(
 				"Mastodon can no longer confirm whether the post went out; check your role"
 			);
-		return Task.FromResult(result);
+		return result;
 	}
 
-	// Mastodon keeps an Idempotency-Key for about an hour; stay well inside it.
+	// Mastodon keeps an Idempotency-Key for about an hour; stay well inside it. The key is
+	// therefore NOT a protection against a retry that comes later than this (#2186, L2): past
+	// the window ReconcileAsync answers NeedsReview and the publication is parked for the
+	// user instead of being resent, and a thread that already published segments resumes
+	// after them from the segment-results journal (#2176: PublishRequest.CompletedSegments is
+	// built from it), never by asking the instance. The journal is the long-delay guard; see
+	// docs/guides/social-accounts.md, "Idempotency beyond about an hour".
 	internal static readonly TimeSpan IdempotencyWindow = TimeSpan.FromMinutes(50);
 
 	private sealed record Outcome(PublishResult Result, CompletedSegment? Segment);
@@ -156,7 +168,9 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			mediaIds = uploaded.Ids;
 		}
 
-		var payload = new Dictionary<string, object?> { ["visibility"] = "public" };
+		var payload = new Dictionary<string, object?> {
+			["visibility"] = SocialAccountWire.FormatVisibility(request.Visibility),
+		};
 		// An image-only post (Pixelfed) sends no status rather than an empty one.
 		if (text.Length > 0 || mediaIds.Count == 0) {
 			payload["status"] = text;

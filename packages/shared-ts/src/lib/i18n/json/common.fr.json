@@ -542,6 +542,7 @@
 	"social-account-connected": "Compte Bluesky connecté",
 	"social-account-reconnected": "Compte Bluesky reconnecté",
 	"social-account-projects-updated": "Attachements de projets mis à jour",
+	"social-account-visibility-updated": "Visibilité par défaut mise à jour",
 	"social-account-disconnected-success": "Compte social déconnecté et secret stocké effacé",
 	"social-accounts": "Comptes sociaux",
 	"recent-activity": "Activité récente",

@@ -305,8 +305,9 @@ public static class ServiceRegistration {
 		if (
 			Modules.Publishing.Providers.Fakes.FakePublishingProviderEnabled.IsEnabled()
 		) {
+			// Bluesky and Mastodon/Pixelfed each get their own deterministic fake (#2186).
 			builder.Services.AddSingleton<IPublishProvider>(
-				new Modules.Publishing.Providers.Fakes.FakeBlueskyPublishProvider()
+				new Modules.Publishing.Providers.Fakes.FakeRoutingPublishProvider()
 			);
 			builder.Services.AddScoped<ISocialSessionProvider>(
 				_ => new Modules.SocialAccounts.Providers.Fakes.FakeBlueskySessionProvider()

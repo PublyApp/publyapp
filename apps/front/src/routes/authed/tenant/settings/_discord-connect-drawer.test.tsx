@@ -84,6 +84,7 @@ describe('discord connect drawer', () => {
 					statusLabelKey: 'settings:status-needs-reconnect',
 					lastSuccessAt: null,
 					projectIds: [],
+					defaultVisibility: 'public',
 				}}
 			/>,
 		);
@@ -150,6 +151,7 @@ describe('discord connect drawer', () => {
 					statusLabelKey: 'settings:status-needs-reconnect',
 					lastSuccessAt: null,
 					projectIds: [],
+					defaultVisibility: 'public',
 				}}
 			/>,
 		);

@@ -72,6 +72,61 @@ public sealed class MastodonClientSpec {
 			.Should().BeOfType<MastodonResult<MastodonApp>.Unreachable>();
 	}
 
+	[Fact]
+	public async Task ItShouldDetectPkceWhenTheServerMetadataAdvertisesS256() {
+		var seen = new List<string>();
+		var client = MastodonClientSpec._Client(_ => MastodonClientSpec._Json(
+			200, """{"issuer":"https://a.example","code_challenge_methods_supported":["S256"]}"""
+		), seen);
+
+		(await client.SupportsPkceAsync("a.example", CancellationToken.None)).Should().BeTrue();
+		seen.Should().Equal("GET https://a.example/.well-known/oauth-authorization-server");
+	}
+
+	[Theory]
+	[InlineData(200, """{"code_challenge_methods_supported":["plain"]}""")]
+	[InlineData(200, """{"issuer":"https://a.example"}""")]
+	[InlineData(200, """[]""")]
+	[InlineData(404, """{"error":"not found"}""")]
+	[InlineData(503, "{}")]
+	public async Task ItShouldTreatMissingOrUnusableMetadataAsNoPkce(int status, string body) {
+		var client = MastodonClientSpec._Client(_ => MastodonClientSpec._Json(status, body));
+
+		(await client.SupportsPkceAsync("old.example", CancellationToken.None)).Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task ItShouldTreatAnUnreachableServerAsNoPkce() {
+		var client = MastodonClientSpec._Client(_ => throw new HttpRequestException("down"));
+
+		(await client.SupportsPkceAsync("down.example", CancellationToken.None)).Should().BeFalse();
+	}
+
+	[Theory]
+	[InlineData("the-verifier", "code_verifier=the-verifier")]
+	[InlineData(null, "")]
+	public async Task ItShouldSendTheCodeVerifierOnlyWhenTheFlowUsedPkce(string? verifier, string expected) {
+		string? sent = null;
+		var services = new ServiceCollection();
+		services.AddHttpClient(MastodonHostGuard.HttpClientName)
+			.ConfigurePrimaryHttpMessageHandler(() => new StubHandler(request => {
+				sent = request.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
+				return MastodonClientSpec._Json(200, """{"access_token":"tok"}""");
+			}));
+		var client = new MastodonClient(services.BuildServiceProvider().GetRequiredService<IHttpClientFactory>());
+
+		var result = await client.ExchangeCodeAsync(
+			"a.example", new MastodonApp("cid", "sec"), "https://front/x", "the-code", verifier, CancellationToken.None
+		);
+
+		result.Should().BeOfType<MastodonResult<string>.Ok>();
+		if (expected.Length == 0) {
+			sent.Should().NotContain("code_verifier");
+		} else {
+			sent.Should().Contain(expected);
+		}
+	}
+
 	private sealed class StubHandler : HttpMessageHandler {
 		private readonly Func<HttpRequestMessage, HttpResponseMessage> _Responder;
 

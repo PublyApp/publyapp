@@ -15,15 +15,16 @@ public static partial class LastErrorSanitiser {
 	[System.Text.RegularExpressions.GeneratedRegex(@"Bearer\s+[A-Za-z0-9\-._~+/]+=*")]
 	private static partial System.Text.RegularExpressions.Regex _BearerPattern();
 
-	// Query-string key=value: access_token=... or token=... (unquoted, no whitespace).
+	// Query-string / form key=value: access_token=..., client_secret=..., code_verifier=... or
+	// token=... (unquoted, quoted or percent-encoded, no whitespace). The Mastodon OAuth fields are named explicitly (#2186).
 	// Capturing group keeps the field name in the replacement so the operator can tell
 	// WHICH field leaked (review r3): access_token=[redacted], not =\u200b[redacted].
-	[System.Text.RegularExpressions.GeneratedRegex(@"(access_token|token)=[A-Za-z0-9\-._~+/]+=*")]
+	[System.Text.RegularExpressions.GeneratedRegex(@"(access_token|refresh_token|client_secret|code_verifier|token)=(?:""[^""\s]+""|'[^'\s]+'|[A-Za-z0-9\-._~+/%]+=*)")]
 	private static partial System.Text.RegularExpressions.Regex _QueryTokenPattern();
 
 	// JSON "access_token": "...", "refresh_token": "...", "client_secret": "..."
 	// Capturing group keeps the field name in the replacement (see _QueryTokenPattern).
-	[System.Text.RegularExpressions.GeneratedRegex("\"(access_token|refresh_token|client_secret)\"\\s*:\\s*\"[^\"]{4,}\"")]
+	[System.Text.RegularExpressions.GeneratedRegex("\"(access_token|refresh_token|client_secret|code_verifier|token)\"\\s*:\\s*\"[^\"]{4,}\"")]
 	private static partial System.Text.RegularExpressions.Regex _JsonSecretPattern();
 
 	public static string? Sanitize(string? raw) {

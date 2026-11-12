@@ -34,6 +34,14 @@ const LABEL_KEYS = {
 	revoked: 'settings:status-revoked',
 } satisfies Record<SocialAccountStatusWire, string>;
 
+/** Who sees the posts published to a Mastodon / Pixelfed account (#2186). The
+ * wire words are the Mastodon API's own. */
+export const SOCIAL_VISIBILITIES = ['public', 'unlisted', 'private'] as const;
+export type SocialVisibility = (typeof SOCIAL_VISIBILITIES)[number];
+
+const toVisibility = (value: string | null | undefined): SocialVisibility =>
+	SOCIAL_VISIBILITIES.find((visibility) => visibility === value) ?? 'public';
+
 export type SocialAccountRow = {
 	id: string;
 	provider: string;
@@ -43,6 +51,7 @@ export type SocialAccountRow = {
 	statusLabelKey: string;
 	lastSuccessAt: Date | null;
 	projectIds: string[];
+	defaultVisibility: SocialVisibility;
 };
 
 /**
@@ -64,6 +73,7 @@ type SocialAccountWireItem = {
 	lastSuccessAt?: string | Date | null;
 	lastError?: string | null;
 	projectIds?: string[] | null;
+	defaultVisibility?: string | null;
 };
 
 export type SocialAccountsWireResponse = {
@@ -119,6 +129,7 @@ export const toSocialAccountRows = (
 			statusLabelKey: LABEL_KEYS[statusWire],
 			lastSuccessAt: toDate(item.lastSuccessAt),
 			projectIds,
+			defaultVisibility: toVisibility(item.defaultVisibility),
 		});
 	}
 
@@ -263,6 +274,36 @@ export const useReconnectSocialAccountMutation = () => {
 			invalidateSocialAccounts(queryClient, variables.tenantId),
 		meta: {
 			successMessage: 'social-account-reconnected',
+			validationHandledByForm: true,
+		},
+	});
+};
+
+/** Default visibility of a Mastodon / Pixelfed account: every post published to
+ * it from now on is sent with it (#2186). */
+export const useSetSocialAccountVisibilityMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationKey: [...SOCIAL_ACCOUNTS_QUERY_KEY, 'visibility'],
+		mutationFn: async ({
+			tenantId,
+			socialAccountId,
+			visibility,
+		}: {
+			tenantId: string;
+			socialAccountId: string;
+			visibility: SocialVisibility;
+		}) => {
+			const client = getClientManager().getOrCreateClient(tenantId);
+			await client.socialAccounts
+				.bySocialAccountId(socialAccountId)
+				.visibility.put({ visibility: createUntypedString(visibility) });
+		},
+		onSuccess: (_data, variables) =>
+			invalidateSocialAccounts(queryClient, variables.tenantId),
+		meta: {
+			successMessage: 'social-account-visibility-updated',
 			validationHandledByForm: true,
 		},
 	});

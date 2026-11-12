@@ -264,6 +264,73 @@ public sealed class MastodonPublishProviderSpec {
 		failure.Cause.Should().NotContain(MastodonPublishProviderSpec._Token);
 	}
 
+	// #2186: the cause is persisted on the publication and shown to the user, so a body that
+	// echoes the credential back (a proxy reflecting the Authorization header) must be scrubbed
+	// on every failure class, not just the one the happy-path spec covers.
+	[Theory]
+	[InlineData(401, "Invalid credentials: Authorization: Bearer {token}")]
+	[InlineData(403, """{"access_token":"{token}"}""")]
+	[InlineData(422, "bad request ?access_token={token}&x=1")]
+	[InlineData(429, "rate limited for token={token}")]
+	[InlineData(503, "gateway echoed Bearer {token}")]
+	[InlineData(400, "Invalid token '{token}' rejected")]
+	public async Task ItShouldScrubTheCredentialFromAnErrorBodyOnEveryFailureClass(int status, string template) {
+		var body = template.Replace("{token}", MastodonPublishProviderSpec._Token, StringComparison.Ordinal);
+		var json = JsonSerializer.Serialize(new { error = body });
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Json(status, json));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler)
+			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+
+		var cause = result switch {
+			PublishResult.AccountFailure failure => failure.Cause,
+			PublishResult.ContentFailure failure => failure.Cause,
+			PublishResult.TransientFailure failure => failure.Cause,
+			PublishResult.Ambiguous failure => failure.Cause,
+			_ => throw new InvalidOperationException($"unexpected {result.GetType().Name}"),
+		};
+		cause.Should().NotContain(MastodonPublishProviderSpec._Token);
+	}
+
+	[Fact]
+	public async Task ItShouldScrubTheCredentialFromATransportErrorMessage() {
+		var handler = new RecordingHandler(_ => throw new HttpRequestException($"reset while sending Bearer {MastodonPublishProviderSpec._Token}"));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler)
+			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.Ambiguous>().Which.Cause.Should().NotContain(MastodonPublishProviderSpec._Token);
+	}
+
+	[Theory]
+	[InlineData(SocialPostVisibility.Public, "public")]
+	[InlineData(SocialPostVisibility.Unlisted, "unlisted")]
+	[InlineData(SocialPostVisibility.Private, "private")]
+	public async Task ItShouldPostWithTheRequestedVisibilityOnEverySegmentOfAThread(SocialPostVisibility visibility, string wire) {
+		var counter = 0;
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status($"s{++counter}"));
+		var request = MastodonPublishProviderSpec._Request() with {
+			Visibility = visibility,
+			FollowUpSegments = ["second"],
+		};
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.Published>();
+		MastodonPublishProviderSpec._Body(handler, 0).GetProperty("visibility").GetString().Should().Be(wire);
+		MastodonPublishProviderSpec._Body(handler, 1).GetProperty("visibility").GetString().Should().Be(wire);
+	}
+
+	[Fact]
+	public async Task ItShouldKeepPostingPubliclyWhenNoVisibilityIsSet() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("1"));
+
+		await MastodonPublishProviderSpec._Provider(handler)
+			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+
+		MastodonPublishProviderSpec._Body(handler, 0).GetProperty("visibility").GetString().Should().Be("public");
+	}
+
 	[Fact]
 	public async Task ItShouldMapAnUnprocessableStatusToAContentFailureWithTheInstancesReason() {
 		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Json(422, """{"error":"Validation failed: Text character limit of 500 exceeded"}"""));
@@ -401,6 +468,29 @@ public sealed class MastodonPublishProviderSpec {
 
 		result.Should().BeOfType<ReconcileResult.SafeToResend>();
 		handler.Requests.Should().BeEmpty();
+	}
+
+	// #2186 (L2): the instance dedupes an Idempotency-Key for about an hour, so a resend
+	// is only ever "safe" well inside that hour; past it, protection against a duplicate is
+	// the segment-results journal (#2176) plus asking the user, never a blind resend.
+	[Theory]
+	[InlineData(49, true)]
+	[InlineData(51, false)]
+	[InlineData(180, false)]
+	public async Task ItShouldOnlyResendInsideTheWindowAndOtherwiseAskTheUser(int minutes, bool safe) {
+		var handler = new RecordingHandler(_ => throw new InvalidOperationException("no call expected"));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).ReconcileAsync(
+			MastodonPublishProviderSpec._Reconcile(TimeSpan.FromMinutes(minutes)), CancellationToken.None
+		);
+
+		if (safe) {
+			result.Should().BeOfType<ReconcileResult.SafeToResend>();
+		} else {
+			result.Should().BeOfType<ReconcileResult.NeedsReview>();
+		}
+
+		MastodonPublishProvider.IdempotencyWindow.Should().BeLessThan(TimeSpan.FromHours(1));
 	}
 
 	[Fact]

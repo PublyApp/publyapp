@@ -14043,6 +14043,16 @@
               }
             }
           },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
           "503": {
             "description": "Service Unavailable",
             "content": {
@@ -14574,6 +14584,117 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SocialAccountCreated"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/social-accounts/{socialAccountId}/visibility": {
+      "put": {
+        "tags": [
+          "SocialAccounts"
+        ],
+        "summary": "Set the default post visibility of a Mastodon or Pixelfed account",
+        "operationId": "SetSocialAccountVisibilityForTenant",
+        "parameters": [
+          {
+            "name": "socialAccountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetSocialAccountVisibilityBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SocialAccountVisibilityUpdated"
                 }
               }
             }
@@ -20043,6 +20164,18 @@
           }
         }
       },
+      "SetSocialAccountVisibilityBody": {
+        "required": [
+          "visibility"
+        ],
+        "type": "object",
+        "properties": {
+          "visibility": {
+            "description": "public | unlisted | private.",
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
       "SocialAccountCreated": {
         "required": [
           "id",
@@ -20108,7 +20241,8 @@
           "credentialType",
           "lastSuccessAt",
           "lastError",
-          "projectIds"
+          "projectIds",
+          "defaultVisibility"
         ],
         "type": "object",
         "properties": {
@@ -20150,6 +20284,26 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          "defaultVisibility": {
+            "type": "string",
+            "description": "public | unlisted | private: who sees posts published to the account (#2186)."
+          }
+        }
+      },
+      "SocialAccountVisibilityUpdated": {
+        "required": [
+          "id",
+          "defaultVisibility"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "defaultVisibility": {
+            "type": "string"
           }
         }
       },
@@ -20621,6 +20775,14 @@
             "allOf": [
               {
                 "description": "\"pixelfed\" connects a Pixelfed server; anything else, Mastodon (#2175).",
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
+          },
+          "socialAccountId": {
+            "allOf": [
+              {
+                "description": "Set by a reconnect: the account this flow must come back as (#2186).",
                 "$ref": "#/components/schemas/JsonElement"
               }
             ]

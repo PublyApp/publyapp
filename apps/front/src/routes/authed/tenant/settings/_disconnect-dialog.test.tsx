@@ -52,6 +52,7 @@ const ACCOUNT = {
 	statusLabelKey: 'settings:status-active',
 	lastSuccessAt: null,
 	projectIds: [],
+	defaultVisibility: 'public',
 } satisfies SocialAccountRow;
 
 afterEach(() => {

@@ -21,6 +21,16 @@ public record StartMastodonConnectBody {
 	/// <summary>"pixelfed" connects a Pixelfed server; anything else, Mastodon (#2175).</summary>
 	public JsonElement? Provider { get; init; }
 
+	/// <summary>Set by a reconnect: the account this flow must come back as (#2186).</summary>
+	public JsonElement? SocialAccountId { get; init; }
+
+	public Guid? GetSocialAccountId() {
+		return this.SocialAccountId is { ValueKind: JsonValueKind.String } id
+			&& Guid.TryParse(id.GetString(), out var parsed)
+				? parsed
+				: null;
+	}
+
 	public string GetInstance() {
 		return this.Instance.GetValueAsString();
 	}
@@ -37,6 +47,7 @@ public class StartMastodonConnectBodyValidator : AbstractValidator<StartMastodon
 	public StartMastodonConnectBodyValidator() {
 		this.RuleFor(x => x.Instance).MustBeRequiredStringWithLength("Instance", 1, 300);
 		this.RuleFor(x => x.Provider).MustBeNullableNonEmptyString("Provider");
+		this.RuleFor(x => x.SocialAccountId).MustBeNullableNonEmptyGuid("SocialAccountId");
 	}
 }
 
@@ -48,7 +59,9 @@ public record MastodonConnectStarted {
 public sealed class StartMastodonConnectForTenant {
 	public static async Task<Results<
 		Ok<MastodonConnectStarted>,
+		AppNotFoundHttpResult,
 		AppProviderUnavailableHttpResult,
+		AppTooManyRequestsHttpResult,
 		AppValidationProblemHttpResult
 	>> Handle(
 		[FromBody] StartMastodonConnectBody body,
@@ -66,8 +79,22 @@ public sealed class StartMastodonConnectForTenant {
 		var provider = body.GetProvider();
 		var network = provider == SocialProvider.Pixelfed ? "Pixelfed" : "Mastodon";
 		var result = await oauthService.StartAsync(
-			tenantId, account.UserId, instance, cancellationToken, provider
+			tenantId, account.UserId, instance, cancellationToken, provider, body.GetSocialAccountId()
 		);
+
+		if (result is StartMastodonConnectResult.ReconnectTargetNotFound) {
+			return TypedProblems.NotFound(
+				"Social account not found",
+				ResponseKeys.SocialAccountNotFound
+			);
+		}
+
+		if (result is StartMastodonConnectResult.QuotaExceeded) {
+			return TypedProblems.TooManyRequests(
+				"Too many new servers were connected recently. Try again later, or connect one you already used.",
+				ResponseKeys.MastodonRegistrationQuotaExceeded
+			);
+		}
 
 		if (result is StartMastodonConnectResult.InvalidInstance) {
 			var reason = $"Enter the public https address of a {network} server.";

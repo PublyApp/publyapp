@@ -52,6 +52,11 @@ public class SocialAccount : BaseAttributes, ITenantEntity {
 	[Column("capability_refreshed_at")]
 	public DateTime? CapabilityRefreshedAt { get; set; }
 
+	// Who sees the posts published to this account (Mastodon / Pixelfed, #2186).
+	// Defaults to public, the behaviour before the setting existed.
+	[Column("default_visibility")]
+	public SocialPostVisibility DefaultVisibility { get; set; } = SocialPostVisibility.Public;
+
 	// Populated by the service from SocialAccountProject rows; not mapped to a column.
 	// VisibleIn (Task 6) reads this to decide per-project visibility.
 	[NotMapped]

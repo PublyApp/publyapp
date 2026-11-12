@@ -1839,6 +1839,14 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("redirect_uri");
 
+                    b.Property<DateTime?>("RegisteredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("registered_at");
+
+                    b.Property<Guid?>("RegisteredByTenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("registered_by_tenant_id");
+
                     b.Property<string>("Scopes")
                         .IsRequired()
                         .HasColumnType("text")
@@ -1854,6 +1862,9 @@ namespace PublyApp.Api.Migrations
                         .IsUnique()
                         .HasDatabaseName("ux_oauth_app_registrations_live_host")
                         .HasFilter("is_deleted = false");
+
+                    b.HasIndex("RegisteredByTenantId", "RegisteredAt")
+                        .HasDatabaseName("ix_oauth_app_registrations_registered_by_tenant");
 
                     b.ToTable("oauth_app_registrations");
                 });
@@ -1891,11 +1902,19 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
+                    b.Property<string>("ProtectedCodeVerifier")
+                        .HasColumnType("text")
+                        .HasColumnName("protected_code_verifier");
+
                     b.Property<int>("Provider")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(1)
                         .HasColumnName("provider");
+
+                    b.Property<Guid?>("ReconnectSocialAccountId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reconnect_social_account_id");
 
                     b.Property<string>("StateHash")
                         .IsRequired()
@@ -1948,6 +1967,12 @@ namespace PublyApp.Api.Migrations
                     b.Property<int>("CredentialType")
                         .HasColumnType("integer")
                         .HasColumnName("credential_type");
+
+                    b.Property<int>("DefaultVisibility")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("default_visibility");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone")
@@ -2005,6 +2030,8 @@ namespace PublyApp.Api.Migrations
 
                     b.ToTable("social_accounts", t =>
                         {
+                            t.HasCheckConstraint("CK_SocialAccount_DefaultVisibility", "default_visibility IN (0, 1, 2)");
+
                             t.HasCheckConstraint("CK_SocialAccount_Status", "status IN (10, 20, 30)");
                         });
                 });

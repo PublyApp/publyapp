@@ -1,5 +1,6 @@
 import {
 	IconBrandBluesky,
+	IconBrandMastodon,
 	IconCalendarDue,
 	IconClockCog,
 	IconKey,
@@ -108,6 +109,13 @@ const JOBS = {
 		descriptionKey:
 			'staff-jobs:jobs-job-social-account-token-refresh-description',
 		icon: IconBrandBluesky,
+		family: 'accounts',
+	},
+	'mastodon-instance-limits-refresh': {
+		labelKey: 'staff-jobs:jobs-job-mastodon-instance-limits-refresh-label',
+		descriptionKey:
+			'staff-jobs:jobs-job-mastodon-instance-limits-refresh-description',
+		icon: IconBrandMastodon,
 		family: 'accounts',
 	},
 	'upload-orphan-reclaim': {

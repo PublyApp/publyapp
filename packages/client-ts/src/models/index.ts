@@ -2186,6 +2186,15 @@ export function createSetSocialAccountProjectsBodyFromDiscriminatorValue(parseNo
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SetSocialAccountVisibilityBody}
+ */
+// @ts-ignore
+export function createSetSocialAccountVisibilityBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSetSocialAccountVisibilityBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {SocialAccountCreated}
  */
 // @ts-ignore
@@ -2200,6 +2209,15 @@ export function createSocialAccountCreatedFromDiscriminatorValue(parseNode: Pars
 // @ts-ignore
 export function createSocialAccountListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoSocialAccountListItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SocialAccountVisibilityUpdated}
+ */
+// @ts-ignore
+export function createSocialAccountVisibilityUpdatedFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSocialAccountVisibilityUpdated;
 }
 export interface CreateStaffInvitationBody extends AdditionalDataHolder, Parsable {
     /**
@@ -5564,6 +5582,17 @@ export function deserializeIntoSetSocialAccountProjectsBody(setSocialAccountProj
 }
 /**
  * The deserialization information for the current model
+ * @param SetSocialAccountVisibilityBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSetSocialAccountVisibilityBody(setSocialAccountVisibilityBody: Partial<SetSocialAccountVisibilityBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "visibility": n => { setSocialAccountVisibilityBody.visibility = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param SocialAccountCreated The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -5590,6 +5619,7 @@ export function deserializeIntoSocialAccountCreated(socialAccountCreated: Partia
 export function deserializeIntoSocialAccountListItem(socialAccountListItem: Partial<SocialAccountListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "credentialType": n => { socialAccountListItem.credentialType = n.getStringValue(); },
+        "defaultVisibility": n => { socialAccountListItem.defaultVisibility = n.getStringValue(); },
         "displayHandle": n => { socialAccountListItem.displayHandle = n.getStringValue(); },
         "externalAccountId": n => { socialAccountListItem.externalAccountId = n.getStringValue(); },
         "id": n => { socialAccountListItem.id = n.getGuidValue(); },
@@ -5598,6 +5628,18 @@ export function deserializeIntoSocialAccountListItem(socialAccountListItem: Part
         "projectIds": n => { socialAccountListItem.projectIds = n.getCollectionOfPrimitiveValues<Guid>("string"); },
         "provider": n => { socialAccountListItem.provider = n.getStringValue(); },
         "status": n => { socialAccountListItem.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param SocialAccountVisibilityUpdated The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSocialAccountVisibilityUpdated(socialAccountVisibilityUpdated: Partial<SocialAccountVisibilityUpdated> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "defaultVisibility": n => { socialAccountVisibilityUpdated.defaultVisibility = n.getStringValue(); },
+        "id": n => { socialAccountVisibilityUpdated.id = n.getGuidValue(); },
     }
 }
 /**
@@ -5824,6 +5866,7 @@ export function deserializeIntoStartMastodonConnectBody(startMastodonConnectBody
     return {
         "instance": n => { startMastodonConnectBody.instance = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
         "provider": n => { startMastodonConnectBody.provider = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+        "socialAccountId": n => { startMastodonConnectBody.socialAccountId = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
     }
 }
 /**
@@ -10922,6 +10965,18 @@ export function serializeSetSocialAccountProjectsBody(writer: SerializationWrite
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SetSocialAccountVisibilityBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSetSocialAccountVisibilityBody(writer: SerializationWriter, setSocialAccountVisibilityBody: Partial<SetSocialAccountVisibilityBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!setSocialAccountVisibilityBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("visibility", setSocialAccountVisibilityBody.visibility);
+    writer.writeAdditionalData(setSocialAccountVisibilityBody.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param SocialAccountCreated The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -10949,6 +11004,7 @@ export function serializeSocialAccountCreated(writer: SerializationWriter, socia
 export function serializeSocialAccountListItem(writer: SerializationWriter, socialAccountListItem: Partial<SocialAccountListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!socialAccountListItem || isSerializingDerivedType) { return; }
     writer.writeStringValue("credentialType", socialAccountListItem.credentialType);
+    writer.writeStringValue("defaultVisibility", socialAccountListItem.defaultVisibility);
     writer.writeStringValue("displayHandle", socialAccountListItem.displayHandle);
     writer.writeStringValue("externalAccountId", socialAccountListItem.externalAccountId);
     writer.writeGuidValue("id", socialAccountListItem.id);
@@ -10958,6 +11014,19 @@ export function serializeSocialAccountListItem(writer: SerializationWriter, soci
     writer.writeStringValue("provider", socialAccountListItem.provider);
     writer.writeStringValue("status", socialAccountListItem.status);
     writer.writeAdditionalData(socialAccountListItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SocialAccountVisibilityUpdated The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSocialAccountVisibilityUpdated(writer: SerializationWriter, socialAccountVisibilityUpdated: Partial<SocialAccountVisibilityUpdated> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!socialAccountVisibilityUpdated || isSerializingDerivedType) { return; }
+    writer.writeStringValue("defaultVisibility", socialAccountVisibilityUpdated.defaultVisibility);
+    writer.writeGuidValue("id", socialAccountVisibilityUpdated.id);
+    writer.writeAdditionalData(socialAccountVisibilityUpdated.additionalData);
 }
 /**
  * Serializes information the current object
@@ -11198,6 +11267,7 @@ export function serializeStartMastodonConnectBody(writer: SerializationWriter, s
     if (!startMastodonConnectBody || isSerializingDerivedType) { return; }
     writer.writeObjectValue("instance", startMastodonConnectBody.instance);
     writer.writeObjectValue("provider", startMastodonConnectBody.provider);
+    writer.writeObjectValue("socialAccountId", startMastodonConnectBody.socialAccountId);
     writer.writeAdditionalData(startMastodonConnectBody.additionalData);
 }
 /**
@@ -12072,6 +12142,12 @@ export interface SetSocialAccountProjectsBody extends AdditionalDataHolder, Pars
      */
     projectIds?: UntypedNode | null;
 }
+export interface SetSocialAccountVisibilityBody extends AdditionalDataHolder, Parsable {
+    /**
+     * public | unlisted | private.
+     */
+    visibility?: UntypedNode | null;
+}
 export interface SocialAccountCreated extends AdditionalDataHolder, Parsable {
     /**
      * The credentialType property
@@ -12116,6 +12192,10 @@ export interface SocialAccountListItem extends AdditionalDataHolder, Parsable {
      */
     credentialType?: string | null;
     /**
+     * public | unlisted | private: who sees posts published to the account (#2186).
+     */
+    defaultVisibility?: string | null;
+    /**
      * The displayHandle property
      */
     displayHandle?: string | null;
@@ -12147,6 +12227,16 @@ export interface SocialAccountListItem extends AdditionalDataHolder, Parsable {
      * The status property
      */
     status?: string | null;
+}
+export interface SocialAccountVisibilityUpdated extends AdditionalDataHolder, Parsable {
+    /**
+     * The defaultVisibility property
+     */
+    defaultVisibility?: string | null;
+    /**
+     * The id property
+     */
+    id?: Guid | null;
 }
 export interface StaffInvitationDetails extends AdditionalDataHolder, Parsable {
     /**
@@ -12481,6 +12571,10 @@ export interface StartMastodonConnectBody extends AdditionalDataHolder, Parsable
      * The provider property
      */
     provider?: UntypedNode | null;
+    /**
+     * The socialAccountId property
+     */
+    socialAccountId?: UntypedNode | null;
 }
 export interface SuspendTenantAsStaffBody extends AdditionalDataHolder, Parsable {
     /**

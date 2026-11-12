@@ -161,6 +161,7 @@ describe('bluesky connect drawer', () => {
 					statusLabelKey: 'settings:status-needs-reconnect',
 					lastSuccessAt: null,
 					projectIds: ['p1'],
+					defaultVisibility: 'public',
 				}}
 			/>,
 		);

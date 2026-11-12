@@ -29,12 +29,12 @@ worktree-specific port offset so multiple worktrees can run independent
 stacks simultaneously on different ports. If you run the stack manually
 without setting `E2E_PORT_*` env vars, the default ports are used:
 
-| Service           | Default port |
-| ----------------- | ------------ |
-| Traefik (web)     | 8080         |
-| Traefik (websecure)| 8443        |
-| Request counter   | 8800         |
-| Toxiproxy         | 8474         |
+| Service             | Default port |
+| ------------------- | ------------ |
+| Traefik (web)       | 8080         |
+| Traefik (websecure) | 8443         |
+| Request counter     | 8800         |
+| Toxiproxy           | 8474         |
 
 From the repo root, run Playwright:
 

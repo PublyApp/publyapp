@@ -40,8 +40,24 @@ public sealed class MastodonClient : IMastodonClient {
 		});
 	}
 
+	public async Task<bool> SupportsPkceAsync(string host, CancellationToken cancellationToken) {
+		var response = await this._SendAsync(
+			HttpMethod.Get, host, "/.well-known/oauth-authorization-server", null, null, cancellationToken
+		);
+		return response is { IsSuccess: true, Payload: { ValueKind: JsonValueKind.Object } payload }
+			&& payload.TryGetProperty("code_challenge_methods_supported", out var methods)
+			&& methods.ValueKind == JsonValueKind.Array
+			&& methods.EnumerateArray().Any(method =>
+				method.ValueKind == JsonValueKind.String && method.GetString() == "S256");
+	}
+
 	public async Task<MastodonResult<string>> ExchangeCodeAsync(
-		string host, MastodonApp app, string redirectUri, string code, CancellationToken cancellationToken
+		string host,
+		MastodonApp app,
+		string redirectUri,
+		string code,
+		string? codeVerifier,
+		CancellationToken cancellationToken
 	) {
 		var body = new Dictionary<string, string> {
 			["grant_type"] = "authorization_code",
@@ -50,6 +66,10 @@ public sealed class MastodonClient : IMastodonClient {
 			["client_secret"] = app.ClientSecret,
 			["redirect_uri"] = redirectUri,
 		};
+		if (codeVerifier is not null) {
+			body["code_verifier"] = codeVerifier;
+		}
+
 		var response = await this._SendAsync(
 			HttpMethod.Post, host, "/oauth/token", new FormUrlEncodedContent(body), null, cancellationToken
 		);

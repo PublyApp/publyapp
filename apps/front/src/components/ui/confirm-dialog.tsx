@@ -24,6 +24,11 @@ export type ConfirmDialogProps = {
 	onOpenChange: (isOpen: boolean) => void;
 };
 
+// A long label (a handle in a reconnect prompt) wraps inside the button instead of pushing
+// it out of the dialog: the footer wraps, and each button never exceeds the footer.
+const footerButtonClass =
+	'h-auto min-h-9 max-w-full py-1.5 text-center whitespace-normal';
+
 export const ConfirmDialog = ({
 	isOpen,
 	title,
@@ -52,12 +57,12 @@ export const ConfirmDialog = ({
 			}}
 		>
 			<DialogPrimitive.Portal>
-				<DialogPrimitive.Backdrop className="publy-overlay-backdrop z-(--publy-z-overlay) transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[opacity] data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-sm" />
+				<DialogPrimitive.Backdrop className="publy-overlay-backdrop z-(--publy-z-overlay) transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] data-ending-style:opacity-0 data-starting-style:opacity-0 motion-reduce:transition-none supports-backdrop-filter:backdrop-blur-sm" />
 				<DialogPrimitive.Popup
 					role="alertdialog"
 					data-slot="confirm-dialog"
 					data-tone={tone}
-					className="fixed top-1/2 left-1/2 z-(--publy-z-drawer-surface) flex w-[min(480px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[var(--publy-modal-radius)] border border-border/70 bg-(--publy-overlay-surface) p-0 text-popover-foreground shadow-[var(--publy-shadow-modal)] outline-none transition duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[transform,opacity] data-ending-style:translate-y-[calc(-50%+1rem)] data-ending-style:opacity-0 data-starting-style:translate-y-[calc(-50%+1rem)] data-starting-style:opacity-0 motion-reduce:transition-none"
+					className="fixed top-1/2 left-1/2 z-(--publy-z-drawer-surface) flex w-[min(480px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[var(--publy-modal-radius)] border border-border/70 bg-(--publy-overlay-surface) p-0 text-popover-foreground shadow-[var(--publy-shadow-modal)] outline-none transition duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] data-ending-style:translate-y-[calc(-50%+1rem)] data-ending-style:opacity-0 data-starting-style:translate-y-[calc(-50%+1rem)] data-starting-style:opacity-0 motion-reduce:transition-none"
 				>
 					<div
 						className={
@@ -92,11 +97,12 @@ export const ConfirmDialog = ({
 					) : null}
 					<div
 						data-slot="confirm-dialog-footer"
-						className="flex items-center justify-end gap-2.5 border-t border-[color:var(--publy-row-border)] px-6 py-3.5"
+						className="flex flex-wrap items-center justify-end gap-2.5 border-t border-[color:var(--publy-row-border)] px-6 py-3.5"
 					>
 						<Button
 							type="button"
 							variant="ghost"
+							className={footerButtonClass}
 							onClick={() => onOpenChange(false)}
 							disabled={isPending}
 						>
@@ -105,7 +111,7 @@ export const ConfirmDialog = ({
 						<Button
 							type="button"
 							variant={tone === 'danger' ? 'destructive' : 'default'}
-							className="font-semibold"
+							className={`${footerButtonClass} font-semibold`}
 							onClick={onConfirm}
 							disabled={isPending || isConfirmDisabled}
 						>

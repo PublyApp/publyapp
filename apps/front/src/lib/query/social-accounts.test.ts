@@ -84,4 +84,23 @@ describe('toSocialAccountRows', () => {
 			'2026-01-02T03:04:05.000Z',
 		);
 	});
+
+	it('ItShouldReadTheDefaultVisibilityAndFallBackToPublic', () => {
+		const rows = toSocialAccountRows({
+			data: [
+				{ id: 'm1', provider: 'mastodon', defaultVisibility: 'unlisted' },
+				{ id: 'm2', provider: 'pixelfed', defaultVisibility: 'private' },
+				{ id: 'm3', provider: 'mastodon', defaultVisibility: 'direct' },
+				{ id: 'b1', provider: 'bluesky' },
+			],
+			nextCursor: null,
+		});
+
+		expect(rows.map((row) => row.defaultVisibility)).toEqual([
+			'unlisted',
+			'private',
+			'public',
+			'public',
+		]);
+	});
 });

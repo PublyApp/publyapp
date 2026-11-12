@@ -30,6 +30,10 @@ public sealed record PublishRequest {
 	// provider that fits images to them; null falls back to the provider default.
 	public ProviderCapability? Capability { get; init; }
 
+	// Who sees the post (Mastodon / Pixelfed, #2186): the target account's default
+	// visibility. Providers without the notion ignore it.
+	public SocialPostVisibility Visibility { get; init; } = SocialPostVisibility.Public;
+
 	// The post's images in publish order (empty for a text-only post).
 	public IReadOnlyList<PublishMedia> Media { get; init; } = [];
 

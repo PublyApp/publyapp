@@ -121,6 +121,8 @@
 	"jobs-job-staff-joined-notification-description": "Notifies administrators that a member joined the staff.",
 	"jobs-job-social-account-token-refresh-label": "Token refresh",
 	"jobs-job-social-account-token-refresh-description": "Renews access to a social account before it expires.",
+	"jobs-job-mastodon-instance-limits-refresh-label": "Fediverse server limits refresh",
+	"jobs-job-mastodon-instance-limits-refresh-description": "Re-reads the post limits of each connected Mastodon and Pixelfed server.",
 	"jobs-job-upload-orphan-reclaim-label": "Orphan file cleanup",
 	"jobs-job-upload-orphan-reclaim-description": "Deletes uploaded media no publication uses.",
 	"jobs-job-session-cleanup-label": "Expired session purge",

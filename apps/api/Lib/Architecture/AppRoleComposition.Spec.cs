@@ -552,6 +552,7 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 			SystemJobOccurrenceRetentionHandler.JobKey,
 			EmailPreparedSendsRetentionHandler.JobKey,
 			PublyApp.Api.Modules.Uploads.Jobs.UploadOrphanReclaimerHandler.JobKey,
+			PublyApp.Api.Modules.SocialAccounts.Jobs.MastodonInstanceLimitsRefreshHandler.JobKey,
 			PublyApp.Api.Modules.Publishing.Jobs.PublishingJobs.PublishPublicationV1.JobType,
 			PublyApp.Api.Modules.Publishing.Jobs.DispatchDuePostsJob.JobKey,
 		]);

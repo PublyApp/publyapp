@@ -172,4 +172,6 @@ public static class AuditActions {
 	public const string SocialAccountReconnected = "socialaccount.reconnected";
 	public const string SocialAccountDisconnected = "socialaccount.disconnected";
 	public const string SocialAccountProjectsSet = "socialaccount.projects.set";
+	// #2186: the default visibility of a Mastodon / Pixelfed account changed — the word only.
+	public const string SocialAccountVisibilitySet = "socialaccount.visibility.set";
 }

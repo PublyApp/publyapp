@@ -20,6 +20,9 @@ export type MutationSuccessFeedback =
 export type MutationFailureFeedback = {
 	validationHandledByForm?: boolean;
 	skipGlobalErrorHandler?: boolean;
+	/** Failures carrying one of these translation keys get no toast: a local UI already
+	 * answers them (the other failures of the same mutation still toast). */
+	silentFailureKeys?: readonly string[];
 	skipAuthedErrorBackstop?: boolean;
 };
 
