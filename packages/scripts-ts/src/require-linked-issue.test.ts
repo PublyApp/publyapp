@@ -140,6 +140,15 @@ exit 0
 	return dir;
 };
 
+// #2406: the live GitHub call is network-bound; the default 5 s vitest timeout
+// flaked CI. Each live call gets an explicit bound, the first live test retries
+// once, and the test budget is derived from the call budget. Vitest only checks
+// elapsed time after a synchronous body returns, so the per-call bound is what
+// actually stops a hung call. The recorded boundary (mock gh answering "true"
+// for PRs) is asserted by the non-live tests below.
+const LIVE_CALL_TIMEOUT_MS = 12_000;
+const LIVE_TEST_TIMEOUT_MS = 2 * LIVE_CALL_TIMEOUT_MS + 5_000;
+
 type RunStepOptions = {
 	author: string;
 	body: string;
@@ -174,6 +183,8 @@ const runStep = ({
 	const mockGhDir = useRealGh ? null : createMockGhDir();
 	const result = spawnSync(process.execPath, [scriptPath], {
 		encoding: 'utf8',
+		// Only the real-gh run touches the network; bound the whole script run.
+		timeout: useRealGh ? 2 * LIVE_CALL_TIMEOUT_MS : undefined,
 		env: {
 			...process.env,
 			CI_LIVE_PR_RECORD_PATH: recordPath,
@@ -217,15 +228,9 @@ test('the relationship parser keeps only its own anchored keywords', () => {
 	assert.equal(isClosingRelationship('Refs #1'), false);
 });
 
-// #2406: the live GitHub call is network-bound; the default 5 s vitest timeout
-// flaked CI. Give it an explicit budget and retry once on failure only. The
-// recorded boundary (mock gh answering "true" for PRs) is asserted by the
-// non-live tests below.
-const LIVE_TIMEOUT_MS = 30_000;
-const LIVE_CALL_TIMEOUT_MS = 12_000;
-
 test.runIf(process.env.GITHUB_ACTIONS === 'true')(
 	'#2003 live boundary: GitHub exposes known PR #1987 through the issues endpoint',
+	{ timeout: LIVE_TEST_TIMEOUT_MS },
 	() => {
 		const callLive = () =>
 			spawnSync(
@@ -243,18 +248,24 @@ test.runIf(process.env.GITHUB_ACTIONS === 'true')(
 			result = callLive();
 		}
 
-		assert.equal(result.status, 0, result.stderr);
+		assert.equal(
+			result.status,
+			0,
+			result.stderr ||
+				result.error?.message ||
+				`gh exited without a status (signal ${result.signal})`,
+		);
 		assert.equal(
 			result.stdout.trim(),
 			'true',
 			'the live API must identify the known PR as a pull request',
 		);
 	},
-	LIVE_TIMEOUT_MS,
 );
 
 test.runIf(process.env.GITHUB_ACTIONS === 'true')(
 	'#2003 live boundary: the real gate rejects a known PR number',
+	{ timeout: LIVE_TEST_TIMEOUT_MS },
 	() => {
 		const { code, stdout } = runStep({
 			author: 'octocat',
@@ -266,7 +277,6 @@ test.runIf(process.env.GITHUB_ACTIONS === 'true')(
 		assert.equal(code, 1);
 		assert.match(stdout, /pull request/);
 	},
-	LIVE_TIMEOUT_MS,
 );
 
 test('the real waiver PASSES (exit 0) for dependabot[bot] with an empty body', () => {
