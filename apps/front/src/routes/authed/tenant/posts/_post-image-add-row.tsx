@@ -67,7 +67,7 @@ export const PostImageAddRow = ({
 					<p className="publy-type-helper text-muted-foreground">
 						{t('posts:image-help', {
 							types: formatTypes(limits.acceptedImageContentTypes),
-							size: formatBytes(limits.maxImageBytes, i18n.language),
+							size: formatBytes(limits.maxImageBytes, i18n.language, 'limit'),
 							max: limits.maxImages,
 						})}
 					</p>

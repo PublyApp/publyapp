@@ -1,7 +1,7 @@
 /**
  * One byte-size formatter for the whole front, driven by the UI language:
  * « 16.8 MB » in English, « 16,8 Mo » in French (Intl decimal separator,
- * French octet units). Decimal units (1 KB = 1000 B), matching the limits the
+ * French octet units). Decimal units (1 KB = 1000 B), the limits the
  * API advertises.
  */
 
@@ -23,22 +23,36 @@ const numberFormat = (locale: string): Intl.NumberFormat => {
 	return formatter;
 };
 
-export const formatBytes = (bytes: number, locale: string): string => {
+/** `size` rounds to the nearest tenth (a file's size); `limit` floors it, so a
+ * displayed cap never reads above the real one (8 388 608 B → « 8,3 MB »). */
+type RoundMode = 'size' | 'limit';
+
+const UNKNOWN = '—';
+
+export const formatBytes = (
+	bytes: number,
+	locale: string,
+	mode: RoundMode = 'size',
+): string => {
+	if (!Number.isFinite(bytes)) {
+		return UNKNOWN;
+	}
 	const units = locale.toLowerCase().startsWith('fr') ? UNITS.fr : UNITS.en;
 	const safe = Math.max(0, bytes);
-	if (safe < 1000) {
-		return `${numberFormat(locale).format(safe)} ${units[0]}`;
+	const round =
+		mode === 'limit'
+			? (v: number) => Math.floor(v * 10 + 1e-9) / 10
+			: (v: number) => Math.round(v * 10) / 10;
+	let exponent = 0;
+	while (exponent < units.length - 1 && safe >= 1000 ** (exponent + 1)) {
+		exponent += 1;
 	}
-	let exponent = Math.min(Math.floor(Math.log10(safe) / 3), units.length - 1);
-	// 999,5 KB rounds up to 1000 KB: show it as 1 MB instead.
-	if (exponent === 1 && Math.ceil(safe / 1000) >= 1000) {
-		exponent = 2;
+	let value =
+		exponent === 0 ? Math.floor(safe) : round(safe / 1000 ** exponent);
+	// A value that rounds up to 1000 carries into the next unit (999.96 KB → 1 MB).
+	while (value >= 1000 && exponent < units.length - 1) {
+		exponent += 1;
+		value = round(safe / 1000 ** exponent);
 	}
-	const value = safe / 1000 ** exponent;
-	// KB reads as a whole number (977 KB), larger units keep one decimal.
-	const text =
-		exponent === 1
-			? numberFormat(locale).format(Math.ceil(value))
-			: numberFormat(locale).format(value);
-	return `${text} ${units[exponent]}`;
+	return `${numberFormat(locale).format(value)} ${units[exponent]}`;
 };

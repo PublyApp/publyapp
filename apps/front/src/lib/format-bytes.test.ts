@@ -21,9 +21,24 @@ describe('formatBytes (#2408)', () => {
 		expect(formatBytes(999_999, 'en')).toBe('1 MB');
 		expect(formatBytes(1_000_000, 'en')).toBe('1 MB');
 		expect(formatBytes(1_000_000_000, 'en')).toBe('1 GB');
+		expect(formatBytes(999_960, 'en')).toBe('1 MB');
+		expect(formatBytes(999_960_000, 'en')).toBe('1 GB');
 		expect(formatBytes(999, 'fr')).toBe('999 o');
 		expect(formatBytes(1000, 'fr')).toBe('1 Ko');
 		expect(formatBytes(1_000_000, 'fr')).toBe('1 Mo');
 		expect(formatBytes(1_500_000_000, 'fr')).toBe('1,5 Go');
+	});
+
+	test('a displayed limit never reads above the real cap', () => {
+		expect(formatBytes(16_777_216, 'en', 'limit')).toBe('16.7 MB');
+		expect(formatBytes(8_388_608, 'en', 'limit')).toBe('8.3 MB');
+		expect(formatBytes(8_388_608, 'fr', 'limit')).toBe('8,3 Mo');
+		expect(formatBytes(16_777_216, 'fr', 'limit')).toBe('16,7 Mo');
+		expect(formatBytes(2_000_000, 'fr', 'limit')).toBe('2 Mo');
+	});
+
+	test('non-finite input does not render NaN', () => {
+		expect(formatBytes(Number.NaN, 'en')).toBe('—');
+		expect(formatBytes(Number.POSITIVE_INFINITY, 'fr')).toBe('—');
 	});
 });

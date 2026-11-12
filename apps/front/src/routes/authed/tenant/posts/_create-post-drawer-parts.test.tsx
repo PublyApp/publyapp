@@ -28,7 +28,9 @@ describe('CreatePostActions', () => {
 				.disabled,
 		).toBe(true);
 	});
+});
 
+describe('HandoffPanel', () => {
 	test('the retry button says images are being sent, not that the post is saving (#2408)', () => {
 		const props = { cause: '', onRetry: vi.fn(), onDiscard: vi.fn() };
 		const { rerender } = render(<HandoffPanel {...props} busy={false} />);
