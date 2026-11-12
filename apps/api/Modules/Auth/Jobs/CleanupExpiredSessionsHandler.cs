@@ -17,6 +17,10 @@ namespace PublyApp.Api.Modules.Auth.Jobs;
 /// harmless. The predicate is the domain outcome marker: a deleted row can never match
 /// again. Live (unexpired) sessions are never touched.
 ///
+/// Impersonation rows removed here leave a bounded-retention tombstone in
+/// <c>impersonation_session_ends</c> (#1519) so a late end call answers AlreadyEnded; the
+/// same sweep purges tombstones older than <see cref="TombstoneRetentionDays"/>.
+///
 /// Never logs session token values (#389 / the repo's no-secret-logging invariant): only
 /// aggregate counts are logged, never a row's <c>token</c>.
 /// </summary>
@@ -25,6 +29,9 @@ public sealed class CleanupExpiredSessionsHandler : IJobHandler {
 	// (EnqueueSystemJobJob sets job_queue.job_type = job_key). Kept in one place so the
 	// seeder and the handler can never drift.
 	public const string JobKey = "session-cleanup";
+
+	// How long an "impersonation session ended" tombstone (#1519) outlives its session.
+	public const int TombstoneRetentionDays = 30;
 
 	// Rows deleted per statement. Bounded so a large backlog never runs one unbounded
 	// DELETE that holds locks / bloats WAL; the loop repeats until a short batch.
@@ -58,22 +65,51 @@ public sealed class CleanupExpiredSessionsHandler : IJobHandler {
 		do {
 			cancellationToken.ThrowIfCancellationRequested();
 
+			// One statement: the data-modifying CTE writes the impersonation tombstone for
+			// every impersonation row this pass removes (#1519), so a late end call after
+			// the sweep answers AlreadyEnded, not NotFound. Both writes commit together.
 			deleted = await this._DbContext.Database.ExecuteSqlAsync(
 				$"""
-				DELETE FROM sessions
-				WHERE id IN (
-					SELECT id FROM sessions
+				WITH doomed AS (
+					SELECT id, is_impersonation, expires_at FROM sessions
 					WHERE expires_at <= now()
 					ORDER BY expires_at, id
 					LIMIT {CleanupExpiredSessionsHandler._BatchSize}
 					FOR UPDATE SKIP LOCKED
+				), tombstones AS (
+					INSERT INTO impersonation_session_ends (session_id, ended_at, reason)
+					SELECT id, expires_at, 'Expired' FROM doomed WHERE is_impersonation
+					ON CONFLICT (session_id) DO NOTHING
 				)
+				DELETE FROM sessions WHERE id IN (SELECT id FROM doomed)
 				""",
 				cancellationToken
 			);
 
 			totalDeleted += deleted;
 		} while (deleted == CleanupExpiredSessionsHandler._BatchSize);
+
+		// Bounded retention for the tombstones (#1519): same batched, idempotent,
+		// database-time convention as the session sweep. A tombstone only has to outlive
+		// any plausible late end call; after the window the id is genuinely unknown again.
+		int tombstonesDeleted;
+		do {
+			cancellationToken.ThrowIfCancellationRequested();
+
+			tombstonesDeleted = await this._DbContext.Database.ExecuteSqlAsync(
+				$"""
+				DELETE FROM impersonation_session_ends
+				WHERE session_id IN (
+					SELECT session_id FROM impersonation_session_ends
+					WHERE ended_at < now() - make_interval(days => {CleanupExpiredSessionsHandler.TombstoneRetentionDays})
+					ORDER BY ended_at, session_id
+					LIMIT {CleanupExpiredSessionsHandler._BatchSize}
+					FOR UPDATE SKIP LOCKED
+				)
+				""",
+				cancellationToken
+			);
+		} while (tombstonesDeleted == CleanupExpiredSessionsHandler._BatchSize);
 
 		if (totalDeleted > 0 && this._Logger.IsEnabled(LogLevel.Information)) {
 			this._Logger.LogInformation(

@@ -5,9 +5,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.AuditLogs.Entities;
+using PublyApp.Api.Modules.Auth.Entities;
+using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Auth.Utils;
+using PublyApp.Api.Modules.Impersonations.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -91,6 +95,166 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 			&& a.UserId == staffUserId
 			&& a.TargetId == tenantId
 		)).Should().BeTrue();
+	}
+
+	// #1519 — a late end call after the session sweep must answer AlreadyEnded, not
+	// NotFound. Red without the tombstone: remove the `tombstones` CTE from
+	// CleanupExpiredSessionsHandler and this spec returns NotFound.
+	[Fact]
+	public async Task ItShouldReportAlreadyEndedWhenEndIsCalledAfterTheSweep() {
+		var (tenantId, _) = await this._SeedTenantUserAsync();
+		var staffUserId = await this._SeedStaffActorAsync();
+		var sessionId = await this._StartExpiredImpersonationAsync(tenantId, staffUserId);
+
+		await this._RunSweepAsync();
+
+		await using var verify = this._CreateDbContext();
+		(await verify.Session.AnyAsync(s => s.Id == sessionId)).Should().BeFalse("the sweep removed the row");
+
+		var result = await this._EndAsync(sessionId, staffUserId);
+		result.Should().Be(ImpersonationEndResult.AlreadyEnded);
+	}
+
+	[Fact]
+	public async Task ItShouldReportNotFoundForAnUnknownSessionId() {
+		var staffUserId = await this._SeedStaffActorAsync();
+
+		var result = await this._EndAsync(Guid.NewGuid(), staffUserId);
+
+		result.Should().Be(ImpersonationEndResult.NotFound);
+	}
+
+	[Fact]
+	public async Task ItShouldReportAlreadyEndedForAnExpiredRowNotYetSwept() {
+		var (tenantId, _) = await this._SeedTenantUserAsync();
+		var staffUserId = await this._SeedStaffActorAsync();
+		var sessionId = await this._StartExpiredImpersonationAsync(tenantId, staffUserId);
+
+		var result = await this._EndAsync(sessionId, staffUserId);
+
+		result.Should().Be(ImpersonationEndResult.AlreadyEnded);
+	}
+
+	[Fact]
+	public async Task ItShouldEndALiveSessionWithAuditAndTombstoneThenReportAlreadyEnded() {
+		var (tenantId, _) = await this._SeedTenantUserAsync();
+		var staffUserId = await this._SeedStaffActorAsync();
+		var sessionId = await this._StartImpersonationAsync(tenantId, staffUserId);
+
+		(await this._EndAsync(sessionId, staffUserId)).Should().Be(ImpersonationEndResult.Ended);
+
+		await using var verify = this._CreateDbContext();
+		(await verify.Session.AnyAsync(s => s.Id == sessionId)).Should().BeFalse();
+		var tombstone = await verify.ImpersonationSessionEnd.SingleAsync(e => e.SessionId == sessionId);
+		tombstone.Reason.Should().Be(ImpersonationEndReason.Revoked);
+		(await verify.AuditLog.AnyAsync(a =>
+			a.Action == AuditActions.ImpersonationEnded
+			&& a.UserId == staffUserId
+			&& a.TargetId == sessionId
+		)).Should().BeTrue();
+
+		(await this._EndAsync(sessionId, staffUserId)).Should().Be(ImpersonationEndResult.AlreadyEnded);
+	}
+
+	[Fact]
+	public async Task ItShouldNotTombstoneOrdinarySessionsWhenSweeping() {
+		var staffUserId = await this._SeedStaffActorAsync();
+		var token = $"tombstone-ordinary-{Guid.NewGuid():N}";
+		await using var db = this._CreateDbContext();
+		var session = new Session {
+			UserId = staffUserId,
+			Token = token,
+			ExpiresAt = DateTime.UtcNow.AddMinutes(-5)
+		};
+		db.Session.Add(session);
+		await db.SaveChangesAsync();
+
+		await this._RunSweepAsync();
+
+		await using var verify = this._CreateDbContext();
+		(await verify.Session.AnyAsync(s => s.Token == token)).Should().BeFalse();
+		(await verify.ImpersonationSessionEnd.AnyAsync(e => e.SessionId == session.Id)).Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task ItShouldPurgeOnlyTombstonesPastRetention() {
+		await using var db = this._CreateDbContext();
+		var oldId = Guid.NewGuid();
+		var recentId = Guid.NewGuid();
+		db.ImpersonationSessionEnd.AddRange(
+			new ImpersonationSessionEnd {
+				SessionId = oldId,
+				EndedAt = DateTime.UtcNow.AddDays(-(CleanupExpiredSessionsHandler.TombstoneRetentionDays + 1)),
+				Reason = ImpersonationEndReason.Expired
+			},
+			new ImpersonationSessionEnd {
+				SessionId = recentId,
+				EndedAt = DateTime.UtcNow.AddDays(-1),
+				Reason = ImpersonationEndReason.Expired
+			}
+		);
+		await db.SaveChangesAsync();
+
+		await this._RunSweepAsync();
+
+		await using var verify = this._CreateDbContext();
+		(await verify.ImpersonationSessionEnd.AnyAsync(e => e.SessionId == oldId)).Should().BeFalse();
+		(await verify.ImpersonationSessionEnd.AnyAsync(e => e.SessionId == recentId)).Should().BeTrue();
+
+		// Past retention the id is genuinely unknown again.
+		var staffUserId = await this._SeedStaffActorAsync();
+		(await this._EndAsync(oldId, staffUserId)).Should().Be(ImpersonationEndResult.NotFound);
+	}
+
+	private async Task<Guid> _StartImpersonationAsync(Guid tenantId, Guid staffUserId) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var service = new ImpersonationService(
+			scope.ServiceProvider.GetRequiredService<AppDbContext>(),
+			new Microsoft.AspNetCore.Http.HttpContextAccessor(),
+			NullLogger<ImpersonationService>.Instance
+		);
+		var session = await service.CreateImpersonationSessionAsync(
+			new CreateImpersonationSessionArgs(tenantId, staffUserId, "end spec"),
+			CancellationToken.None
+		);
+		return session.Id.GetValueOrDefault();
+	}
+
+	private async Task<Guid> _StartExpiredImpersonationAsync(Guid tenantId, Guid staffUserId) {
+		var sessionId = await this._StartImpersonationAsync(tenantId, staffUserId);
+		await using var db = this._CreateDbContext();
+		_ = await db.Database.ExecuteSqlAsync(
+			$"UPDATE sessions SET expires_at = now() - interval '1 hour', impersonation_expires_at = now() - interval '1 hour' WHERE id = {sessionId}"
+		);
+		return sessionId;
+	}
+
+	private async Task<ImpersonationEndResult> _EndAsync(Guid sessionId, Guid staffUserId) {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var service = new ImpersonationService(
+			scope.ServiceProvider.GetRequiredService<AppDbContext>(),
+			new Microsoft.AspNetCore.Http.HttpContextAccessor(),
+			NullLogger<ImpersonationService>.Instance
+		);
+		return await service.EndImpersonationSessionForStaffAsync(
+			new EndImpersonationSessionArgs(sessionId, staffUserId),
+			CancellationToken.None
+		);
+	}
+
+	private async Task _RunSweepAsync() {
+		await using var db = this._CreateDbContext();
+		var handler = new CleanupExpiredSessionsHandler(db, NullLogger<CleanupExpiredSessionsHandler>.Instance);
+		_ = await handler.HandleAsync(
+			new JobContext {
+				JobId = Guid.NewGuid(),
+				JobType = handler.JobType,
+				Payload = "{}",
+				Attempts = 0,
+				MaxAttempts = 10
+			},
+			CancellationToken.None
+		);
 	}
 
 	private async Task<(Guid tenantId, Guid sessionUserId)> _SeedTenantUserAsync() {

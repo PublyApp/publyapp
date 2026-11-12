@@ -5,6 +5,7 @@ using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Auth.Entities;
+using PublyApp.Api.Modules.Impersonations.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Modules.Impersonations.Services;
 
@@ -15,7 +16,27 @@ public record CreateImpersonationSessionArgs(
 	int DurationMinutes = 60
 );
 
+public record EndImpersonationSessionArgs(
+	Guid SessionId,
+	Guid EndedByStaffUserId
+);
+
+/// <summary>
+/// Outcome of ending an impersonation session. <see cref="NotFound"/> means the id is
+/// unknown (never existed, or its tombstone aged out); <see cref="AlreadyEnded"/> means the
+/// session is known to be over (expired, revoked or swept) — durable past the sweep (#1519).
+/// </summary>
+public enum ImpersonationEndResult {
+	Ended,
+	NotFound,
+	AlreadyEnded
+}
+
 public interface IImpersonationService {
+	Task<ImpersonationEndResult> EndImpersonationSessionForStaffAsync(
+		EndImpersonationSessionArgs args,
+		CancellationToken cancellationToken = default);
+
 	Task<Session> CreateImpersonationSessionAsync(
 		CreateImpersonationSessionArgs args,
 		CancellationToken cancellationToken = default);
@@ -95,6 +116,75 @@ public class ImpersonationService : IImpersonationService {
 		}
 
 		return session;
+	}
+
+	public async Task<ImpersonationEndResult> EndImpersonationSessionForStaffAsync(
+		EndImpersonationSessionArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		var sessionId = args.SessionId;
+
+		var sessionQuery =
+			from s in this._DbContext.Session
+			where s.Id == sessionId && s.IsImpersonation
+			select s;
+		var session = await sessionQuery.FirstOrDefaultAsync(cancellationToken);
+
+		if (session is null) {
+			// No live row: the tombstone (written when the session ended, expired or was
+			// swept) is the only durable evidence that the id was once a real session.
+			var tombstoneQuery =
+				from e in this._DbContext.ImpersonationSessionEnd
+				where e.SessionId == sessionId
+				select e.SessionId;
+			var tombstoned = await tombstoneQuery.AnyAsync(cancellationToken);
+
+			return tombstoned
+				? ImpersonationEndResult.AlreadyEnded
+				: ImpersonationEndResult.NotFound;
+		}
+
+		if (!session.IsImpersonationValid()) {
+			// Expired but not swept yet: already over; the sweep removes the row and
+			// writes the tombstone.
+			return ImpersonationEndResult.AlreadyEnded;
+		}
+
+		var endedAt = DateTime.UtcNow;
+		await using var tx = await this._DbContext.Database.BeginTransactionAsync(cancellationToken);
+		try {
+			_ = this._DbContext.Session.Remove(session);
+			_ = this._DbContext.ImpersonationSessionEnd.Add(new ImpersonationSessionEnd {
+				SessionId = sessionId,
+				EndedAt = endedAt,
+				Reason = ImpersonationEndReason.Revoked
+			});
+			this._AddEndAuditEntry(args, session);
+			await this._DbContext.SaveChangesAsync(cancellationToken);
+			await tx.CommitAsync(cancellationToken);
+		} catch (DbUpdateConcurrencyException) {
+			// A concurrent end or sweep removed the row between read and delete.
+			return ImpersonationEndResult.AlreadyEnded;
+		}
+
+		return ImpersonationEndResult.Ended;
+	}
+
+	private void _AddEndAuditEntry(EndImpersonationSessionArgs args, Session session) {
+		var httpContext = this._HttpContextAccessor.HttpContext;
+		var auditLog = AuditLog.CreateEntry(
+			userId: args.EndedByStaffUserId,
+			action: AuditActions.ImpersonationEnded,
+			targetId: args.SessionId,
+			details: new {
+				ImpersonatedUserId = session.UserId,
+				ImpersonatingStaffUserId = session.ImpersonatingStaffUserId
+			},
+			ipAddress: httpContext?.Connection.RemoteIpAddress?.ToString(),
+			userAgent: httpContext?.Request.Headers.UserAgent.ToString()
+		);
+
+		_ = this._DbContext.AuditLog.Add(auditLog);
 	}
 
 	private void _AddAuditEntry(
