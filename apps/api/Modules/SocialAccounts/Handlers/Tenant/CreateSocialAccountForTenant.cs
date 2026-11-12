@@ -12,6 +12,8 @@ using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
+using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
@@ -68,6 +70,7 @@ public sealed class CreateSocialAccountForTenant {
 		[FromBody] ConnectSocialAccountBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] SocialAccountService socialAccountService,
+		[FromServices] IProviderAvailability providerAvailability,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
@@ -78,6 +81,10 @@ public sealed class CreateSocialAccountForTenant {
 		}
 
 		var account = authContext.GetRequiredTenantAccount();
+
+		if (!providerAvailability.IsEnabled(SocialProvider.Bluesky)) {
+			return ProviderDisabledProblem.For(SocialProvider.Bluesky);
+		}
 
 		// Parsing-sensitive getters are cached in locals (PUBLY0006).
 		var identifier = body.GetIdentifier().Trim();

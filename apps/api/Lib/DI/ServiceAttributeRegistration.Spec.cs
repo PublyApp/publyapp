@@ -99,7 +99,8 @@ public sealed class ServiceAttributeRegistrationSpec
 		(typeof(ITenantUserQueryService), typeof(TenantUserQueryService)),
 		(typeof(IUploadAssetReferenceService), typeof(UploadAssetReferenceService)),
 		(typeof(IUserService), typeof(UserService)),
-		(typeof(ICredentialProtector), typeof(CredentialProtector))
+		(typeof(ICredentialProtector), typeof(CredentialProtector)),
+		(typeof(IProviderAvailability), typeof(ProviderAvailability))
 	];
 
 	// Services registered BY HAND in Lib/DI/ServiceRegistration.cs instead of via

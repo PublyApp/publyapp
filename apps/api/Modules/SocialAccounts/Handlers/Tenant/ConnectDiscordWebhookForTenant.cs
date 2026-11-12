@@ -13,6 +13,8 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Publishing.Services;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
+using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Discord;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
@@ -57,6 +59,7 @@ public sealed class ConnectDiscordWebhookForTenant {
 		[FromBody] ConnectDiscordWebhookBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] DiscordWebhookConnectService connectService,
+		[FromServices] IProviderAvailability providerAvailability,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IPublicationQueueService publicationQueueService,
 		[FromServices] IPublicationStatusTransitionService transitions,
@@ -67,6 +70,10 @@ public sealed class ConnectDiscordWebhookForTenant {
 		}
 
 		var account = authContext.GetRequiredTenantAccount();
+
+		if (!providerAvailability.IsEnabled(SocialProvider.DiscordWebhook)) {
+			return ProviderDisabledProblem.For(SocialProvider.DiscordWebhook);
+		}
 
 		Guid? replaceAccountId = null;
 		var rawAccountId = body.GetSocialAccountId();

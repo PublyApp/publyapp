@@ -42,6 +42,9 @@ public abstract record CompleteMastodonConnectResult {
 
 	public sealed record Refused(string Reason) : CompleteMastodonConnectResult;
 
+	// The operator switched the provider off after the authorization started (#2184).
+	public sealed record ProviderDisabled(SocialProvider Provider) : CompleteMastodonConnectResult;
+
 	public sealed record Unreachable() : CompleteMastodonConnectResult;
 
 	/// <summary>
@@ -210,7 +213,8 @@ public sealed class MastodonOAuthService {
 		Guid userId,
 		string code,
 		string state,
-		CancellationToken cancellationToken
+		CancellationToken cancellationToken,
+		Func<SocialProvider, bool>? isEnabled = null
 	) {
 		var hash = MastodonOAuthService.Hash(state);
 		var now = DateTime.UtcNow;
@@ -231,6 +235,10 @@ public sealed class MastodonOAuthService {
 			.FirstOrDefaultAsync(cancellationToken);
 		if (pending is null) {
 			return new CompleteMastodonConnectResult.InvalidState();
+		}
+
+		if (isEnabled is not null && !isEnabled(pending.Provider)) {
+			return new CompleteMastodonConnectResult.ProviderDisabled(pending.Provider);
 		}
 
 		// Single use: the conditional update is the lock; the loser of a race gets 0 rows.

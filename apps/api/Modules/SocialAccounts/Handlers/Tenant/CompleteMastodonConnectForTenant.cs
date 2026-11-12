@@ -13,6 +13,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Publishing.Services;
+using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
@@ -47,6 +48,7 @@ public sealed class CompleteMastodonConnectForTenant {
 		[FromBody] CompleteMastodonConnectBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] MastodonOAuthService oauthService,
+		[FromServices] IProviderAvailability providerAvailability,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IPublicationQueueService publicationQueueService,
 		[FromServices] IPublicationStatusTransitionService transitions,
@@ -60,7 +62,13 @@ public sealed class CompleteMastodonConnectForTenant {
 
 		var code = body.GetCode();
 		var state = body.GetState();
-		var result = await oauthService.CompleteAsync(tenantId, account.UserId, code, state, cancellationToken);
+		var result = await oauthService.CompleteAsync(
+			tenantId, account.UserId, code, state, cancellationToken, providerAvailability.IsEnabled
+		);
+
+		if (result is CompleteMastodonConnectResult.ProviderDisabled disabled) {
+			return ProviderDisabledProblem.For(disabled.Provider);
+		}
 
 		if (result is CompleteMastodonConnectResult.InvalidState) {
 			const string reason = "This authorization link is invalid, expired or was already used. Start the connection again.";

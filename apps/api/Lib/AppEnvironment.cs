@@ -5,6 +5,9 @@ using FluentValidation;
 
 using Npgsql;
 
+using PublyApp.Api.Modules.SocialAccounts.Entities;
+using PublyApp.Api.Modules.SocialAccounts.Services;
+
 namespace PublyApp.Api.Lib;
 
 /// <summary>
@@ -175,6 +178,10 @@ public class AppEnvironment {
 	// job_queue is never tolerated, and wildcards are rejected (the validator enforces
 	// exact types). Empty by default; the startup gate audit-logs each entry at boot.
 	public IReadOnlyList<string> JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST { get; }
+
+	// Operator switch per provider (#2184): wire provider names (bluesky, mastodon,
+	// pixelfed, discord_webhook) that tenants can no longer connect. Empty = all enabled.
+	public IReadOnlyList<string> DISABLED_PUBLISH_PROVIDERS { get; }
 
 	// Maps the HTTP request surface (endpoints + middleware). Computed the same way
 	// as the IsDevelopment accessors: `api` and `all` serve HTTP, `worker` does not.
@@ -398,7 +405,8 @@ public class AppEnvironment {
 		int emailPreparedSweepMaxLagMinutes,
 		int systemJobOccurrenceRetentionDays,
 		int jobAlertLeaseRetentionDays,
-		IReadOnlyList<string> jobRegistryDlqOrphanAllowlist
+		IReadOnlyList<string> jobRegistryDlqOrphanAllowlist,
+		IReadOnlyList<string> disabledPublishProviders
 	) {
 		this.POSTGRES_CONNECTION_STRING = postgresConnectionString;
 		this.FRONT_URL = frontUrl;
@@ -495,6 +503,7 @@ public class AppEnvironment {
 		this.SYSTEM_JOB_OCCURRENCE_RETENTION_DAYS = systemJobOccurrenceRetentionDays;
 		this.JOB_ALERT_LEASE_RETENTION_DAYS = jobAlertLeaseRetentionDays;
 		this.JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST = jobRegistryDlqOrphanAllowlist;
+		this.DISABLED_PUBLISH_PROVIDERS = disabledPublishProviders;
 	}
 
 	/// <summary>
@@ -736,7 +745,9 @@ public class AppEnvironment {
 				jobAlertLeaseRetentionDays: AppEnvironment._GetOptionalInt(
 					nameof(AppEnvironment.JOB_ALERT_LEASE_RETENTION_DAYS), 30),
 				jobRegistryDlqOrphanAllowlist: AppEnvironment._GetOptionalCsvList(
-					nameof(AppEnvironment.JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST))
+					nameof(AppEnvironment.JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST)),
+				disabledPublishProviders: AppEnvironment._GetOptionalCsvList(
+					nameof(AppEnvironment.DISABLED_PUBLISH_PROVIDERS))
 			);
 
 			var validator = new AppEnvironmentValidator();
@@ -1427,6 +1438,14 @@ public class AppEnvironmentValidator : AbstractValidator<AppEnvironment> {
 			.WithMessage(
 				"JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST entries must be exact job_type strings; "
 				+ "wildcards ('*', '?', '%') are not allowed");
+
+		// A typo here would silently leave a provider enabled, so unknown names fail the boot.
+		this.RuleForEach(x => x.DISABLED_PUBLISH_PROVIDERS)
+			.Must(entry => Enum.GetValues<SocialProvider>()
+				.Any(provider => SocialAccountWire.FormatProvider(provider) == entry))
+			.WithMessage(
+				"DISABLED_PUBLISH_PROVIDERS entries must be wire provider names "
+				+ "(bluesky, mastodon, pixelfed, discord_webhook)");
 
 		this.RuleFor(x => x.SESSION_TOKEN_HEADER_KEY)
 			.Must(AppEnvironmentValidator._BeValidHeaderName)
