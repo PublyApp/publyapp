@@ -51,7 +51,7 @@ public sealed class PublishValidationServiceSpec {
 
 		var tooMany = PublishValidationService.Validate(
 			"first", [], bluesky, followUps,
-			[[], ["image/png", "image/png", "image/png", "image/png", "image/png"]]
+			followUpImageContentTypes: [[], ["image/png", "image/png", "image/png", "image/png", "image/png"]]
 		);
 		Assert.NotNull(tooMany);
 		tooMany.Kind.Should().Be(PublishContentFailureKind.TooManyImages);
@@ -60,7 +60,7 @@ public sealed class PublishValidationServiceSpec {
 		tooMany.Cause.Should().StartWith("Segment 3:");
 
 		var wrongType = PublishValidationService.Validate(
-			"first", [], bluesky, followUps, [["image/gif"], []]
+			"first", [], bluesky, followUps, followUpImageContentTypes: [["image/gif"], []]
 		);
 		Assert.NotNull(wrongType);
 		wrongType.Kind.Should().Be(PublishContentFailureKind.UnsupportedImageType);
@@ -68,7 +68,7 @@ public sealed class PublishValidationServiceSpec {
 		wrongType.ImageIndex.Should().Be(1);
 
 		PublishValidationService.Validate(
-			"first", [], bluesky, followUps, [["image/png", "image/jpeg"], ["image/webp"]]
+			"first", [], bluesky, followUps, followUpImageContentTypes: [["image/png", "image/jpeg"], ["image/webp"]]
 		).Should().BeNull();
 	}
 
@@ -77,10 +77,10 @@ public sealed class PublishValidationServiceSpec {
 		var bluesky = new[] { ProviderCapabilityRegistry.Bluesky };
 
 		PublishValidationService.Validate(
-			"first", [], bluesky, ["  "], [["image/png"]]
+			"first", [], bluesky, ["  "], followUpImageContentTypes: [["image/png"]]
 		).Should().BeNull();
 
-		var empty = PublishValidationService.Validate("first", [], bluesky, ["  "], [[]]);
+		var empty = PublishValidationService.Validate("first", [], bluesky, ["  "], followUpImageContentTypes: [[]]);
 		Assert.NotNull(empty);
 		empty.Kind.Should().Be(PublishContentFailureKind.Empty);
 		empty.SegmentNumber.Should().Be(2);
