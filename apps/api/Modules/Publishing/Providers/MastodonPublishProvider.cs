@@ -134,7 +134,13 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		return Task.FromResult(result);
 	}
 
-	// Mastodon keeps an Idempotency-Key for about an hour; stay well inside it.
+	// Mastodon keeps an Idempotency-Key for about an hour; stay well inside it. The key is
+	// therefore NOT a protection against a retry that comes later than this (#2186, L2): past
+	// the window ReconcileAsync answers NeedsReview and the publication is parked for the
+	// user instead of being resent, and a thread that already published segments resumes
+	// after them from the segment-results journal (#2176: PublishRequest.CompletedSegments is
+	// built from it), never by asking the instance. The journal is the long-delay guard; see
+	// docs/guides/social-accounts.md, "Idempotency beyond about an hour".
 	internal static readonly TimeSpan IdempotencyWindow = TimeSpan.FromMinutes(50);
 
 	private sealed record Outcome(PublishResult Result, CompletedSegment? Segment);

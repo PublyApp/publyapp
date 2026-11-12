@@ -104,7 +104,56 @@ instance host (only its SHA-256 is stored, in `oauth_states`).
   for reconnect. Disconnect revokes the token best effort, then erases the credentials.
 - On every connect/reconnect the instance's advertised limits are written to
   `social_accounts.capability_overrides` after validation (non-positive values dropped,
-  absurd values clamped; see `CapabilityOverridesFactory`).
+  absurd values clamped; see `CapabilityOverridesFactory`). They are also refreshed daily
+  (see "Follow-ups" below).
+
+### Follow-ups (#2186)
+
+- **PKCE.** When the instance advertises `S256` in its OAuth server metadata
+  (`/.well-known/oauth-authorization-server`, Mastodon 4.3+), the authorize URL carries a
+  `code_challenge` and the token exchange a `code_verifier` (RFC 7636), on top of the stored
+  client secret. The verifier is stored encrypted on the pending `oauth_states` row
+  (`protected_code_verifier`). An instance that does not advertise it (older Mastodon,
+  Pixelfed) is detected by the missing metadata and connects exactly as before, without
+  PKCE; an unreachable metadata document counts as "no PKCE".
+- **Daily limits refresh.** The `mastodon-instance-limits-refresh` system job (worker role,
+  daily 04:45, seeded in `system_job_definitions`, allow-listed in `AppRoleComposition.Spec`)
+  re-reads each connected server once per network and rewrites the capability overrides of
+  its accounts. A server that cannot be read or advertises nothing usable keeps the last
+  known limits; revoked accounts are skipped.
+- **Default visibility.** `social_accounts.default_visibility` (`public` default, `unlisted`,
+  `private`) is set with `PUT /social-accounts/{id}/visibility` (Mastodon and Pixelfed only;
+  Bluesky and Discord are refused) and sent as `visibility` on every segment of a post or
+  thread. Already published posts are not touched.
+- **Reconnect must come back as the same account.** The front passes the account being
+  reconnected as `socialAccountId` to `POST /social-accounts/mastodon/start`; the pending
+  state remembers it. If the callback authenticates as a different Mastodon identity, the
+  callback answers 422 `mastodon-reconnect-account-mismatch` (extensions `expectedHandle`,
+  `actualHandle`, `provider`, `instance`), nothing is linked, the other account's token is
+  revoked, and the account being reconnected is untouched (still needing a reconnect, its
+  scheduled posts still paused). The front asks the user to leave it or connect the other
+  account as a new one. Never a silent switch.
+- **App registration quota (L6).** Registering PublyApp on a server nobody registered on yet
+  is a write on a stranger's server that any signed-in user can trigger, and the row is shared
+  by every tenant. A tenant may register on at most
+  `MastodonOAuthService.MaxNewHostRegistrationsPerTenant` (5) new servers per rolling
+  `NewHostRegistrationWindow` (24 h); beyond it `start` answers 429
+  `mastodon-registration-quota-exceeded` without contacting the server. A server that is
+  already registered (by anyone) costs nothing, so reconnecting or sharing a popular server
+  never counts. The count reads `oauth_app_registrations.registered_by_tenant_id` /
+  `registered_at`, set when a row is first created.
+- **Idempotency beyond about an hour (L2).** Mastodon keeps an `Idempotency-Key` for about
+  an hour, so the key only de-duplicates a retry inside that window. `MastodonPublishProvider`
+  therefore treats a resend as safe only up to `IdempotencyWindow` (50 minutes). Past it, an
+  ambiguous write (transport failure or 5xx after the request left) is parked for the user
+  (`NeedsReview`) instead of being resent, and a thread that already published some segments
+  resumes after them from the segment-results journal (#2176, `publication_segment_results`),
+  never from the instance. The journal, not the key, is what prevents a late duplicate; the
+  window is pinned by `MastodonPublishProviderSpec`.
+- **E2E fake.** With `PUBLISHING_FAKE_PROVIDER=1` (Development/Testing hosts only, same gate
+  as the Bluesky fake) Mastodon and Pixelfed targets go to `FakeMastodonPublishProvider`
+  (deterministic status ids, records visibility, texts and images); everything else keeps the
+  Bluesky fake.
 
 ## Failure playbook
 
