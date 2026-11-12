@@ -247,6 +247,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				Session = opened.Session,
 				Provider = targetAccount?.Provider ?? SocialProvider.Bluesky,
 				Capability = targetAccount is null ? null : ProviderCapabilityRegistry.Resolve(targetAccount),
+				Visibility = targetAccount?.DefaultVisibility ?? SocialPostVisibility.Public,
 				Media = media,
 				FollowUpSegments = effectiveTexts.Skip(1).ToList(),
 				CompletedSegments = completedSegments,

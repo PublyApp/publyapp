@@ -20,6 +20,7 @@ public static partial class Routes {
 			public const string Reconnect = "/{socialAccountId}/reconnect";
 			public const string Disconnect = "/{socialAccountId}/disconnect";
 			public const string SetProjects = "/{socialAccountId}/projects";
+			public const string SetVisibility = "/{socialAccountId}/visibility";
 		}
 	}
 }

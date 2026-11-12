@@ -8,6 +8,7 @@ using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
+using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Providers;
 
@@ -156,7 +157,9 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			mediaIds = uploaded.Ids;
 		}
 
-		var payload = new Dictionary<string, object?> { ["visibility"] = "public" };
+		var payload = new Dictionary<string, object?> {
+			["visibility"] = SocialAccountWire.FormatVisibility(request.Visibility),
+		};
 		// An image-only post (Pixelfed) sends no status rather than an empty one.
 		if (text.Length > 0 || mediaIds.Count == 0) {
 			payload["status"] = text;

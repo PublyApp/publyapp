@@ -121,6 +121,17 @@ public static class SocialAccountEndpointsForTenant {
 				[AppPermissions.Tenant.SocialAccounts.MANAGE]
 			);
 
+		group.MapPut(
+			Routes.SocialAccounts.ForTenant.SetVisibility,
+			SetSocialAccountVisibilityForTenant.Handle
+		)
+			.WithName("SetSocialAccountVisibilityForTenant")
+			.WithSummary("Set the default post visibility of a Mastodon or Pixelfed account")
+			.WithReqBodyValidation<SetSocialAccountVisibilityBody>()
+			.WithTenantPermission(
+				[AppPermissions.Tenant.SocialAccounts.MANAGE]
+			);
+
 		return routes;
 	}
 }

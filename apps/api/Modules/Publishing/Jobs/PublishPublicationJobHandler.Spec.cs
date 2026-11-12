@@ -256,6 +256,33 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		account.LastSuccessAt.Should().NotBeNull("a successful publish stamps the account");
 	}
 
+	[Theory]
+	[InlineData(SocialProvider.Mastodon, SocialPostVisibility.Unlisted)]
+	[InlineData(SocialProvider.Mastodon, SocialPostVisibility.Private)]
+	[InlineData(SocialProvider.Mastodon, SocialPostVisibility.Public)]
+	public async Task ItShouldPublishWithTheDefaultVisibilityOfTheTargetAccount(SocialProvider provider, SocialPostVisibility visibility) {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
+		await db.SocialAccount
+			.Where(a => a.Id == seeded.SocialAccountId)
+			.ExecuteUpdateAsync(setters => setters
+				.SetProperty(a => a.Provider, provider)
+				.SetProperty(a => a.DefaultVisibility, visibility));
+		var publishProvider = new FakePublishProvider(new PublishResult.Published("1", "https://m.example/@x/1"));
+		var handler = PublishPublicationJobHandlerSpec._NewHandler(db, publishProvider, FakeSessions.Opened());
+
+		await handler.HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(
+				new PublishPublicationPayload { PublicationId = seeded.PublicationId, IdempotencyKey = seeded.IdempotencyKey }
+			),
+			CancellationToken.None
+		);
+
+		var request = publishProvider.Requests.Single();
+		request.Provider.Should().Be(provider);
+		request.Visibility.Should().Be(visibility);
+	}
+
 	[Fact]
 	public async Task ItShouldTreatAlreadyExistsAsSuccessWithTheExistingRecordAndNoDuplicate() {
 		using var db = await this._NewDbAsync();
