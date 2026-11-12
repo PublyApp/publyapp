@@ -1,10 +1,34 @@
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LocalizedDateInput } from '~/components/localized-date-input';
 import { LocalizedTimeInput } from '~/components/localized-time-input';
 import { Button } from '~/components/ui/button';
 import { Label } from '~/components/ui/label';
+import { parseLocalizedDate } from '~/lib/dates/localized-date';
+import { parseLocalizedTime } from '~/lib/dates/localized-time';
+
+type Draft = { text: string; locale: string };
+
+const scheduleMessage = (
+	t: (key: string) => string,
+	flags: {
+		isDateInvalid: boolean;
+		isTimeInvalid: boolean;
+		isIncomplete: boolean;
+	},
+): string | null => {
+	if (flags.isDateInvalid && flags.isTimeInvalid) {
+		return t('posts:schedule-both-invalid');
+	}
+	if (flags.isDateInvalid) {
+		return t('common:invalid-date');
+	}
+	if (flags.isTimeInvalid) {
+		return t('posts:schedule-time-invalid');
+	}
+	return flags.isIncomplete ? t('posts:schedule-incomplete') : null;
+};
 
 /** "Schedule for": one date and time in the viewer's zone, applied to every
  * selected destination (the "same time for all" default). The date follows the
@@ -24,21 +48,37 @@ export const PublishScheduleRow = ({
 	const [isTimeInvalid, setIsTimeInvalid] = useState(false);
 	const labelId = useId();
 	const errorId = useId();
-	// Typed text not yet committed: the click's own blur commits it.
-	const [hasDateDraft, setHasDateDraft] = useState(false);
-	const [hasTimeDraft, setHasTimeDraft] = useState(false);
 	const locale = i18n.resolvedLanguage ?? i18n.language;
-	const value =
-		!isDateInvalid && !isTimeInvalid && date !== undefined && time !== undefined
-			? `${date}T${time}`
-			: '';
+	// Typed text not yet committed. A click that does not blur the field
+	// (screen reader, voice control) must still schedule what the field shows,
+	// so submit reads these. Pinned to the locale: a locale change remounts the
+	// fields and drops their text.
+	const dateDraft = useRef<Draft | null>(null);
+	const timeDraft = useRef<Draft | null>(null);
+	const [isIncomplete, setIsIncomplete] = useState(false);
 	const [isPast, setIsPast] = useState(false);
+	const draftText = (draft: Draft | null): string | null =>
+		draft !== null && draft.locale === locale ? draft.text : null;
 
 	const submit = () => {
-		if (value === '') {
+		const dateText = draftText(dateDraft.current);
+		const timeText = draftText(timeDraft.current);
+		const dateValue =
+			dateText === null ? date : parseLocalizedDate(dateText, locale);
+		const timeValue = timeText === null ? time : parseLocalizedTime(timeText);
+		const dateBad = dateText === null ? isDateInvalid : dateValue === undefined;
+		const timeBad = timeText === null ? isTimeInvalid : timeValue === undefined;
+		setIsDateInvalid(dateBad);
+		setIsTimeInvalid(timeBad);
+		if (dateBad || timeBad) {
 			return;
 		}
-		const at = new Date(value);
+		if (!dateValue || !timeValue) {
+			setIsIncomplete(true);
+			return;
+		}
+		setIsIncomplete(false);
+		const at = new Date(`${dateValue}T${timeValue}`);
 		if (Number.isNaN(at.valueOf()) || at.valueOf() <= Date.now()) {
 			setIsPast(true);
 			return;
@@ -46,6 +86,12 @@ export const PublishScheduleRow = ({
 		setIsPast(false);
 		onSchedule(at);
 	};
+
+	const message = scheduleMessage(t, {
+		isDateInvalid,
+		isTimeInvalid,
+		isIncomplete,
+	});
 
 	return (
 		<div className="space-y-2" data-testid="tenant-posts-schedule-row">
@@ -66,10 +112,13 @@ export const PublishScheduleRow = ({
 					onChange={(next) => {
 						setDate(next);
 						setIsDateInvalid(false);
+						setIsIncomplete(false);
 						setIsPast(false);
 					}}
 					onInvalid={() => setIsDateInvalid(true)}
-					onDraftChange={setHasDateDraft}
+					onDraftChange={(text) => {
+						dateDraft.current = text === null ? null : { text, locale };
+					}}
 				/>
 				<LocalizedTimeInput
 					locale={locale}
@@ -82,25 +131,26 @@ export const PublishScheduleRow = ({
 					onChange={(next) => {
 						setTime(next);
 						setIsTimeInvalid(false);
+						setIsIncomplete(false);
 						setIsPast(false);
 					}}
 					onInvalid={() => setIsTimeInvalid(true)}
-					onDraftChange={setHasTimeDraft}
+					onDraftChange={(text) => {
+						timeDraft.current = text === null ? null : { text, locale };
+					}}
 				/>
 			</div>
-			{isDateInvalid || isTimeInvalid ? (
+			{message === null ? null : (
 				<p id={errorId} className="publy-field-error" role="alert">
 					<IconAlertCircle aria-hidden="true" />
-					{isDateInvalid
-						? t('common:invalid-date')
-						: t('posts:schedule-time-invalid')}
+					{message}
 				</p>
-			) : null}
+			)}
 			<Button
 				type="button"
 				variant="outline"
 				className="w-full"
-				disabled={disabled || (value === '' && !hasDateDraft && !hasTimeDraft)}
+				disabled={disabled}
 				data-testid="tenant-posts-schedule-submit"
 				onClick={submit}
 			>

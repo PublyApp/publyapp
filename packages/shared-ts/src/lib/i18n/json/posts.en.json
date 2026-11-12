@@ -151,6 +151,8 @@
 	"schedule-label": "Schedule for",
 	"schedule-submit": "Schedule",
 	"schedule-past": "Pick a date and time in the future.",
+	"schedule-incomplete": "Choose a date and a time.",
+	"schedule-both-invalid": "Enter a valid date and time.",
 	"schedule-time-invalid": "Enter a valid time.",
 	"schedule-time-label": "Time",
 	"scheduled-destinations-heading": "Scheduled destinations",

@@ -8,7 +8,7 @@ import {
 } from '~/lib/dates/localized-time';
 
 type LocalizedTimeInputProps = OmitFromParsedInputProps<
-	'format' | 'parse' | 'placeholder' | 'isOutOfRange'
+	'format' | 'parse' | 'placeholder' | 'isOutOfRange' | 'inputMode'
 > & {
 	locale: string;
 };

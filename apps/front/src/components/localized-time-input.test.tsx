@@ -43,4 +43,22 @@ describe('LocalizedTimeInput (#2410)', () => {
 		expect(onInvalid).toHaveBeenCalledTimes(1);
 		expect(screen.getByRole('alert').textContent).toContain('Invalid time');
 	});
+
+	test('the keypad is decided by the language, not by the caller', () => {
+		render(
+			<LocalizedTimeInput
+				locale="en"
+				value={undefined}
+				ariaLabel="Time"
+				errorMessage="Invalid time"
+				testId="time-en"
+				// @ts-expect-error inputMode is not a prop of the time field
+				inputMode="numeric"
+				onChange={vi.fn()}
+			/>,
+		);
+		expect(screen.getByTestId('time-en').getAttribute('inputmode')).toBe(
+			'text',
+		);
+	});
 });

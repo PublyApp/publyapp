@@ -23,10 +23,10 @@ export type LocalizedParsedInputProps = {
 	onInvalid?: () => void;
 	/** Soft keyboards: `numeric` only where no letter is ever needed. */
 	inputMode?: 'numeric' | 'text';
-	/** Whether the field holds typed text not yet committed (blur or Enter):
-	 * a caller can then keep its submit enabled and let the click's own blur
-	 * commit and validate it. */
-	onDraftChange?: (hasText: boolean) => void;
+	/** The typed text not yet committed (blur or Enter), `null` once committed
+	 * or empty: a caller that submits without a blur (assistive-tech click)
+	 * can still read and validate what the field shows. */
+	onDraftChange?: (text: string | null) => void;
 } & (
 	| { errorId?: undefined; hideError?: false }
 	/** The caller renders the message itself (element id = `errorId`), e.g. one
@@ -74,7 +74,7 @@ export const LocalizedParsedInput = ({
 	const commit = (raw: string): void => {
 		const parsed = parse(raw);
 
-		onDraftChange?.(false);
+		onDraftChange?.(null);
 
 		if (parsed === undefined) {
 			setError({ message: raw.trim().length > 0 ? errorMessage : '', value });
@@ -115,7 +115,7 @@ export const LocalizedParsedInput = ({
 					const next = event.currentTarget.value;
 					setDraft({ text: next, value });
 					setError(null);
-					onDraftChange?.(next.trim().length > 0);
+					onDraftChange?.(next.trim().length > 0 ? next : null);
 					if (next.trim().length === 0) {
 						onChange(undefined);
 					}

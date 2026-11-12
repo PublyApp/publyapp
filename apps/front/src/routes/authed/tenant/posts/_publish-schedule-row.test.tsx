@@ -92,7 +92,6 @@ describe('PublishScheduleRow (#2410)', () => {
 		fireEvent.blur(date);
 
 		expect(screen.getByRole('alert')).toBeTruthy();
-		expect(submit.disabled).toBe(true);
 		fireEvent.click(submit);
 		expect(onSchedule).not.toHaveBeenCalled();
 
@@ -137,7 +136,6 @@ describe('PublishScheduleRow (#2410)', () => {
 		const timeField = screen.getByTestId('tenant-posts-schedule-time');
 		expect(timeField.getAttribute('aria-invalid')).toBe('true');
 		expect(timeField.getAttribute('aria-describedby')).toBe(alerts[0]?.id);
-		expect(submit.disabled).toBe(true);
 		fireEvent.click(submit);
 		expect(onSchedule).not.toHaveBeenCalled();
 	});
@@ -149,6 +147,7 @@ describe('PublishScheduleRow (#2410)', () => {
 		fill('tenant-posts-schedule-time', '25:99');
 
 		const alert = screen.getByRole('alert');
+		expect(alert.textContent).toContain('posts:schedule-both-invalid');
 		for (const id of ['date', 'time']) {
 			const field = screen.getByTestId(`tenant-posts-schedule-${id}`);
 			expect(field.getAttribute('aria-describedby')).toBe(alert.id);
@@ -212,5 +211,67 @@ describe('PublishScheduleRow (#2410)', () => {
 				.getByTestId('tenant-posts-schedule-time')
 				.getAttribute('inputmode'),
 		).toBe('numeric');
+	});
+
+	test('clicking Schedule with only a date shows the incomplete message, never a silent no-op', () => {
+		const onSchedule = vi.fn();
+		render(<PublishScheduleRow disabled={false} onSchedule={onSchedule} />);
+
+		fill('tenant-posts-schedule-date', '02/01/2099');
+		fireEvent.click(screen.getByTestId('tenant-posts-schedule-submit'));
+
+		expect(onSchedule).not.toHaveBeenCalled();
+		expect(screen.getByRole('alert').textContent).toContain(
+			'posts:schedule-incomplete',
+		);
+	});
+
+	test('clicking Schedule with only an uncommitted time also asks for both', () => {
+		const onSchedule = vi.fn();
+		render(<PublishScheduleRow disabled={false} onSchedule={onSchedule} />);
+
+		fireEvent.change(screen.getByTestId('tenant-posts-schedule-time'), {
+			target: { value: '10:30' },
+		});
+		fireEvent.click(screen.getByTestId('tenant-posts-schedule-submit'));
+
+		expect(onSchedule).not.toHaveBeenCalled();
+		expect(screen.getByRole('alert').textContent).toContain(
+			'posts:schedule-incomplete',
+		);
+	});
+
+	test('retyping a committed time and clicking without a blur schedules what the field shows', () => {
+		const onSchedule = vi.fn();
+		render(<PublishScheduleRow disabled={false} onSchedule={onSchedule} />);
+
+		fill('tenant-posts-schedule-date', '02/01/2099');
+		fill('tenant-posts-schedule-time', '10:30');
+		fireEvent.change(screen.getByTestId('tenant-posts-schedule-time'), {
+			target: { value: '11:30' },
+		});
+		fireEvent.click(screen.getByTestId('tenant-posts-schedule-submit'));
+
+		expect(onSchedule).toHaveBeenCalledTimes(1);
+		expect((onSchedule.mock.calls[0]?.[0] as Date).toISOString()).toBe(
+			'2099-01-02T11:30:00.000Z',
+		);
+	});
+
+	test('an invalid retype without a blur is refused, not replaced by the old committed time', () => {
+		const onSchedule = vi.fn();
+		render(<PublishScheduleRow disabled={false} onSchedule={onSchedule} />);
+
+		fill('tenant-posts-schedule-date', '02/01/2099');
+		fill('tenant-posts-schedule-time', '10:30');
+		fireEvent.change(screen.getByTestId('tenant-posts-schedule-time'), {
+			target: { value: '25:99' },
+		});
+		fireEvent.click(screen.getByTestId('tenant-posts-schedule-submit'));
+
+		expect(onSchedule).not.toHaveBeenCalled();
+		expect(screen.getByRole('alert').textContent).toContain(
+			'posts:schedule-time-invalid',
+		);
 	});
 });
