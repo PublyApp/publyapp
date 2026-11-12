@@ -39,16 +39,22 @@ namespace PublyApp.Api.Lib.Architecture;
 /// <c>SELECT … FOR UPDATE SKIP LOCKED</c> against the publications table. The
 /// due-scan lock IS the linearization point of concurrent dispatch; a second
 /// locker would silently fork the exactly-once guarantee proven by
-/// DispatchDuePostsConcurrencySpec. Detection reads the string literals of the COMPILED
-/// API assembly (IL <c>ldstr</c>), so concatenated, interpolated and
-/// helper-built SQL is seen; each <c>SKIP LOCKED</c> is attributed to its
-/// enclosing statement within one method, which must reference the
-/// publications table. Retire when the claim moves behind a single repository
-/// seam or Postgres-side enforcement.</item>
+/// DispatchDuePostsConcurrencySpec. The guard reads the string literals of the
+/// COMPILED API assembly and is closed over an explicit inventory: any type
+/// holding a <c>SKIP LOCKED</c> literal (or fragments that join to it inside
+/// one method) that is neither the job nor a reviewed inventory entry fails,
+/// however its SQL is assembled (concatenation, interpolation, helper method or
+/// class, async method, table name or clause split across methods). An
+/// inventoried holder must not reference publications. Failures name
+/// type.method and file:line from the portable PDB. It does not reuse
+/// ArchitectureDiscovery because that excludes the Migrations namespace, where
+/// SQL lives. Retire when the claim sits behind one repository seam or
+/// Postgres-side enforcement.</item>
 /// </list>
-/// Documented residual gap: SQL whose pieces are assembled across different
-/// methods, or runtime-built table names, can still evade the per-method
-/// statement window.
+/// Documented residual gap: a clause hidden behind a runtime-built string
+/// (reflection, a stored function that locks internally, or a clause split
+/// into fragments that never share a method and never spell SKIP LOCKED
+/// contiguously) is invisible to any static scan.
 /// Proven RED by planting a second publications-row SKIP LOCKED claim and by
 /// stripping permission metadata from a publishing endpoint
 /// (.dump/mutation-rogue-schedule-writer.md).
@@ -131,13 +137,23 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	// ── (b) Single SKIP LOCKED claimant on publications ─────────────────────
 
-	private static readonly Type _DueScanJobType = typeof(DispatchDuePostsJob);
-
-	// The scan must see AT LEAST the sanctioned claim itself; zero means the
-	// scan collapsed and failed open — never trust a silent empty scan.
-	private const int _MinimumTotalSkipLockedMatches = 1;
-
-	private const string _SkipLockedToken = "SKIP LOCKED";
+	// Reviewed closed inventory of every API type that may hold a SKIP LOCKED
+	// clause besides the sanctioned due-scan job. Adding a type here is the
+	// review checkpoint: it must not touch the publications table.
+	private static readonly IReadOnlySet<string> _SkipLockedInventory = new HashSet<string>(
+		[
+			"PublyApp.Api.Modules.Uploads.Jobs.UploadOrphanReclaimerHandler",
+			"PublyApp.Api.Modules.Messaging.Jobs.EmailLogRetentionHandler",
+			"PublyApp.Api.Modules.Messaging.Jobs.EmailPreparedSendsRetentionHandler",
+			"PublyApp.Api.Modules.Jobs.Seeders.SystemJobDefinitionSeeder",
+			"PublyApp.Api.Modules.Jobs.Jobs.DeadLetterRetentionHandler",
+			"PublyApp.Api.Modules.Jobs.Jobs.SystemJobOccurrenceRetentionHandler",
+			"PublyApp.Api.Modules.Auth.Jobs.CleanupExpiredSessionsHandler",
+			"PublyApp.Api.Infrastructure.Jobs.JobQueueProcessor",
+			"PublyApp.Api.Infrastructure.Messaging.Email.InvitationEmailOutboxDispatcher",
+		],
+		StringComparer.Ordinal
+	);
 
 	private readonly RouteMapFactory _Factory = new();
 
@@ -268,50 +284,89 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	[Fact]
 	public void ItShouldLetOnlyTheDueScanJobLockPublicationRowsWithSkipLocked() {
-		var scan = PublishingDispatchArchitectureSpec._ScanForUpdateSkipLockedOnPublications(
-			typeof(Program).Assembly
+		var scan = PublishingDispatchArchitectureSpec._ScanSkipLocked(
+			typeof(Program).Assembly,
+			PublishingDispatchArchitectureSpec._SkipLockedInventory
 		);
 
-		_ = scan.TotalMatches.Should().BeGreaterThanOrEqualTo(
-			PublishingDispatchArchitectureSpec._MinimumTotalSkipLockedMatches,
-			"the sanctioned due-scan claim alone must be visible; a near-zero "
-				+ "count means the compiled-literal scan collapsed and failed open"
+		_ = scan.TotalHits.Should().BeGreaterThanOrEqualTo(
+			PublishingDispatchArchitectureSpec._SkipLockedInventory.Count + 1,
+			"the sanctioned due-scan claim and every inventoried holder must be "
+				+ "visible; a lower count means the compiled-literal scan collapsed "
+				+ "and failed open"
 		);
 
-		_ = scan.SanctionedByType.GetValueOrDefault(
-				PublishingDispatchArchitectureSpec._DueScanJobType.FullName.Required()
-			)
-			.Should().BeGreaterThanOrEqualTo(
-				1,
-				"the D3 due scan must still be seen claiming publications rows "
-					+ "with SKIP LOCKED; if the job moved or changed shape, "
-					+ "reconcile this guard instead of trusting an empty result"
-			);
+		_ = scan.SanctionedHits.Should().BeGreaterThanOrEqualTo(
+			1,
+			"the D3 due scan must still be seen claiming publications rows with "
+				+ "SKIP LOCKED; if the job moved or changed shape, reconcile this "
+				+ "guard instead of trusting an empty result"
+		);
+
+		_ = scan.MissingInventoryTypes.Should().BeEmpty(
+			"every inventoried SKIP LOCKED holder must still be seen; a stale "
+				+ "entry hides a collapsed scan"
+		);
 
 		scan.Offenders.Should().BeEmpty(
-			"only {0} may SELECT … FOR UPDATE SKIP LOCKED against the "
-				+ "publications table — a second claimant forks the "
-				+ "exactly-once dispatch guarantee; found {1} offender(s):\n{2}",
-			PublishingDispatchArchitectureSpec._DueScanJobType.FullName,
+			"SKIP LOCKED is closed over an explicit inventory: only {0} may lock "
+				+ "publications rows, and any other type holding the clause must be "
+				+ "added to _SkipLockedInventory after review (and must not touch "
+				+ "publications). Found {1} offender(s):\n{2}",
+			typeof(DispatchDuePostsJob).FullName,
 			scan.Offenders.Count,
 			string.Join("\n", scan.Offenders.Take(20))
 		);
 	}
 
-	// Non-vacuity: claimants written the ways a source regex cannot see. These
-	// fixtures live in the test assembly, which the scan accepts like any other.
+	// Non-vacuity, one assertion per claimed capability. Each fixture is red
+	// (missing from the offenders) if its capability is removed from the scan.
 	[Fact]
-	public void ItShouldSeeClaimantsBuiltByConcatenationInterpolationOrHelper() {
-		var scan = PublishingDispatchArchitectureSpec._ScanForUpdateSkipLockedOnPublications(
-			typeof(PublishingDispatchArchitectureSpec).Assembly
+	public void ItShouldSeeEveryPlantedClaimantShapeInCompiledCode() {
+		var scan = PublishingDispatchArchitectureSpec._ScanSkipLocked(
+			typeof(PublishingDispatchArchitectureSpec).Assembly,
+			PublishingDispatchArchitectureSpec._PlantedInventory
+		);
+		var offenders = scan.Offenders;
+
+		// Concatenation folded by the compiler into one literal.
+		_ = offenders.Should().Contain(o => o.Contains("PlantedClaimants.Concatenated "));
+		// Fragments around a runtime value: only the per-method join sees them.
+		_ = offenders.Should().Contain(o => o.Contains("PlantedClaimants.SplitAroundValue "));
+		// FormattableString interpolation.
+		_ = offenders.Should().Contain(o => o.Contains("PlantedClaimants.Interpolated "));
+		// Lock clause in another method of the same type, table elsewhere.
+		_ = offenders.Should().Contain(o => o.Contains("PlantedCrossMethod._Tail "));
+		// Lock clause in another class than the query.
+		_ = offenders.Should().Contain(o => o.Contains("PlantedLockClause.Tail "));
+		// Async method: named by its declared name with file:line, not MoveNext.
+		_ = offenders.Should().Contain(o =>
+			o.Contains("PlantedAsync.ClaimAsync ")
+				&& o.Contains("PublishingDispatchArchitecture.Spec.cs:")
+		);
+		_ = offenders.Should().NotContain(o => o.Contains("MoveNext"));
+
+		// Inventoried types still may not touch publications (any form).
+		_ = offenders.Should().Contain(o => o.Contains("PlantedOnlyForm."));
+		_ = offenders.Should().Contain(o => o.Contains("PlantedSchemaForm."));
+		_ = offenders.Should().NotContain(o => o.Contains("PlantedOtherTable."));
+		// A type reading publications elsewhere but locking another table only
+		// fails when it is NOT inventoried (no per-statement guessing).
+		_ = offenders.Should().Contain(o => o.Contains("PlantedMixedStatements."));
+	}
+
+	// Decoder guard: switch (variable-size operand), ldc.i8 and adjacent ldstr
+	// must not desynchronise the IL walk before the SKIP LOCKED literal.
+	[Fact]
+	public void ItShouldKeepDecodingLiteralsAfterSwitchAndWideConstants() {
+		var scan = PublishingDispatchArchitectureSpec._ScanSkipLocked(
+			typeof(PublishingDispatchArchitectureSpec).Assembly,
+			PublishingDispatchArchitectureSpec._PlantedInventory
 		);
 
-		var offenders = string.Join("\n", scan.Offenders);
-		_ = offenders.Should().Contain(nameof(PlantedClaimants.Concatenated));
-		_ = offenders.Should().Contain(nameof(PlantedClaimants.Interpolated));
-		_ = offenders.Should().Contain("_Claim");
-		_ = offenders.Should().NotContain(nameof(PlantedClaimants.OtherTable));
+		_ = scan.Offenders.Should().Contain(o => o.Contains("PlantedDecoder.AfterSwitch "));
 	}
+
 
 	// ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -371,27 +426,110 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			return "SELECT id FROM publications " + "WHERE status = 1 FOR UPDATE SKIP " + "LOCKED";
 		}
 
+		public static string SplitAroundValue(string value) {
+			return "SELECT id FROM publications FOR UPDATE SKIP " + value.Trim() + "LOCKED";
+		}
+
 		public static FormattableString Interpolated(Guid id) {
 			return $"SELECT id FROM publications WHERE id = {id} FOR UPDATE SKIP LOCKED";
 		}
+	}
 
-		public static string HelperClaim() {
-			return PlantedClaimants._Claim("");
+	private static class PlantedCrossMethod {
+		public static string Query(string status) {
+			return $"SELECT id FROM publications WHERE status = {status}" + PlantedCrossMethod._Tail();
 		}
 
-		public static string OtherTable() {
-			return "SELECT id FROM job_queue FOR UPDATE SKIP LOCKED";
-		}
-
-		private static string _Claim(string table) {
-			return "SELECT id FROM publications WHERE x = 1 FOR UPDATE SKIP LOCKED" + table;
+		private static string _Tail() {
+			return " FOR UPDATE SKIP LOCKED";
 		}
 	}
 
-	private sealed record ForUpdateScan(
-		int TotalMatches,
-		Dictionary<string, int> SanctionedByType,
+	private static class PlantedLockClause {
+		public static string Tail() {
+			return " FOR UPDATE SKIP LOCKED";
+		}
+	}
+
+	private static class PlantedLockClauseUser {
+		public static string Query(string table) {
+			return "SELECT id FROM " + table + PlantedLockClause.Tail();
+		}
+	}
+
+	private static class PlantedAsync {
+		public static async Task<List<Guid>> ClaimAsync(AppDbContext db) {
+			return await db.Database
+				.SqlQuery<Guid>($"SELECT id AS \"Value\" FROM publications FOR UPDATE SKIP LOCKED")
+				.ToListAsync();
+		}
+	}
+
+	private static class PlantedOnlyForm {
+		public static string Sql() {
+			return "SELECT id FROM ONLY publications FOR UPDATE SKIP LOCKED";
+		}
+	}
+
+	private static class PlantedSchemaForm {
+		public static FormattableString Sql(string schema) {
+			return $"SELECT id FROM {schema}.publications FOR UPDATE SKIP LOCKED";
+		}
+	}
+
+	private static class PlantedOtherTable {
+		public static string Sql() {
+			return "SELECT id FROM job_queue FOR UPDATE SKIP LOCKED";
+		}
+	}
+
+	private static class PlantedMixedStatements {
+		public static string Read(Guid id) {
+			return $"SELECT id FROM publications WHERE id = {id}";
+		}
+
+		public static string Claim() {
+			return "SELECT id FROM job_queue FOR UPDATE SKIP LOCKED";
+		}
+	}
+
+	private static class PlantedDecoder {
+		public static string AfterSwitch(int value) {
+			var wide = value switch {
+				0 => 10_000_000_000L,
+				1 => 20_000_000_000L,
+				2 => 30_000_000_000L,
+				_ => 40_000_000_000L
+			};
+			return "first " + wide + " second FOR UPDATE SKIP LOCKED";
+		}
+	}
+
+	// Types that are allowed to hold SKIP LOCKED in this fixture scan, so the
+	// remaining rule (an inventoried type must not touch publications) is
+	// exercised in isolation. Everything else planted must surface as unknown.
+	private static readonly IReadOnlySet<string> _PlantedInventory = new HashSet<string>(
+		[
+			typeof(PlantedOnlyForm).FullName.Required(),
+			typeof(PlantedSchemaForm).FullName.Required(),
+			typeof(PlantedOtherTable).FullName.Required(),
+		],
+		StringComparer.Ordinal
+	);
+
+	private sealed record SkipLockedScan(
+		int TotalHits,
+		int SanctionedHits,
+		List<string> MissingInventoryTypes,
 		List<string> Offenders
+	);
+
+	private sealed record LiteralSite(
+		string Type,
+		string Method,
+		MethodDefinitionHandle Handle,
+		int ILOffset,
+		string Text
 	);
 
 	// Every opcode by encoded value, so the IL walker can size each instruction.
@@ -401,79 +539,113 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		.ToDictionary(opCode => opCode.Value);
 
 	/// <summary>
-	/// Scans the COMPILED API assembly, not its source text: the compiler has
-	/// already folded literal concatenation (<c>"a" + "b"</c>) into one
-	/// <c>ldstr</c> and split interpolated SQL into literal fragments, so reading
-	/// the string literals of each method body sees SQL however the author wrote
-	/// it — concatenated, interpolated, or hidden in a helper method. Literals
-	/// are joined per method and cut at statement terminators.
+	/// Closed-inventory scan over the COMPILED API assembly (IL string
+	/// literals, not source text). Rules: (1) any type holding a SKIP LOCKED
+	/// literal, or fragments that join to it within one method, must be the
+	/// sanctioned due-scan job or be in the reviewed inventory — an unknown
+	/// holder fails loudly however its SQL is assembled (concatenation,
+	/// interpolation, helper method or class, async method); (2) an
+	/// inventoried holder must not reference the publications table anywhere
+	/// in the type. Because the clause itself is the trigger, splitting the
+	/// table name from the clause across methods no longer hides a claimant.
+	/// Offenders name type.method and file:line from the portable PDB.
 	/// </summary>
-	private static ForUpdateScan _ScanForUpdateSkipLockedOnPublications(
-		Assembly assembly
+	private static SkipLockedScan _ScanSkipLocked(
+		Assembly assembly,
+		IReadOnlySet<string> inventory
 	) {
+		var sites = PublishingDispatchArchitectureSpec._ReadLiteralSites(assembly, out var pdb);
+		using var pdbOwner = pdb;
+		var pdbReader = pdb?.GetMetadataReader();
 		var offenders = new List<string>();
-		var sanctionedByType = new Dictionary<string, int>(StringComparer.Ordinal);
 		var total = 0;
+		var sanctioned = 0;
+		var seen = new HashSet<string>(StringComparer.Ordinal);
+		var sanctionedType = typeof(DispatchDuePostsJob).FullName.Required();
 
-		foreach (var (typeName, method, literals) in
-			PublishingDispatchArchitectureSpec._ReadMethodStringLiterals(assembly)) {
-			var text = string.Concat(literals);
-			var index = 0;
-			while ((index = text.IndexOf(
-						PublishingDispatchArchitectureSpec._SkipLockedToken,
-						index,
-						StringComparison.OrdinalIgnoreCase
-					)) >= 0) {
-				var statementStart = text.LastIndexOf(';', Math.Max(index - 1, 0)) + 1;
-				var statement = text[statementStart..index];
-
-				// A real claim reads the table (FROM/UPDATE/JOIN publications);
-				// prose that merely mentions the word (job descriptions, XML
-				// docs) is data, not SQL.
-				if (PublishingDispatchArchitectureSpec._PublicationsTableRef().IsMatch(statement)) {
-					total++;
-
-					if (string.Equals(
-							typeName,
-							PublishingDispatchArchitectureSpec._DueScanJobType.FullName,
-							StringComparison.Ordinal
-						)) {
-						sanctionedByType[typeName] =
-							sanctionedByType.GetValueOrDefault(typeName) + 1;
-					} else {
-						offenders.Add(
-							$"{typeName}.{method}: "
-								+ PublishingDispatchArchitectureSpec._Flatten(
-									statement + PublishingDispatchArchitectureSpec._SkipLockedToken
-								)
-						);
-					}
+		foreach (var typeGroup in sites.GroupBy(site => site.Type, StringComparer.Ordinal)) {
+			var typeSites = typeGroup.ToList();
+			var hits = new List<LiteralSite>();
+			foreach (var site in typeSites) {
+				if (PublishingDispatchArchitectureSpec._SkipLockedRegex().IsMatch(site.Text)) {
+					hits.Add(site);
 				}
+			}
 
-				index += PublishingDispatchArchitectureSpec._SkipLockedToken.Length;
+			foreach (var methodGroup in typeSites.GroupBy(site => site.Handle)) {
+				var joined = string.Concat(methodGroup.Select(site => site.Text));
+				if (hits.All(hit => hit.Handle != methodGroup.Key)
+					&& PublishingDispatchArchitectureSpec._SkipLockedRegex().IsMatch(joined)) {
+					hits.Add(methodGroup.First());
+				}
+			}
+
+			if (hits.Count == 0) {
+				continue;
+			}
+
+			total += hits.Count;
+			_ = seen.Add(typeGroup.Key);
+
+			if (string.Equals(typeGroup.Key, sanctionedType, StringComparison.Ordinal)) {
+				sanctioned += hits.Count;
+				continue;
+			}
+
+			if (!inventory.Contains(typeGroup.Key)) {
+				offenders.AddRange(hits.Select(hit => PublishingDispatchArchitectureSpec._Describe(
+					hit, pdbReader, "holds SKIP LOCKED but is not in the reviewed inventory"
+				)));
+			} else if (PublishingDispatchArchitectureSpec._PublicationsRef().IsMatch(
+				string.Concat(typeSites.Select(site => site.Text)))) {
+				offenders.AddRange(hits.Select(hit => PublishingDispatchArchitectureSpec._Describe(
+					hit, pdbReader, "inventoried SKIP LOCKED holder references the publications table"
+				)));
 			}
 		}
 
-		return new ForUpdateScan(total, sanctionedByType, offenders);
+		var missing = inventory.Where(type => !seen.Contains(type)).ToList();
+		return new SkipLockedScan(total, sanctioned, missing, offenders);
 	}
 
-	// Yields (top-level declaring type, method, string literals in IL order) for
-	// every method body. Nested types (async state machines, closures) are
-	// attributed to their top-level type.
-	private static IEnumerable<(string TypeName, string Method, List<string> Literals)>
-		_ReadMethodStringLiterals(Assembly assembly) {
+	private static string _Describe(LiteralSite site, MetadataReader? pdb, string why) {
+		var location = PublishingDispatchArchitectureSpec._Location(pdb, site.Handle, site.ILOffset);
+		return $"{site.Type}.{site.Method} {location}: {why}: "
+			+ PublishingDispatchArchitectureSpec._Flatten(site.Text);
+	}
+
+	// Reads every string literal of every method body with its IL offset.
+	// Compiler-generated nested types (async state machines, closures) are
+	// folded into the type that declared them, and their methods are named by
+	// the declared method (<ClaimAsync>d__3.MoveNext -> ClaimAsync).
+	private static List<LiteralSite> _ReadLiteralSites(
+		Assembly assembly,
+		out MetadataReaderProvider? pdb
+	) {
+		var sites = new List<LiteralSite>();
 		using var stream = File.OpenRead(assembly.Location);
 		using var peReader = new PEReader(stream);
 		var reader = peReader.GetMetadataReader();
+		pdb = peReader.TryOpenAssociatedPortablePdb(
+			assembly.Location,
+			path => File.OpenRead(path),
+			out var provider,
+			out _
+		)
+			? provider
+			: null;
 
 		foreach (var typeHandle in reader.TypeDefinitions) {
 			var type = reader.GetTypeDefinition(typeHandle);
-			var top = type;
-			while (!top.GetDeclaringType().IsNil) {
-				top = reader.GetTypeDefinition(top.GetDeclaringType());
+			var typeName = PublishingDispatchArchitectureSpec._DeclaringTypeName(reader, type);
+			// The OpenAPI source generator embeds the XML doc comments as
+			// string data; prose is not SQL.
+			if (typeName.StartsWith(
+				"Microsoft.AspNetCore.OpenApi.Generated",
+				StringComparison.Ordinal
+			)) {
+				continue;
 			}
-
-			var typeName = PublishingDispatchArchitectureSpec._QualifiedName(reader, top);
 
 			foreach (var methodHandle in type.GetMethods()) {
 				var method = reader.GetMethodDefinition(methodHandle);
@@ -483,18 +655,87 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 				var il = peReader.GetMethodBody(method.RelativeVirtualAddress)
 					.GetILBytes().Required();
-				var literals = PublishingDispatchArchitectureSpec._StringLiterals(reader, il);
-				if (literals.Count > 0) {
-					yield return (typeName, reader.GetString(method.Name), literals);
+				var rawType = reader.GetString(type.Name);
+				var methodName = PublishingDispatchArchitectureSpec._DeclaredMethodName(
+					rawType, reader.GetString(method.Name)
+				);
+				foreach (var (offset, text) in
+					PublishingDispatchArchitectureSpec._StringLiterals(reader, il)) {
+					sites.Add(new LiteralSite(typeName, methodName, methodHandle, offset, text));
 				}
 			}
 		}
+
+		return sites;
 	}
 
-	private static string _QualifiedName(MetadataReader reader, TypeDefinition type) {
-		var name = reader.GetString(type.Name);
-		var ns = reader.GetString(type.Namespace);
-		return ns.Length == 0 ? name : $"{ns}.{name}";
+	// Full name of the nearest enclosing type that is not compiler-generated.
+	private static string _DeclaringTypeName(MetadataReader reader, TypeDefinition type) {
+		var chain = new List<string>();
+		var current = type;
+		while (true) {
+			var name = reader.GetString(current.Name);
+			if (!name.StartsWith('<')) {
+				chain.Insert(0, name);
+			}
+
+			var parent = current.GetDeclaringType();
+			if (parent.IsNil) {
+				break;
+			}
+
+			current = reader.GetTypeDefinition(parent);
+		}
+
+		var ns = reader.GetString(current.Namespace);
+		var joined = string.Join('+', chain);
+		return ns.Length == 0 ? joined : $"{ns}.{joined}";
+	}
+
+	private static string _DeclaredMethodName(string typeName, string methodName) {
+		var name = methodName == "MoveNext" && typeName.StartsWith('<') ? typeName : methodName;
+		if (name.StartsWith('<')) {
+			var end = name.IndexOf('>');
+			return end > 1 ? name[1..end] : name;
+		}
+
+		return name;
+	}
+
+	private static string _Location(MetadataReader? pdb, MethodDefinitionHandle method, int ilOffset) {
+		if (pdb is null) {
+			return "(no portable PDB: file:line unavailable)";
+		}
+
+		var points = pdb.GetMethodDebugInformation(method.ToDebugInformationHandle())
+			.GetSequencePoints()
+			.Where(point => !point.IsHidden && point.Offset <= ilOffset)
+			.ToList();
+		if (points.Count == 0) {
+			return "(no sequence point)";
+		}
+
+		var point = points[^1];
+		var blob = pdb.GetBlobReader(pdb.GetDocument(point.Document).Name);
+		var separator = (char)blob.ReadByte();
+		var path = new System.Text.StringBuilder();
+		var first = true;
+		while (blob.RemainingBytes > 0) {
+			var handle = MetadataTokens.BlobHandle(blob.ReadCompressedInteger());
+			if (!first) {
+				_ = path.Append(separator);
+			}
+
+			first = false;
+			if (!handle.IsNil) {
+				var part = pdb.GetBlobReader(handle);
+				_ = path.Append(part.ReadUTF8(part.Length));
+			}
+		}
+
+		var full = path.ToString().Replace('\\', '/');
+		var cut = full.IndexOf("apps/api/", StringComparison.Ordinal);
+		return $"{(cut >= 0 ? full[(cut + "apps/api/".Length)..] : full)}:{point.StartLine}";
 	}
 
 	private static int _OperandSize(OperandType type, byte[] il, int position) {
@@ -522,19 +763,20 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			: 4;
 	}
 
-	private static List<string> _StringLiterals(MetadataReader reader, byte[] il) {
-		var literals = new List<string>();
+	private static List<(int Offset, string Text)> _StringLiterals(MetadataReader reader, byte[] il) {
+		var literals = new List<(int, string)>();
 		var position = 0;
 		while (position < il.Length) {
+			var start = position;
 			var code = il[position++];
 			var value = code == 0xFE ? (short)(0xFE00 | il[position++]) : code;
 			var opCode = PublishingDispatchArchitectureSpec._OpCodes[value];
 
 			if (opCode == OpCodes.Ldstr) {
 				var token = BitConverter.ToInt32(il, position);
-				literals.Add(reader.GetUserString(
+				literals.Add((start, reader.GetUserString(
 					MetadataTokens.UserStringHandle(token & 0x00FFFFFF)
-				));
+				)));
 			}
 
 			position += PublishingDispatchArchitectureSpec._OperandSize(
@@ -547,13 +789,19 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		return literals;
 	}
 
+
 	private static string _Flatten(string snippet) {
 		var flattened = PublishingDispatchArchitectureSpec._WhitespaceRun().Replace(snippet, " ").Trim();
 		return flattened.Length <= 140 ? flattened : flattened[..140] + "…";
 	}
 
-	[GeneratedRegex(@"\b(from|update|join)\s+([\w""]+\.)?""?publications\b", RegexOptions.IgnoreCase)]
-	private static partial Regex _PublicationsTableRef();
+	[GeneratedRegex(@"\bSKIP\s+LOCKED\b", RegexOptions.IgnoreCase)]
+	private static partial Regex _SkipLockedRegex();
+
+	// FROM/UPDATE/JOIN/INTO/ONLY, then an optional (possibly interpolated)
+	// schema, then publications.
+	[GeneratedRegex(@"\b(from|update|join|into|only)\s+\S*publications\b", RegexOptions.IgnoreCase)]
+	private static partial Regex _PublicationsRef();
 
 	[GeneratedRegex(@"\s+")]
 	private static partial Regex _WhitespaceRun();
