@@ -55,7 +55,14 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 					continue;
 				}
 
-				var outcome = await BlueskyPublishProvider._CreateSegmentAsync(
+				// A retry after a write that actually landed must neither upload the
+				// images again nor write again: a credential error there would pause
+				// a publication that is already live (#2179). The lookup is read-only;
+				// when it cannot tell, nothing is sent (unknown is not "absent").
+				var outcome = position == 0
+					? await this._LookUpRootAsync(request, isThread, cancellationToken)
+					: null;
+				outcome ??= await BlueskyPublishProvider._CreateSegmentAsync(
 					client, request, position, texts[position], isThread, root, parent, cancellationToken
 				);
 				if (outcome.Segment is null) {
@@ -89,6 +96,50 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				LastErrorSanitiser.Sanitize($"the PDS did not answer in time: {exception.Message}")
 					?? "the PDS did not answer in time"
 			);
+		}
+	}
+
+	private async Task<SegmentOutcome?> _LookUpRootAsync(
+		PublishRequest request,
+		bool isThread,
+		CancellationToken cancellationToken
+	) {
+		var lookup = await this.ReconcileAsync(
+			new ReconcileRequest {
+				PublicationId = request.PublicationId,
+				IdempotencyKey = request.IdempotencyKey,
+				SegmentPosition = 0,
+				Session = request.Session,
+				FirstAttemptAtUtc = request.ScheduledAtUtc,
+			},
+			cancellationToken
+		);
+		switch (lookup) {
+			case ReconcileResult.SafeToResend:
+				return null;
+			case ReconcileResult.Found found when isThread && found.Segment.Cid.Length == 0:
+				return new SegmentOutcome(
+					new PublishResult.TransientFailure(
+						"Bluesky returned the existing first segment without a content id"
+					),
+					null
+				);
+			case ReconcileResult.Found found:
+				return new SegmentOutcome(
+					new PublishResult.AlreadyExistsTreatedAsPublished(
+						found.Segment.RecordId, found.Segment.RecordUrl
+					),
+					found.Segment
+				);
+			case ReconcileResult.Unavailable unavailable:
+				return new SegmentOutcome(
+					new PublishResult.TransientFailure(unavailable.Cause), null
+				);
+			default:
+				return new SegmentOutcome(
+					new PublishResult.TransientFailure("the existing record could not be checked"),
+					null
+				);
 		}
 	}
 
@@ -160,21 +211,6 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 	) {
 		var rkey = BlueskyPublishProvider.RecordKey(request.IdempotencyKey, position);
 		var images = new List<Dictionary<string, object?>>();
-		if (position == 0
-			&& request.Media.Count > 0
-			&& BlueskyPublishProvider._InvalidMedia(request) is null) {
-			// A retry after a write that actually landed must not upload the images
-			// again: that is wasted work, and a credential error on the upload would
-			// pause a publication that is already live (#2179). The read is public
-			// and idempotent; anything but a found record continues as before.
-			var existing = await BlueskyPublishProvider._FindLiveRecordAsync(
-				client, request, rkey, position, isThread, cancellationToken
-			);
-			if (existing is not null) {
-				return existing;
-			}
-		}
-
 		if (position == 0) {
 			var uploaded = await BlueskyPublishProvider._UploadImagesAsync(
 				client, request, cancellationToken
@@ -217,7 +253,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		}
 	}
 
-	/// <summary>The content failure for a post whose images the provider can never accept, or null.</summary>
+	/// <summary>The content failure for images the provider can never accept, or null.</summary>
 	private static PublishResult? _InvalidMedia(PublishRequest request) {
 		var limits = ProviderCapabilityRegistry.Bluesky;
 		if (request.Media.Count > limits.MaxImages) {
@@ -236,46 +272,6 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		}
 
 		return null;
-	}
-
-	private static async Task<SegmentOutcome?> _FindLiveRecordAsync(
-		HttpClient client,
-		PublishRequest request,
-		string rkey,
-		int position,
-		bool isThread,
-		CancellationToken cancellationToken
-	) {
-		var session = request.Session;
-		var url = $"{session.PdsHost.TrimEnd('/')}/xrpc/com.atproto.repo.getRecord"
-			+ $"?repo={Uri.EscapeDataString(session.Did)}"
-			+ $"&collection={Uri.EscapeDataString(BlueskyPublishProvider._Collection)}"
-			+ $"&rkey={Uri.EscapeDataString(rkey)}";
-		try {
-			using var response = await client.GetAsync(url, cancellationToken);
-			if (!response.IsSuccessStatusCode) {
-				return null;
-			}
-
-			var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
-			var recordId = BlueskyPublishProvider._RecordIdentity(payload, session.Did, rkey);
-			var cid = BlueskyPublishProvider._Cid(payload);
-			if (isThread && cid.Length == 0) {
-				return null;
-			}
-
-			var webUrl = BlueskyPublishProvider._WebUrl(recordId, session.Did, rkey);
-			return new SegmentOutcome(
-				new PublishResult.AlreadyExistsTreatedAsPublished(recordId, webUrl),
-				new CompletedSegment(position, recordId, cid, webUrl)
-			);
-		} catch (HttpRequestException) {
-			return null;
-		} catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested) {
-			return null;
-		} catch (JsonException) {
-			return null;
-		}
 	}
 
 	private static string _Clean(string text) {

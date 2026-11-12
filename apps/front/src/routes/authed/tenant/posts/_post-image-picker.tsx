@@ -51,7 +51,7 @@ const moveItem = <T,>(items: T[], from: number, to: number): T[] => {
 };
 
 /**
- * Single owner of a post's image concerns (up to four, ordered, each with alt
+ * Single owner of a post's image concerns (up to the destinations' cap, ordered, each with alt
  * text), with two modes:
  *
  * - Online (`postId` set): picks attach one by one against the API, alt text

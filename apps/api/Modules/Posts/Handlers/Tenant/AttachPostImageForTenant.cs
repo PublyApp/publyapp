@@ -18,7 +18,8 @@ namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 
 /// <summary>
 /// Appends ONE image to a post's ordered list (multipart <c>file</c> field; at
-/// most four, a fifth is a typed 422; GIF and animated images are refused). Type and
+/// most the registry's per-post cap, one more is a typed 422; GIF and animated
+/// images are refused). Type and
 /// dimensions come from server-side header parsing (never client claims);
 /// bytes pass the durable upload-admission pipeline (#807 F1). The blob
 /// reference is acquired HERE before the post-owned asset row commits and
@@ -73,7 +74,7 @@ public sealed class AttachPostImageForTenant {
 			);
 		}
 
-		// Cheap early refusal so a fifth image never reaches storage; the asset
+		// Cheap early refusal so an image over the cap never reaches storage; the asset
 		// service re-checks authoritatively at insert time.
 		var existingImages = await assetService.ListByPostAsync(
 			tenantId, postIdGuid, cancellationToken
@@ -330,31 +331,8 @@ public sealed class AttachPostImageForTenant {
 			&& (header[20] & 0x02) != 0;
 	}
 
-	// APNG: an acTL chunk before the first IDAT. Walks the chunk headers only
-	// (length + type); leaves the stream position unspecified, the caller rewinds.
 	private static bool _IsAnimatedPng(Stream stream, ImageInspector.Inspected inspected) {
-		if (inspected.ContentType != "image/png") {
-			return false;
-		}
-
-		stream.Position = 8;
-		Span<byte> header = stackalloc byte[8];
-		while (stream.ReadAtLeast(header, header.Length, throwOnEndOfStream: false) == header.Length) {
-			var type = header[4..8];
-			if (type.SequenceEqual("acTL"u8)) {
-				return true;
-			}
-
-			if (type.SequenceEqual("IDAT"u8) || type.SequenceEqual("IEND"u8)) {
-				return false;
-			}
-
-			var length = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(header[..4]);
-			// Skip the chunk data and its 4-byte CRC.
-			stream.Seek(length + 4L, SeekOrigin.Current);
-		}
-
-		return false;
+		return inspected.ContentType == "image/png" && ImageAnimation.IsAnimatedPng(stream);
 	}
 
 	private static string? _RelativePathOrNull(string? candidate) {

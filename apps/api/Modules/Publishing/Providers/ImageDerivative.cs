@@ -1,3 +1,5 @@
+using PublyApp.Api.Infrastructure.Storage;
+
 using SkiaSharp;
 
 namespace PublyApp.Api.Modules.Publishing.Providers;
@@ -41,6 +43,13 @@ internal static class ImageDerivative {
 		int heightPx,
 		long maxBytes
 	) {
+		// Stored before attaches refused APNG: the first frame would publish as a
+		// still, so refuse it here the same way the attach does.
+		if (string.Equals(contentType, "image/png", StringComparison.Ordinal)
+			&& ImageAnimation.IsAnimatedPng(new MemoryStream(source, writable: false))) {
+			return new CannotFit("it is an animated image, which cannot be published");
+		}
+
 		var fitsAsIs = source.LongLength <= maxBytes;
 
 		using var codec = SKCodec.Create(SKData.CreateCopy(source));
@@ -58,17 +67,15 @@ internal static class ImageDerivative {
 			return new CannotFit("the image could not be decoded");
 		}
 
+		// An image that must be rotated but cannot be decoded is refused rather
+		// than published sideways with swapped dimensions.
 		if ((long)codec.Info.Width * codec.Info.Height > ImageDerivative._MaxDecodePixels) {
-			return fitsAsIs
-				? new Fitted(source, contentType, widthPx, heightPx)
-				: new CannotFit("the image is too large to resize");
+			return new CannotFit("the image is too large to resize");
 		}
 
 		using var decoded = SKBitmap.Decode(codec);
 		if (decoded is null) {
-			return fitsAsIs
-				? new Fitted(source, contentType, widthPx, heightPx)
-				: new CannotFit("the image could not be decoded");
+			return new CannotFit("the image could not be decoded");
 		}
 
 		// Only build a second bitmap when the orientation actually needs baking in.
@@ -77,9 +84,26 @@ internal static class ImageDerivative {
 			: null;
 		var oriented = rotated ?? decoded;
 		var asJpeg = string.Equals(contentType, "image/jpeg", StringComparison.Ordinal);
+		var longest = Math.Max(oriented.Width, oriented.Height);
+
+		// A PNG that only needs its rotation stays a lossless PNG (some targets,
+		// Pixelfed for one, accept only JPEG and PNG); it falls to the WebP steps
+		// below only when the PNG itself is over the cap.
+		if (fitsAsIs && string.Equals(contentType, "image/png", StringComparison.Ordinal)) {
+			using var png = oriented.Encode(SKEncodedImageFormat.Png, 100);
+			if (png is not null && png.Size <= maxBytes) {
+				return new Fitted(png.ToArray(), "image/png", oriented.Width, oriented.Height);
+			}
+		}
+
 		var format = asJpeg ? SKEncodedImageFormat.Jpeg : SKEncodedImageFormat.Webp;
 		var outputType = asJpeg ? "image/jpeg" : "image/webp";
-		var longest = Math.Max(oriented.Width, oriented.Height);
+		// Trade-off: JPEG rotation here is a re-encode, not a lossless transform.
+		// A source under the cap starts at near-lossless quality and only steps
+		// down if the result no longer fits.
+		int[] qualities = fitsAsIs
+			? [98, .. ImageDerivative._QualitySteps]
+			: ImageDerivative._QualitySteps;
 
 		// A source already under the cap only needs its rotation: keep full size first.
 		int[] edges = fitsAsIs
@@ -93,7 +117,7 @@ internal static class ImageDerivative {
 				: null;
 			var scaled = resized ?? oriented;
 
-			foreach (var quality in ImageDerivative._QualitySteps) {
+			foreach (var quality in qualities) {
 				using var data = scaled.Encode(format, quality);
 				if (data is null) {
 					continue;

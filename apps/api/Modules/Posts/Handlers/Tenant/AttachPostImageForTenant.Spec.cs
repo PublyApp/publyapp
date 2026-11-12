@@ -403,6 +403,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			(TestImages.Jpeg(20, 20), "image/jpeg", "a.jpg"),
 			(TestImages.Png(20, 20), "image/png", "a.png"),
 			(TestImages.Webp(20, 20), "image/webp", "a.webp"),
+			(TestImages.Apng(20, 20, frames: 0), "image/png", "still-with-actl.png"),
 		}) {
 			using var ok = new HttpRequestMessage(
 				HttpMethod.Post,

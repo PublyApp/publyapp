@@ -50,10 +50,13 @@ type SubmitArgs = {
 	segmentKeys: readonly string[];
 	/** The post's images (keys): an override naming a removed one is not sent. */
 	imageKeys: readonly string[];
-	/** Called when `onBeforePublish` stopped the submit (null): hands back a
-	 * function that redoes the SAME request (publish now, or schedule at the
-	 * same instant) with the latest state, so the caller can resume it once
-	 * what stopped it (images that did not attach) is fixed (#2179). */
+	/** Called when `onBeforePublish` stopped the submit (null, whatever the
+	 * reason: the caller knows it): hands back a function that redoes the same
+	 * KIND of request once what stopped it (images that did not attach) is
+	 * fixed (#2179). It runs with the state of the render it is called in, so it
+	 * sends to the destinations selected THEN, and a schedule keeps the instant
+	 * that was picked at the original click (a time that has since passed is
+	 * refused by the server like any past schedule). */
 	onInterrupted?: (resume: () => void) => void;
 };
 

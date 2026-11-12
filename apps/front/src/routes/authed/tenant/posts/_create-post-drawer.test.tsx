@@ -925,6 +925,60 @@ describe('CreatePostDrawer deferred image handoff', () => {
 		).toBeNull();
 	});
 
+	test('cancelling the drawer drops the publish intent: nothing is resumed and no handoff is left (#2179)', async () => {
+		const onOpenChange = vi.fn();
+		const resume = vi.fn();
+		mocks.attachMutateAsync.mockRejectedValueOnce(TOO_LARGE_PROBLEM);
+		renderDrawer(onOpenChange);
+		await fillBodyAndPickImage('draft body');
+		await act(async () => {
+			await mocks.publishBlockProps.current?.onBeforePublish?.();
+		});
+		act(() => {
+			mocks.publishBlockProps.current?.onPublishInterrupted?.(resume);
+		});
+
+		await userEvent.click(screen.getByText('common:cancel'));
+
+		expect(onOpenChange).toHaveBeenCalledWith(false);
+		expect(
+			screen.queryByTestId('tenant-posts-create-image-handoff'),
+		).toBeNull();
+		expect(resume).not.toHaveBeenCalled();
+	});
+
+	test('a stop that was not caused by the attach does not become a resume (#2179)', async () => {
+		const onOpenChange = vi.fn();
+		const resume = vi.fn();
+		mocks.attachMutateAsync
+			.mockRejectedValueOnce(TOO_LARGE_PROBLEM)
+			.mockResolvedValue({ id: 'asset-1' });
+		renderDrawer(onOpenChange);
+		await fillBodyAndPickImage('draft body');
+		// A save leaves the handoff behind (the attach failed)...
+		await userEvent.click(screen.getByTestId('tenant-posts-create-save'));
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('tenant-posts-create-image-retry'),
+			).toBeTruthy(),
+		);
+		// ...then a Publish attempt whose attach works is stopped for another
+		// reason: it must not leave a resume behind.
+		await act(async () => {
+			await mocks.publishBlockProps.current?.onBeforePublish?.();
+		});
+		act(() => {
+			mocks.publishBlockProps.current?.onPublishInterrupted?.(resume);
+		});
+
+		await userEvent.click(
+			screen.getByTestId('tenant-posts-create-image-retry'),
+		);
+
+		await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+		expect(resume).not.toHaveBeenCalled();
+	});
+
 	test('discarding the failed image keeps the created post and closes cleanly', async () => {
 		const onOpenChange = vi.fn();
 		mocks.attachMutateAsync.mockRejectedValueOnce(TOO_LARGE_PROBLEM);
