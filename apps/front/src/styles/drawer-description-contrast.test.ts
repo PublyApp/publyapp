@@ -429,7 +429,7 @@ const alphaComposite = (over: Rgba, under: Rgba): Rgba => {
 };
 
 // The opaque colour the drawer description text actually sits on. The drawer
-// panel (`.publy-drawer`) paints `--publy-overlay-surface` at alpha 0.97,
+// panel (`.publy-drawer`) paints `--publy-overlay-surface` (opaque since #2407),
 // above the fixed scrim (`.publy-overlay-backdrop` paints `--publy-backdrop`)
 // which sits on the app canvas (`--publy-background`, the `html`/shell
 // background). Compositing in paint order reads the translucent overlay as
