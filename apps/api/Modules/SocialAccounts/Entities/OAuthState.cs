@@ -38,6 +38,17 @@ public class OAuthState : BaseAttributes, ITenantEntity {
 	[Column("instance_host")]
 	public required string InstanceHost { get; set; }
 
+	// The PKCE code verifier (RFC 7636), encrypted: only the instance holds the matching
+	// challenge, so this is the one secret that lets a stolen code be redeemed. Null when
+	// the instance does not advertise PKCE (that flow runs without it, #2186).
+	[Column("protected_code_verifier")]
+	public string? ProtectedCodeVerifier { get; set; }
+
+	// Set when the flow was started to reconnect this account: the callback must come back
+	// as the same Mastodon identity, else it is refused instead of linking a different one.
+	[Column("reconnect_social_account_id")]
+	public Guid? ReconnectSocialAccountId { get; set; }
+
 	[Column("expires_at")]
 	public required DateTime ExpiresAt { get; set; }
 

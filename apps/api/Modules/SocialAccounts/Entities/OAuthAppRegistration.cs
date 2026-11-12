@@ -33,6 +33,14 @@ public class OAuthAppRegistration : BaseAttributes, INoTenantEntity {
 	[Column("scopes")]
 	public required string Scopes { get; set; }
 
+	// The tenant whose connect attempt triggered the (latest) registration on the instance
+	// and when: the per-tenant quota on new-host registrations counts these (#2186).
+	[Column("registered_by_tenant_id")]
+	public Guid? RegisteredByTenantId { get; set; }
+
+	[Column("registered_at")]
+	public DateTime? RegisteredAt { get; set; }
+
 	// The redirect the instance has on record: a changed FRONT_URL registers anew.
 	[Column("redirect_uri")]
 	public required string RedirectUri { get; set; }
@@ -44,6 +52,10 @@ public sealed class OAuthAppRegistrationConfiguration : IEntityTypeConfiguration
 			.Property(registration => registration.Provider)
 			.HasDefaultValue(SocialProvider.Mastodon)
 			.HasSentinel(SocialProvider.Mastodon);
+
+		builder
+			.HasIndex(registration => new { registration.RegisteredByTenantId, registration.RegisteredAt })
+			.HasDatabaseName("ix_oauth_app_registrations_registered_by_tenant");
 
 		builder
 			.HasIndex(registration => new { registration.Host, registration.Provider })
