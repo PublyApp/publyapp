@@ -14920,6 +14920,77 @@
         }
       }
     },
+    "/publishing/capabilities": {
+      "get": {
+        "tags": [
+          "Publishing"
+        ],
+        "summary": "List what each provider accepts and whether it can be connected",
+        "operationId": "GetProviderCapabilitiesForTenant",
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetProviderCapabilitiesForTenantResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/posts/{postId}/schedule": {
       "post": {
         "tags": [
@@ -18051,6 +18122,21 @@
         },
         "description": "Wire wrapper so the detail stays a single camelCase object under \"detail\"\nwhile keeping the service record free of wire concerns."
       },
+      "GetProviderCapabilitiesForTenantResponse": {
+        "required": [
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "description": "One provider's registry defaults: `Enabled` is the operator switch, so the\nconnect screen needs no hardcoded provider list.",
+              "$ref": "#/components/schemas/ProviderCapabilityItem"
+            }
+          }
+        }
+      },
       "GetPublishTargetsForTenantResponse": {
         "required": [
           "items",
@@ -19344,6 +19430,27 @@
           }
         }
       },
+      "ProviderCapabilityItem": {
+        "required": [
+          "provider",
+          "enabled",
+          "limits"
+        ],
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "limits": {
+            "description": "The account's effective capability, so the composer needs no hardcoded numbers\n(issues #2169, #2173). `TextLimits` are measured by unit.",
+            "$ref": "#/components/schemas/PublishTargetLimits"
+          }
+        },
+        "description": "One provider's registry defaults: `Enabled` is the operator switch, so the\nconnect screen needs no hardcoded provider list."
+      },
       "PublicationListItem": {
         "required": [
           "id",
@@ -19505,7 +19612,10 @@
           "maxImageBytes",
           "acceptedImageContentTypes",
           "requiresMedia",
-          "supportsThreads"
+          "supportsThreads",
+          "requiresText",
+          "requiresAltText",
+          "supportsVideo"
         ],
         "type": "object",
         "properties": {
@@ -19538,6 +19648,18 @@
           "supportsThreads": {
             "type": "boolean",
             "description": "False when follow-up segments cannot be published to this destination."
+          },
+          "requiresText": {
+            "type": "boolean",
+            "description": "False for an image-led destination: a post may then have no text."
+          },
+          "requiresAltText": {
+            "type": "boolean",
+            "description": "True when every image needs alt text for this destination."
+          },
+          "supportsVideo": {
+            "type": "boolean",
+            "description": "True when this destination can carry a video."
           }
         },
         "description": "The account's effective capability, so the composer needs no hardcoded numbers\n(issues #2169, #2173). `TextLimits` are measured by unit."

@@ -47,6 +47,20 @@ public static class PublishingEndpointsForTenant {
 			.WithSummary("List visible social accounts as composer publish targets")
 			.WithTenantPermission([AppPermissions.Tenant.SocialAccounts.PUBLISH]);
 
+		group.MapGet(
+			Routes.Publishing.ForTenant.Capabilities,
+			GetProviderCapabilitiesForTenant.Handle
+		)
+			.WithName("GetProviderCapabilitiesForTenant")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.AuthenticatedDefault
+			)
+			.WithSummary("List what each provider accepts and whether it can be connected")
+			// Read by the composer (publish) and by the connect screen (manage).
+			.WithTenantPermission(permissions =>
+				permissions.Contains(AppPermissions.Tenant.SocialAccounts.PUBLISH.Key)
+				|| permissions.Contains(AppPermissions.Tenant.SocialAccounts.MANAGE.Key));
+
 		return routes;
 	}
 }

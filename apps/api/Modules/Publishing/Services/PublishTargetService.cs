@@ -33,6 +33,32 @@ public record PublishTargetLimits {
 	public required bool RequiresMedia { get; init; }
 	/// <summary>False when follow-up segments cannot be published to this destination.</summary>
 	public required bool SupportsThreads { get; init; }
+	/// <summary>False for an image-led destination: a post may then have no text.</summary>
+	public required bool RequiresText { get; init; }
+	/// <summary>True when every image needs alt text for this destination.</summary>
+	public required bool RequiresAltText { get; init; }
+	/// <summary>True when this destination can carry a video.</summary>
+	public required bool SupportsVideo { get; init; }
+
+	public static PublishTargetLimits FromCapability(ProviderCapability capability) {
+		return new PublishTargetLimits {
+			TextLimits = capability.TextLimits
+				.Select(limit => new PublishTargetTextLimit {
+					Unit = limit.Rule.Unit,
+					Max = limit.Max,
+					UrlWeight = limit.Rule.UrlWeight,
+				})
+				.ToList(),
+			MaxImages = capability.MaxImages,
+			MaxImageBytes = capability.MaxImageBytes,
+			AcceptedImageContentTypes = capability.AcceptedImageContentTypes,
+			RequiresMedia = capability.RequiresMedia,
+			SupportsThreads = capability.SupportsThreads,
+			RequiresText = capability.RequiresText,
+			RequiresAltText = capability.RequiresAltText,
+			SupportsVideo = capability.SupportsVideo,
+		};
+	}
 }
 
 /// <summary>
@@ -114,20 +140,7 @@ public sealed class PublishTargetService : IPublishTargetService {
 					// FormatProvider throws on an unhandled value; a literal
 					// would silently mislabel the first non-Bluesky provider.
 					Provider = SocialAccountWire.FormatProvider(account.Provider),
-					Limits = new PublishTargetLimits {
-						TextLimits = capability.TextLimits
-							.Select(limit => new PublishTargetTextLimit {
-								Unit = limit.Rule.Unit,
-								Max = limit.Max,
-								UrlWeight = limit.Rule.UrlWeight,
-							})
-							.ToList(),
-						MaxImages = capability.MaxImages,
-						MaxImageBytes = capability.MaxImageBytes,
-						AcceptedImageContentTypes = capability.AcceptedImageContentTypes,
-						RequiresMedia = capability.RequiresMedia,
-						SupportsThreads = capability.SupportsThreads,
-					},
+					Limits = PublishTargetLimits.FromCapability(capability),
 				};
 			})
 			.ToList();
