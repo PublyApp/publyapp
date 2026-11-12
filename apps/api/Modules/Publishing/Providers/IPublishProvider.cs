@@ -35,6 +35,18 @@ public sealed record ReconcileRequest {
 
 	/// <summary>When this segment was FIRST sent (a dedupe window runs from there).</summary>
 	public required DateTime FirstAttemptAtUtc { get; init; }
+
+	/// <summary>
+	/// The text this segment would now publish (#2181): a record that exists with other
+	/// text was sent before an edit, so it is NOT this segment's success. Null = not checked.
+	/// </summary>
+	public string? ExpectedText { get; init; }
+
+	/// <summary>
+	/// True when a resend would go out under a NEW idempotency key (a re-issued publication
+	/// after a failed one, #2181): a provider that only dedupes by key cannot vouch for it.
+	/// </summary>
+	public bool ResendUnderNewKey { get; init; }
 }
 
 /// <summary>Outcome of reconciling one ambiguous write.</summary>

@@ -111,12 +111,19 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				SegmentPosition = 0,
 				Session = request.Session,
 				FirstAttemptAtUtc = request.ScheduledAtUtc,
+				// An existing root that holds other text was written before an edit (#2181).
+				ExpectedText = request.PostBody,
 			},
 			cancellationToken
 		);
 		switch (lookup) {
 			case ReconcileResult.SafeToResend:
 				return null;
+			case ReconcileResult.NeedsReview:
+				return new SegmentOutcome(
+					new PublishResult.ContentFailure(BlueskyPublishProvider._DifferentTextCause(isThread, 0)),
+					null
+				);
 			case ReconcileResult.Found found when isThread && found.Segment.Cid.Length == 0:
 				return new SegmentOutcome(
 					new PublishResult.TransientFailure(
@@ -163,6 +170,14 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 			using var response = await client.GetAsync(url, cancellationToken);
 			if (response.IsSuccessStatusCode) {
 				var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
+				if (request.ExpectedText is { } expected
+					&& BlueskyPublishProvider._TextMismatch(payload, expected) is not null) {
+					return new ReconcileResult.NeedsReview(
+						$"segment {request.SegmentPosition + 1} exists on Bluesky with different text "
+						+ "than the one now being published (it was edited after the earlier write)"
+					);
+				}
+
 				var recordId = BlueskyPublishProvider._RecordIdentity(payload, session.Did, rkey);
 				var webUrl = BlueskyPublishProvider._WebUrl(recordId, session.Did, rkey);
 				return new ReconcileResult.Found(new CompletedSegment(
@@ -192,6 +207,13 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		}
 	}
 
+	private static string _DifferentTextCause(bool isThread, int position) {
+		return $"{(isThread ? $"segment {position + 1}" : "the post")} already exists on Bluesky "
+			+ "with different text (an earlier attempt published it before the text was "
+			+ "edited), so it was not recorded as published. Check it on Bluesky, then "
+			+ "mark the publication published or republish";
+	}
+
 	/// <summary>Record key of a segment: position 0 keeps the legacy single-post key.</summary>
 	internal static string RecordKey(string idempotencyKey, int position) {
 		return position == 0 ? $"pub-{idempotencyKey}" : $"pub-{idempotencyKey}-s{position}";
@@ -211,12 +233,14 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 	) {
 		var rkey = BlueskyPublishProvider.RecordKey(request.IdempotencyKey, position);
 		var images = new List<Dictionary<string, object?>>();
-		if (position == 0) {
+		if (request.MediaAt(position).Count > 0) {
 			var uploaded = await BlueskyPublishProvider._UploadImagesAsync(
-				client, request, cancellationToken
+				client, request, position, cancellationToken
 			);
 			if (uploaded.Failure is not null) {
-				return new SegmentOutcome(uploaded.Failure, null);
+				return new SegmentOutcome(
+					PublishResultSegments.Name(uploaded.Failure, position), null
+				);
 			}
 
 			images = uploaded.Images.ToList();
@@ -254,16 +278,16 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 	}
 
 	/// <summary>The content failure for images the provider can never accept, or null.</summary>
-	private static PublishResult? _InvalidMedia(PublishRequest request) {
+	private static PublishResult? _InvalidMedia(IReadOnlyList<PublishMedia> mediaList) {
 		var limits = ProviderCapabilityRegistry.Bluesky;
-		if (request.Media.Count > limits.MaxImages) {
+		if (mediaList.Count > limits.MaxImages) {
 			return new PublishResult.ContentFailure(
-				$"the post has {request.Media.Count} images, Bluesky accepts {limits.MaxImages}"
+				$"the post has {mediaList.Count} images, Bluesky accepts {limits.MaxImages}"
 			);
 		}
 
-		for (var index = 0; index < request.Media.Count; index++) {
-			var media = request.Media[index];
+		for (var index = 0; index < mediaList.Count; index++) {
+			var media = mediaList[index];
 			if (!limits.AcceptedImageContentTypes.Contains(media.ContentType)) {
 				return new PublishResult.ContentFailure(
 					$"image {index + 1} is {media.ContentType}, which Bluesky does not accept"
@@ -330,7 +354,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 
 		if (BlueskyPublishProvider._LooksLikeAlreadyExists(error, message)) {
 			var readBack = await BlueskyPublishProvider._ReadExistingBackAsync(
-				client, request.Session, rkey, position, isThread, cancellationToken
+				client, request.Session, rkey, position, isThread, text, cancellationToken
 			);
 			return readBack;
 		}
@@ -430,18 +454,20 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 	private static async Task<UploadedImages> _UploadImagesAsync(
 		HttpClient client,
 		PublishRequest request,
+		int position,
 		CancellationToken cancellationToken
 	) {
 		var limits = ProviderCapabilityRegistry.Bluesky;
 		var entries = new List<Dictionary<string, object?>>();
-		var invalid = BlueskyPublishProvider._InvalidMedia(request);
+		var mediaList = request.MediaAt(position);
+		var invalid = BlueskyPublishProvider._InvalidMedia(mediaList);
 		if (invalid is not null) {
 			return new UploadedImages(entries, invalid);
 		}
 
-		for (var index = 0; index < request.Media.Count; index++) {
+		for (var index = 0; index < mediaList.Count; index++) {
 			var number = index + 1;
-			var media = request.Media[index];
+			var media = mediaList[index];
 			var fitted = ImageDerivative.Fit(
 				media.Content, media.ContentType, media.WidthPx, media.HeightPx, limits.MaxImageBytes
 			);
@@ -530,6 +556,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		string rkey,
 		int position,
 		bool isThread,
+		string expectedText,
 		CancellationToken cancellationToken
 	) {
 		var url = $"{session.PdsHost.TrimEnd('/')}/xrpc/com.atproto.repo.getRecord"
@@ -541,6 +568,19 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 			using var response = await client.GetAsync(url, cancellationToken);
 			if (response.IsSuccessStatusCode) {
 				var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
+				// The record under our deterministic key must be the content we are about to
+				// publish: an earlier attempt that landed before the text was edited would
+				// otherwise be recorded as this segment's success (#2181).
+				var differs = BlueskyPublishProvider._TextMismatch(payload, expectedText);
+				if (differs is not null) {
+					return new SegmentOutcome(
+						new PublishResult.ContentFailure(
+							BlueskyPublishProvider._DifferentTextCause(isThread, position)
+						),
+						null
+					);
+				}
+
 				var recordId = BlueskyPublishProvider._RecordIdentity(payload, session.Did, rkey);
 				var cid = BlueskyPublishProvider._Cid(payload);
 				if (isThread && cid.Length == 0) {
@@ -579,6 +619,22 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				null
 			);
 		}
+	}
+
+	/// <summary>
+	/// The record's stored text when it differs from <paramref name="expectedText"/>, else null
+	/// (also null when the answer carries no text: nothing to compare).
+	/// </summary>
+	private static string? _TextMismatch(JsonElement payload, string expectedText) {
+		if (payload.TryGetProperty("value", out var value)
+			&& value.ValueKind == JsonValueKind.Object
+			&& value.TryGetProperty("text", out var text)
+			&& text.ValueKind == JsonValueKind.String) {
+			var stored = text.GetString() ?? string.Empty;
+			return string.Equals(stored, expectedText, StringComparison.Ordinal) ? null : stored;
+		}
+
+		return null;
 	}
 
 	private static string _Cid(JsonElement payload) {

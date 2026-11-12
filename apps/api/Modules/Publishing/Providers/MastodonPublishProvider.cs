@@ -132,6 +132,14 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			);
 		}
 
+		// The window protects a resend with the SAME key only. A re-issued publication has a
+		// fresh key, so a status the failed one wrote but never recorded would be posted twice.
+		if (request.ResendUnderNewKey) {
+			return new ReconcileResult.NeedsReview(
+				"Mastodon cannot confirm whether an earlier attempt of this thread already posted a segment; check your profile"
+			);
+		}
+
 		var age = DateTime.UtcNow - request.FirstAttemptAtUtc;
 		ReconcileResult result = age <= MastodonPublishProvider.IdempotencyWindow
 			? new ReconcileResult.SafeToResend()
@@ -150,7 +158,12 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 	// docs/guides/social-accounts.md, "Idempotency beyond about an hour".
 	internal static readonly TimeSpan IdempotencyWindow = TimeSpan.FromMinutes(50);
 
-	private sealed record Outcome(PublishResult Result, CompletedSegment? Segment);
+	private sealed record Outcome(
+		PublishResult Result,
+		CompletedSegment? Segment,
+		string? Content = null,
+		int? MediaCount = null
+	);
 
 	private async Task<Outcome> _CreateSegmentAsync(
 		HttpClient client,
@@ -161,10 +174,10 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		CancellationToken cancellationToken
 	) {
 		var mediaIds = new List<string>();
-		if (position == 0) {
-			var uploaded = await this._UploadImagesAsync(client, request, cancellationToken);
+		if (request.MediaAt(position).Count > 0) {
+			var uploaded = await this._UploadImagesAsync(client, request, position, cancellationToken);
 			if (uploaded.Failure is not null) {
-				return new Outcome(uploaded.Failure, null);
+				return new Outcome(PublishResultSegments.Name(uploaded.Failure, position), null);
 			}
 
 			mediaIds = uploaded.Ids;
@@ -202,9 +215,14 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 
 		// From here on a transport failure is AMBIGUOUS: the instance may have applied it.
 		try {
-			return await MastodonPublishProvider._SendStatusAsync(
+			var sent = await MastodonPublishProvider._SendStatusAsync(
 				client, httpRequest, position, MastodonPublishProvider._Network(request), cancellationToken
 			);
+			if (sent.Segment is not null && request.ResendPosition == position) {
+				return MastodonPublishProvider._VerifyDedupedText(sent, text, request.MediaAt(position).Count);
+			}
+
+			return sent;
 		} catch (JsonException) {
 			return new Outcome(
 				new PublishResult.Ambiguous("the instance answered with an unreadable body"), null
@@ -253,7 +271,101 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		var url = body.GetStringPropertyOrNull("url")
 			?? body.GetStringPropertyOrNull("uri")
 			?? string.Empty;
-		return new Outcome(new PublishResult.Published(id, url), new CompletedSegment(position, id, string.Empty, url));
+		return new Outcome(
+			new PublishResult.Published(id, url),
+			new CompletedSegment(position, id, string.Empty, url),
+			body.GetStringPropertyOrNull("content"),
+			body.TryGetProperty("media_attachments", out var attachments)
+				&& attachments.ValueKind == JsonValueKind.Array
+				? attachments.GetArrayLength()
+				: null
+		);
+	}
+
+	/// <summary>
+	/// A resend under the same key is answered with the ORIGINAL status object: its
+	/// rendered <c>content</c> must still read as the text being sent (and carry the same
+	/// number of images), so an edited segment never records the old one as published.
+	/// Needs no extra scope. A live status that cannot be confirmed fails without a retry
+	/// and stays in the journal (StatusExists), never Ambiguous and never forgotten.
+	/// </summary>
+	private static Outcome _VerifyDedupedText(Outcome sent, string text, int imageCount) {
+		if (sent.Segment is null) {
+			return sent;
+		}
+
+		if (sent.Content is null) {
+			return new Outcome(new PublishResult.ContentFailure(
+				"The instance did not return the text of the status it already holds, so it could not "
+				+ "be compared with this segment. Check it on your profile, delete it if it is outdated, "
+				+ "then publish again.",
+				StatusExists: true
+			), null);
+		}
+
+		var sameText = MastodonPublishProvider._WithoutSpaces(MastodonPublishProvider._FromHtml(sent.Content))
+			== MastodonPublishProvider._WithoutSpaces(text);
+		var sameImages = sent.MediaCount is not { } count || count == imageCount;
+		if (sameText && sameImages) {
+			return sent;
+		}
+
+		return new Outcome(new PublishResult.ContentFailure(
+			"The instance already holds a status for this segment that does not match its text or images. "
+			+ "Check it on your profile, delete it if it is outdated, then publish again.",
+			StatusExists: true
+		), null);
+	}
+
+	/// <summary>
+	/// The text a reader sees in the HTML the instance rendered: tags dropped (a custom emoji
+	/// image keeps its shortcode from <c>alt</c>), entities decoded. The plain text we sent is
+	/// NOT HTML and is never run through this.
+	/// </summary>
+	private static string _FromHtml(string html) {
+		var text = new StringBuilder(html.Length);
+		var index = 0;
+		while (index < html.Length) {
+			if (html[index] != '<') {
+				var next = html.IndexOf('<', index);
+				var end = next < 0 ? html.Length : next;
+				text.Append(System.Net.WebUtility.HtmlDecode(html[index..end]));
+				index = end;
+				continue;
+			}
+
+			var close = html.IndexOf('>', index);
+			if (close < 0) {
+				break;
+			}
+
+			var tag = html[index..(close + 1)];
+			if (tag.StartsWith("<img", StringComparison.OrdinalIgnoreCase)) {
+				text.Append(MastodonPublishProvider._AltOf(tag));
+			} else if (tag.StartsWith("<br", StringComparison.OrdinalIgnoreCase)
+				|| tag.StartsWith("</p", StringComparison.OrdinalIgnoreCase)) {
+				text.Append(' ');
+			}
+
+			index = close + 1;
+		}
+
+		return text.ToString();
+	}
+
+	private static string _AltOf(string tag) {
+		var at = tag.IndexOf("alt=\"", StringComparison.OrdinalIgnoreCase);
+		if (at < 0) {
+			return string.Empty;
+		}
+
+		var start = at + 5;
+		var end = tag.IndexOf('"', start);
+		return end < 0 ? string.Empty : System.Net.WebUtility.HtmlDecode(tag[start..end]);
+	}
+
+	private static string _WithoutSpaces(string value) {
+		return string.Concat(value.Where(character => !char.IsWhiteSpace(character)));
 	}
 
 	private sealed record Uploaded(List<string> Ids, PublishResult? Failure);
@@ -261,19 +373,21 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 	private async Task<Uploaded> _UploadImagesAsync(
 		HttpClient client,
 		PublishRequest request,
+		int position,
 		CancellationToken cancellationToken
 	) {
+		var mediaList = request.MediaAt(position);
 		var limits = request.Capability ?? ProviderCapabilityRegistry.For(request.Provider);
 		var ids = new List<string>();
-		if (request.Media.Count > limits.MaxImages) {
+		if (mediaList.Count > limits.MaxImages) {
 			return new Uploaded(ids, new PublishResult.ContentFailure(
-				$"the post has {request.Media.Count} images, this instance accepts {limits.MaxImages}"
+				$"the post has {mediaList.Count} images, this instance accepts {limits.MaxImages}"
 			));
 		}
 
-		for (var index = 0; index < request.Media.Count; index++) {
+		for (var index = 0; index < mediaList.Count; index++) {
 			var number = index + 1;
-			var media = request.Media[index];
+			var media = mediaList[index];
 			if (!limits.AcceptedImageContentTypes.Contains(media.ContentType)) {
 				return new Uploaded(ids, new PublishResult.ContentFailure(
 					$"image {number} is {media.ContentType}, which this instance does not accept"

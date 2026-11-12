@@ -46,6 +46,24 @@ public static partial class Routes {
 				return $"/{postId}/images/{assetId}";
 			}
 
+			// Images of one follow-up segment (#2181).
+			public const string SegmentImages = "/{postId}/segments/{segmentId}/images";
+			public static string SegmentImagesFn(string postId, string segmentId) {
+				return $"/{postId}/segments/{segmentId}/images";
+			}
+
+			public const string SegmentImageById = "/{postId}/segments/{segmentId}/images/{assetId}";
+			public static string SegmentImageByIdFn(string postId, string segmentId, string assetId) {
+				return $"/{postId}/segments/{segmentId}/images/{assetId}";
+			}
+
+			public const string SegmentImageAlt = "/{postId}/segments/{segmentId}/images/{assetId}";
+
+			public const string SegmentImagesOrder = "/{postId}/segments/{segmentId}/images/order";
+			public static string SegmentImagesOrderFn(string postId, string segmentId) {
+				return $"/{postId}/segments/{segmentId}/images/order";
+			}
+
 			public const string ImagesOrder = "/{postId}/images/order";
 			public static string ImagesOrderFn(string postId) {
 				return $"/{postId}/images/order";

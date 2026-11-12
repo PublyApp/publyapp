@@ -102,7 +102,7 @@ public static class PostEndpointsForTenant {
 			.Produces<PostImageAttached>(StatusCodes.Status201Created)
 			.Produces<AppProblemDetails>(StatusCodes.Status404NotFound)
 			.Produces<AppProblemDetails>(StatusCodes.Status413PayloadTooLarge)
-			.Produces<AppProblemDetails>(StatusCodes.Status422UnprocessableEntity)
+			.Produces<PublyApp.Api.Lib.ProblemResults.ValidationProblemDetails>(StatusCodes.Status422UnprocessableEntity)
 			.Produces<AppProblemDetails>(StatusCodes.Status409Conflict)
 			.DisableAntiforgery()
 			// Rejects oversize bodies at the transport level (413) before the
@@ -148,6 +148,55 @@ public static class PostEndpointsForTenant {
 			.WithName("UpdatePostImageForTenant")
 			.WithSummary("Set the alt text of one image of a post")
 			.WithReqBodyValidation<UpdatePostImageBody>()
+			.WithTenantPermission([AppPermissions.Tenant.Posts.EDIT]);
+
+		group.MapPost(
+				Routes.Posts.ForTenant.SegmentImages,
+				AttachSegmentImageForTenant.Handle
+			)
+			.WithName("AttachSegmentImageForTenant")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.Upload
+			)
+			.WithSummary("Append one image to a follow-up segment, up to four (multipart 'file' field)")
+			.Produces<PostImageAttached>(StatusCodes.Status201Created)
+			.Produces<AppProblemDetails>(StatusCodes.Status404NotFound)
+			.Produces<AppProblemDetails>(StatusCodes.Status413PayloadTooLarge)
+			.Produces<PublyApp.Api.Lib.ProblemResults.ValidationProblemDetails>(StatusCodes.Status422UnprocessableEntity)
+			.Produces<AppProblemDetails>(StatusCodes.Status409Conflict)
+			.DisableAntiforgery()
+			.WithMetadata(
+				new RequestSizeLimitAttribute(
+					AppEnvironment.Instance.UPLOAD_MAX_BYTES
+					+ UploadLimits.MultipartHeaderHeadroomBytes
+				)
+			)
+			.WithTenantPermission([AppPermissions.Tenant.Posts.CREATE]);
+
+		group.MapDelete(
+			Routes.Posts.ForTenant.SegmentImageById,
+			RemoveSegmentImageForTenant.Handle
+		)
+			.WithName("RemoveSegmentImageForTenant")
+			.WithSummary("Remove one image of a follow-up segment by id")
+			.WithTenantPermission([AppPermissions.Tenant.Posts.EDIT]);
+
+		group.MapPatch(
+			Routes.Posts.ForTenant.SegmentImageAlt,
+			UpdateSegmentImageForTenant.Handle
+		)
+			.WithName("UpdateSegmentImageForTenant")
+			.WithSummary("Set the alt text of one image of a follow-up segment")
+			.WithReqBodyValidation<UpdatePostImageBody>()
+			.WithTenantPermission([AppPermissions.Tenant.Posts.EDIT]);
+
+		group.MapPatch(
+			Routes.Posts.ForTenant.SegmentImagesOrder,
+			ReorderSegmentImagesForTenant.Handle
+		)
+			.WithName("ReorderSegmentImagesForTenant")
+			.WithSummary("Reorder the images of a follow-up segment")
+			.WithReqBodyValidation<ReorderPostImagesBody>()
 			.WithTenantPermission([AppPermissions.Tenant.Posts.EDIT]);
 
 		return routes;

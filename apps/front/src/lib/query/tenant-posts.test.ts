@@ -191,15 +191,15 @@ describe('thread segments', () => {
 			id: POST_ID,
 			body: 'one',
 			segments: [
-				{ number: 2, body: 'two' },
-				{ number: 3, body: 'three' },
+				{ id: 'seg-2', number: 2, body: 'two' },
+				{ id: 'seg-3', number: 3, body: 'three', images: [] },
 			],
 			publishedSegmentCount: 2,
 		} as PostDetail);
 
 		expect(details?.segments).toEqual([
-			{ number: 2, body: 'two' },
-			{ number: 3, body: 'three' },
+			{ id: 'seg-2', number: 2, body: 'two', images: [] },
+			{ id: 'seg-3', number: 3, body: 'three', images: [] },
 		]);
 		expect(details?.publishedSegmentCount).toBe(2);
 	});
@@ -214,6 +214,22 @@ describe('thread segments', () => {
 		expect(details?.publishedSegmentCount).toBe(0);
 	});
 
+	test('savePost names the stored segment each follow-up continues, null for a new one', async () => {
+		await savePost({
+			postId: POST_ID,
+			body: 'Updated body',
+			projectId: null,
+			segments: ['four', 'brand new'],
+			segmentIds: ['seg-4', undefined],
+			tenantId: TENANT_ID,
+		});
+
+		const ids = mocks.patch.mock.calls[0]?.[0].segmentIds
+			.getValue()
+			.map((node: { getValue: () => string | null }) => node.getValue());
+		expect(ids).toEqual(['seg-4', null]);
+	});
+
 	test('savePost leaves segments out of the patch when none are given', async () => {
 		await savePost({
 			postId: POST_ID,
@@ -225,7 +241,7 @@ describe('thread segments', () => {
 		expect(mocks.patch.mock.calls[0]?.[0].segments).toBeUndefined();
 	});
 
-	test('savePost sends the follow-ups without blanks, and [] clears them', async () => {
+	test('savePost sends every follow-up as typed (a blank one is flagged by the server, never dropped), and [] clears them', async () => {
 		await savePost({
 			postId: POST_ID,
 			body: 'Updated body',
@@ -246,7 +262,7 @@ describe('thread segments', () => {
 			sent
 				.getValue()
 				.map((node: { getValue: () => string }) => node.getValue()),
-		).toEqual(['two', 'three']);
+		).toEqual(['two', '  ', 'three']);
 		expect(mocks.patch.mock.calls[1]?.[0].segments.getValue()).toEqual([]);
 	});
 });

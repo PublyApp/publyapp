@@ -17,10 +17,13 @@ const AS_INFORMATIVE_AS_DETAIL: ReadonlySet<string> = new Set([
 	'publication-rendition-conflict',
 	'post-segments-locked',
 	'provider-disabled',
+	'post-segment-not-found',
 ]);
 
 const RENDITION_INVALID_PROBLEM = 'publish-rendition-invalid';
 const PUBLISH_PROVIDER_DISABLED_PROBLEM = 'publish-provider-disabled';
+const SEGMENT_BLANK_PROBLEM = 'post-segment-blank';
+const SEGMENT_IMAGE_LIMIT_PROBLEM = 'post-segment-image-limit-reached';
 
 const asText = (value: unknown): string | undefined =>
 	typeof value === 'string' && value.length > 0 ? value : undefined;
@@ -38,6 +41,8 @@ const asPositiveInteger = (value: unknown): number | undefined =>
  *   specific than the bundle's generic entry.
  * - A key whose translation is as informative as the detail resolves through
  *   the always-loaded `response-message` namespace.
+ * - `post-segment-blank` is built from the problem's `segmentNumber`, so the message
+ *   names the empty follow-up; without it the `detail` stays.
  * - `publish-rendition-invalid` is built from the problem's structured members
  *   (`reason`, `destination`, `segmentNumber`), so the message still names the
  *   destination and the segment; without them the `detail` stays.
@@ -88,6 +93,24 @@ export const useResponseMessageTranslator = () => {
 				return undefined;
 			}
 			return t(translationKey, { ns: RESPONSE_MESSAGE_NAMESPACE, provider });
+		}
+
+		// Names the empty follow-up by its number in the thread (#2181).
+		if (translationKey === SEGMENT_BLANK_PROBLEM) {
+			const index = asPositiveInteger(extensions.segmentNumber);
+			if (index === undefined) {
+				return undefined;
+			}
+			return t('posts:segment-blank', { index });
+		}
+
+		// Names the follow-up's own image limit (not a post's).
+		if (translationKey === SEGMENT_IMAGE_LIMIT_PROBLEM) {
+			const limit = asPositiveInteger(extensions.limit);
+			if (limit === undefined) {
+				return undefined;
+			}
+			return t('posts:segment-image-limit', { limit });
 		}
 
 		if (!AS_INFORMATIVE_AS_DETAIL.has(translationKey)) {

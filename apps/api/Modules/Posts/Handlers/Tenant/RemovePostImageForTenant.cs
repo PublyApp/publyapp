@@ -20,11 +20,13 @@ public sealed class RemovePostImageForTenant {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
-		AppNotFoundHttpResult
+		AppNotFoundHttpResult,
+		AppValidationProblemHttpResult
 	>> Handle(
 		[FromRoute] string postId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostMediaAssetService assetService,
+		[FromServices] IPostSegmentMediaAssetService segmentService,
 		[FromServices] IUploadAssetReferenceService uploadReferences,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
@@ -32,8 +34,10 @@ public sealed class RemovePostImageForTenant {
 		return await RemovePostImageForTenant.RemoveAsync(
 			postId,
 			assetId: null,
+			segmentId: null,
 			authContext,
 			assetService,
+			segmentService,
 			uploadReferences,
 			auditLogService,
 			cancellationToken
@@ -43,12 +47,15 @@ public sealed class RemovePostImageForTenant {
 	internal static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
-		AppNotFoundHttpResult
+		AppNotFoundHttpResult,
+		AppValidationProblemHttpResult
 	>> RemoveAsync(
 		string postId,
 		Guid? assetId,
+		Guid? segmentId,
 		IRequestAuthContext authContext,
 		IPostMediaAssetService assetService,
+		IPostSegmentMediaAssetService segmentService,
 		IUploadAssetReferenceService uploadReferences,
 		IAuditLogService auditLogService,
 		CancellationToken cancellationToken
@@ -79,13 +86,45 @@ public sealed class RemovePostImageForTenant {
 			);
 		}
 
+		if (segmentId is { } owningSegmentId) {
+			var segment = await segmentService.FindOwnedSegmentAsync(
+				new FindOwnedSegmentArgs(tenantId, postIdGuid, owningSegmentId), cancellationToken
+			);
+			if (segment is null) {
+				return TypedProblems.NotFound(
+					"Segment not found",
+					ResponseKeys.PostSegmentNotFound
+				);
+			}
+
+			var published = await segmentService.GetPublishedSegmentCountAsync(
+				postIdGuid, cancellationToken
+			);
+			if (segment.Position + 1 <= published) {
+				return TypedProblems.ValidationProblem(
+					"Segments that are already published cannot be changed",
+					ResponseKeys.PostSegmentsLocked,
+					new Dictionary<string, string[]> {
+						["segment"] = ["Published segments are read-only."],
+					}
+				);
+			}
+		}
+
 		// #1461: the HANDLER owns the #807 F5 reference discipline — the service
 		// commits the row's hard delete and hands back the blob path; THIS handler
 		// releases the blob's reference only AFTER that commit. Physical deletion
 		// stays exclusively sweeper's.
-		var removedPath = await assetService.RemoveAsync(
-			new RemovePostMediaArgs(tenantId, postIdGuid, assetId), cancellationToken
-		);
+		var removedPath = segmentId is { } removeFromSegment
+			? await segmentService.RemoveAsync(
+				new RemoveSegmentMediaArgs(
+					tenantId, postIdGuid, removeFromSegment, assetId.GetValueOrDefault()
+				),
+				cancellationToken
+			)
+			: await assetService.RemoveAsync(
+				new RemovePostMediaArgs(tenantId, postIdGuid, assetId), cancellationToken
+			);
 		if (removedPath is null) {
 			return TypedProblems.NotFound(
 				"No image is attached to this post",
@@ -106,6 +145,7 @@ public sealed class RemovePostImageForTenant {
 					TenantId = tenantId,
 					ImageRemoved = true,
 					ImageId = assetId,
+					SegmentId = segmentId,
 				}
 			),
 			cancellationToken

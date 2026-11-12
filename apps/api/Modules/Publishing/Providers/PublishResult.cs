@@ -22,8 +22,12 @@ public abstract record PublishResult {
 	/// <summary>The credential/session was refused: reconnect the account.</summary>
 	public sealed record AccountFailure(string Cause) : PublishResult;
 
-	/// <summary>The content itself was refused (e.g. too long): retrying cannot help.</summary>
-	public sealed record ContentFailure(string Cause) : PublishResult;
+	/// <summary>
+	/// The content itself was refused (e.g. too long): retrying cannot help.
+	/// <paramref name="StatusExists"/> marks a failure found AFTER a status was confirmed live
+	/// (a deduped resend that does not match): the journal must keep that status in mind.
+	/// </summary>
+	public sealed record ContentFailure(string Cause, bool StatusExists = false) : PublishResult;
 
 	/// <summary>
 	/// The write may or may not have been applied (timeout, connection reset, 5xx,
@@ -37,4 +41,21 @@ public abstract record PublishResult {
 	/// connection refused, upload phase): retry later with backoff.
 	/// </summary>
 	public sealed record TransientFailure(string Cause, TimeSpan? RetryAfter = null) : PublishResult;
+}
+
+/// <summary>Names the follow-up a provider failure is about, so a thread's cause says which segment (#2181).</summary>
+public static class PublishResultSegments {
+	public static PublishResult Name(PublishResult failure, int position) {
+		if (position == 0) {
+			return failure;
+		}
+
+		var prefix = $"segment {position + 1}: ";
+		return failure switch {
+			PublishResult.ContentFailure content => content with { Cause = prefix + content.Cause },
+			PublishResult.TransientFailure transient => transient with { Cause = prefix + transient.Cause },
+			PublishResult.AccountFailure account => account with { Cause = prefix + account.Cause },
+			_ => failure,
+		};
+	}
 }

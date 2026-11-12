@@ -494,6 +494,116 @@ public sealed class MastodonPublishProviderSpec {
 	}
 
 	[Fact]
+	public async Task ItShouldNeverVouchForAResendUnderANewKeyEvenInsideTheWindow() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("111"));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).ReconcileAsync(
+			MastodonPublishProviderSpec._Reconcile(TimeSpan.FromMinutes(1)) with { ResendUnderNewKey = true },
+			CancellationToken.None
+		);
+
+		result.Should().BeOfType<ReconcileResult.NeedsReview>();
+		handler.Requests.Should().BeEmpty();
+	}
+
+	private static HttpResponseMessage _StatusWithContent(string id, string html) {
+		return MastodonPublishProviderSpec._Json(
+			200, JsonSerializer.Serialize(new { id, url = $"https://social.example/@me/{id}", content = html })
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldRefuseToRecordTheOldTextWhenADedupedResendReturnsAStatusWithOtherText() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._StatusWithContent(
+			"111", "<p>the text before the edit</p>"
+		));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(
+			MastodonPublishProviderSpec._Request() with { ResendPosition = 0 }, CancellationToken.None
+		);
+
+		var failure = result.Should().BeOfType<PublishResult.ContentFailure>().Subject;
+		failure.Cause.Should().Contain("does not match");
+		failure.StatusExists.Should().BeTrue();
+		handler.Requests.Should().ContainSingle("no extra lookup: the read scope is not granted");
+	}
+
+	[Fact]
+	public async Task ItShouldRecordADedupedResendWhoseRenderedContentStillReadsAsTheTextSent() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._StatusWithContent(
+			"111", "<p>hello <a href=\"https://x.example/a\" rel=\"nofollow\"><span class=\"invisible\">https://</span>x.example/a</a> &amp; fediverse<br />line two</p><p>para</p>"
+		));
+		var request = MastodonPublishProviderSpec._Request() with {
+			PostBody = "hello https://x.example/a & fediverse\nline two\n\npara",
+			ResendPosition = 0,
+		};
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.Published>().Which.RecordId.Should().Be("111");
+	}
+
+	[Theory]
+	[InlineData("2 < 3 and 5 > 4", "<p>2 &lt; 3 and 5 &gt; 4</p>")]
+	[InlineData("fish &amp; chips", "<p>fish &amp;amp; chips</p>")]
+	[InlineData("hi :blobcat: there", "<p>hi <img src=\"https://x.example/e.png\" alt=\":blobcat:\" title=\":blobcat:\" class=\"emojione\" /> there</p>")]
+	[InlineData(
+		"see https://example.com/a/very/long/path/that/gets/cut/off ok",
+		"<p>see <a href=\"https://example.com/a/very/long/path/that/gets/cut/off\" rel=\"nofollow noopener\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">example.com/a/very/long/path</span><span class=\"invisible\">/that/gets/cut/off</span></a> ok</p>"
+	)]
+	public async Task ItShouldRecordADedupedResendWhoseTextHasLiteralMarkupEmojiOrALongLink(string sent, string rendered) {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._StatusWithContent("111", rendered));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(
+			MastodonPublishProviderSpec._Request() with { PostBody = sent, ResendPosition = 0 }, CancellationToken.None
+		);
+
+		result.Should().BeOfType<PublishResult.Published>();
+	}
+
+	[Fact]
+	public async Task ItShouldRefuseADedupedStatusWhoseImageCountDiffersFromTheSegment() {
+		var handler = new RecordingHandler(httpRequest => httpRequest.RequestUri?.AbsolutePath == "/api/v2/media"
+			? MastodonPublishProviderSpec._Json(200, """{"id":"m1","url":"https://social.example/m1"}""")
+			: MastodonPublishProviderSpec._Json(
+				200,
+				"""{"id":"111","url":"https://social.example/@me/111","content":"<p>hello fediverse</p>","media_attachments":[]}"""
+			));
+		var request = MastodonPublishProviderSpec._Request() with {
+			ResendPosition = 0,
+			Media = [MastodonPublishProviderSpec._Media(null)],
+		};
+		var provider = MastodonPublishProviderSpec._Provider(handler);
+
+		var result = await provider.PublishAsync(request, CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.ContentFailure>().Which.StatusExists.Should().BeTrue();
+	}
+
+	[Fact]
+	public async Task ItShouldNotRetryAResendWhoseStatusCarriesNoContentToCompare() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("111"));
+
+		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(
+			MastodonPublishProviderSpec._Request() with { ResendPosition = 0 }, CancellationToken.None
+		);
+
+		var failure = result.Should().BeOfType<PublishResult.ContentFailure>("a live status must not burn retries as Ambiguous").Subject;
+		failure.Cause.Should().Contain("did not return").And.NotContain("does not match");
+		failure.StatusExists.Should().BeTrue();
+	}
+
+	[Fact]
+	public async Task ItShouldNotLookUpTheStatusTextOnAFirstSend() {
+		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("111"));
+
+		await MastodonPublishProviderSpec._Provider(handler)
+			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+
+		handler.Requests.Should().ContainSingle();
+	}
+
+	[Fact]
 	public async Task ItShouldReconcileAsNeedsReviewBeyondTheIdempotencyWindowWithoutAnyHttpCall() {
 		var handler = new RecordingHandler(_ => throw new InvalidOperationException("no call expected"));
 

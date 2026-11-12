@@ -967,6 +967,137 @@ public sealed class BlueskyPublishProviderSpec {
 			.Should().Be(1, "no reply is sent with an empty parent cid");
 	}
 
+	// --- images on follow-up segments and read-back text check (#2181) ----------------
+
+	[Fact]
+	public async Task ItShouldUploadAndEmbedTheImagesOfTheFollowUpBeingWrittenAndNoOthers() {
+		var created = 0;
+		var uploads = 0;
+		var handler = new RecordingHandler(request => {
+			if (BlueskyPublishProviderSpec._IsUpload(request)) {
+				uploads += 1;
+				return BlueskyPublishProviderSpec._BlobResponse(uploads);
+			}
+
+			created += 1;
+			return BlueskyPublishProviderSpec._JsonResponse(
+				200,
+				$$"""{"uri":"at://did:plc:x/app.bsky.feed.post/r{{created}}","cid":"cid-{{created}}"}"""
+			);
+		});
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var request = BlueskyPublishProviderSpec._ThreadRequest(["two", "three"]) with {
+			FollowUpMedia = [
+				[BlueskyPublishProviderSpec._Media(TestImages.Png(40, 30), "image/png", "second alt", 40, 30)],
+				[],
+			],
+		};
+
+		var result = await provider.PublishAsync(request, CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.Published>();
+		handler.Requests.Should().HaveCount(4, "three records and ONE blob upload, for the second segment only");
+		BlueskyPublishProviderSpec._IsUpload(handler.Requests[0]).Should().BeFalse("the root has no image");
+		BlueskyPublishProviderSpec._IsUpload(handler.Requests[1]).Should().BeTrue();
+		BlueskyPublishProviderSpec._Record(handler.Bodies[0]).TryGetProperty("embed", out _).Should().BeFalse();
+		var embed = BlueskyPublishProviderSpec._Record(handler.Bodies[2]).GetProperty("embed");
+		embed.GetProperty("images")[0].GetProperty("alt").GetString().Should().Be("second alt");
+		BlueskyPublishProviderSpec._Record(handler.Bodies[2]).GetProperty("text").GetString().Should().Be("two");
+		BlueskyPublishProviderSpec._Record(handler.Bodies[3]).TryGetProperty("embed", out _).Should().BeFalse();
+	}
+
+	[Fact]
+	public async Task ItShouldNameTheSegmentWhenAFollowUpImageIsRefused() {
+		var handler = new RecordingHandler(request => BlueskyPublishProviderSpec._IsUpload(request)
+			? BlueskyPublishProviderSpec._JsonResponse(400, """{"error":"InvalidRequest","message":"bad blob"}""")
+			: BlueskyPublishProviderSpec._JsonResponse(200, """{"uri":"at://did:plc:x/app.bsky.feed.post/r","cid":"c"}"""));
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var request = BlueskyPublishProviderSpec._ThreadRequest(["two"]) with {
+			FollowUpMedia = [[BlueskyPublishProviderSpec._Media(TestImages.Png(40, 30), "image/png", null, 40, 30)]],
+		};
+
+		var result = await provider.PublishAsync(request, CancellationToken.None);
+
+		result.Should().BeOfType<PublishResult.ContentFailure>().Which.Cause
+			.Should().Contain("segment 2: image 1 was refused");
+	}
+
+	private static RecordingHandler _AlreadyExistsHandler(string storedText) {
+		return new RecordingHandler(request => request.Method == HttpMethod.Post
+			? BlueskyPublishProviderSpec._JsonResponse(
+				400, """{"error":"InvalidRequest","message":"record_already_exists"}"""
+			)
+			: BlueskyPublishProviderSpec._JsonResponse(
+				200,
+				"""{"uri":"at://did:plc:x/app.bsky.feed.post/r0","cid":"cid-old","value":{"text":"""
+				+ JsonSerializer.Serialize(storedText) + "}}"
+			), absentLookups: false);
+	}
+
+	[Fact]
+	public async Task ItShouldNotRecordAnExistingRecordAsPublishedWhenItsTextIsNotTheEditedText() {
+		var handler = BlueskyPublishProviderSpec._AlreadyExistsHandler("the text before the edit");
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var recorded = new List<CompletedSegment>();
+
+		var result = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._ThreadRequest(
+				[],
+				onCompleted: (segment, _) => {
+					recorded.Add(segment);
+					return Task.CompletedTask;
+				}
+			),
+			CancellationToken.None
+		);
+
+		var failure = result.Should().BeOfType<PublishResult.ContentFailure>().Subject;
+		failure.Cause.Should().Contain("already exists on Bluesky with different text");
+		recorded.Should().BeEmpty("a record with other text is not this segment's success");
+	}
+
+	[Fact]
+	public async Task ItShouldNameTheSegmentWhenAThreadSegmentExistsWithDifferentText() {
+		var handler = BlueskyPublishProviderSpec._AlreadyExistsHandler("old");
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+
+		var result = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._ThreadRequest(["two"]),
+			CancellationToken.None
+		);
+
+		result.Should().BeOfType<PublishResult.ContentFailure>().Which.Cause
+			.Should().Contain("segment 1 already exists");
+	}
+
+	[Fact]
+	public async Task ItShouldStillAdoptAnExistingRecordWhoseTextMatches() {
+		var handler = BlueskyPublishProviderSpec._AlreadyExistsHandler("hello from the publishing slice");
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+
+		var result = await provider.PublishAsync(
+			BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()),
+			CancellationToken.None
+		);
+
+		result.Should().BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>();
+	}
+
+	[Fact]
+	public async Task ItShouldAskForReviewWhenTheReconciledRecordHoldsOtherTextThanTheOneNowPublished() {
+		var handler = new RecordingHandler(_ => BlueskyPublishProviderSpec._JsonResponse(
+			200, """{"uri":"at://did:plc:x/app.bsky.feed.post/pub-k","cid":"cid-9","value":{"text":"old"}}"""
+		), absentLookups: false);
+		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var request = BlueskyPublishProviderSpec._ReconcileRequest();
+
+		var edited = await provider.ReconcileAsync(request with { ExpectedText = "new" }, CancellationToken.None);
+		var same = await provider.ReconcileAsync(request with { ExpectedText = "old" }, CancellationToken.None);
+
+		edited.Should().BeOfType<ReconcileResult.NeedsReview>().Which.Cause.Should().Contain("different text");
+		same.Should().BeOfType<ReconcileResult.Found>();
+	}
+
 	private sealed class RecordingHandler
 		: HttpMessageHandler {
 		private readonly Func<HttpRequestMessage, HttpResponseMessage> _Responder;

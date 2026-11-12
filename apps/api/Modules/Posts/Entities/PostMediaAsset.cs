@@ -20,7 +20,7 @@ namespace PublyApp.Api.Modules.Posts.Entities;
 /// this row and releases that reference inside the same unit of work.
 /// </summary>
 [Table("post_media_assets")]
-public class PostMediaAsset : BaseAttributes, ITenantEntity {
+public class PostMediaAsset : BaseAttributes, ITenantEntity, IPostImage {
 	private Tenant? _Tenant;
 
 	[Column("tenant_id")]

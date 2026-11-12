@@ -45,6 +45,48 @@ public sealed class PublishValidationServiceSpec {
 	}
 
 	[Fact]
+	public void ItShouldHoldEveryFollowUpsImagesToTheDestinationsCapabilityAndNameTheSegment() {
+		string[] followUps = ["fine", "also fine"];
+		var bluesky = new[] { ProviderCapabilityRegistry.Bluesky };
+
+		var tooMany = PublishValidationService.Validate(
+			"first", [], bluesky, followUps,
+			followUpImageContentTypes: [[], ["image/png", "image/png", "image/png", "image/png", "image/png"]]
+		);
+		Assert.NotNull(tooMany);
+		tooMany.Kind.Should().Be(PublishContentFailureKind.TooManyImages);
+		tooMany.SegmentNumber.Should().Be(3);
+		tooMany.Limit.Should().Be(4);
+		tooMany.Cause.Should().StartWith("Segment 3:");
+
+		var wrongType = PublishValidationService.Validate(
+			"first", [], bluesky, followUps, followUpImageContentTypes: [["image/gif"], []]
+		);
+		Assert.NotNull(wrongType);
+		wrongType.Kind.Should().Be(PublishContentFailureKind.UnsupportedImageType);
+		wrongType.SegmentNumber.Should().Be(2);
+		wrongType.ImageIndex.Should().Be(1);
+
+		PublishValidationService.Validate(
+			"first", [], bluesky, followUps, followUpImageContentTypes: [["image/png", "image/jpeg"], ["image/webp"]]
+		).Should().BeNull();
+	}
+
+	[Fact]
+	public void ItShouldAcceptAnImageOnlyFollowUpButStillRefuseAnEmptyOneWithNoImage() {
+		var bluesky = new[] { ProviderCapabilityRegistry.Bluesky };
+
+		PublishValidationService.Validate(
+			"first", [], bluesky, ["  "], followUpImageContentTypes: [["image/png"]]
+		).Should().BeNull();
+
+		var empty = PublishValidationService.Validate("first", [], bluesky, ["  "], followUpImageContentTypes: [[]]);
+		Assert.NotNull(empty);
+		empty.Kind.Should().Be(PublishContentFailureKind.Empty);
+		empty.SegmentNumber.Should().Be(2);
+	}
+
+	[Fact]
 	public void ItShouldCountTheFirstSegmentOfAThreadLikeAnyOther() {
 		var failure = PublishValidationService.Validate(
 			new string('a', 301), [], [ProviderCapabilityRegistry.Bluesky], ["fine"]

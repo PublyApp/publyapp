@@ -37,6 +37,19 @@ public sealed record PublishRequest {
 	// The post's images in publish order (empty for a text-only post).
 	public IReadOnlyList<PublishMedia> Media { get; init; } = [];
 
+	// The images of each follow-up segment, aligned with FollowUpSegments (#2181);
+	// missing entries mean no images.
+	public IReadOnlyList<IReadOnlyList<PublishMedia>> FollowUpMedia { get; init; } = [];
+
+	/// <summary>The images of segment <paramref name="position"/> (0-based, 0 = the root).</summary>
+	public IReadOnlyList<PublishMedia> MediaAt(int position) {
+		if (position == 0) {
+			return this.Media;
+		}
+
+		return position - 1 < this.FollowUpMedia.Count ? this.FollowUpMedia[position - 1] : [];
+	}
+
 	// Thread follow-ups (#2171): the texts of segments 2..N in order, each published
 	// as a reply to the segment before it. Empty = a plain single post.
 	public IReadOnlyList<string> FollowUpSegments { get; init; } = [];
@@ -44,6 +57,11 @@ public sealed record PublishRequest {
 	// Segments (0-based position) a previous attempt already published, with the
 	// uri/cid the chain continues from. They are never published again.
 	public IReadOnlyList<CompletedSegment> CompletedSegments { get; init; } = [];
+
+	// The segment whose write follows an ambiguous earlier one under the SAME idempotency
+	// key (#2181): an instance that dedupes by key answers with the ORIGINAL status, so the
+	// provider confirms that status still carries the text now being sent. Null = no check.
+	public int? ResendPosition { get; init; }
 
 	// Called immediately BEFORE each externally visible write (the createRecord /
 	// status POST of one segment): the job commits a journal row there (#2176).

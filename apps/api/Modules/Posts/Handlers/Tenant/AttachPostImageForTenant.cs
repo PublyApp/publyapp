@@ -9,6 +9,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
+using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Posts.Services;
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.Uploads.Entities;
@@ -31,6 +32,7 @@ public sealed class AttachPostImageForTenant {
 		[FromRoute] string postId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostMediaAssetService assetService,
+		[FromServices] IPostSegmentMediaAssetService segmentService,
 		[FromServices] IUploadAssetReferenceService uploadReferences,
 		[FromServices] IUploadAdmissionService uploadAdmissionService,
 		[FromServices] IFileStorage fileStorage,
@@ -38,6 +40,30 @@ public sealed class AttachPostImageForTenant {
 		[FromServices] ILogger<AttachPostImageForTenant> logger,
 		IFormFile? file,
 		CancellationToken cancellationToken = default
+	) {
+		return await AttachPostImageForTenant.AttachAsync(
+			postId, null, authContext, assetService, segmentService, uploadReferences,
+			uploadAdmissionService, fileStorage, auditLogService, logger, file, cancellationToken
+		);
+	}
+
+	/// <summary>
+	/// The shared attach flow: <paramref name="segmentId"/> null appends to the post's own
+	/// images, otherwise to that follow-up segment's (#2181).
+	/// </summary>
+	internal static async Task<IResult> AttachAsync(
+		string postId,
+		Guid? segmentId,
+		IRequestAuthContext authContext,
+		IPostMediaAssetService assetService,
+		IPostSegmentMediaAssetService segmentService,
+		IUploadAssetReferenceService uploadReferences,
+		IUploadAdmissionService uploadAdmissionService,
+		IFileStorage fileStorage,
+		IAuditLogService auditLogService,
+		ILogger logger,
+		IFormFile? file,
+		CancellationToken cancellationToken
 	) {
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
 			throw new InvalidOperationException(
@@ -67,6 +93,32 @@ public sealed class AttachPostImageForTenant {
 			);
 		}
 
+		if (segmentId is { } owningSegmentId) {
+			var segment = await segmentService.FindOwnedSegmentAsync(
+				new FindOwnedSegmentArgs(tenantId, postIdGuid, owningSegmentId), cancellationToken
+			);
+			if (segment is null) {
+				return TypedProblems.NotFound(
+					"Segment not found",
+					ResponseKeys.PostSegmentNotFound
+				);
+			}
+
+			// A published segment is read-only: its remote record already exists.
+			var published = await segmentService.GetPublishedSegmentCountAsync(
+				postIdGuid, cancellationToken
+			);
+			if (segment.Position + 1 <= published) {
+				return TypedProblems.ValidationProblem(
+					"Segments that are already published cannot be changed",
+					ResponseKeys.PostSegmentsLocked,
+					new Dictionary<string, string[]> {
+						["segment"] = ["Published segments are read-only."],
+					}
+				);
+			}
+		}
+
 		if (file is null || file.Length == 0) {
 			return AttachPostImageForTenant._ValidationFailure(
 				"An image file is required",
@@ -76,11 +128,17 @@ public sealed class AttachPostImageForTenant {
 
 		// Cheap early refusal so an image over the cap never reaches storage; the asset
 		// service re-checks authoritatively at insert time.
-		var existingImages = await assetService.ListByPostAsync(
-			tenantId, postIdGuid, cancellationToken
-		);
-		if (existingImages.Count >= ProviderCapabilityRegistry.MaxImagesPerPost) {
-			return AttachPostImageForTenant._LimitReached();
+		IReadOnlyList<IPostImage> existingImages = segmentId is { } ownerSegment
+			? await segmentService.ListAsync(
+				new FindOwnedSegmentArgs(tenantId, postIdGuid, ownerSegment), cancellationToken
+			)
+			: await assetService.ListByPostAsync(tenantId, postIdGuid, cancellationToken);
+		// A follow-up carries at most what a thread destination takes (0 to 4).
+		var imageCap = segmentId is null
+			? ProviderCapabilityRegistry.MaxImagesPerPost
+			: ProviderCapabilityRegistry.MaxImagesPerFollowUp;
+		if (existingImages.Count >= imageCap) {
+			return AttachPostImageForTenant._LimitReached(imageCap, segmentId is not null);
 		}
 		var maxBytes = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
 		if (file.Length > maxBytes) {
@@ -205,6 +263,7 @@ public sealed class AttachPostImageForTenant {
 				TargetId: null,
 				Details: new {
 					PostId = postIdGuid,
+					SegmentId = segmentId,
 					Path = relativePath,
 					SizeBytes = file.Length,
 					ContentType = inspected.ContentType,
@@ -232,21 +291,55 @@ public sealed class AttachPostImageForTenant {
 		// same position) deterministically; the outer catch covers any other
 		// AttachAsync failure via a database re-check rather than an assumption
 		// about what committed.
-		AttachPostMediaResult attachResult;
+		Guid attachedId;
+		int attachedPosition;
 		try {
-			attachResult = await assetService.AttachAsync(
-				new AttachPostMediaArgs(
-					TenantId: tenantId,
-					PostId: postIdGuid,
-					RelativePath: relativePath,
-					ContentType: inspected.ContentType,
-					WidthPx: inspected.WidthPx,
-					HeightPx: inspected.HeightPx,
-					SizeBytes: file.Length,
-					UploadedByUserId: account.UserId
-				),
-				cancellationToken
-			);
+			if (segmentId is { } targetSegment) {
+				var segmentResult = await segmentService.AttachAsync(
+					new AttachSegmentMediaArgs(
+						TenantId: tenantId,
+						PostId: postIdGuid,
+						SegmentId: targetSegment,
+						RelativePath: relativePath,
+						ContentType: inspected.ContentType,
+						WidthPx: inspected.WidthPx,
+						HeightPx: inspected.HeightPx,
+						SizeBytes: file.Length,
+						UploadedByUserId: account.UserId
+					),
+					cancellationToken
+				);
+				if (segmentResult is AttachSegmentMediaResult.LimitReached segmentLimit) {
+					await uploadReferences.TryReleaseReferenceAsync(relativePath, cancellationToken);
+					return AttachPostImageForTenant._LimitReached(segmentLimit.MaxImages, forSegment: true);
+				}
+
+				var segmentAttached = ((AttachSegmentMediaResult.Attached)segmentResult).Asset;
+				attachedId = segmentAttached.GetRequiredId();
+				attachedPosition = segmentAttached.Position;
+			} else {
+				var attachResult = await assetService.AttachAsync(
+					new AttachPostMediaArgs(
+						TenantId: tenantId,
+						PostId: postIdGuid,
+						RelativePath: relativePath,
+						ContentType: inspected.ContentType,
+						WidthPx: inspected.WidthPx,
+						HeightPx: inspected.HeightPx,
+						SizeBytes: file.Length,
+						UploadedByUserId: account.UserId
+					),
+					cancellationToken
+				);
+				if (attachResult is AttachPostMediaResult.LimitReached) {
+					await uploadReferences.TryReleaseReferenceAsync(relativePath, cancellationToken);
+					return AttachPostImageForTenant._LimitReached(ProviderCapabilityRegistry.MaxImagesPerPost);
+				}
+
+				var attached = ((AttachPostMediaResult.Attached)attachResult).Asset;
+				attachedId = attached.GetRequiredId();
+				attachedPosition = attached.Position;
+			}
 		} catch (DbUpdateException ex) when (AttachPostImageForTenant._IsPostImageUniqueViolation(ex)) {
 			// Loser of the concurrent-append race: another attach just took this
 			// position. Release the reference we acquired so its blob is not left
@@ -268,29 +361,22 @@ public sealed class AttachPostImageForTenant {
 			// now attached (rather than assuming the write landed or not).
 			await AttachPostImageForTenant._ReleaseUnattachedReferenceAsync(
 				assetService,
+				segmentService,
 				uploadReferences,
 				logger,
 				tenantId,
 				postIdGuid,
+				segmentId,
 				relativePath
 			);
 			throw;
 		}
 
-		if (attachResult is AttachPostMediaResult.LimitReached) {
-			await uploadReferences.TryReleaseReferenceAsync(
-				relativePath,
-				cancellationToken
-			);
-			return AttachPostImageForTenant._LimitReached();
-		}
-
-		var attached = ((AttachPostMediaResult.Attached)attachResult).Asset;
 		return TypedResults.Created(
 			(string?)null,
 			new PostImageAttached {
-				Id = attached.GetRequiredId(),
-				Position = attached.Position,
+				Id = attachedId,
+				Position = attachedPosition,
 				Url = $"/files/{relativePath}",
 				Path = relativePath,
 				ContentType = inspected.ContentType,
@@ -301,16 +387,18 @@ public sealed class AttachPostImageForTenant {
 		);
 	}
 
-	private static AppValidationProblemHttpResult _LimitReached() {
-		var message = $"A post can have at most {ProviderCapabilityRegistry.MaxImagesPerPost} images";
+	private static AppValidationProblemHttpResult _LimitReached(int max, bool forSegment = false) {
+		var message = forSegment
+			? $"A follow-up segment can have at most {max} images"
+			: $"A post can have at most {max} images";
 		return TypedProblems.ValidationProblem(
 			message,
-			ResponseKeys.PostImageLimitReached,
+			forSegment ? ResponseKeys.PostSegmentImageLimitReached : ResponseKeys.PostImageLimitReached,
 			new Dictionary<string, string[]> {
 				{ "file", [message] }
 			},
 			new Dictionary<string, object?> {
-				["limit"] = ProviderCapabilityRegistry.MaxImagesPerPost,
+				["limit"] = max,
 			}
 		);
 	}
@@ -349,10 +437,12 @@ public sealed class AttachPostImageForTenant {
 	/// </summary>
 	private static async Task _ReleaseUnattachedReferenceAsync(
 		IPostMediaAssetService assetService,
+		IPostSegmentMediaAssetService segmentService,
 		IUploadAssetReferenceService uploadReferences,
 		ILogger logger,
 		Guid tenantId,
 		Guid postId,
+		Guid? segmentId,
 		string relativePath
 	) {
 		// CancellationToken.None throughout: compensation must still run when the
@@ -368,9 +458,11 @@ public sealed class AttachPostImageForTenant {
 			// inverse bug. A live row holding OUR path therefore means "keep it";
 			// removing that row later releases this reference, so releasing here
 			// as well would double-release.
-			var liveAssets = await assetService.ListByPostAsync(
-				tenantId, postId, CancellationToken.None
-			);
+			IReadOnlyList<IPostImage> liveAssets = segmentId is { } ownerSegment
+				? await segmentService.ListAsync(
+					new FindOwnedSegmentArgs(tenantId, postId, ownerSegment), CancellationToken.None
+				)
+				: await assetService.ListByPostAsync(tenantId, postId, CancellationToken.None);
 			if (liveAssets.Any(liveAsset => string.Equals(
 				liveAsset.RelativePath, relativePath, StringComparison.Ordinal
 			))) {
@@ -435,10 +527,8 @@ public sealed class AttachPostImageForTenant {
 		}
 		return pgEx.SqlState == PostgresErrorCodes.UniqueViolation
 			&& pgEx.TableName is not null
-			&& pgEx.TableName.Equals(
-				"post_media_assets",
-				StringComparison.OrdinalIgnoreCase
-			);
+			&& (pgEx.TableName.Equals("post_media_assets", StringComparison.OrdinalIgnoreCase)
+				|| pgEx.TableName.Equals("post_segment_media_assets", StringComparison.OrdinalIgnoreCase));
 	}
 }
 

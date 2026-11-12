@@ -18,12 +18,14 @@ public sealed class RemovePostImageByIdForTenant {
 	public static async Task<Results<
 		Ok<ApiResponse>,
 		AppBadRequestHttpResult,
-		AppNotFoundHttpResult
+		AppNotFoundHttpResult,
+		AppValidationProblemHttpResult
 	>> Handle(
 		[FromRoute] string postId,
 		[FromRoute] string assetId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostMediaAssetService assetService,
+		[FromServices] IPostSegmentMediaAssetService segmentService,
 		[FromServices] IUploadAssetReferenceService uploadReferences,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
@@ -38,8 +40,10 @@ public sealed class RemovePostImageByIdForTenant {
 		return await RemovePostImageForTenant.RemoveAsync(
 			postId,
 			assetIdGuid,
+			segmentId: null,
 			authContext,
 			assetService,
+			segmentService,
 			uploadReferences,
 			auditLogService,
 			cancellationToken

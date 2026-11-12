@@ -1,5 +1,6 @@
 import {
 	createUntypedArray,
+	createUntypedNull,
 	createUntypedString,
 } from '@microsoft/kiota-abstractions';
 import type { QueryClient } from '@tanstack/react-query';
@@ -61,9 +62,13 @@ export type TenantPostDetails = {
 };
 
 type TenantPostSegment = {
+	/** Stable id: image routes and `segmentIds` on save refer to it. */
+	id: string;
 	/** 1-based place in the thread (2..N). */
 	number: number;
 	body: string;
+	/** The segment's own images in publish order. */
+	images: TenantPostImage[];
 };
 
 export type SavePostInput = {
@@ -72,6 +77,9 @@ export type SavePostInput = {
 	projectId: string | null;
 	/** Follow-up texts. Undefined leaves the post's segments untouched. */
 	segments?: string[];
+	/** The stored segment each follow-up text continues (undefined = a new one),
+	 * so a reorder or removal keeps every segment's images with its text. */
+	segmentIds?: (string | undefined)[];
 };
 
 // ── Normalization helpers ──────────────────────────────────────────
@@ -181,17 +189,15 @@ export const toTenantPostDetails = (
 		updatedAt: normalizeDate(result?.updatedAt),
 		image: toTenantPostImage(result?.image),
 		images: toTenantPostImages(result?.images),
-		segments: (result?.segments ?? []).flatMap((segment) => {
-			const text = segment.body ?? '';
-			return text ? [{ number: segment.number ?? 0, body: text }] : [];
-		}),
+		segments: (result?.segments ?? []).map((segment) => ({
+			id: segment.id?.toString() ?? '',
+			number: segment.number ?? 0,
+			body: segment.body ?? '',
+			images: toTenantPostImages(segment.images),
+		})),
 		publishedSegmentCount: result?.publishedSegmentCount ?? 0,
 	};
 };
-
-/** A blank follow-up carries nothing to publish: it is left out of the save. */
-const withoutBlankSegments = (segments: string[]): string[] =>
-	segments.filter((text) => text.trim() !== '');
 
 const toUntypedSegments = (segments: string[]) =>
 	createUntypedArray(segments.map((text) => createUntypedString(text)));
@@ -283,9 +289,16 @@ export const savePost = async (
 		}
 
 		if (input.segments !== undefined) {
-			patchBody.segments = toUntypedSegments(
-				withoutBlankSegments(input.segments),
-			);
+			// Blank follow-ups are sent as they are: the server names the empty
+			// segment (422) instead of the save silently renumbering the thread.
+			patchBody.segments = toUntypedSegments(input.segments);
+			if (input.segmentIds !== undefined) {
+				patchBody.segmentIds = createUntypedArray(
+					input.segmentIds.map((id) =>
+						id === undefined ? createUntypedNull() : createUntypedString(id),
+					),
+				);
+			}
 		}
 
 		const result = await client.posts.byPostId(input.postId).patch(patchBody);
@@ -313,7 +326,7 @@ export const savePost = async (
 		createBody.projectId = createUntypedString(input.projectId);
 	}
 
-	const followUps = withoutBlankSegments(input.segments ?? []);
+	const followUps = input.segments ?? [];
 	if (followUps.length > 0) {
 		createBody.segments = toUntypedSegments(followUps);
 	}

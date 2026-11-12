@@ -68,7 +68,13 @@ const getSchema = (t: (k: string) => string) =>
 		projectId: z.string().nullable().optional(),
 		// Thread follow-ups (segments 2..N); at most 24 after the first body.
 		segments: z
-			.array(z.object({ id: z.string(), text: z.string().max(20000) }))
+			.array(
+				z.object({
+					id: z.string(),
+					text: z.string().max(20000),
+					serverId: z.string().optional(),
+				}),
+			)
 			.max(24),
 	});
 
@@ -92,6 +98,7 @@ const resetFormFromDetails = (
 		segments: reconcileSegmentDrafts(
 			methods.getValues('segments'),
 			d.segments.map((segment) => segment.body),
+			d.segments.map((segment) => segment.id),
 		),
 	});
 };
@@ -135,6 +142,38 @@ const postEditQueries = ({
 		},
 		picker: { options: tenantsForPickerQueryOptions, variables: {} },
 	};
+};
+
+/** Plain posts keep sending exactly what they always did. Each draft names the
+ * stored segment it came from, so its images follow its text through a reorder
+ * or a removal. */
+const segmentsPayload = (
+	drafts: Values['segments'],
+	hasStoredSegments: boolean,
+) =>
+	drafts.length > 0 || hasStoredSegments
+		? {
+				segments: drafts.map((segment) => segment.text),
+				segmentIds: drafts.map((segment) => segment.serverId),
+			}
+		: {};
+
+/** Field errors land on their fields; the form only renders the root error, so a
+ * refusal with no field of its own (a blank follow-up is named by its segment
+ * number) goes there too. */
+const applySaveFailure = (
+	methods: UseFormReturn<Values>,
+	failure: ReturnType<typeof toApiFailure>,
+	message: string | null | undefined,
+) => {
+	const fieldErrors =
+		failure.kind === 'validation' ? failure.fieldErrors : undefined;
+	for (const [k, msgs] of Object.entries(fieldErrors ?? {})) {
+		methods.setError(k as keyof Values, { message: msgs[0] });
+	}
+	if (!fieldErrors || (!fieldErrors.body && !fieldErrors.projectId)) {
+		methods.setError('root', { message: message ?? undefined });
+	}
 };
 
 const TenantPostEditPage = () => {
@@ -196,11 +235,7 @@ const TenantPostEditPage = () => {
 				postId,
 				body: values.body,
 				projectId: values.projectId ?? null,
-				// Plain posts keep sending exactly what they always did.
-				segments:
-					values.segments.length > 0 || hasStoredSegments
-						? values.segments.map((segment) => segment.text)
-						: undefined,
+				...segmentsPayload(values.segments, hasStoredSegments),
 				tenantId: tenantId ?? '',
 			});
 			await invalidateTenantPosts(qc, tenantId ?? '');
@@ -217,19 +252,14 @@ const TenantPostEditPage = () => {
 			}
 		} catch (error) {
 			const failure = toApiFailure(error);
-			if (failure.kind === 'validation' && failure.fieldErrors) {
-				for (const [k, msgs] of Object.entries(failure.fieldErrors)) {
-					methods.setError(k as keyof Values, { message: msgs[0] });
-				}
-				return;
-			}
-			methods.setError('root', {
-				message:
-					getFailureMessage(failure, {
-						fallback: t('common:an-error-occurred'),
-						translate: translateResponseMessage,
-					}) ?? undefined,
-			});
+			applySaveFailure(
+				methods,
+				failure,
+				getFailureMessage(failure, {
+					fallback: t('common:an-error-occurred'),
+					translate: translateResponseMessage,
+				}),
+			);
 		}
 	});
 

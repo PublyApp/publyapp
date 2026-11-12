@@ -15,6 +15,7 @@ using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Posts.Services;
 using PublyApp.Api.Modules.Posts.Validation;
+using PublyApp.Api.Modules.Uploads.Services;
 
 namespace PublyApp.Api.Modules.Posts.Handlers.Tenant;
 
@@ -23,6 +24,20 @@ public record UpdatePostBody {
 	public JsonElement ProjectId { get; init; }
 	public JsonElement ImageAltText { get; init; }
 	public JsonElement Segments { get; init; }
+	// Which stored segment each entry of `segments` continues (a guid) or is new (null).
+	public JsonElement SegmentIds { get; init; }
+
+	public IReadOnlyList<Guid?>? GetSegmentIds() {
+		if (this.SegmentIds.ValueKind != JsonValueKind.Array) {
+			return null;
+		}
+
+		return this.SegmentIds.EnumerateArray()
+			.Select(item => item.ValueKind == JsonValueKind.Null
+				? (Guid?)null
+				: Guid.Parse(item.GetString() ?? string.Empty))
+			.ToList();
+	}
 
 	public string? GetBody() {
 		return this.Body.GetValueAsStringOrNull();
@@ -113,9 +128,19 @@ public class UpdatePostBodyValidator
 				"Segments",
 				"segment",
 				PostValidationRules.MaxFollowUpSegments,
-				PostValidationRules.BodyMaxLength
+				PostValidationRules.BodyMaxLength,
+				allowBlankItems: true
 			)
 			.When(x => x.Segments.ValueKind != JsonValueKind.Undefined);
+
+		this.RuleFor(x => x.SegmentIds)
+			.MustBeNullableGuidArrayAlignedWith(
+				"SegmentIds",
+				body => body.Segments.ValueKind == JsonValueKind.Array
+					? body.Segments.GetArrayLength()
+					: null
+			)
+			.When(x => x.SegmentIds.ValueKind != JsonValueKind.Undefined);
 	}
 }
 
@@ -141,6 +166,7 @@ public sealed class UpdatePostForTenant {
 		[FromBody] UpdatePostBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPostService postService,
+		[FromServices] IUploadAssetReferenceService uploadReferences,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
@@ -163,6 +189,12 @@ public sealed class UpdatePostForTenant {
 		var projectId = body.GetProjectId();
 		var imageAltText = body.GetImageAltText();
 		var segments = body.GetSegments();
+		var segmentIds = body.GetSegmentIds();
+
+		var blank = PostValidationRules.FindBlankSegment(segments);
+		if (blank is not null) {
+			return blank;
+		}
 
 		if (postBody is null && !projectId.IsPresent && !imageAltText.IsPresent
 			&& segments is null) {
@@ -202,7 +234,8 @@ public sealed class UpdatePostForTenant {
 			ProjectId: projectId,
 			Body: postBody,
 			ImageAltText: imageAltText,
-			Segments: segments
+			Segments: segments,
+			SegmentIds: segmentIds
 		);
 
 		var result = await postService.UpdateForTenantAsync(
@@ -240,6 +273,16 @@ public sealed class UpdatePostForTenant {
 			);
 		}
 
+		if (result is UpdatePostResult.SegmentNotFound) {
+			return TypedProblems.ValidationProblem(
+				"A submitted segment id is not a segment of this post",
+				ResponseKeys.PostSegmentNotFound,
+				new Dictionary<string, string[]> {
+					["segmentIds"] = ["Every segment id must belong to this post."],
+				}
+			);
+		}
+
 		if (result is UpdatePostResult.SegmentsLocked) {
 			return TypedProblems.ValidationProblem(
 				"Segments that are already published cannot be changed",
@@ -259,6 +302,11 @@ public sealed class UpdatePostForTenant {
 		}
 
 		var updatedPost = success.Post;
+		// Images of removed segments: release their blob references AFTER the commit (#807 F5).
+		foreach (var releasedPath in success.ReleasedImagePaths ?? []) {
+			await uploadReferences.TryReleaseReferenceAsync(releasedPath, cancellationToken);
+		}
+
 		await auditLogService.LogAsync(
 			new CreateAuditLogArgs(
 				UserId: account.UserId,

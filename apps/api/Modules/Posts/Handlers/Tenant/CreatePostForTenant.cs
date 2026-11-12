@@ -59,7 +59,8 @@ public class CreatePostBodyValidator
 				"Segments",
 				"segment",
 				PostValidationRules.MaxFollowUpSegments,
-				PostValidationRules.BodyMaxLength
+				PostValidationRules.BodyMaxLength,
+				allowBlankItems: true
 			)
 			.When(x => x.Segments.ValueKind != JsonValueKind.Undefined);
 	}
@@ -98,6 +99,11 @@ public sealed class CreatePostForTenant {
 		var postBody = body.GetBody();
 		var projectId = body.GetProjectId();
 		var segments = body.GetSegments();
+
+		var blank = PostValidationRules.FindBlankSegment(segments);
+		if (blank is not null) {
+			return blank;
+		}
 
 		if (projectId.HasValue) {
 			var projectExists = await postService

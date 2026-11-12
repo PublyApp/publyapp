@@ -206,7 +206,11 @@ public sealed class PublicationListService : IPublicationListService {
 			Superseded = row.Superseded,
 			UpdatedAt = row.Publication.UpdatedAt,
 			SegmentsPublished = row.SegmentsPublished,
-			SegmentsTotal = row.FollowUpCount + 1,
+			// A published publication is the thread AS IT WENT OUT: segments added to the post
+			// afterwards belong to no publication yet, so they are never shown as pending (#2181).
+			SegmentsTotal = row.Publication.Status == PublicationStatus.Published
+				? Math.Max(1, row.SegmentsPublished)
+				: row.FollowUpCount + 1,
 			Customized = row.Customized,
 		};
 	}

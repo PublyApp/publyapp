@@ -168,7 +168,8 @@ public static class PublishValidationService {
 			content.ImageContentTypes,
 			[ProviderCapabilityRegistry.Resolve(account)],
 			content.FollowUps,
-			content.ImageAltTexts
+			content.ImageAltTexts,
+			content.FollowUpImageContentTypes
 		);
 		return failure is null
 			? null
@@ -183,7 +184,9 @@ public static class PublishValidationService {
 		IReadOnlyList<string> imageContentTypes,
 		IEnumerable<ProviderCapability> capabilities,
 		IReadOnlyList<string>? followUpBodies = null,
-		IReadOnlyList<string?>? imageAltTexts = null
+		IReadOnlyList<string?>? imageAltTexts = null,
+		// The image content types of each follow-up, aligned with followUpBodies (#2181).
+		IReadOnlyList<IReadOnlyList<string>>? followUpImageContentTypes = null
 	) {
 		var normalized = TextCounter.Normalize(body);
 		IReadOnlyList<string> followUps = followUpBodies ?? [];
@@ -278,7 +281,10 @@ public static class PublishValidationService {
 				var followUp = TextCounter.Normalize(followUps[index]);
 				// The root is segment 1, so follow-up `index` is segment index + 2.
 				var number = index + 2;
-				if (followUp.Length == 0 && limits.RequiresText) {
+				var followUpImages = followUpImageContentTypes is { } sets && index < sets.Count
+					? sets[index]
+					: [];
+				if (followUp.Length == 0 && limits.RequiresText && followUpImages.Count == 0) {
 					return new PublishContentFailure(
 						PublishContentFailureKind.Empty,
 						name,
@@ -295,6 +301,49 @@ public static class PublishValidationService {
 				if (followUpFailure is not null) {
 					return followUpFailure;
 				}
+
+				var imageFailure = PublishValidationService._ValidateImages(
+					followUpImages, limits, name, number
+				);
+				if (imageFailure is not null) {
+					return imageFailure;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/// <summary>Image count and type of one follow-up against the destination's capability.</summary>
+	private static PublishContentFailure? _ValidateImages(
+		IReadOnlyList<string> contentTypes,
+		ProviderCapability limits,
+		string providerName,
+		int segmentNumber
+	) {
+		if (contentTypes.Count > limits.MaxImages) {
+			return new PublishContentFailure(
+				PublishContentFailureKind.TooManyImages,
+				providerName,
+				PublishValidationService.ImageUnit,
+				limits.MaxImages,
+				contentTypes.Count,
+				SegmentNumber: segmentNumber
+			);
+		}
+
+		for (var index = 0; index < contentTypes.Count; index++) {
+			if (!limits.AcceptedImageContentTypes.Contains(contentTypes[index])) {
+				return new PublishContentFailure(
+					PublishContentFailureKind.UnsupportedImageType,
+					providerName,
+					PublishValidationService.ImageUnit,
+					limits.AcceptedImageContentTypes.Count,
+					contentTypes.Count,
+					index + 1,
+					contentTypes[index],
+					segmentNumber
+				);
 			}
 		}
 
