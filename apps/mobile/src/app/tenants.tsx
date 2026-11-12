@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { memo, useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,10 +10,13 @@ import {
 	LoadingState,
 	Screen,
 	SecondaryAction,
+	SettingsButton,
 } from '@/components/ui';
-import { ApiError } from '@/lib/api/client';
+import { toMessageSpec } from '@/lib/api/client';
 import type { TenantSummary, TenantsForPickerResponse } from '@/lib/api/types';
 import { useAuth } from '@/lib/auth/auth-context';
+import { messageText } from '@/lib/i18n';
+import type { MessageSpec } from '@/lib/i18n';
 
 type TenantRowProps = {
 	tenant: TenantSummary;
@@ -40,10 +44,11 @@ const TenantRow = memo(({ tenant, onSelect }: TenantRowProps) => {
 TenantRow.displayName = 'TenantRow';
 
 const TenantsScreen = () => {
+	const { t } = useTranslation();
 	const { request, selectTenant, signOut } = useAuth();
 	const router = useRouter();
 	const [tenants, setTenants] = useState<TenantSummary[] | null>(null);
-	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [errorMessage, setErrorMessage] = useState<MessageSpec | null>(null);
 
 	const load = useCallback(async () => {
 		setErrorMessage(null);
@@ -54,11 +59,7 @@ const TenantsScreen = () => {
 			setTenants(result.tenants);
 		} catch (error) {
 			setTenants([]);
-			setErrorMessage(
-				error instanceof ApiError
-					? error.detail
-					: 'Impossible de charger vos organisations.',
-			);
+			setErrorMessage(toMessageSpec(error, 'mobile-load-organizations-failed'));
 		}
 	}, [request]);
 
@@ -73,7 +74,7 @@ const TenantsScreen = () => {
 					router.replace('/posts');
 				},
 				() => {
-					setErrorMessage("Impossible d'enregistrer l'organisation choisie.");
+					setErrorMessage({ key: 'mobile-save-organization-failed' });
 				},
 			);
 		},
@@ -88,20 +89,20 @@ const TenantsScreen = () => {
 	);
 
 	if (tenants === null) {
-		return <LoadingState label="Chargement des organisations…" />;
+		return <LoadingState label={t('mobile-loading-organizations')} />;
 	}
 
 	if (errorMessage !== null) {
 		return (
 			<ErrorState
-				message={errorMessage}
+				message={messageText(errorMessage)}
 				onRetry={() => {
 					setTenants(null);
 					void load();
 				}}
 			>
 				<SecondaryAction
-					label="Se déconnecter"
+					label={t('log-out')}
 					onPress={() => {
 						void signOut();
 					}}
@@ -113,19 +114,30 @@ const TenantsScreen = () => {
 	return (
 		<SafeAreaView className="flex-1 bg-background">
 			<Screen>
-				<View className="mb-6 flex-row items-center justify-between">
-					<View>
-						<Text className="text-2xl font-bold text-foreground">
-							Choisir une organisation
+				<View className="mb-6 flex-row items-center justify-between gap-3">
+					<View className="min-w-0 flex-1">
+						<Text
+							className="text-2xl font-bold text-foreground"
+							numberOfLines={2}
+						>
+							{t('mobile-choose-organization')}
 						</Text>
-						<Text className="mt-1 text-sm text-foreground-muted">
-							Vos publications sont propres à chaque organisation.
+						<Text
+							className="mt-1 text-sm text-foreground-muted"
+							numberOfLines={3}
+						>
+							{t('mobile-choose-organization-description')}
 						</Text>
 					</View>
+					<SettingsButton
+						onPress={() => {
+							router.push('/settings');
+						}}
+					/>
 				</View>
 
 				{tenants.length === 0 ? (
-					<EmptyState label="Aucune organisation disponible pour ce compte." />
+					<EmptyState label={t('mobile-no-organizations')} />
 				) : (
 					<FlatList
 						className="flex-1"
@@ -143,7 +155,7 @@ const TenantsScreen = () => {
 						void signOut();
 					}}
 				>
-					<Text className="text-sm text-foreground-muted">Se déconnecter</Text>
+					<Text className="text-sm text-foreground-muted">{t('log-out')}</Text>
 				</Pressable>
 			</Screen>
 		</SafeAreaView>

@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
 	ActivityIndicator,
 	FlatList,
@@ -16,16 +17,19 @@ import {
 	LoadingState,
 	Screen,
 	SecondaryAction,
+	SettingsButton,
 } from '@/components/ui';
-import { ApiError } from '@/lib/api/client';
+import { toMessageSpec } from '@/lib/api/client';
 import type { PostStatus, PostSummary, PostsResponse } from '@/lib/api/types';
 import { useAuth } from '@/lib/auth/auth-context';
+import { messageText } from '@/lib/i18n';
+import type { MessageSpec } from '@/lib/i18n';
 
-const STATUS_LABEL = {
-	draft: 'Brouillon',
-	scheduled: 'Planifié',
-	published: 'Publié',
-} satisfies Record<PostStatus, string>;
+const STATUS_LABEL_KEY = {
+	draft: 'mobile-status-draft',
+	scheduled: 'mobile-status-scheduled',
+	published: 'mobile-status-published',
+} as const satisfies Record<PostStatus, string>;
 
 const STATUS_CLASS = {
 	draft: {
@@ -36,30 +40,33 @@ const STATUS_CLASS = {
 	published: { pill: 'bg-chip-active-bg', text: 'text-chip-active-text' },
 } satisfies Record<PostStatus, { pill: string; text: string }>;
 
-const formatDate = (isoDate: string): string => {
+const formatDate = (isoDate: string, language: string): string => {
 	const date = new Date(isoDate);
 	if (Number.isNaN(date.getTime())) {
 		return '';
 	}
-	const day = String(date.getDate()).padStart(2, '0');
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	return `${day}/${month}/${date.getFullYear()}`;
+	return date.toLocaleDateString(language, {
+		day: '2-digit',
+		month: '2-digit',
+		year: 'numeric',
+	});
 };
 
 const PAGE_SIZE = 20;
 
 const PostCard = ({ post }: { post: PostSummary }) => {
+	const { t, i18n } = useTranslation();
 	const status = STATUS_CLASS[post.status] ?? STATUS_CLASS.draft;
 	return (
 		<View className="rounded-control border border-border bg-card px-4 py-4">
 			<View className="flex-row items-center justify-between">
 				<View className={`rounded-chip px-2 py-1 ${status.pill}`}>
 					<Text className={`text-xs font-medium ${status.text}`}>
-						{STATUS_LABEL[post.status] ?? post.status}
+						{t(STATUS_LABEL_KEY[post.status] ?? 'mobile-status-draft')}
 					</Text>
 				</View>
 				<Text className="text-xs text-foreground-muted">
-					{formatDate(post.createdAt)}
+					{formatDate(post.createdAt, i18n.language)}
 				</Text>
 			</View>
 			<Text className="mt-3 text-base text-foreground" numberOfLines={4}>
@@ -74,10 +81,11 @@ const renderPost: ListRenderItem<PostSummary> = ({ item }) => (
 );
 
 const PostsScreen = () => {
+	const { t } = useTranslation();
 	const { request } = useAuth();
 	const router = useRouter();
 	const [posts, setPosts] = useState<PostSummary[] | null>(null);
-	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [errorMessage, setErrorMessage] = useState<MessageSpec | null>(null);
 	const nextCursorRef = useRef<string | null>(null);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 	const [loadMoreError, setLoadMoreError] = useState(false);
@@ -101,11 +109,7 @@ const PostsScreen = () => {
 			nextCursorRef.current = result.nextCursor;
 		} catch (error) {
 			setPosts([]);
-			setErrorMessage(
-				error instanceof ApiError
-					? error.detail
-					: 'Impossible de charger les publications.',
-			);
+			setErrorMessage(toMessageSpec(error, 'mobile-load-posts-failed'));
 		}
 	}, [request, buildUrl]);
 
@@ -141,20 +145,20 @@ const PostsScreen = () => {
 	}, [posts, request, buildUrl]);
 
 	if (posts === null) {
-		return <LoadingState label="Chargement des publications…" />;
+		return <LoadingState label={t('mobile-loading-posts')} />;
 	}
 
 	if (errorMessage !== null) {
 		return (
 			<ErrorState
-				message={errorMessage}
+				message={messageText(errorMessage)}
 				onRetry={() => {
 					setPosts(null);
 					void load();
 				}}
 			>
 				<SecondaryAction
-					label="Changer d'organisation"
+					label={t('mobile-change-organization')}
 					onPress={() => {
 						router.replace('/tenants');
 					}}
@@ -181,7 +185,7 @@ const PostsScreen = () => {
 					}}
 				>
 					<Text className="text-center text-sm text-foreground">
-						Impossible de charger la suite. Appuyer pour réessayer.
+						{t('mobile-load-more-failed')}
 					</Text>
 				</Pressable>
 			</View>
@@ -191,32 +195,48 @@ const PostsScreen = () => {
 	return (
 		<SafeAreaView className="flex-1 bg-background">
 			<Screen>
-				<View className="mb-4 flex-row items-end justify-between">
-					<View>
-						<Text className="text-2xl font-bold text-foreground">
-							Publications
+				<View className="mb-4 flex-row items-end justify-between gap-3">
+					<View className="min-w-0 flex-1">
+						<Text
+							className="text-2xl font-bold text-foreground"
+							numberOfLines={1}
+						>
+							{t('posts')}
 						</Text>
-						<Text className="mt-1 text-sm text-foreground-muted">
+						<Text
+							className="mt-1 text-sm text-foreground-muted"
+							numberOfLines={1}
+						>
 							{posts.length === 0
-								? 'Aucune publication'
-								: 'Publications récentes'}
+								? t('mobile-no-posts')
+								: t('mobile-recent-posts')}
 						</Text>
 					</View>
-					<Pressable
-						accessibilityRole="button"
-						className="rounded-chip border border-border bg-card px-3 py-2"
-						onPress={() => {
-							router.replace('/tenants');
-						}}
-					>
-						<Text className="text-sm font-medium text-foreground">
-							Organisation
-						</Text>
-					</Pressable>
+					<View className="shrink-0 flex-row items-center gap-2">
+						<Pressable
+							accessibilityRole="button"
+							className="rounded-chip border border-border bg-card px-3 py-2"
+							onPress={() => {
+								router.replace('/tenants');
+							}}
+						>
+							<Text
+								className="text-sm font-medium text-foreground"
+								numberOfLines={1}
+							>
+								{t('organization')}
+							</Text>
+						</Pressable>
+						<SettingsButton
+							onPress={() => {
+								router.push('/settings');
+							}}
+						/>
+					</View>
 				</View>
 
 				{posts.length === 0 ? (
-					<EmptyState label="Cette organisation n'a pas encore de publication." />
+					<EmptyState label={t('mobile-no-posts-description')} />
 				) : (
 					<FlatList
 						className="flex-1"

@@ -1,3 +1,6 @@
+import { i18n } from '@/lib/i18n';
+import type { MessageSpec } from '@/lib/i18n';
+
 /**
  * The two headers PublyApp's API authenticates on. Defaults match the
  * deployment values documented in docs/deployment/first-deploy-runbook.md
@@ -11,45 +14,67 @@ const TENANT_ID_HEADER =
 	process.env.EXPO_PUBLIC_TENANT_HEADER ?? 'X-PublyApp-TenantId';
 
 /** A 5xx is the server's fault; a 4xx is a refused request, not a server error. */
-const fallbackStatusMessage = (status: number): string =>
-	status >= 500
-		? `Erreur serveur (${status})`
-		: `La demande a été refusée (${status})`;
+const fallbackStatusMessage = (status: number): MessageSpec => ({
+	key: status >= 500 ? 'mobile-server-error' : 'mobile-request-refused',
+	values: { status },
+});
+
+/**
+ * The shared response-message wording for these is developer-facing
+ * ("Request body validation failed"), so the app shows its own sentence.
+ */
+const MOBILE_ERROR_KEYS = new Map([
+	['forbidden', 'mobile-error-forbidden'],
+	['user-does-not-have-the-necessary-permissions', 'mobile-error-forbidden'],
+	['bad-request', 'mobile-error-invalid-input'],
+	['unprocessable-entity', 'mobile-error-invalid-input'],
+	['request-body-missing', 'mobile-error-invalid-input'],
+	['query-parameters-missing', 'mobile-error-invalid-input'],
+	['request-body-validation-failed', 'mobile-error-invalid-input'],
+	['query-parameters-validation-failed', 'mobile-error-invalid-input'],
+	['too-many-requests', 'mobile-error-too-many-requests'],
+	['internal-server-error', 'mobile-error-unavailable'],
+	['service-unavailable', 'mobile-error-unavailable'],
+	['gateway-timeout', 'mobile-error-unavailable'],
+	['not-found', 'mobile-error-not-found'],
+]);
 
 /**
  * The API's `detail` is English; the web app translates `translationKey`
- * instead. v0 is French-only, so the keys the mobile screens can meet are
- * mapped here (wording copied from shared-ts response-message.fr.json). An
- * unknown key falls back to a French status message, never the English text.
+ * with the response-message namespace, and so does this app. An unknown key
+ * falls back to a translated status message, never the English text.
  */
-const FRENCH_MESSAGES = new Map([
-	['invalid-email-or-password', 'Email ou mot de passe invalide'],
-	['user-suspended', 'Utilisateur suspendu'],
-	['user-not-verified', 'Utilisateur non vérifié'],
-	['tenant-suspended', 'Cette organisation a été suspendue'],
-	['forbidden', 'Accès refusé pour cette organisation.'],
-	[
-		'user-does-not-have-the-necessary-permissions',
-		"Votre rôle ne permet pas d'afficher ces publications.",
-	],
-	[
-		'request-body-validation-failed',
-		'Les informations saisies ne sont pas valides.',
-	],
-	['too-many-requests', 'Trop de tentatives. Réessayez dans un instant.'],
-]);
+const responseMessageSpec = (body: ProblemBody | null): MessageSpec | null => {
+	const key = body?.translationKey;
+	if (typeof key !== 'string') {
+		return null;
+	}
+	const mobileKey = MOBILE_ERROR_KEYS.get(key);
+	if (mobileKey !== undefined) {
+		return { key: mobileKey };
+	}
+	const namespaced = `response-message:${key}`;
+	return i18n.exists(namespaced) ? { key: namespaced } : null;
+};
 
 export class ApiError extends Error {
 	readonly status: number;
-	readonly detail: string;
+	readonly spec: MessageSpec;
 
-	constructor(status: number, detail: string) {
-		super(detail);
+	constructor(status: number, spec: MessageSpec) {
+		super(spec.key);
 		this.name = 'ApiError';
 		this.status = status;
-		this.detail = detail;
+		this.spec = spec;
 	}
 }
+
+/** The message to show for any thrown value, as a translatable spec. */
+export const toMessageSpec = (
+	error: unknown,
+	fallbackKey: string,
+): MessageSpec =>
+	error instanceof ApiError ? error.spec : { key: fallbackKey };
 
 export type ApiRequestOptions = {
 	method?: 'GET' | 'POST';
@@ -75,18 +100,10 @@ const parseProblemBody = (text: string): ProblemBody | null => {
 	}
 };
 
-const readProblemMessage = (body: ProblemBody | null): string | null => {
-	const key = body?.translationKey;
-	return typeof key === 'string' ? (FRENCH_MESSAGES.get(key) ?? null) : null;
-};
-
 const getApiBaseUrl = (): string => {
 	const baseUrl = process.env.EXPO_PUBLIC_API_URL;
 	if (!baseUrl) {
-		throw new ApiError(
-			0,
-			'EXPO_PUBLIC_API_URL est absent. Voir apps/mobile/README.md.',
-		);
+		throw new ApiError(0, { key: 'mobile-api-url-missing' });
 	}
 	return baseUrl.replace(/\/+$/, '');
 };
@@ -107,10 +124,11 @@ export const apiRequest = async <T>(
 		headers.set(TENANT_ID_HEADER, options.tenantId);
 	}
 
+	const baseUrl = getApiBaseUrl();
 	const deadline = AbortSignal.timeout(15_000);
 	let response: Response;
 	try {
-		response = await fetch(`${getApiBaseUrl()}${path}`, {
+		response = await fetch(`${baseUrl}${path}`, {
 			method: options.method ?? 'GET',
 			headers,
 			body:
@@ -120,12 +138,9 @@ export const apiRequest = async <T>(
 	} catch {
 		// React Native's fetch rejects with a plain AbortError, so ask the signal.
 		if (deadline.aborted) {
-			throw new ApiError(0, 'Le serveur ne répond pas. Réessayez.');
+			throw new ApiError(0, { key: 'mobile-server-timeout' });
 		}
-		throw new ApiError(
-			0,
-			'Serveur injoignable. Vérifiez EXPO_PUBLIC_API_URL et le réseau.',
-		);
+		throw new ApiError(0, { key: 'mobile-server-unreachable' });
 	}
 
 	const text = await response.text();
@@ -133,7 +148,7 @@ export const apiRequest = async <T>(
 	if (!response.ok) {
 		throw new ApiError(
 			response.status,
-			readProblemMessage(problem) ?? fallbackStatusMessage(response.status),
+			responseMessageSpec(problem) ?? fallbackStatusMessage(response.status),
 		);
 	}
 
