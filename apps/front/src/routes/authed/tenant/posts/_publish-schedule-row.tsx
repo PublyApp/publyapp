@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { LocalizedDateInput } from '~/components/localized-date-input';
 import { LocalizedTimeInput } from '~/components/localized-time-input';
 import { Button } from '~/components/ui/button';
+import { Label } from '~/components/ui/label';
 
 /** "Schedule for": one date and time in the viewer's zone, applied to every
  * selected destination (the "same time for all" default). The date follows the
@@ -22,8 +23,10 @@ export const PublishScheduleRow = ({
 	const [isDateInvalid, setIsDateInvalid] = useState(false);
 	const [isTimeInvalid, setIsTimeInvalid] = useState(false);
 	const labelId = useId();
-	const dateErrorId = useId();
-	const timeErrorId = useId();
+	const errorId = useId();
+	// Typed text not yet committed: the click's own blur commits it.
+	const [hasDateDraft, setHasDateDraft] = useState(false);
+	const [hasTimeDraft, setHasTimeDraft] = useState(false);
 	const locale = i18n.resolvedLanguage ?? i18n.language;
 	const value =
 		!isDateInvalid && !isTimeInvalid && date !== undefined && time !== undefined
@@ -32,6 +35,9 @@ export const PublishScheduleRow = ({
 	const [isPast, setIsPast] = useState(false);
 
 	const submit = () => {
+		if (value === '') {
+			return;
+		}
 		const at = new Date(value);
 		if (Number.isNaN(at.valueOf()) || at.valueOf() <= Date.now()) {
 			setIsPast(true);
@@ -43,9 +49,7 @@ export const PublishScheduleRow = ({
 
 	return (
 		<div className="space-y-2" data-testid="tenant-posts-schedule-row">
-			<span id={labelId} className="block text-[13px] leading-none font-medium">
-				{t('posts:schedule-label')}
-			</span>
+			<Label id={labelId}>{t('posts:schedule-label')}</Label>
 			<div
 				role="group"
 				aria-labelledby={labelId}
@@ -55,7 +59,7 @@ export const PublishScheduleRow = ({
 					locale={locale}
 					ariaLabel={t('common:date')}
 					errorMessage={t('common:invalid-date')}
-					errorId={dateErrorId}
+					errorId={errorId}
 					hideError
 					testId="tenant-posts-schedule-date"
 					value={date}
@@ -65,12 +69,13 @@ export const PublishScheduleRow = ({
 						setIsPast(false);
 					}}
 					onInvalid={() => setIsDateInvalid(true)}
+					onDraftChange={setHasDateDraft}
 				/>
 				<LocalizedTimeInput
 					locale={locale}
 					ariaLabel={t('posts:schedule-time-label')}
 					errorMessage={t('posts:schedule-time-invalid')}
-					errorId={timeErrorId}
+					errorId={errorId}
 					hideError
 					testId="tenant-posts-schedule-time"
 					value={time}
@@ -80,14 +85,11 @@ export const PublishScheduleRow = ({
 						setIsPast(false);
 					}}
 					onInvalid={() => setIsTimeInvalid(true)}
+					onDraftChange={setHasTimeDraft}
 				/>
 			</div>
 			{isDateInvalid || isTimeInvalid ? (
-				<p
-					id={isDateInvalid ? dateErrorId : timeErrorId}
-					className="publy-field-error"
-					role="alert"
-				>
+				<p id={errorId} className="publy-field-error" role="alert">
 					<IconAlertCircle aria-hidden="true" />
 					{isDateInvalid
 						? t('common:invalid-date')
@@ -98,7 +100,7 @@ export const PublishScheduleRow = ({
 				type="button"
 				variant="outline"
 				className="w-full"
-				disabled={disabled || value === ''}
+				disabled={disabled || (value === '' && !hasDateDraft && !hasTimeDraft)}
 				data-testid="tenant-posts-schedule-submit"
 				onClick={submit}
 			>

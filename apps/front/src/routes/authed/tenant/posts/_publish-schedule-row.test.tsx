@@ -2,20 +2,46 @@
  * @vitest-environment jsdom
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	describe,
+	expect,
+	test,
+	vi,
+} from 'vitest';
+
+const lang = vi.hoisted(() => ({ current: 'fr' }));
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => key,
-		i18n: { resolvedLanguage: 'fr', language: 'fr' },
+		i18n: { resolvedLanguage: lang.current, language: lang.current },
 	}),
 }));
 
 import { PublishScheduleRow } from './_publish-schedule-row';
 
-process.env.TZ = 'UTC';
+const originalTz = process.env.TZ;
 
-afterEach(cleanup);
+beforeAll(() => {
+	process.env.TZ = 'UTC';
+});
+
+afterAll(() => {
+	if (originalTz === undefined) {
+		delete process.env.TZ;
+	} else {
+		process.env.TZ = originalTz;
+	}
+});
+
+afterEach(() => {
+	cleanup();
+	lang.current = 'fr';
+});
 
 describe('PublishScheduleRow (#2410)', () => {
 	test('shows the French date placeholder, not the browser mm/dd/yyyy', () => {
@@ -105,9 +131,86 @@ describe('PublishScheduleRow (#2410)', () => {
 
 		fill('tenant-posts-schedule-time', '25:99');
 
-		expect(screen.getAllByRole('alert')).toHaveLength(1);
+		const alerts = screen.getAllByRole('alert');
+		expect(alerts).toHaveLength(1);
+		expect(alerts[0]?.textContent).toContain('posts:schedule-time-invalid');
+		const timeField = screen.getByTestId('tenant-posts-schedule-time');
+		expect(timeField.getAttribute('aria-invalid')).toBe('true');
+		expect(timeField.getAttribute('aria-describedby')).toBe(alerts[0]?.id);
 		expect(submit.disabled).toBe(true);
 		fireEvent.click(submit);
 		expect(onSchedule).not.toHaveBeenCalled();
+	});
+
+	test('both fields invalid: both point at the one rendered message', () => {
+		render(<PublishScheduleRow disabled={false} onSchedule={vi.fn()} />);
+
+		fill('tenant-posts-schedule-date', '31/02/2099');
+		fill('tenant-posts-schedule-time', '25:99');
+
+		const alert = screen.getByRole('alert');
+		for (const id of ['date', 'time']) {
+			const field = screen.getByTestId(`tenant-posts-schedule-${id}`);
+			expect(field.getAttribute('aria-describedby')).toBe(alert.id);
+			expect(field.getAttribute('aria-errormessage')).toBe(alert.id);
+			expect(document.getElementById(alert.id)).toBe(alert);
+		}
+	});
+
+	test('typing a valid time then clicking Schedule works without a prior blur', async () => {
+		const user = userEvent.setup();
+		const onSchedule = vi.fn();
+		render(<PublishScheduleRow disabled={false} onSchedule={onSchedule} />);
+
+		fill('tenant-posts-schedule-date', '02/01/2099');
+		await user.type(screen.getByTestId('tenant-posts-schedule-time'), '10:30');
+		await user.click(screen.getByTestId('tenant-posts-schedule-submit'));
+
+		expect(onSchedule).toHaveBeenCalledTimes(1);
+		expect((onSchedule.mock.calls[0]?.[0] as Date).toISOString()).toBe(
+			'2099-01-02T10:30:00.000Z',
+		);
+	});
+
+	test('typing an invalid time then clicking Schedule shows the error and sends nothing', async () => {
+		const user = userEvent.setup();
+		const onSchedule = vi.fn();
+		render(<PublishScheduleRow disabled={false} onSchedule={onSchedule} />);
+
+		fill('tenant-posts-schedule-date', '02/01/2099');
+		await user.type(screen.getByTestId('tenant-posts-schedule-time'), '25:99');
+		await user.click(screen.getByTestId('tenant-posts-schedule-submit'));
+
+		expect(onSchedule).not.toHaveBeenCalled();
+		expect(screen.getByRole('alert').textContent).toContain(
+			'posts:schedule-time-invalid',
+		);
+	});
+
+	test('English: 10:30 PM is shown as typed and stored as 22:30', () => {
+		lang.current = 'en';
+		const onSchedule = vi.fn();
+		render(<PublishScheduleRow disabled={false} onSchedule={onSchedule} />);
+
+		const time = screen.getByTestId('tenant-posts-schedule-time');
+		expect(time.getAttribute('placeholder')).toBe('hh:mm AM');
+		expect(time.getAttribute('inputmode')).toBe('text');
+		fill('tenant-posts-schedule-date', '01/02/2099');
+		fill('tenant-posts-schedule-time', '10:30 PM');
+		expect((time as HTMLInputElement).value).toBe('10:30 PM');
+		fireEvent.click(screen.getByTestId('tenant-posts-schedule-submit'));
+
+		expect((onSchedule.mock.calls[0]?.[0] as Date).toISOString()).toBe(
+			'2099-01-02T22:30:00.000Z',
+		);
+	});
+
+	test('French keeps the numeric keypad', () => {
+		render(<PublishScheduleRow disabled={false} onSchedule={vi.fn()} />);
+		expect(
+			screen
+				.getByTestId('tenant-posts-schedule-time')
+				.getAttribute('inputmode'),
+		).toBe('numeric');
 	});
 });

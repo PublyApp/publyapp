@@ -1,13 +1,13 @@
 import { LocalizedParsedInput } from '~/components/localized-parsed-input';
-import type { LocalizedParsedInputProps } from '~/components/localized-parsed-input';
+import type { OmitFromParsedInputProps } from '~/components/localized-parsed-input';
+import { isFrench } from '~/lib/dates/localized-date';
 import {
 	formatLocalizedTime,
 	localizedTimePlaceholder,
 	parseLocalizedTime,
 } from '~/lib/dates/localized-time';
 
-type LocalizedTimeInputProps = Omit<
-	LocalizedParsedInputProps,
+type LocalizedTimeInputProps = OmitFromParsedInputProps<
 	'format' | 'parse' | 'placeholder' | 'isOutOfRange'
 > & {
 	locale: string;
@@ -26,5 +26,7 @@ export const LocalizedTimeInput = ({
 		placeholder={localizedTimePlaceholder(locale)}
 		format={(value) => formatLocalizedTime(value, locale)}
 		parse={parseLocalizedTime}
+		// English needs « AM » / « PM »: no numeric-only keypad.
+		inputMode={isFrench(locale) ? 'numeric' : 'text'}
 	/>
 );

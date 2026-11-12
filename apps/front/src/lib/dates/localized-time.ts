@@ -11,6 +11,8 @@ const ISO_TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 const pad = (value: number): string => String(value).padStart(2, '0');
 
+// ponytail: 12 h / 24 h is decided by language, not by Intl: French is 24 h,
+// every other UI language 12 h. Only fr and en exist; revisit with a third.
 export const localizedTimePlaceholder = (locale: string): string =>
 	isFrench(locale) ? 'hh:mm' : 'hh:mm AM';
 

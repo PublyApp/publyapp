@@ -21,11 +21,18 @@ export type LocalizedParsedInputProps = {
 	/** A typed entry was refused (unparseable or out of range): the last value
 	 * passed to `onChange` is stale, so a caller that submits must not use it. */
 	onInvalid?: () => void;
+	/** Soft keyboards: `numeric` only where no letter is ever needed. */
+	inputMode?: 'numeric' | 'text';
+	/** Whether the field holds typed text not yet committed (blur or Enter):
+	 * a caller can then keep its submit enabled and let the click's own blur
+	 * commit and validate it. */
+	onDraftChange?: (hasText: boolean) => void;
+} & (
+	| { errorId?: undefined; hideError?: false }
 	/** The caller renders the message itself (element id = `errorId`), e.g. one
-	 * message under a row of fields. */
-	errorId?: string;
-	hideError?: boolean;
-};
+	 * message under a row of fields. Every field then points at that id. */
+	| { errorId: string; hideError: true }
+);
 
 /** What the user typed, pinned to the external value it was typed against. */
 type Draft = { text: string; value: string | undefined };
@@ -45,6 +52,8 @@ export const LocalizedParsedInput = ({
 	onInvalid,
 	errorId: externalErrorId,
 	hideError = false,
+	inputMode = 'numeric',
+	onDraftChange,
 }: LocalizedParsedInputProps) => {
 	const ownErrorId = useId();
 	const errorId = externalErrorId ?? ownErrorId;
@@ -64,6 +73,8 @@ export const LocalizedParsedInput = ({
 
 	const commit = (raw: string): void => {
 		const parsed = parse(raw);
+
+		onDraftChange?.(false);
 
 		if (parsed === undefined) {
 			setError({ message: raw.trim().length > 0 ? errorMessage : '', value });
@@ -88,7 +99,7 @@ export const LocalizedParsedInput = ({
 		<div className="flex flex-col gap-1">
 			<Input
 				type="text"
-				inputMode="numeric"
+				inputMode={inputMode}
 				autoComplete="off"
 				spellCheck={false}
 				aria-label={ariaLabel}
@@ -104,6 +115,7 @@ export const LocalizedParsedInput = ({
 					const next = event.currentTarget.value;
 					setDraft({ text: next, value });
 					setError(null);
+					onDraftChange?.(next.trim().length > 0);
 					if (next.trim().length === 0) {
 						onChange(undefined);
 					}
@@ -124,3 +136,12 @@ export const LocalizedParsedInput = ({
 		</div>
 	);
 };
+
+/** `Omit` that keeps the `errorId` / `hideError` union intact. */
+export type OmitFromParsedInputProps<
+	K extends keyof LocalizedParsedInputProps,
+> = LocalizedParsedInputProps extends infer P
+	? P extends unknown
+		? Omit<P, K>
+		: never
+	: never;

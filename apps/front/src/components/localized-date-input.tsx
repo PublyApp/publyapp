@@ -1,13 +1,12 @@
 import { LocalizedParsedInput } from '~/components/localized-parsed-input';
-import type { LocalizedParsedInputProps } from '~/components/localized-parsed-input';
+import type { OmitFromParsedInputProps } from '~/components/localized-parsed-input';
 import {
 	formatLocalizedDate,
 	localizedDatePlaceholder,
 	parseLocalizedDate,
 } from '~/lib/dates/localized-date';
 
-type LocalizedDateInputProps = Omit<
-	LocalizedParsedInputProps,
+type LocalizedDateInputProps = OmitFromParsedInputProps<
 	'format' | 'parse' | 'placeholder' | 'isOutOfRange'
 > & {
 	locale: string;
