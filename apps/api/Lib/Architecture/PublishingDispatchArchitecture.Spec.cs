@@ -57,10 +57,11 @@ namespace PublyApp.Api.Lib.Architecture;
 /// is ALWAYS an offender and no inventory entry can clear it, so a
 /// table-parameter helper can never be reviewed in (a deny-list of calls made
 /// by methods that hold literals; a call inside a literal-less lambda is not
-/// seen). Clauses are also counted over each method's whole literal text: any
-/// occurrence the statement scan could not attribute (a ';' inside a comment
-/// cutting the clause) is an offender no entry can clear. The failure prints
-/// method, file:line (portable PDB) and the
+/// seen). A blunt counter, independent of any comment syntax, backs this up:
+/// in a method whose literals contain both "skip" and "locked", every "locked"
+/// must belong to a detected statement, otherwise the method is an offender no
+/// entry can clear (prose that says "locked" there is inventoried like the
+/// seeder). The failure prints method, file:line (portable PDB) and the
 /// normalised statement. The job's statement is in the same inventory and
 /// is additionally pinned in full (<c>_SanctionedDueScanSql</c>). Not reusing
 /// ArchitectureDiscovery: it excludes the Migrations namespace, where SQL
@@ -77,8 +78,9 @@ namespace PublyApp.Api.Lib.Architecture;
 /// covered only because the helper's statement cannot be cleared. The one
 /// non-SQL entry, the seeder's job description, is a prose run: its identity
 /// also covers every literal from the run's start (the leading "Delete…"
-/// description, its JobKey and cron) through the clause, so editing any of
-/// those needs a reviewer. The guard never decides
+/// description of the dead-letter job; the dead-letter JobKey and cron that
+/// precede it are not covered, the dispatch job's JobKey and cron are) through
+/// the clause, so editing any of those needs a reviewer. The guard never decides
 /// what a statement locks, a reviewer does. An executed check (command
 /// interceptor) would only cover paths a test runs, so it is not used.
 /// Proven RED by the planted fixtures of this spec (each capability fails
@@ -434,6 +436,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			"PlantedUnlisted.CommentBetween ", // comment inside the clause
 			"PlantedUnlisted.Tail ", // clause alone in another method
 			"PlantedUnlisted.ClauseThenLiteral ", // letters glued right after the clause
+			"PlantedUnlisted.NestedBlockComment ", // nested comment hides the clause
 			"PlantedUnlisted.SemicolonInBlockComment ", // ';' inside a comment
 			"PlantedUnlisted.SemicolonInLineComment ",
 			"PlantedUnlisted.QuotedLineMarker ", // '--' in a quoted value
@@ -456,7 +459,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 		_ = string.Join("\n", scan.Offenders).Should().NotContain("MoveNext");
 
-		foreach (var shape in new[] { "SemicolonInBlockComment ", "SemicolonInLineComment " }) {
+		foreach (var shape in new[] {
+			"NestedBlockComment ", "SemicolonInBlockComment ", "SemicolonInLineComment ",
+		}) {
 			_ = scan.Offenders.Should().Contain(o =>
 				o.Contains($"PlantedUnlisted.{shape}") && o.Contains("cannot be attributed"));
 		}
@@ -521,6 +526,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		PublishingDispatchArchitectureSpec._AssertClean(scan, "PlantedCommented.Sql ");
 		PublishingDispatchArchitectureSpec._AssertClean(scan, "PlantedMessy.Sql ");
 		PublishingDispatchArchitectureSpec._AssertClean(scan, "PlantedTrailingLog.Sql ");
+		PublishingDispatchArchitectureSpec._AssertClean(scan, "PlantedFallbackTrailingLog.Sql ");
 		PublishingDispatchArchitectureSpec._AssertClean(scan, "PlantedSanctionedLike.Claim ");
 	}
 
@@ -688,6 +694,21 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		}
 	}
 
+	// Clause visible only after comment stripping, then a log literal: the
+	// identity must stop at the literal holding "locked", not at the last literal.
+	private static class PlantedFallbackTrailingLog {
+		public static string Sql() {
+			return PlantedFallbackTrailingLog._Pick(
+				"SELECT id FROM job_queue FOR UPDATE SKIP /* x */ LOCKED",
+				"removed rows older than the retention window"
+			);
+		}
+
+		private static string _Pick(string statement, string log) {
+			return log.Length > statement.Length ? log : statement;
+		}
+	}
+
 	// A log/copy literal after the statement is not part of its identity.
 	private static class PlantedTrailingLog {
 		public static string Sql() {
@@ -810,6 +831,12 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 		private static string _Pick(string statement, string log) {
 			return log.Length > statement.Length ? log : statement;
+		}
+
+		// Nested block comments are valid PostgreSQL: no comment parser may be
+		// trusted to find the clause, only the blunt "locked" counter.
+		public static string NestedBlockComment() {
+			return "SELECT id FROM publications FOR UPDATE SKIP /* a /* b */ c */ LOCKED";
 		}
 
 		// A ';' inside a comment must not cut the clause in two.
@@ -971,6 +998,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				typeof(PlantedQuotedEdited), nameof(PlantedQuotedEdited.Sql),
 				[], PublishingDispatchArchitectureSpec._SqlQuotedMarker),
 			PublishingDispatchArchitectureSpec._Key(
+				typeof(PlantedFallbackTrailingLog), nameof(PlantedFallbackTrailingLog.Sql),
+				[], PublishingDispatchArchitectureSpec._SqlReviewed),
+			PublishingDispatchArchitectureSpec._Key(
 				typeof(PlantedMessy), nameof(PlantedMessy.Sql),
 				[], PublishingDispatchArchitectureSpec._SqlReviewed),
 			PublishingDispatchArchitectureSpec._Key(
@@ -1051,7 +1081,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 			var occurrences = new Dictionary<string, int>(StringComparer.Ordinal);
 
 			var statements = PublishingDispatchArchitectureSpec._Statements(methodGroup.ToList());
-			var attributed = 0;
+			var attributedLocked = 0;
 			foreach (var statement in statements) {
 				var raw = statement.Text.ToString();
 				var rawMatches = PublishingDispatchArchitectureSpec._SkipLockedRegex().Matches(raw);
@@ -1063,17 +1093,15 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				}
 
 				total++;
-				attributed += Math.Max(
-					rawMatches.Count,
-					PublishingDispatchArchitectureSpec._SkipLockedRegex()
-						.Matches(PublishingDispatchArchitectureSpec._Normalise(raw)).Count
-				);
+				// The literal holding the clause: the last raw match, or (clause only
+				// visible after comment stripping) the last literal that holds "locked".
 				var holderIndex = rawMatches.Count == 0
-					? statement.Parts.Count - 1
+					? PublishingDispatchArchitectureSpec._LastLockedPart(statement)
 					: statement.Parts.FindLastIndex(part => part.Start <= rawMatches[^1].Index);
 				var cut = holderIndex + 1 < statement.Parts.Count
 					? raw[..statement.Parts[holderIndex + 1].Start]
 					: raw;
+				attributedLocked += PublishingDispatchArchitectureSpec._CountLocked(cut);
 				var normalised = PublishingDispatchArchitectureSpec._Normalise(cut);
 				var where = PublishingDispatchArchitectureSpec._Describe(
 					statement.Parts[holderIndex].Site, pdbReader);
@@ -1109,24 +1137,25 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				);
 			}
 
-			// Fail closed: count the clauses in the method's WHOLE literal text (raw
-			// and comment-stripped). A ';' inside a comment can cut a clause in two
-			// ("SKIP /* x; */ LOCKED"); any occurrence the statement scan did not
-			// attribute is an offender that no inventory entry can clear.
+			// Blunt, comment-syntax-independent fail-closed counter: in a method whose
+			// literals contain both "skip" and "locked" (any distance, any order), every
+			// "locked" must belong to a detected statement; the rest is an offender no
+			// inventory entry can clear (a clause hidden by comments, split by ';', ...).
+			// Prose that merely says "locked" there is inventoried like the seeder.
 			var whole = string.Concat(methodGroup.Select(site => site.Text));
-			var wholeCount = Math.Max(
-				PublishingDispatchArchitectureSpec._SkipLockedRegex().Matches(whole).Count,
-				PublishingDispatchArchitectureSpec._SkipLockedRegex()
-					.Matches(PublishingDispatchArchitectureSpec._Normalise(whole)).Count
-			);
-			if (wholeCount > attributed) {
-				total += wholeCount - attributed;
-				offenders.Add(
-					PublishingDispatchArchitectureSpec._Describe(methodGroup.First(), pdbReader)
-						+ $": {wholeCount - attributed} SKIP LOCKED occurrence(s) in this method "
-						+ "cannot be attributed to a statement (a ';' inside a comment splitting "
-						+ "the clause?); no inventory entry can clear it"
-				);
+			if (whole.Contains("skip", StringComparison.OrdinalIgnoreCase)) {
+				var unattributed =
+					PublishingDispatchArchitectureSpec._CountLocked(whole) - attributedLocked;
+				if (unattributed > 0) {
+					total += unattributed;
+					offenders.Add(
+						PublishingDispatchArchitectureSpec._Describe(methodGroup.First(), pdbReader)
+							+ $": {unattributed} occurrence(s) of \"locked\" in a method that also "
+							+ "contains \"skip\" cannot be attributed to a reviewed SKIP LOCKED "
+							+ "statement (a clause hidden by comment syntax, or split by ';'); no "
+							+ "inventory entry can clear it"
+					);
+				}
 			}
 		}
 
@@ -1136,6 +1165,23 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 
 	private static string _Cap(string text) {
 		return text.Length <= 400 ? text : text[..400] + "…";
+	}
+
+	private static int _CountLocked(string text) {
+		var count = 0;
+		var index = 0;
+		while ((index = text.IndexOf("locked", index, StringComparison.OrdinalIgnoreCase)) >= 0) {
+			count++;
+			index += "locked".Length;
+		}
+
+		return count;
+	}
+
+	private static int _LastLockedPart(Statement statement) {
+		var index = statement.Parts.FindLastIndex(part =>
+			part.Site.Text.Contains("locked", StringComparison.OrdinalIgnoreCase));
+		return index < 0 ? statement.Parts.Count - 1 : index;
 	}
 
 	private static List<Statement> _Statements(List<LiteralSite> sites) {
