@@ -27,6 +27,10 @@ import {
 	toNeedsReconnectAccounts,
 	useNeedsReconnectAccountsQuery,
 } from '~/lib/query/needs-reconnect-accounts';
+import {
+	providerCapabilitiesQueryOptions,
+	useDisabledProviders,
+} from '~/lib/query/provider-capabilities';
 import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
 	socialAccountsQueryOptions,
@@ -99,6 +103,7 @@ type IntegrationsColumnContext = {
 	t: (key: string, options?: Record<string, unknown>) => string;
 	locale: string;
 	canManage: boolean;
+	disabledProviders: ReadonlySet<string>;
 	query: ReturnType<typeof useTenantProjectsQuery>;
 	onReconnect: (account: SocialAccountRow) => void;
 	onVisibility: (account: SocialAccountRow) => void;
@@ -112,6 +117,7 @@ const buildColumns = (
 		t,
 		locale,
 		canManage,
+		disabledProviders,
 		query,
 		onReconnect,
 		onVisibility,
@@ -203,10 +209,12 @@ const buildColumns = (
 					})}
 					testId={`social-account-actions-${row.original.id}`}
 				>
-					<DropdownMenuItem onClick={() => onReconnect(row.original)}>
-						<IconRefresh />
-						{t('reconnect')}
-					</DropdownMenuItem>
+					{disabledProviders.has(row.original.provider) ? null : (
+						<DropdownMenuItem onClick={() => onReconnect(row.original)}>
+							<IconRefresh />
+							{t('reconnect')}
+						</DropdownMenuItem>
+					)}
 					{hasVisibility(row.original.provider) ? (
 						<DropdownMenuItem onClick={() => onVisibility(row.original)}>
 							<IconEye />
@@ -265,6 +273,72 @@ const fediverseProviderOf = (
 	return ui.mastodonOpen ? 'mastodon' : null;
 };
 
+type ConnectDrawerKey =
+	| 'mastodonOpen'
+	| 'pixelfedOpen'
+	| 'discordOpen'
+	| 'connectOpen';
+
+/** The connect buttons of the providers the operator has not switched off: the
+ * wire name the switch uses, the drawer each opens and its label. Bluesky is
+ * the primary action. */
+const ConnectButtons = ({
+	disabledProviders,
+	disabled,
+	onOpen,
+}: {
+	disabledProviders: ReadonlySet<string>;
+	disabled: boolean;
+	onOpen: (key: ConnectDrawerKey) => void;
+}) => {
+	const { t } = useTranslation('settings');
+	const buttons = [
+		{
+			provider: 'mastodon',
+			drawer: 'mastodonOpen',
+			label: t('connect-mastodon'),
+			primary: false,
+		},
+		{
+			provider: 'pixelfed',
+			drawer: 'pixelfedOpen',
+			label: t('connect-pixelfed'),
+			primary: false,
+		},
+		{
+			provider: 'discord_webhook',
+			drawer: 'discordOpen',
+			label: t('connect-discord'),
+			primary: false,
+		},
+		{
+			provider: 'bluesky',
+			drawer: 'connectOpen',
+			label: t('connect-bluesky'),
+			primary: true,
+		},
+	] as const;
+
+	return (
+		<div className="flex flex-wrap justify-end gap-2">
+			{buttons
+				.filter((button) => !disabledProviders.has(button.provider))
+				.map((button) => (
+					<Button
+						key={button.provider}
+						type="button"
+						variant={button.primary ? 'default' : 'outline'}
+						disabled={disabled}
+						onClick={() => onOpen(button.drawer)}
+					>
+						<IconPlugConnected aria-hidden="true" className="size-4" />
+						{button.label}
+					</Button>
+				))}
+		</div>
+	);
+};
+
 /** ConfirmDialog requires a non-null account even when closed; this inert
  * placeholder is only mounted while `isOpen` is false. */
 const PLACEHOLDER_ACCOUNT: SocialAccountRow = {
@@ -300,6 +374,10 @@ const tenantIntegrationsQueries = ({ tenantId }: { tenantId: string }) => ({
 		variables: { tenantId },
 	},
 	projects: { options: tenantProjectsQueryOptions, variables: { tenantId } },
+	capabilities: {
+		options: providerCapabilitiesQueryOptions,
+		variables: { tenantId },
+	},
 	picker: { options: tenantsForPickerQueryOptions, variables: {} },
 });
 
@@ -314,9 +392,13 @@ const TenantSettingsIntegrationsPage = () => {
 	);
 	const projectsQuery = useTenantProjectsQuery(queries.projects.variables);
 	const needsReconnectQuery = useNeedsReconnectAccountsQuery(tenantId);
+	// Providers the operator switched off (#2184): nothing is hidden until the
+	// answer is known, the endpoints still refuse a disabled provider.
+	const disabledProviders = useDisabledProviders(tenantId);
+	// A disabled provider cannot be reconnected: no banner entry for it (#2184).
 	const needsReconnectAccounts = toNeedsReconnectAccounts(
 		needsReconnectQuery.data,
-	);
+	).filter((account) => !disabledProviders.has(account.provider));
 
 	const rows = toSocialAccountRows(socialAccountsQuery.data);
 	const columns = useMemo(
@@ -325,6 +407,7 @@ const TenantSettingsIntegrationsPage = () => {
 				t,
 				locale: i18n.resolvedLanguage ?? 'en',
 				canManage,
+				disabledProviders,
 				query: projectsQuery,
 				onReconnect: (account) =>
 					setDrawerUi({ ...IDLE_DRAWER_UI, reconnectAccount: account }),
@@ -333,7 +416,7 @@ const TenantSettingsIntegrationsPage = () => {
 				onDisconnect: (account) =>
 					setDrawerUi({ ...IDLE_DRAWER_UI, disconnectAccount: account }),
 			}),
-		[t, i18n.resolvedLanguage, canManage, projectsQuery],
+		[t, i18n.resolvedLanguage, canManage, disabledProviders, projectsQuery],
 	);
 
 	const isListLoadedAndEmpty =
@@ -374,51 +457,11 @@ const TenantSettingsIntegrationsPage = () => {
 			<WorkspacePageHeader titleKey="integrations" />
 
 			{canManage ? (
-				<div className="flex flex-wrap justify-end gap-2">
-					<Button
-						type="button"
-						variant="outline"
-						disabled={tenantId === null}
-						onClick={() =>
-							setDrawerUi({ ...IDLE_DRAWER_UI, mastodonOpen: true })
-						}
-					>
-						<IconPlugConnected aria-hidden="true" className="size-4" />
-						{t('connect-mastodon')}
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						disabled={tenantId === null}
-						onClick={() =>
-							setDrawerUi({ ...IDLE_DRAWER_UI, pixelfedOpen: true })
-						}
-					>
-						<IconPlugConnected aria-hidden="true" className="size-4" />
-						{t('connect-pixelfed')}
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						disabled={tenantId === null}
-						onClick={() =>
-							setDrawerUi({ ...IDLE_DRAWER_UI, discordOpen: true })
-						}
-					>
-						<IconPlugConnected aria-hidden="true" className="size-4" />
-						{t('connect-discord')}
-					</Button>
-					<Button
-						type="button"
-						disabled={tenantId === null}
-						onClick={() =>
-							setDrawerUi({ ...IDLE_DRAWER_UI, connectOpen: true })
-						}
-					>
-						<IconPlugConnected aria-hidden="true" className="size-4" />
-						{t('connect-bluesky')}
-					</Button>
-				</div>
+				<ConnectButtons
+					disabledProviders={disabledProviders}
+					disabled={tenantId === null}
+					onOpen={(key) => setDrawerUi({ ...IDLE_DRAWER_UI, [key]: true })}
+				/>
 			) : null}
 
 			{mastodonDenied ? (

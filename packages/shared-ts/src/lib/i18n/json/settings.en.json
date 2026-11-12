@@ -55,7 +55,7 @@
 	"default-workspace-coming-later-description": "Choosing a default workspace will be possible here once workspaces are available.",
 	"integrations-list-title": "Connected accounts",
 	"integrations-empty-title": "No connected accounts yet",
-	"integrations-empty-description": "Connect a Bluesky account to start publishing from your projects.",
+	"integrations-empty-description": "Connect an account to start publishing from your projects.",
 	"integrations-load-failed": "Connected accounts could not be loaded",
 	"integrations-load-failed-description": "The connected accounts list could not be loaded. Try again.",
 	"mastodon-authorization-denied": "Mastodon authorization was cancelled. Nothing was connected.",

@@ -44,6 +44,23 @@ public sealed class ProviderCapabilityRegistrySpec {
 			.Equal("image/jpeg", "image/png", "image/webp");
 	}
 
+	// #2184: the optional facts live in the registry with a value per provider.
+	[Fact]
+	public void ItShouldHoldTheOptionalCapabilityFactsOfEveryProvider() {
+		(SocialProvider Provider, bool RequiresText, bool RequiresMedia, bool SupportsThreads, bool RequiresAltText, bool SupportsVideo)[] expected = [
+			(SocialProvider.Bluesky, true, false, true, false, true),
+			(SocialProvider.Mastodon, true, false, true, false, true),
+			(SocialProvider.Pixelfed, false, true, false, false, false),
+			(SocialProvider.DiscordWebhook, true, false, false, false, true),
+		];
+
+		foreach (var row in expected) {
+			var capability = ProviderCapabilityRegistry.For(row.Provider);
+			(capability.RequiresText, capability.RequiresMedia, capability.SupportsThreads, capability.RequiresAltText, capability.SupportsVideo)
+				.Should().Be((row.RequiresText, row.RequiresMedia, row.SupportsThreads, row.RequiresAltText, row.SupportsVideo), row.Provider.ToString());
+		}
+	}
+
 	[Fact]
 	public void ItShouldLetAnAccountOverrideBeatTheDefaultHoweverOldItIs() {
 		var account = ProviderCapabilityRegistrySpec._Account(

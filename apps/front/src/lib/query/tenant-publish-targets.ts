@@ -118,6 +118,9 @@ const toDestinationLimits = (
 		acceptedImageContentTypes: wire.acceptedImageContentTypes,
 		requiresMedia: wire.requiresMedia === true,
 		supportsThreads: wire.supportsThreads !== false,
+		requiresText: wire.requiresText !== false,
+		requiresAltText: wire.requiresAltText === true,
+		supportsVideo: wire.supportsVideo === true,
 	};
 };
 

@@ -239,6 +239,54 @@ public sealed class GetPublishTargetsForTenantSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
+	// #2184: a provider the operator switched off is no longer offered as a destination.
+	[Fact]
+	public async Task ItShouldNotOfferATargetOfADisabledProvider() {
+		var factory = this._Fixture.Factory.WithWebHostBuilder(builder => builder.ConfigureServices(
+			services => services.AddSingleton<PublyApp.Api.Modules.SocialAccounts.Services.IProviderAvailability>(
+				new BlueskyOff()
+			)
+		));
+		var http = factory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions {
+			HandleCookies = false,
+		});
+		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
+		await this._SeedTargetScenarioAsync(tenantId);
+		string survivorHandle;
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
+			var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			survivorHandle = $"survivor-{Guid.NewGuid():N}@mastodon.example";
+			db.SocialAccount.Add(new SocialAccount {
+				TenantId = tenantId,
+				Provider = SocialProvider.Mastodon,
+				ExternalAccountId = $"masto-{Guid.NewGuid():N}",
+				DisplayHandle = survivorHandle,
+				ProtectedCredentials = "enc-spec-blob",
+				Status = SocialAccountStatus.Active,
+			});
+			await db.SaveChangesAsync();
+		}
+
+		using var request = new HttpRequestMessage(HttpMethod.Get, "/publishing/publish-targets")
+			.WithSessionToken(token).WithTenantId(tenantId);
+		using var response = await http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var payload = await response.Content.ReadFromJsonAsync<TargetsPayload>();
+		Assert.NotNull(payload);
+		payload.Items.Should().NotContain(target => target.Provider == "bluesky");
+		payload.Items.Should().Contain(
+			target => target.Provider == "mastodon" && target.Label == survivorHandle,
+			"only the disabled provider is dropped"
+		);
+	}
+
+	private sealed class BlueskyOff : PublyApp.Api.Modules.SocialAccounts.Services.IProviderAvailability {
+		public bool IsEnabled(SocialProvider provider) {
+			return provider != SocialProvider.Bluesky;
+		}
+	}
+
 	// ── helpers ────────────────────────────────────────────────────────
 
 	private async Task<HttpResponseMessage> _GetTargetsAsync(

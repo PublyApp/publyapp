@@ -370,6 +370,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey ProjectNotFound = new("project-not-found");
 
 	/// <summary>
+	/// This provider is disabled and cannot be connected
+	/// </summary>
+	public static readonly TranslationKey ProviderDisabled = new("provider-disabled");
+
+	/// <summary>
 	/// The provider could not be reached; nothing was stored
 	/// </summary>
 	public static readonly TranslationKey ProviderUnreachable = new("provider-unreachable");
@@ -455,6 +460,11 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey PublishContentTooLong = new("publish-content-too-long");
 
 	/// <summary>
+	/// A destination needs alt text on every image of the post
+	/// </summary>
+	public static readonly TranslationKey PublishImageAltTextRequired = new("publish-image-alt-text-required");
+
+	/// <summary>
 	/// An image of the post is not a type this destination accepts
 	/// </summary>
 	public static readonly TranslationKey PublishImageUnsupportedType = new("publish-image-unsupported-type");
@@ -473,6 +483,11 @@ public static partial class ResponseKeys {
 	/// Publishing started
 	/// </summary>
 	public static readonly TranslationKey PublishNowSuccess = new("publish-now-success");
+
+	/// <summary>
+	/// {{provider}} is disabled by the operator: deselect this destination or try again once it is enabled
+	/// </summary>
+	public static readonly TranslationKey PublishProviderDisabled = new("publish-provider-disabled");
 
 	/// <summary>
 	/// The customized content of this destination is not valid

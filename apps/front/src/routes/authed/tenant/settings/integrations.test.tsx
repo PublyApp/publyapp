@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
 		provider: 'mastodon' | 'pixelfed';
 		instance: string;
 	} | null,
+	// Providers the operator switched off (GET /publishing/capabilities).
+	disabledProviders: [] as string[],
 	needsReconnectAccounts: [] as Array<{
 		id: string;
 		displayHandle: string;
@@ -84,6 +86,11 @@ vi.mock('~/lib/query/needs-reconnect-accounts', async () => {
 		}),
 	};
 });
+
+vi.mock('~/lib/query/provider-capabilities', async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	useDisabledProviders: () => new Set(mocks.disabledProviders),
+}));
 
 vi.mock('~/lib/query/tenant-projects', async (importOriginal) => ({
 	...(await importOriginal<object>()),
@@ -207,7 +214,7 @@ const EN_LABELS: TestLabelMap = {
 	'integrations-list-title': 'Connected accounts',
 	'integrations-empty-title': 'No connected accounts yet',
 	'integrations-empty-description':
-		'Connect a Bluesky account to start publishing from your projects.',
+		'Connect an account to start publishing from your projects.',
 	'integrations-load-failed': 'Connected accounts could not be loaded',
 	'integrations-load-failed-description':
 		'The connected accounts list could not be loaded. Try again.',
@@ -310,6 +317,7 @@ const needsReconnectAccount = {
 afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
+	mocks.disabledProviders = [];
 	socialAccountsWire = [];
 	socialAccountsPending = false;
 	socialAccountsError = false;
@@ -495,6 +503,22 @@ describe('TenantSettingsIntegrationsPage', () => {
 		});
 	});
 
+	test('ItShouldNotShowTheReconnectBannerForAProviderTheOperatorDisabled', () => {
+		mocks.disabledProviders = ['bluesky'];
+		mocks.needsReconnectAccounts = [
+			{
+				id: '11111111-1111-1111-1111-111111111111',
+				displayHandle: '@broken.bsky.social',
+				provider: 'bluesky',
+				lastError: null,
+			},
+		];
+
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(screen.queryByTestId('reconnect-banner')).toBeNull();
+	});
+
 	test('ItShouldOfferConnectMastodonAndListAMastodonAccountAsMastodon', async () => {
 		socialAccountsWire = [
 			{
@@ -511,6 +535,40 @@ describe('TenantSettingsIntegrationsPage', () => {
 		expect(screen.getByTestId('mastodon-drawer-stub').textContent).toBe(
 			'mastodon:connect',
 		);
+	});
+
+	test('ItShouldHideTheConnectButtonOfEveryProviderTheOperatorDisabled', () => {
+		mocks.disabledProviders = ['mastodon', 'discord_webhook'];
+		render(<TenantSettingsIntegrationsPage />);
+
+		expect(screen.queryByText('Connect Mastodon')).toBeNull();
+		expect(screen.queryByText('Connect Discord')).toBeNull();
+		expect(screen.getByText('Connect Pixelfed')).toBeTruthy();
+		expect(screen.getByText('Connect Bluesky')).toBeTruthy();
+	});
+
+	test('ItShouldNotOfferReconnectOnARowOfADisabledProvider', async () => {
+		mocks.disabledProviders = ['bluesky'];
+		socialAccountsWire = [{ ...activeAccount, id: 'b1', provider: 'bluesky' }];
+		render(<TenantSettingsIntegrationsPage />);
+
+		fireEvent.click(screen.getByTestId('social-account-actions-b1'));
+		await screen.findByRole('menuitem', { name: /disconnect/i });
+
+		expect(screen.queryByRole('menuitem', { name: /reconnect/i })).toBeNull();
+	});
+
+	test('ItShouldOfferEveryConnectButtonWhenNoProviderIsDisabled', () => {
+		render(<TenantSettingsIntegrationsPage />);
+
+		for (const label of [
+			'Connect Mastodon',
+			'Connect Pixelfed',
+			'Connect Discord',
+			'Connect Bluesky',
+		]) {
+			expect(screen.getByText(label)).toBeTruthy();
+		}
 	});
 
 	test('ItShouldOpenTheSharedFediverseDrawerForPixelfedAndLabelItsRows', async () => {

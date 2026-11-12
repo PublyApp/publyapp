@@ -17,7 +17,9 @@ public sealed record PublishNowArgs(
 	Guid ActorUserId,
 	IReadOnlyList<Guid> SocialAccountIds,
 	// Per-destination content overrides by account id (#2172); absent = inherit the post.
-	IReadOnlyDictionary<Guid, RenditionOverrides>? Overrides = null
+	IReadOnlyDictionary<Guid, RenditionOverrides>? Overrides = null,
+	// The operator switch (#2184): a destination whose provider is off is refused with ContentInvalid.
+	Func<SocialProvider, bool>? IsProviderEnabled = null
 );
 
 /// <summary>
@@ -203,7 +205,8 @@ public sealed class PublishNowService : IPublishNowService {
 					))
 					.ToList(),
 				carried,
-				cancellationToken
+				cancellationToken,
+				args.IsProviderEnabled
 			);
 			if (staged is not StageRenditionsResult.Staged) {
 				await transaction.RollbackAsync(cancellationToken);

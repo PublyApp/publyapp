@@ -16,6 +16,7 @@ public static partial class Routes {
 			public const string Root = "/publishing";
 			public const string FindPublications = "/publications";
 			public const string PublishTargets = "/publish-targets";
+			public const string Capabilities = "/capabilities";
 		}
 	}
 }

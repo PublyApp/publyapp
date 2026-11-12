@@ -178,4 +178,100 @@ public sealed class PublishValidationServiceSpec {
 			"hi", ["image/png"], [ProviderCapabilityRegistry.Pixelfed], ["second"]
 		)).Kind.Should().Be(PublishContentFailureKind.ThreadsUnsupported);
 	}
+
+	// #2184: the image-type cause is templated from the destination's own accepted types,
+	// so it never promises a type (WebP) a destination refuses nor names another network's.
+	[Fact]
+	public void ItShouldListTheAcceptedImageTypesOfTheDestinationInTheCause() {
+		var pixelfed = PublishValidationService.Validate("hi", ["image/webp"], [ProviderCapabilityRegistry.Pixelfed]);
+		var bluesky = PublishValidationService.Validate("hi", ["image/gif"], [ProviderCapabilityRegistry.Bluesky]);
+
+		PublishValidationServiceSpec._Failure(pixelfed).Cause
+			.Should().Contain("Use a JPEG or PNG image.").And.NotContain("WebP");
+		PublishValidationServiceSpec._Failure(bluesky).Cause
+			.Should().Contain("Use a JPEG, PNG or WebP image.").And.NotContain("static");
+	}
+
+	[Fact]
+	public void ItShouldFollowACapabilityThatAcceptsASingleImageType() {
+		var onlyPng = ProviderCapabilityRegistry.Mastodon with { AcceptedImageContentTypes = ["image/png"] };
+
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate("hi", ["image/jpeg"], [onlyPng])).Cause
+			.Should().Contain("Use a PNG image.");
+	}
+
+	// #2184: alt text is a capability, not a Bluesky/Mastodon assumption.
+	[Fact]
+	public void ItShouldRequireAltTextOnEveryImageOnlyWhenTheCapabilityAsksForIt() {
+		var strict = ProviderCapabilityRegistry.Mastodon with { RequiresAltText = true };
+		string?[] alts = ["a cat", " "];
+
+		var failure = PublishValidationServiceSpec._Failure(PublishValidationService.Validate(
+			"hi", ["image/png", "image/png"], [strict], null, alts
+		));
+		failure.Kind.Should().Be(PublishContentFailureKind.AltTextRequired);
+		failure.ImageIndex.Should().Be(2);
+		failure.Cause.Should().Contain("image 2 has none");
+
+		PublishValidationService.Validate("hi", ["image/png", "image/png"], [strict], null, ["a cat", "a dog"])
+			.Should().BeNull();
+		PublishValidationService.Validate(
+			"hi", ["image/png", "image/png"], [ProviderCapabilityRegistry.Mastodon], null, alts
+		).Should().BeNull("no shipped provider requires alt text");
+	}
+
+	// The enforcement fails closed: an absent or short alt-text list is missing alt text.
+	[Fact]
+	public void ItShouldTreatAnAbsentOrShortAltTextListAsMissingWhenTheCapabilityRequiresAltText() {
+		var strict = ProviderCapabilityRegistry.Mastodon with { RequiresAltText = true };
+
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate("hi", ["image/png"], [strict]))
+			.Kind.Should().Be(PublishContentFailureKind.AltTextRequired);
+		var short_ = PublishValidationServiceSpec._Failure(PublishValidationService.Validate(
+			"hi", ["image/png", "image/png"], [strict], null, ["a cat"]
+		));
+		short_.Kind.Should().Be(PublishContentFailureKind.AltTextRequired);
+		short_.ImageIndex.Should().Be(2);
+	}
+
+	// Limits come from the capability handed in, never from a literal in the validator:
+	// a capability with other limits changes the verdict on the same text and images.
+	[Fact]
+	public void ItShouldReadEveryLimitFromTheCapabilityItIsGiven() {
+		var tiny = ProviderCapabilityRegistry.Bluesky with {
+			TextLimits = [new TextLimit(GraphemeCountingRule.Instance, 5)],
+			MaxImages = 1,
+		};
+
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate("123456", [], [tiny]))
+			.Kind.Should().Be(PublishContentFailureKind.TooLong);
+		PublishValidationService.Validate("12345", [], [tiny]).Should().BeNull();
+		PublishValidationServiceSpec._Failure(PublishValidationService.Validate("hi", ["image/png", "image/png"], [tiny]))
+			.Kind.Should().Be(PublishContentFailureKind.TooManyImages);
+		PublishValidationService.Validate("123456", [], [ProviderCapabilityRegistry.Bluesky]).Should().BeNull();
+	}
+
+	// #2184: an operator-disabled provider is refused at validation with its display name.
+	[Fact]
+	public void ItShouldRefuseADestinationWhoseProviderTheOperatorDisabled() {
+		var account = new PublyApp.Api.Modules.SocialAccounts.Entities.SocialAccount {
+			TenantId = Guid.NewGuid(),
+			Id = Guid.NewGuid(),
+			Provider = PublyApp.Api.Modules.SocialAccounts.Entities.SocialProvider.DiscordWebhook,
+			ExternalAccountId = "hook",
+			DisplayHandle = "#releases",
+			ProtectedCredentials = "x",
+		};
+		var content = new EffectiveContent(["hello"], []);
+
+		var failure = PublishValidationServiceSpec._Failure(
+			PublishValidationService.ValidateDestination(content, account, _ => false)
+		);
+
+		failure.Kind.Should().Be(PublishContentFailureKind.ProviderDisabled);
+		failure.Destination.Should().Be("#releases");
+		failure.Cause.Should().Contain("Discord is disabled").And.NotContain("discord_webhook");
+		PublishValidationService.ValidateDestination(content, account, _ => true).Should().BeNull();
+		PublishValidationService.ValidateDestination(content, account).Should().BeNull();
+	}
 }

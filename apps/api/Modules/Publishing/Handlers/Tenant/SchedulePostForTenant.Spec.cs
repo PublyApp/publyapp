@@ -103,6 +103,44 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 			.Should().Be(0);
 	}
 
+	// #2184: scheduling to a provider the operator switched off is refused up front.
+	[Fact]
+	public async Task ItShouldRefuseADisabledProviderWith422AndNoPublication() {
+		var (tenantId, token, postId) = await this._CreatePostAsAcmeAdminAsync();
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db, tenantId);
+		var factory = this._Fixture.Factory.WithWebHostBuilder(builder => builder.ConfigureServices(
+			services => services.AddSingleton<PublyApp.Api.Modules.SocialAccounts.Services.IProviderAvailability>(
+				new BlueskyOff()
+			)
+		));
+		var http = factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = false });
+
+		using var request =
+			new HttpRequestMessage(HttpMethod.Post, SchedulePostForTenantSpec._ScheduleUrl(postId))
+				.WithSessionToken(token)
+				.WithTenantId(tenantId);
+		request.Content = JsonContent.Create(new {
+			accountIds = new[] { accountId.ToString() },
+			scheduledAtLocal = SchedulePostForTenantSpec._FutureInstantJson,
+			timeZone = SchedulePostForTenantSpec._FutureZone,
+		});
+		using var response = await http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		using var problem = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+		problem.RootElement.GetProperty("translationKey").GetString().Should().Be("publish-provider-disabled");
+		var postIdGuid = Guid.Parse(postId);
+		(await db.Publication.CountAsync(p => p.PostId == postIdGuid)).Should().Be(0);
+	}
+
+	private sealed class BlueskyOff : PublyApp.Api.Modules.SocialAccounts.Services.IProviderAvailability {
+		public bool IsEnabled(SocialProvider provider) {
+			return provider != SocialProvider.Bluesky;
+		}
+	}
+
 	[Fact]
 	public async Task ItShouldScheduleOnePublicationPerAccountWithUtcInstantAndZone() {
 		RecordingPublishProvider.Reset();

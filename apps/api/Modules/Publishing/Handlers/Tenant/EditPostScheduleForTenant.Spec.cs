@@ -399,6 +399,36 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
+	// #2184: the edit endpoint cannot deselect a destination, so a disabled provider must not
+	// block editing the shared text; dispatch refuses the send later.
+	[Fact]
+	public async Task ItShouldStillEditAPostWhoseProviderTheOperatorDisabled() {
+		var (tenantId, token, postId) = await this._SeedScheduledPostAsync();
+		var factory = this._Fixture.Factory.WithWebHostBuilder(builder => builder.ConfigureServices(
+			services => services.AddSingleton<PublyApp.Api.Modules.SocialAccounts.Services.IProviderAvailability>(
+				new BlueskyOff()
+			)
+		));
+		var http = factory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions {
+			HandleCookies = false,
+		});
+
+		using var request =
+			new HttpRequestMessage(HttpMethod.Patch, EditPostScheduleForTenantSpec._ScheduleUrl(postId))
+				.WithSessionToken(token)
+				.WithTenantId(tenantId);
+		request.Content = JsonContent.Create(new { body = "edited while the provider is off" });
+		using var response = await http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
+	private sealed class BlueskyOff : PublyApp.Api.Modules.SocialAccounts.Services.IProviderAvailability {
+		public bool IsEnabled(SocialProvider provider) {
+			return provider != SocialProvider.Bluesky;
+		}
+	}
+
 	private async Task<(Guid TenantId, string Token, string PostId)>
 	_SeedScheduledPostAsync() {
 		var tenantId = await this._GetAcmeIdAsync();

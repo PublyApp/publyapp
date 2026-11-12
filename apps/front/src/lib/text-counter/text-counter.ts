@@ -29,6 +29,12 @@ export type DestinationLimits = {
 	requiresMedia?: boolean;
 	/** False when follow-up segments cannot be published there (Pixelfed, Discord). */
 	supportsThreads?: boolean;
+	/** False for an image-led destination: a post may then have no text. */
+	requiresText?: boolean;
+	/** True when every image needs alt text for this destination. */
+	requiresAltText?: boolean;
+	/** True when this destination can carry a video. */
+	supportsVideo?: boolean;
 };
 
 /** One destination's limits, as returned by `GET /publishing/publish-targets`. */

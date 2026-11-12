@@ -14,6 +14,7 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
+import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import type { SocialAccountRow } from '~/lib/query/social-accounts';
 import {
 	useConnectSocialAccountMutation,
@@ -65,6 +66,7 @@ export const BlueskyConnectDrawer = ({
 	account?: SocialAccountRow;
 }) => {
 	const { t } = useTranslation(['settings']);
+	const translateResponseMessage = useResponseMessageTranslator();
 	const connectMutation = useConnectSocialAccountMutation();
 	const reconnectMutation = useReconnectSocialAccountMutation();
 	// Schema + resolver are built per language and per mode, not per render.
@@ -115,6 +117,7 @@ export const BlueskyConnectDrawer = ({
 			// only unknown shapes get the generic fallback.
 			methods.setError('root', {
 				message: getFailureMessage(failure, {
+					translate: translateResponseMessage,
 					fallback: t('common:an-error-occurred'),
 				}),
 			});

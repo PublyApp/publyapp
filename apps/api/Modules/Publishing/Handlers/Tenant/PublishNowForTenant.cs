@@ -14,6 +14,7 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.Publishing.Services;
+using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 
@@ -110,6 +111,7 @@ public sealed class PublishNowForTenant {
 		[FromBody] PublishNowBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPublishNowService publishNowService,
+		[FromServices] IProviderAvailability providerAvailability,
 		[FromServices] IAuditLogService auditLogService,
 		CancellationToken cancellationToken = default
 	) {
@@ -136,7 +138,8 @@ public sealed class PublishNowForTenant {
 				PostId: postIdGuid,
 				ActorUserId: account.UserId,
 				SocialAccountIds: requestedAccountIds,
-				Overrides: body.GetOverrides()
+				Overrides: body.GetOverrides(),
+				IsProviderEnabled: providerAvailability.IsEnabled
 			),
 			cancellationToken
 		);

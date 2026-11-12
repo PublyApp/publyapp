@@ -25,7 +25,9 @@ public record SchedulePublicationArgs(
 	Guid PostId,
 	IReadOnlyList<ScheduleDestination> Destinations,
 	string TimeZone,
-	Guid ActorUserId
+	Guid ActorUserId,
+	// The operator switch (#2184): a destination whose provider is off is refused with ContentInvalid.
+	Func<SocialProvider, bool>? IsProviderEnabled = null
 );
 
 /// <summary>
@@ -393,7 +395,8 @@ public sealed class PublicationService : IPublicationService {
 				))
 				.ToList(),
 			carried,
-			cancellationToken
+			cancellationToken,
+			args.IsProviderEnabled
 		);
 		if (staged is not StageRenditionsResult.Staged) {
 			// Nothing is saved, but the new publications and segment copies are still

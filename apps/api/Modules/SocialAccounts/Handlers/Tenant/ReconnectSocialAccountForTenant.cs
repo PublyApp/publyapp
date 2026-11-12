@@ -14,6 +14,8 @@ using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Services;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
+using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
@@ -50,6 +52,7 @@ public sealed class ReconnectSocialAccountForTenant {
 		[FromBody] ReconnectSocialAccountBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] SocialAccountService socialAccountService,
+		[FromServices] IProviderAvailability providerAvailability,
 		[FromServices] IAuditLogService auditLogService,
 		[FromServices] IPublicationQueueService publicationQueueService,
 		[FromServices] IPublicationStatusTransitionService transitions,
@@ -62,6 +65,10 @@ public sealed class ReconnectSocialAccountForTenant {
 		}
 
 		var account = authContext.GetRequiredTenantAccount();
+
+		if (!providerAvailability.IsEnabled(SocialProvider.Bluesky)) {
+			return ProviderDisabledProblem.For(SocialProvider.Bluesky);
+		}
 
 		if (!Guid.TryParse(socialAccountId, out var accountId)) {
 			return TypedProblems.BadRequest(

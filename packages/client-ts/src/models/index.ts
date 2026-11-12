@@ -1469,6 +1469,15 @@ export function createGetDeadLetterResponseFromDiscriminatorValue(parseNode: Par
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {GetProviderCapabilitiesForTenantResponse}
+ */
+// @ts-ignore
+export function createGetProviderCapabilitiesForTenantResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoGetProviderCapabilitiesForTenantResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {GetPublishTargetsForTenantResponse}
  */
 // @ts-ignore
@@ -1840,6 +1849,15 @@ export function createPostUpdatedFromDiscriminatorValue(parseNode: ParseNode | u
 // @ts-ignore
 export function createProjectListItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoProjectListItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {ProviderCapabilityItem}
+ */
+// @ts-ignore
+export function createProviderCapabilityItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoProviderCapabilityItem;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -4494,6 +4512,17 @@ export function deserializeIntoGetDeadLetterResponse(getDeadLetterResponse: Part
 }
 /**
  * The deserialization information for the current model
+ * @param GetProviderCapabilitiesForTenantResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoGetProviderCapabilitiesForTenantResponse(getProviderCapabilitiesForTenantResponse: Partial<GetProviderCapabilitiesForTenantResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "items": n => { getProviderCapabilitiesForTenantResponse.items = n.getCollectionOfObjectValues<ProviderCapabilityItem>(createProviderCapabilityItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param GetPublishTargetsForTenantResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -5087,6 +5116,19 @@ export function deserializeIntoProjectListItem(projectListItem: Partial<ProjectL
 }
 /**
  * The deserialization information for the current model
+ * @param ProviderCapabilityItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoProviderCapabilityItem(providerCapabilityItem: Partial<ProviderCapabilityItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "enabled": n => { providerCapabilityItem.enabled = n.getBooleanValue(); },
+        "limits": n => { providerCapabilityItem.limits = n.getObjectValue<PublishTargetLimits>(createPublishTargetLimitsFromDiscriminatorValue); },
+        "provider": n => { providerCapabilityItem.provider = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param PublicationListItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -5161,8 +5203,11 @@ export function deserializeIntoPublishTargetLimits(publishTargetLimits: Partial<
         "acceptedImageContentTypes": n => { publishTargetLimits.acceptedImageContentTypes = n.getCollectionOfPrimitiveValues<string>("string"); },
         "maxImageBytes": n => { publishTargetLimits.maxImageBytes = n.getNumberValue(); },
         "maxImages": n => { publishTargetLimits.maxImages = n.getNumberValue(); },
+        "requiresAltText": n => { publishTargetLimits.requiresAltText = n.getBooleanValue(); },
         "requiresMedia": n => { publishTargetLimits.requiresMedia = n.getBooleanValue(); },
+        "requiresText": n => { publishTargetLimits.requiresText = n.getBooleanValue(); },
         "supportsThreads": n => { publishTargetLimits.supportsThreads = n.getBooleanValue(); },
+        "supportsVideo": n => { publishTargetLimits.supportsVideo = n.getBooleanValue(); },
         "textLimits": n => { publishTargetLimits.textLimits = n.getCollectionOfObjectValues<PublishTargetTextLimit>(createPublishTargetTextLimitFromDiscriminatorValue); },
     }
 }
@@ -7031,6 +7076,12 @@ export interface GetDeadLetterResponse extends AdditionalDataHolder, Parsable {
      */
     detail?: DeadLetterDetail | null;
 }
+export interface GetProviderCapabilitiesForTenantResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The items property
+     */
+    items?: ProviderCapabilityItem[] | null;
+}
 export interface GetPublishTargetsForTenantResponse extends AdditionalDataHolder, Parsable {
     /**
      * What the server accepts when an image is attached to a post, whatever thedestinations: the composer's cap while no destination limits are known.
@@ -7921,6 +7972,23 @@ export interface ProjectListItem extends AdditionalDataHolder, Parsable {
     name?: string | null;
 }
 /**
+ * One provider's registry defaults: `Enabled` is the operator switch (connect,reconnect, publish target, publish and schedule) the connect screen and the composer read.
+ */
+export interface ProviderCapabilityItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The enabled property
+     */
+    enabled?: boolean | null;
+    /**
+     * The account's effective capability, so the composer needs no hardcoded numbers(issues #2169, #2173). `TextLimits` are measured by unit.
+     */
+    limits?: PublishTargetLimits | null;
+    /**
+     * The provider property
+     */
+    provider?: string | null;
+}
+/**
  * History row: one publication with the context History renders.
  */
 export interface PublicationListItem extends AdditionalDataHolder, Parsable {
@@ -8057,13 +8125,25 @@ export interface PublishTargetLimits extends AdditionalDataHolder, Parsable {
      */
     maxImages?: number | null;
     /**
+     * True when every image needs alt text for this destination.
+     */
+    requiresAltText?: boolean | null;
+    /**
      * True for a photo network: a post without an image is refused.
      */
     requiresMedia?: boolean | null;
     /**
+     * False for an image-led destination: a post may then have no text.
+     */
+    requiresText?: boolean | null;
+    /**
      * False when follow-up segments cannot be published to this destination.
      */
     supportsThreads?: boolean | null;
+    /**
+     * True when this destination can carry a video.
+     */
+    supportsVideo?: boolean | null;
     /**
      * The textLimits property
      */
@@ -9802,6 +9882,18 @@ export function serializeGetDeadLetterResponse(writer: SerializationWriter, getD
 }
 /**
  * Serializes information the current object
+ * @param GetProviderCapabilitiesForTenantResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeGetProviderCapabilitiesForTenantResponse(writer: SerializationWriter, getProviderCapabilitiesForTenantResponse: Partial<GetProviderCapabilitiesForTenantResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!getProviderCapabilitiesForTenantResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<ProviderCapabilityItem>("items", getProviderCapabilitiesForTenantResponse.items, serializeProviderCapabilityItem);
+    writer.writeAdditionalData(getProviderCapabilitiesForTenantResponse.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param GetPublishTargetsForTenantResponse The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -10433,6 +10525,20 @@ export function serializeProjectListItem(writer: SerializationWriter, projectLis
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param ProviderCapabilityItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeProviderCapabilityItem(writer: SerializationWriter, providerCapabilityItem: Partial<ProviderCapabilityItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!providerCapabilityItem || isSerializingDerivedType) { return; }
+    writer.writeBooleanValue("enabled", providerCapabilityItem.enabled);
+    writer.writeObjectValue<PublishTargetLimits>("limits", providerCapabilityItem.limits, serializePublishTargetLimits);
+    writer.writeStringValue("provider", providerCapabilityItem.provider);
+    writer.writeAdditionalData(providerCapabilityItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param PublicationListItem The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -10511,8 +10617,11 @@ export function serializePublishTargetLimits(writer: SerializationWriter, publis
     writer.writeCollectionOfPrimitiveValues<string>("acceptedImageContentTypes", publishTargetLimits.acceptedImageContentTypes);
     writer.writeNumberValue("maxImageBytes", publishTargetLimits.maxImageBytes);
     writer.writeNumberValue("maxImages", publishTargetLimits.maxImages);
+    writer.writeBooleanValue("requiresAltText", publishTargetLimits.requiresAltText);
     writer.writeBooleanValue("requiresMedia", publishTargetLimits.requiresMedia);
+    writer.writeBooleanValue("requiresText", publishTargetLimits.requiresText);
     writer.writeBooleanValue("supportsThreads", publishTargetLimits.supportsThreads);
+    writer.writeBooleanValue("supportsVideo", publishTargetLimits.supportsVideo);
     writer.writeCollectionOfObjectValues<PublishTargetTextLimit>("textLimits", publishTargetLimits.textLimits, serializePublishTargetTextLimit);
     writer.writeAdditionalData(publishTargetLimits.additionalData);
 }

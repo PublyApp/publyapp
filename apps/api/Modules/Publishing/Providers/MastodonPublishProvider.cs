@@ -50,10 +50,12 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 	}
 
 	public async Task<PublishResult> PublishAsync(PublishRequest request, CancellationToken cancellationToken) {
-		if (request.Provider == SocialProvider.Pixelfed
+		if (ProviderCapabilityRegistry.For(request.Provider).RequiresMedia
 			&& request.Media.Count == 0
 			&& request.CompletedSegments.All(segment => segment.Position != 0)) {
-			return new PublishResult.ContentFailure("Pixelfed posts need at least one image");
+			return new PublishResult.ContentFailure(
+				$"{MastodonPublishProvider._Network(request)} posts need at least one image"
+			);
 		}
 
 		var client = this._HttpClientFactory.CreateClient(MastodonHostGuard.HttpClientName);

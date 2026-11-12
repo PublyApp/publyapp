@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { useCanManageSocialAccounts } from '~/lib/permissions/use-has-tenant-permission';
+import { useDisabledProviders } from '~/lib/query/provider-capabilities';
 import {
 	toSocialAccountRows,
 	useSocialAccountsQuery,
@@ -18,12 +19,16 @@ export const NeedsReconnectBanner = ({ tenantId }: { tenantId: string }) => {
 	const accountsQuery = useSocialAccountsQuery({ tenantId });
 	// preload-exempt: session-stable permission gate (staleTime Infinity), fetched once per workspace tenant
 	const canManage = useCanManageSocialAccounts();
+	// preload-exempt: app-shell widget on a resolved workspace tenant; static operator flag, fail-open until answered, Integrations preloads the same factory
+	const disabledProviders = useDisabledProviders(tenantId);
 
 	return (
 		<QueryDisplay query={accountsQuery} variant="discreet">
 			{({ data }) => {
 				const stalled = toSocialAccountRows(data).filter(
-					(row) => row.statusWire === 'needs_reconnect',
+					(row) =>
+						row.statusWire === 'needs_reconnect' &&
+						!disabledProviders.has(row.provider),
 				);
 
 				if (stalled.length === 0) {

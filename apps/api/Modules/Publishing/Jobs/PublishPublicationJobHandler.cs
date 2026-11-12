@@ -31,6 +31,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 	private readonly ISocialSessionProvider _SocialSessionProvider;
 	private readonly IPublicationStatusTransitionService _Transitions;
 	private readonly IPublishAttemptJournal _Journal;
+	private readonly IProviderAvailability _ProviderAvailability;
 
 	public PublishPublicationJobHandler(
 		AppDbContext db,
@@ -38,7 +39,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		IPublishProvider publishProvider,
 		ISocialSessionProvider socialSessionProvider,
 		IPublicationStatusTransitionService transitions,
-		IPublishAttemptJournal journal
+		IPublishAttemptJournal journal,
+		IProviderAvailability providerAvailability
 	) {
 		this._Db = db;
 		this._FileStorage = fileStorage;
@@ -46,6 +48,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		this._SocialSessionProvider = socialSessionProvider;
 		this._Transitions = transitions;
 		this._Journal = journal;
+		this._ProviderAvailability = providerAvailability;
 	}
 
 	public string JobType {
@@ -125,12 +128,29 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			.AsNoTracking()
 			.Where(candidate => candidate.Id == publication.SocialAccountId && !candidate.IsDeleted)
 			.SingleOrDefaultAsync(cancellationToken);
+		if (targetAccount is not null && !this._ProviderAvailability.IsEnabled(targetAccount.Provider)) {
+			// The operator switched the provider off (#2184): nothing is sent. A plain
+			// retry works once it is enabled again.
+			await this._FailOrParkAsync(
+				new MarkPublicationFailedArgs(
+					publicationId,
+					publication.TenantId,
+					$"{PublishPublicationJobHandler._ProgressPrefix(completedSegments.Count, totalSegments)}"
+						+ $"{SocialAccountWire.FormatProviderLabel(targetAccount.Provider)} publishing is disabled by the operator; retry once it is enabled again",
+					PublicationFailureCategory.RetryLater
+				),
+				cancellationToken
+			);
+			return JobOutcome.Succeeded;
+		}
+
 		if (targetAccount is not null) {
 			var contentFailure = PublishValidationService.Validate(
 				effective.Body,
 				effective.ImageContentTypes,
 				[ProviderCapabilityRegistry.Resolve(targetAccount)],
-				followUps
+				followUps,
+				effective.ImageAltTexts
 			);
 			if (contentFailure is not null) {
 				await this._FailOrParkAsync(

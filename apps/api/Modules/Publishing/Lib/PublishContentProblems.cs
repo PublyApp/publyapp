@@ -25,6 +25,10 @@ public static class PublishContentProblems {
 			extensions["contentType"] = failure.ContentType;
 		}
 
+		if (failure.ProviderLabel is not null) {
+			extensions["providerLabel"] = failure.ProviderLabel;
+		}
+
 		if (failure.Destination is not null) {
 			extensions["destination"] = failure.Destination;
 			extensions["socialAccountId"] = failure.SocialAccountId;
@@ -83,6 +87,14 @@ public static class PublishContentProblems {
 
 		if (kind == PublishContentFailureKind.TooManyImages) {
 			return ResponseKeys.PublishImagesTooMany;
+		}
+
+		if (kind == PublishContentFailureKind.ProviderDisabled) {
+			return ResponseKeys.PublishProviderDisabled;
+		}
+
+		if (kind == PublishContentFailureKind.AltTextRequired) {
+			return ResponseKeys.PublishImageAltTextRequired;
 		}
 
 		if (kind == PublishContentFailureKind.UnsupportedImageType) {

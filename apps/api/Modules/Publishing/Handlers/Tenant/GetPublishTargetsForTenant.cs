@@ -5,6 +5,8 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Publishing.Services;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
+using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 
@@ -25,6 +27,7 @@ public sealed class GetPublishTargetsForTenant {
 		[FromQuery(Name = "project_id")] string? projectId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPublishTargetService publishTargetService,
+		[FromServices] IProviderAvailability providerAvailability,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
@@ -50,8 +53,14 @@ public sealed class GetPublishTargetsForTenant {
 			cancellationToken
 		);
 
+		// A provider the operator switched off is not offered as a destination (#2184).
+		var disabled = Enum.GetValues<SocialProvider>()
+			.Where(provider => !providerAvailability.IsEnabled(provider))
+			.Select(SocialAccountWire.FormatProvider)
+			.ToHashSet();
+
 		return TypedResults.Ok(new GetPublishTargetsForTenantResponse {
-			Items = items,
+			Items = items.Where(item => !disabled.Contains(item.Provider)).ToList(),
 			AttachLimits = PublishTargetAttachLimits.FromRegistry(),
 		});
 	}

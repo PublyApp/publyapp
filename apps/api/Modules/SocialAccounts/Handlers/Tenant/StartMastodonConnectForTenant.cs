@@ -11,7 +11,9 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
+using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
+using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
 
@@ -67,6 +69,7 @@ public sealed class StartMastodonConnectForTenant {
 		[FromBody] StartMastodonConnectBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] MastodonOAuthService oauthService,
+		[FromServices] IProviderAvailability providerAvailability,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
@@ -77,6 +80,10 @@ public sealed class StartMastodonConnectForTenant {
 
 		var instance = body.GetInstance();
 		var provider = body.GetProvider();
+		if (!providerAvailability.IsEnabled(provider)) {
+			return ProviderDisabledProblem.For(provider);
+		}
+
 		var network = provider == SocialProvider.Pixelfed ? "Pixelfed" : "Mastodon";
 		var result = await oauthService.StartAsync(
 			tenantId, account.UserId, instance, cancellationToken, provider, body.GetSocialAccountId()

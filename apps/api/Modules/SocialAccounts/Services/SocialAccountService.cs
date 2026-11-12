@@ -144,6 +144,17 @@ public static class SocialAccountWire {
 		};
 	}
 
+	/// <summary>The provider's display name for plain-words causes ("Discord", not "discord_webhook").</summary>
+	public static string FormatProviderLabel(SocialProvider provider) {
+		return provider switch {
+			SocialProvider.Bluesky => "Bluesky",
+			SocialProvider.Mastodon => "Mastodon",
+			SocialProvider.Pixelfed => "Pixelfed",
+			SocialProvider.DiscordWebhook => "Discord",
+			_ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unhandled SocialProvider"),
+		};
+	}
+
 	public static string FormatProvider(SocialProvider provider) {
 		return provider switch {
 			SocialProvider.Bluesky => "bluesky",
