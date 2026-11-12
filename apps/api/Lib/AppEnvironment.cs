@@ -179,7 +179,9 @@ public class AppEnvironment {
 	public IReadOnlyList<string> JOB_REGISTRY_DLQ_ORPHAN_ALLOWLIST { get; }
 
 	// Operator switch per provider (#2184): wire provider names (bluesky, mastodon,
-	// pixelfed, discord_webhook) that tenants can no longer connect. Empty = all enabled.
+	// pixelfed, discord_webhook) that tenants can no longer connect or publish to. Read by
+	// the api (connect, targets, publish/schedule refusal) AND the worker (dispatch), so
+	// both roles must receive it. Empty = all enabled.
 	public IReadOnlyList<string> DISABLED_PUBLISH_PROVIDERS { get; }
 
 	// Maps the HTTP request surface (endpoints + middleware). Computed the same way

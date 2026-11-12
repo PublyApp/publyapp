@@ -18131,7 +18131,7 @@
           "items": {
             "type": "array",
             "items": {
-              "description": "One provider's registry defaults: `Enabled` is the operator switch, so the\nconnect screen needs no hardcoded provider list.",
+              "description": "One provider's registry defaults: `Enabled` is the operator switch the connect\nscreen and the composer read.",
               "$ref": "#/components/schemas/ProviderCapabilityItem"
             }
           }
@@ -19449,7 +19449,7 @@
             "$ref": "#/components/schemas/PublishTargetLimits"
           }
         },
-        "description": "One provider's registry defaults: `Enabled` is the operator switch, so the\nconnect screen needs no hardcoded provider list."
+        "description": "One provider's registry defaults: `Enabled` is the operator switch the connect\nscreen and the composer read."
       },
       "PublicationListItem": {
         "required": [

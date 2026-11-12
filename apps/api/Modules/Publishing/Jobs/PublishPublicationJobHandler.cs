@@ -135,7 +135,8 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				new MarkPublicationFailedArgs(
 					publicationId,
 					publication.TenantId,
-					$"{SocialAccountWire.FormatProvider(targetAccount.Provider)} publishing is disabled by the operator; retry once it is enabled again",
+					$"{PublishPublicationJobHandler._ProgressPrefix(completedSegments.Count, totalSegments)}"
+						+ $"{SocialAccountWire.FormatProviderLabel(targetAccount.Provider)} publishing is disabled by the operator; retry once it is enabled again",
 					PublicationFailureCategory.RetryLater
 				),
 				cancellationToken

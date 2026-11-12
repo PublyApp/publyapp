@@ -250,4 +250,28 @@ public sealed class PublishValidationServiceSpec {
 			.Kind.Should().Be(PublishContentFailureKind.TooManyImages);
 		PublishValidationService.Validate("123456", [], [ProviderCapabilityRegistry.Bluesky]).Should().BeNull();
 	}
+
+	// #2184: an operator-disabled provider is refused at validation with its display name.
+	[Fact]
+	public void ItShouldRefuseADestinationWhoseProviderTheOperatorDisabled() {
+		var account = new PublyApp.Api.Modules.SocialAccounts.Entities.SocialAccount {
+			TenantId = Guid.NewGuid(),
+			Id = Guid.NewGuid(),
+			Provider = PublyApp.Api.Modules.SocialAccounts.Entities.SocialProvider.DiscordWebhook,
+			ExternalAccountId = "hook",
+			DisplayHandle = "#releases",
+			ProtectedCredentials = "x",
+		};
+		var content = new EffectiveContent(["hello"], []);
+
+		var failure = PublishValidationServiceSpec._Failure(
+			PublishValidationService.ValidateDestination(content, account, _ => false)
+		);
+
+		failure.Kind.Should().Be(PublishContentFailureKind.ProviderDisabled);
+		failure.Destination.Should().Be("#releases");
+		failure.Cause.Should().Contain("Discord is disabled").And.NotContain("discord_webhook");
+		PublishValidationService.ValidateDestination(content, account, _ => true).Should().BeNull();
+		PublishValidationService.ValidateDestination(content, account).Should().BeNull();
+	}
 }

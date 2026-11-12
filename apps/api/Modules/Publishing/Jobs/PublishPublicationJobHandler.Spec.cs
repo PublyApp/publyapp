@@ -435,8 +435,9 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		using var db = await this._NewDbAsync();
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var publishProvider = new FakePublishProvider(new PublishResult.Published("remote-1", "https://example/1"));
+		var sessions = FakeSessions.Opened();
 		var handler = PublishPublicationJobHandlerSpec._NewHandler(
-			db, publishProvider, FakeSessions.Opened(), null, new BlueskyDisabled()
+			db, publishProvider, sessions, null, new BlueskyDisabled()
 		);
 
 		var outcome = await handler.HandleAsync(
@@ -453,9 +454,39 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		var publication = await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId);
 		await db.Entry(publication).ReloadAsync();
 		publication.Status.Should().Be(PublicationStatus.Failed);
-		publication.LastError.Should().Contain("disabled by the operator");
+		publication.LastError.Should().Contain("Bluesky publishing is disabled by the operator");
 		publication.FailureCategory.Should().Be(PublicationFailureCategory.RetryLater);
 		publishProvider.Requests.Should().BeEmpty("a disabled provider is never contacted");
+		sessions.Opens.Should().Be(0, "not even a session is opened for it");
+	}
+
+	// A thread that already landed two segments keeps saying so in the disabled cause.
+	[Fact]
+	public async Task ItShouldKeepTheThreadProgressInTheDisabledCause() {
+		using var db = await this._NewDbAsync();
+		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
+		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
+		db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+			TenantId = seeded.TenantId,
+			PublicationId = seeded.PublicationId,
+			SegmentPosition = 0,
+			ExternalRecordId = "at://r/0",
+			ExternalCid = "cid-0",
+			ExternalUrl = "https://u/0",
+		});
+		await db.SaveChangesAsync();
+		var handler = PublishPublicationJobHandlerSpec._NewHandler(
+			db, new FakePublishProvider(PublishPublicationJobHandlerSpec._Published()), FakeSessions.Opened(), null, new BlueskyDisabled()
+		);
+
+		await handler.HandleAsync(
+			PublishPublicationJobHandlerSpec._NewContext(PublishPublicationJobHandlerSpec._PayloadOf(seeded)),
+			CancellationToken.None
+		);
+
+		var publication = await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId);
+		await db.Entry(publication).ReloadAsync();
+		publication.LastError.Should().StartWith("Published 1 of 3 segments; segment 2 failed: Bluesky publishing is disabled");
 	}
 
 	[Fact]
@@ -1866,10 +1897,13 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			this._Result = result;
 		}
 
+		public int Opens { get; private set; }
+
 		public Task<SocialSessionResult> OpenSessionAsync(
 			Guid socialAccountId,
 			CancellationToken cancellationToken
 		) {
+			this.Opens++;
 			return Task.FromResult(this._Result);
 		}
 	}

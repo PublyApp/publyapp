@@ -195,7 +195,8 @@ public static class RenditionResolver {
 		SourceContent source,
 		IReadOnlyList<(Guid PublicationId, RenditionOverrides? Requested, SocialAccount Account)> fresh,
 		IReadOnlyDictionary<Guid, (Guid SourcePublicationId, int Carried)> carried,
-		CancellationToken cancellationToken
+		CancellationToken cancellationToken,
+		Func<SocialProvider, bool>? isProviderEnabled = null
 	) {
 		var sourceIds = carried.Values
 			.Select(entry => entry.SourcePublicationId)
@@ -227,7 +228,7 @@ public static class RenditionResolver {
 				}
 			}
 
-			var invalid = RenditionResolver._Validate(source, overrides, account);
+			var invalid = RenditionResolver._Validate(source, overrides, account, isProviderEnabled);
 			if (invalid is not null) {
 				return invalid;
 			}
@@ -247,7 +248,8 @@ public static class RenditionResolver {
 	private static StageRenditionsResult? _Validate(
 		SourceContent source,
 		RenditionOverrides? overrides,
-		SocialAccount account
+		SocialAccount account,
+		Func<SocialProvider, bool>? isProviderEnabled
 	) {
 		if (overrides is not null) {
 			var overrideFailure = RenditionWire.Validate(source, overrides);
@@ -260,7 +262,7 @@ public static class RenditionResolver {
 		}
 
 		var contentFailure = PublishValidationService.ValidateDestination(
-			RenditionResolver.Resolve(source, overrides), account
+			RenditionResolver.Resolve(source, overrides), account, isProviderEnabled
 		);
 		return contentFailure is null
 			? null

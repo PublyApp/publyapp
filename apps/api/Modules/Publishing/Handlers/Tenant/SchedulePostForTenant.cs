@@ -14,6 +14,7 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.Publishing.Services;
+using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 
@@ -149,6 +150,7 @@ public sealed class SchedulePostForTenant {
 		[FromBody] SchedulePostBody body,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPublicationService publicationService,
+		[FromServices] IProviderAvailability providerAvailability,
 		CancellationToken cancellationToken = default
 	) {
 		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
@@ -172,7 +174,8 @@ public sealed class SchedulePostForTenant {
 				PostId: postIdGuid,
 				Destinations: body.GetDestinations(),
 				TimeZone: body.GetTimeZone(),
-				ActorUserId: account.UserId
+				ActorUserId: account.UserId,
+				IsProviderEnabled: providerAvailability.IsEnabled
 			),
 			cancellationToken
 		);

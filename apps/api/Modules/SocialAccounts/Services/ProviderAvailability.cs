@@ -16,8 +16,19 @@ public interface IProviderAvailability {
 
 [Service(ServiceLifetime.Scoped)]
 public sealed class ProviderAvailability : IProviderAvailability {
+	private readonly Func<IReadOnlyList<string>> _DisabledWireNames;
+
+	public ProviderAvailability()
+		: this(() => AppEnvironment.Instance.DISABLED_PUBLISH_PROVIDERS) {
+	}
+
+	// Internal: the container only sees the public constructor.
+	internal ProviderAvailability(Func<IReadOnlyList<string>> disabledWireNames) {
+		this._DisabledWireNames = disabledWireNames;
+	}
+
 	public bool IsEnabled(SocialProvider provider) {
-		return ProviderAvailability.IsEnabled(AppEnvironment.Instance.DISABLED_PUBLISH_PROVIDERS, provider);
+		return ProviderAvailability.IsEnabled(this._DisabledWireNames(), provider);
 	}
 
 	/// <summary>The pure rule: the provider's wire name is not in the operator's list.</summary>

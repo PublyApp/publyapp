@@ -11,19 +11,9 @@ namespace PublyApp.Api.Modules.SocialAccounts.Lib;
 /// <c>provider</c> names the refused provider.
 /// </summary>
 public static class ProviderDisabledProblem {
-	private static string _Label(SocialProvider provider) {
-		return provider switch {
-			SocialProvider.Bluesky => "Bluesky",
-			SocialProvider.Mastodon => "Mastodon",
-			SocialProvider.Pixelfed => "Pixelfed",
-			SocialProvider.DiscordWebhook => "Discord",
-			_ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unhandled SocialProvider"),
-		};
-	}
-
 	public static AppValidationProblemHttpResult For(SocialProvider provider) {
 		var name = SocialAccountWire.FormatProvider(provider);
-		var reason = $"{ProviderDisabledProblem._Label(provider)} is disabled by the operator and cannot be connected.";
+		var reason = $"{SocialAccountWire.FormatProviderLabel(provider)} is disabled by the operator and cannot be connected.";
 		return TypedProblems.ValidationProblem(
 			reason,
 			ResponseKeys.ProviderDisabled,

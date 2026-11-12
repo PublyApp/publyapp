@@ -89,6 +89,47 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
+	// #2184: a destination whose provider the operator switched off is refused at request
+	// time, not accepted and failed later; nothing is queued.
+	[Fact]
+	public async Task ItShouldRefuseADisabledProviderWith422AndQueueNothing() {
+		var (acmeId, acmeToken) = await this._LoginAsAcmeAdminAsync();
+		var postId = await this._SeedAcmePostAsync();
+		var (accountA, _) = await this._SeedTwoAcmeAccountsAsync();
+		var beforePublications = await this._CountPublicationsAsync();
+		var beforeJobs = await this._CountAcmePublishJobsAsync(acmeId);
+		var http = this._ClientWithBlueskyOff();
+
+		using var request = new HttpRequestMessage(HttpMethod.Post, PublishNowForTenantSpec._PublishUrl(postId))
+			.WithSessionToken(acmeToken).WithTenantId(acmeId);
+		request.Content = JsonContent.Create(new { accountIds = new[] { accountA.ToString() } });
+		using var response = await http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+		using var problem = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+		problem.RootElement.GetProperty("translationKey").GetString().Should().Be("provider-disabled");
+		problem.RootElement.GetProperty("detail").GetString().Should().Contain("Bluesky is disabled");
+		(await this._CountPublicationsAsync()).Should().Be(beforePublications);
+		(await this._CountAcmePublishJobsAsync(acmeId)).Should().Be(beforeJobs);
+	}
+
+	private sealed class BlueskyOff : PublyApp.Api.Modules.SocialAccounts.Services.IProviderAvailability {
+		public bool IsEnabled(SocialProvider provider) {
+			return provider != SocialProvider.Bluesky;
+		}
+	}
+
+	private HttpClient _ClientWithBlueskyOff() {
+		var factory = this._Fixture.Factory.WithWebHostBuilder(builder => builder.ConfigureServices(
+			services => services.AddSingleton<PublyApp.Api.Modules.SocialAccounts.Services.IProviderAvailability>(
+				new BlueskyOff()
+			)
+		));
+		return factory.CreateClient(new Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactoryClientOptions {
+			HandleCookies = false,
+		});
+	}
+
 	[Fact]
 	public async Task ItShouldReturn404ForAnotherTenantsPostAndWriteNothing() {
 		var (acmeId, publisherEmail) = await this._CreatePermittedUserAsync(

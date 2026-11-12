@@ -85,6 +85,10 @@ public static class PublishContentProblems {
 			return ResponseKeys.PublishImagesTooMany;
 		}
 
+		if (kind == PublishContentFailureKind.ProviderDisabled) {
+			return ResponseKeys.ProviderDisabled;
+		}
+
 		if (kind == PublishContentFailureKind.AltTextRequired) {
 			return ResponseKeys.PublishImageAltTextRequired;
 		}

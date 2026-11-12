@@ -279,41 +279,9 @@ type ConnectDrawerKey =
 	| 'discordOpen'
 	| 'connectOpen';
 
-/** One connect button per provider: the wire name the operator switch uses, the
- * drawer it opens and its label. Bluesky is the primary action. */
-const CONNECT_BUTTONS: readonly {
-	provider: string;
-	drawer: ConnectDrawerKey;
-	labelKey: string;
-	primary: boolean;
-}[] = [
-	{
-		provider: 'mastodon',
-		drawer: 'mastodonOpen',
-		labelKey: 'connect-mastodon',
-		primary: false,
-	},
-	{
-		provider: 'pixelfed',
-		drawer: 'pixelfedOpen',
-		labelKey: 'connect-pixelfed',
-		primary: false,
-	},
-	{
-		provider: 'discord_webhook',
-		drawer: 'discordOpen',
-		labelKey: 'connect-discord',
-		primary: false,
-	},
-	{
-		provider: 'bluesky',
-		drawer: 'connectOpen',
-		labelKey: 'connect-bluesky',
-		primary: true,
-	},
-];
-
-/** The connect buttons of the providers the operator has not switched off. */
+/** The connect buttons of the providers the operator has not switched off: the
+ * wire name the switch uses, the drawer each opens and its label. Bluesky is
+ * the primary action. */
 const ConnectButtons = ({
 	disabledProviders,
 	disabled,
@@ -324,23 +292,49 @@ const ConnectButtons = ({
 	onOpen: (key: ConnectDrawerKey) => void;
 }) => {
 	const { t } = useTranslation('settings');
+	const buttons = [
+		{
+			provider: 'mastodon',
+			drawer: 'mastodonOpen',
+			label: t('connect-mastodon'),
+			primary: false,
+		},
+		{
+			provider: 'pixelfed',
+			drawer: 'pixelfedOpen',
+			label: t('connect-pixelfed'),
+			primary: false,
+		},
+		{
+			provider: 'discord_webhook',
+			drawer: 'discordOpen',
+			label: t('connect-discord'),
+			primary: false,
+		},
+		{
+			provider: 'bluesky',
+			drawer: 'connectOpen',
+			label: t('connect-bluesky'),
+			primary: true,
+		},
+	] as const;
 
 	return (
 		<div className="flex flex-wrap justify-end gap-2">
-			{CONNECT_BUTTONS.filter(
-				(button) => !disabledProviders.has(button.provider),
-			).map((button) => (
-				<Button
-					key={button.provider}
-					type="button"
-					variant={button.primary ? 'default' : 'outline'}
-					disabled={disabled}
-					onClick={() => onOpen(button.drawer)}
-				>
-					<IconPlugConnected aria-hidden="true" className="size-4" />
-					{t(button.labelKey)}
-				</Button>
-			))}
+			{buttons
+				.filter((button) => !disabledProviders.has(button.provider))
+				.map((button) => (
+					<Button
+						key={button.provider}
+						type="button"
+						variant={button.primary ? 'default' : 'outline'}
+						disabled={disabled}
+						onClick={() => onOpen(button.drawer)}
+					>
+						<IconPlugConnected aria-hidden="true" className="size-4" />
+						{button.label}
+					</Button>
+				))}
 		</div>
 	);
 };

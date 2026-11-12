@@ -13,6 +13,8 @@ public enum PublishContentFailureKind {
 	UnsupportedImageType,
 	// The destination refuses an image without alt text and one has none (#2184).
 	AltTextRequired,
+	// The operator switched the destination's provider off: refused before anything is queued (#2184).
+	ProviderDisabled,
 	// A photo network (Pixelfed) was selected and the post has no image (#2175).
 	MediaRequired,
 	// A thread was aimed at a destination that cannot publish follow-ups (#2175).
@@ -42,7 +44,9 @@ public sealed record PublishContentFailure(
 	string? Destination = null,
 	Guid? SocialAccountId = null,
 	// The content types the destination accepts, for an UnsupportedImageType cause (#2184).
-	IReadOnlyList<string>? AcceptedImageContentTypes = null
+	IReadOnlyList<string>? AcceptedImageContentTypes = null,
+	// Display name of the provider, for a ProviderDisabled cause.
+	string? ProviderLabel = null
 ) {
 	public string Cause {
 		get {
@@ -112,6 +116,11 @@ public sealed record PublishContentFailure(
 					+ $"{this.Provider} accepts. Use {PublishContentFailure._DescribeTypes(this.AcceptedImageContentTypes)}.";
 			}
 
+			if (this.Kind == PublishContentFailureKind.ProviderDisabled) {
+				return $"{this.ProviderLabel ?? this.Provider} is disabled by the operator and cannot be published to. "
+					+ "Deselect it or try again once it is enabled.";
+			}
+
 			if (this.Kind == PublishContentFailureKind.AltTextRequired) {
 				return $"{this.Provider} needs a description (alt text) on every image: "
 					+ $"image {this.ImageIndex} has none.";
@@ -138,8 +147,22 @@ public static class PublishValidationService {
 	/// </summary>
 	public static PublishContentFailure? ValidateDestination(
 		EffectiveContent content,
-		SocialAccount account
+		SocialAccount account,
+		Func<SocialProvider, bool>? isProviderEnabled = null
 	) {
+		if (isProviderEnabled is not null && !isProviderEnabled(account.Provider)) {
+			return new PublishContentFailure(
+				PublishContentFailureKind.ProviderDisabled,
+				SocialAccountWire.FormatProvider(account.Provider),
+				"provider",
+				0,
+				0,
+				Destination: account.DisplayHandle,
+				SocialAccountId: account.GetRequiredId(),
+				ProviderLabel: SocialAccountWire.FormatProviderLabel(account.Provider)
+			);
+		}
+
 		var failure = PublishValidationService.Validate(
 			content.Body,
 			content.ImageContentTypes,

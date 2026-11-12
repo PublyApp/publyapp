@@ -33,15 +33,28 @@ public sealed class ProviderAvailabilitySpec {
 		ProviderAvailability.IsKnownWireName(name).Should().Be(known);
 	}
 
-	// The service is the wiring: it applies the rule to the list AppEnvironment parsed from
-	// DISABLED_PUBLISH_PROVIDERS, whatever the ambient value is.
+	// The service reads whatever list its source yields, per call.
 	[Fact]
-	public void ItShouldApplyTheRuleToTheListOfTheEnvironmentSettings() {
+	public void ItShouldAnswerFromTheListItsSourceYields() {
+		IReadOnlyList<string> disabled = ["pixelfed"];
+		var service = new ProviderAvailability(() => disabled);
+
+		service.IsEnabled(SocialProvider.Pixelfed).Should().BeFalse();
+		service.IsEnabled(SocialProvider.Mastodon).Should().BeTrue();
+		disabled = ["mastodon"];
+		service.IsEnabled(SocialProvider.Pixelfed).Should().BeTrue();
+		service.IsEnabled(SocialProvider.Mastodon).Should().BeFalse();
+	}
+
+	// The public constructor wires the operator list AppEnvironment parsed.
+	[Fact]
+	public void ItShouldDefaultToTheListOfTheEnvironmentSettings() {
 		var configured = AppEnvironment.Initialize().DISABLED_PUBLISH_PROVIDERS;
 		var service = new ProviderAvailability();
 
-		foreach (var provider in Enum.GetValues<SocialProvider>()) {
-			service.IsEnabled(provider).Should().Be(ProviderAvailability.IsEnabled(configured, provider));
-		}
+		Enum.GetValues<SocialProvider>()
+			.Where(service.IsEnabled)
+			.Should().BeEquivalentTo(Enum.GetValues<SocialProvider>()
+				.Where(provider => ProviderAvailability.IsEnabled(configured, provider)));
 	}
 }

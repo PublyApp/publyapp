@@ -25,7 +25,9 @@ public record SchedulePublicationArgs(
 	Guid PostId,
 	IReadOnlyList<ScheduleDestination> Destinations,
 	string TimeZone,
-	Guid ActorUserId
+	Guid ActorUserId,
+	// The operator switch (#2184): a destination whose provider is off is refused with ContentInvalid.
+	Func<SocialProvider, bool>? IsProviderEnabled = null
 );
 
 /// <summary>
@@ -169,7 +171,8 @@ public record EditPostScheduleArgs(
 	PatchField<string> Body,
 	PatchField<DateTime> ScheduledAtLocal,
 	PatchField<string> TimeZone,
-	Guid ActorUserId
+	Guid ActorUserId,
+	Func<SocialProvider, bool>? IsProviderEnabled = null
 );
 
 /// <summary>
@@ -393,7 +396,8 @@ public sealed class PublicationService : IPublicationService {
 				))
 				.ToList(),
 			carried,
-			cancellationToken
+			cancellationToken,
+			args.IsProviderEnabled
 		);
 		if (staged is not StageRenditionsResult.Staged) {
 			// Nothing is saved, but the new publications and segment copies are still
@@ -554,7 +558,8 @@ public sealed class PublicationService : IPublicationService {
 					editedSource,
 					renditions.TryGetValue(target.GetRequiredId(), out var overrides) ? overrides : null
 				),
-				account
+				account,
+				args.IsProviderEnabled
 			);
 			if (contentFailure is not null) {
 				return new EditPostScheduleResult.ContentInvalid(contentFailure);

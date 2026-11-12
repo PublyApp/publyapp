@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { getClientManager } from '~/lib/api-client/client-manager';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
@@ -40,15 +41,19 @@ export const useDisabledProviders = (
 	tenantId: string | null,
 ): ReadonlySet<string> => {
 	const query = useQuery({
-		queryKey: providerCapabilitiesQueryOptions.queryKey({
-			tenantId: tenantId ?? '',
-		}),
+		// The tenant factory refuses an empty tenant id, so no tenant uses a
+		// placeholder key and the query stays disabled.
+		queryKey:
+			tenantId === null
+				? [...PROVIDER_CAPABILITIES_QUERY_KEY, 'no-tenant']
+				: providerCapabilitiesQueryOptions.queryKey({ tenantId }),
 		queryFn: () =>
 			providerCapabilitiesQueryOptions.fetcher({ tenantId: tenantId ?? '' }),
 		enabled: tenantId !== null,
 	});
 
-	return toDisabledProviders(query.data);
+	// Stable while the answer is unchanged: callers use it as a memo dependency.
+	return useMemo(() => toDisabledProviders(query.data), [query.data]);
 };
 
 /** Wire names of the providers the operator switched off. Fail-open: with no

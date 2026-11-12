@@ -19,8 +19,9 @@ using Xunit;
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
 
 // GET /publishing/capabilities (#2184): the registry defaults per provider plus the
-// operator's enabled switch. Read by the composer (publish verb) and the connect screen
-// (manage verb), so either verb opens it and nothing else does.
+// operator's enabled switch. Read by the composer (publish verb) and the integrations
+// page (view verb, plus manage for the connect buttons): any of the three opens it and
+// nothing else does.
 public sealed class GetProviderCapabilitiesForTenantSpec : IClassFixture<ApiFixture> {
 	private sealed class AllOn : IProviderAvailability {
 		public bool IsEnabled(SocialProvider provider) {
@@ -124,7 +125,7 @@ public sealed class GetProviderCapabilitiesForTenantSpec : IClassFixture<ApiFixt
 	}
 
 	[Fact]
-	public async Task ItShouldRefuseACallerWithNeitherThePublishNorTheManageVerb() {
+	public async Task ItShouldRefuseACallerWithoutThePublishManageOrViewVerb() {
 		await this._AssertStatusForVerbAsync(AppPermissions.Tenant.Posts.VIEW.Key, HttpStatusCode.Forbidden);
 	}
 
