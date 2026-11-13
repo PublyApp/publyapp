@@ -763,4 +763,29 @@ describe('PostImagePicker (size pre-check, #2421)', () => {
 		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
 		expect(screen.getByRole('alert').textContent).toBe('Too large: 2 MB');
 	});
+
+	test('deferred: a queued file above a stricter cap stays, marked with the same text', () => {
+		const onSelect = vi.fn();
+		const queued: DeferredImageSelection[] = [
+			{ id: 'keep', file: pngFile('small.png'), altText: '' },
+			{ id: 'big', file: oversizePng('big.png'), altText: '' },
+		];
+
+		render(
+			<PostImagePicker
+				limits={LIMITS}
+				selections={queued}
+				onSelect={onSelect}
+			/>,
+		);
+
+		// Nothing is dropped or reported: both cards stay, one is marked.
+		expect(onSelect).not.toHaveBeenCalled();
+		expect(
+			screen.getAllByTestId('tenant-posts-create-image-card'),
+		).toHaveLength(2);
+		const marks = screen.getAllByTestId('tenant-posts-create-image-error');
+		expect(marks).toHaveLength(1);
+		expect(marks[0]?.textContent).toBe('Too large: 1 MB');
+	});
 });

@@ -987,7 +987,6 @@
 	"drag-image-here": "Drag an image here, or",
 	"browse": "browse",
 	"uploading-logo": "Uploading…",
-	"logo-upload-hint": "PNG, JPEG, WEBP, or GIF — up to 2 MB",
 	"logo-upload-invalid-type": "Image must be PNG, JPEG, WEBP, or GIF",
 	"image-upload-failed": "Couldn't upload the image. Check your connection and try again.",
 	"image-action-failed": "Couldn't update the image. Please try again.",

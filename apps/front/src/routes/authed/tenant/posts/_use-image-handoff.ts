@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -10,8 +10,6 @@ import type { Attempt } from './_attempt';
 import type { DeferredImageSelection } from './_post-image-picker';
 import { useAttachDeferredImages } from './_use-attach-deferred-images';
 import type { AttachProgress } from './_use-attach-deferred-images';
-import { useOversizeImageCheck } from './_use-oversize-image-check';
-import type { ImageLimits } from './_use-publish-selection';
 import { useRaiseSessionEnd } from './_use-raise-session-end';
 
 /**
@@ -26,33 +24,16 @@ import { useRaiseSessionEnd } from './_use-raise-session-end';
  * Publish supersede it, so nothing of the old attempt attaches, resumes or
  * publishes afterwards. Cancel is never blocked.
  */
-export const useImageHandoff = (
-	tenantId: string,
-	limits: ImageLimits | null,
-) => {
+export const useImageHandoff = (tenantId: string) => {
 	const { t } = useTranslation(['posts', 'common']);
 	const deferredAttach = useAttachDeferredImages(tenantId);
 	const raiseSessionEnd = useRaiseSessionEnd();
 	// The parent OWNS the deferred selection (the picker reports through
 	// `onSelect`), so the attachment survives the picker's re-renders and the
 	// handoff can hold it for a retry.
-	const [queuedImages, setDeferredImages] = useState<DeferredImageSelection[]>(
-		[],
-	);
-	// A stricter destination chosen later can leave queued files above the cap:
-	// they are left out of the list the drawer sees (and so never attached),
-	// with a notice saying why. Nothing is deleted: a looser cap brings them back.
-	const checkOversize = useOversizeImageCheck(limits);
-	const { deferredImages, oversizeNotice } = useMemo(() => {
-		const { fitting, tooLarge } = checkOversize(
-			queuedImages.map((image) => image.file),
-		);
-		const kept = new Set(fitting);
-		return {
-			deferredImages: queuedImages.filter((image) => kept.has(image.file)),
-			oversizeNotice: tooLarge,
-		};
-	}, [checkOversize, queuedImages]);
+	const [deferredImages, setDeferredImages] = useState<
+		DeferredImageSelection[]
+	>([]);
 	const [postId, setPostId] = useState<string | null>(null);
 	const [cause, setCause] = useState('');
 	// The follow-up (composer key) of the image the attach stopped on.
@@ -274,7 +255,6 @@ export const useImageHandoff = (
 	return {
 		deferredImages,
 		setDeferredImages,
-		oversizeNotice,
 		isPending: deferredAttach.isPending || isRetrying,
 		/** The post whose images are still to attach, or null. */
 		postId,

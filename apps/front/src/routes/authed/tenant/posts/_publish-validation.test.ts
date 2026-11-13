@@ -288,3 +288,73 @@ describe('per-segment image counts (#2181)', () => {
 		expect(problems.segmentImageProblem).toBeNull();
 	});
 });
+
+describe('picked image size and count (#2421)', () => {
+	const TIGHT: SelectedDestination = {
+		id: 'acc-tight',
+		label: 'Tight',
+		limits: limits(300, { maxImages: 2, maxImageBytes: 500_000 }),
+	};
+
+	test('a stricter destination blocks too many images; deselecting it clears it', () => {
+		const imageKeys = ['i1', 'i2', 'i3'];
+
+		const blocked = problemsOf({ destinations: [ROOMY, TIGHT], imageKeys });
+		expect(blocked.destinationBlock).toMatchObject({
+			key: 'posts:publish-blocked-too-many-images',
+			destination: 'Tight',
+			count: 3,
+			max: 2,
+		});
+		expect(isPublishBlocked(blocked)).toBe(true);
+
+		const cleared = problemsOf({ destinations: [ROOMY], imageKeys });
+		expect(cleared.destinationBlock).toBeNull();
+		expect(isPublishBlocked(cleared)).toBe(false);
+	});
+
+	test('a picked file above a destination size cap blocks; deselecting it clears it', () => {
+		const imageSizes = [10, 600_000];
+
+		const blocked = problemsOf({
+			destinations: [ROOMY, TIGHT],
+			imageKeys: ['i1', 'i2'],
+			imageSizes,
+		});
+		expect(blocked.destinationBlock).toMatchObject({
+			key: 'posts:publish-blocked-image-too-large',
+			destination: 'Tight',
+			max: 500_000,
+		});
+
+		expect(
+			problemsOf({
+				destinations: [ROOMY],
+				imageKeys: ['i1', 'i2'],
+				imageSizes,
+			}).destinationBlock,
+		).toBeNull();
+	});
+
+	test('a destination that customizes its images is judged on its own set, not on every file', () => {
+		expect(
+			problemsOf({
+				destinations: [TIGHT],
+				imageKeys: ['i1', 'i2'],
+				imageSizes: [600_000],
+				overrides: {
+					[TIGHT.id]: withMedia(NO_OVERRIDE, {
+						imageKeys: ['i1'],
+						altTexts: {},
+					}),
+				},
+			}).destinationBlock,
+		).toBeNull();
+	});
+
+	test('no picked images (edit page) means no size check', () => {
+		expect(
+			problemsOf({ destinations: [TIGHT], imageKeys: ['i1'] }).destinationBlock,
+		).toBeNull();
+	});
+});

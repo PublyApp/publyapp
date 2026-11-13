@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
+import { formatBytes } from '~/lib/format-bytes';
 import { BODY_KEY, isCustomized } from '~/lib/publishing/destination-overrides';
 import {
 	POSTS_PUBLISH,
@@ -42,6 +43,7 @@ export const PublishOnBlock = ({
 	segments = NO_SEGMENTS,
 	imageKeys = NO_IMAGE_KEYS,
 	segmentImageCounts,
+	imageSizes,
 	isPostDirty = false,
 	onBeforePublish,
 	onPublishInterrupted,
@@ -62,6 +64,9 @@ export const PublishOnBlock = ({
 	/** How many images each follow-up holds, by segment id: held against the
 	 * SELECTED destinations' caps. */
 	segmentImageCounts?: Readonly<Record<string, number>>;
+	/** Byte size of every picked, not yet uploaded image: held against the
+	 * SELECTED destinations' size caps. */
+	imageSizes?: readonly number[];
 	/** Unsaved edits to the shared post (edit page). A customization names
 	 * segments by position and the server applies it to the SAVED post, so
 	 * while the post is dirty a customized publish or schedule is held back. */
@@ -78,7 +83,7 @@ export const PublishOnBlock = ({
 	/** The caller is busy (images attaching): Publish and Schedule wait. */
 	disabled?: boolean;
 }) => {
-	const { t } = useTranslation(['posts', 'common']);
+	const { t, i18n } = useTranslation(['posts', 'common']);
 	const tenantId = useResolvedWorkspaceTenantId();
 	const { hasPermission } = useTenantPermissions(tenantId);
 	const { selectedIds, destinations } = selection;
@@ -98,6 +103,7 @@ export const PublishOnBlock = ({
 		segments,
 		imageKeys,
 		segmentImageCounts,
+		imageSizes,
 	});
 	const {
 		overLimitFollowUp,
@@ -177,6 +183,13 @@ export const PublishOnBlock = ({
 				>
 					{t(destinationBlock.key, {
 						destination: destinationBlock.destination,
+						count: destinationBlock.count,
+						max: destinationBlock.max,
+						size: formatBytes(
+							destinationBlock.max ?? 0,
+							i18n.language,
+							'limit',
+						),
 					})}
 				</p>
 			) : null}

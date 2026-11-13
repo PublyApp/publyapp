@@ -39,6 +39,42 @@ const nextSelectionId = () => {
 	return `deferred-image-${deferredSelectionCounter}`;
 };
 
+type PickerCard = {
+	key: string;
+	url: string | null;
+	file: File | null;
+	altText: string;
+	/** Why the image cannot be published as it is; empty = none. */
+	error: string;
+};
+
+const onlineCards = (
+	images: TenantPostImage[],
+	altDrafts: Record<string, string>,
+): PickerCard[] =>
+	images.map((image) => ({
+		key: image.id ?? image.url,
+		url: image.url,
+		file: null,
+		altText:
+			(image.id ? altDrafts[image.id] : undefined) ?? image.altText ?? '',
+		error: '',
+	}));
+
+/** A stricter destination chosen later can leave a queued file above the cap:
+ * it stays, marked, never hidden or dropped. */
+const deferredCards = (
+	selections: DeferredImageSelection[],
+	oversizeError: (file: File) => string,
+): PickerCard[] =>
+	selections.map((selection) => ({
+		key: selection.id,
+		url: null,
+		file: selection.file,
+		altText: selection.altText,
+		error: oversizeError(selection.file),
+	}));
+
 const moveItem = <T,>(items: T[], from: number, to: number): T[] => {
 	if (to < 0 || to >= items.length) {
 		return items;
@@ -304,19 +340,8 @@ export const PostImagePicker = ({
 	};
 
 	const cards = isOnline
-		? existingImages.map((image) => ({
-				key: image.id ?? image.url,
-				url: image.url,
-				file: null,
-				altText:
-					(image.id ? altDrafts[image.id] : undefined) ?? image.altText ?? '',
-			}))
-		: selections.map((selection) => ({
-				key: selection.id,
-				url: null,
-				file: selection.file,
-				altText: selection.altText,
-			}));
+		? onlineCards(existingImages, altDrafts)
+		: deferredCards(selections, (file) => checkOversize([file]).tooLarge);
 
 	const inputId = `post-image-input-${idKey ?? segmentId ?? postId ?? 'new'}`;
 	// No image type is shared by every selected destination (#2174): an empty
@@ -346,6 +371,7 @@ export const PostImagePicker = ({
 							url={card.url}
 							file={card.file}
 							altText={card.altText}
+							error={card.error}
 							disabled={isControlDisabled}
 							onAltChange={(value) => handleAltChange(index, value)}
 							onAltCommit={() => void handleAltCommit(index)}

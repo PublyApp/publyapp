@@ -65,7 +65,6 @@ vi.mock('react-i18next', () => ({
 				'drag-image-here': 'Drag an image here, or',
 				browse: 'browse',
 				'uploading-logo': 'Uploading…',
-				'logo-upload-hint': 'PNG, JPEG, WEBP, or GIF — up to 2 MB',
 				'logo-upload-invalid-type': 'Image must be PNG, JPEG, WEBP, or GIF',
 				'image-too-large': `The image exceeds the ${options?.size} limit.`,
 				'common:image-too-large': `The image exceeds the ${options?.size} limit.`,

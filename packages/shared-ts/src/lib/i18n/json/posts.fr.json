@@ -120,6 +120,8 @@
 	"segment-over-limit": "Le segment {{index}} est trop long pour être publié. Raccourcissez-le, ou enregistrez un brouillon.",
 	"publish-blocked-media-required": "{{destination}} exige au moins une image. Joignez-en une, ou désélectionnez-la.",
 	"publish-blocked-threads-unsupported": "{{destination}} ne peut pas publier un fil. Retirez les segments supplémentaires, ou désélectionnez-la.",
+	"publish-blocked-too-many-images": "{{destination}} accepte au plus {{max}} images, et le billet en a {{count}}. Retirez-en, ou désélectionnez-la.",
+	"publish-blocked-image-too-large": "{{destination}} accepte des images de {{size}} au plus. Retirez les plus lourdes, ou désélectionnez-la.",
 	"history-segments-progress_one": "{{published}} segment publié sur {{total}}",
 	"history-segments-progress_other": "{{published}} segments publiés sur {{total}}",
 	"history-segments-total": "{{total}} segments",

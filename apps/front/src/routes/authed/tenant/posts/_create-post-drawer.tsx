@@ -97,7 +97,7 @@ export const CreatePostDrawer = ({
 		segments.map((segment) => segment.id),
 	);
 
-	const handoff = useImageHandoff(tenantId, selection.imageLimits);
+	const handoff = useImageHandoff(tenantId);
 	const { deferredImages, setDeferredImages } = handoff;
 
 	const publishPrep = usePreparePublish({
@@ -272,9 +272,7 @@ export const CreatePostDrawer = ({
 								}
 								methods.setValue('segments', next, { shouldDirty: true });
 							}}
-							rootError={
-								methods.formState.errors.root?.message ?? handoff.oversizeNotice
-							}
+							rootError={methods.formState.errors.root?.message}
 							projectsQuery={projectsQuery}
 							selection={selection}
 							destinationOverrides={destinationOverrides}
@@ -315,6 +313,7 @@ export const CreatePostDrawer = ({
 										segments.map((segment) => segment.id),
 									),
 								)}
+								imageSizes={deferredImages.map((image) => image.file.size)}
 								onBeforePublish={prepareForPublish}
 								disabled={busy}
 								onPublishInterrupted={handoff.keepIntent}

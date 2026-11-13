@@ -49,6 +49,9 @@ export type PostImageCardProps = {
 	firstMovableIndex?: number;
 	/** A read-only card: no alt-text nudge it cannot act on. */
 	isLocked?: boolean;
+	/** Why this image cannot be published as it is (e.g. it is above a selected
+	 * destination's size cap); empty = none. */
+	error?: string;
 	onAltChange: (value: string) => void;
 	onAltCommit: () => void;
 	onMoveEarlier: () => void;
@@ -68,6 +71,7 @@ export const PostImageCard = ({
 	disabled,
 	firstMovableIndex = 0,
 	isLocked = false,
+	error = '',
 	onAltChange,
 	onAltCommit,
 	onMoveEarlier,
@@ -155,6 +159,15 @@ export const PostImageCard = ({
 						}
 					}}
 				/>
+				{error === '' ? null : (
+					<p
+						className="publy-type-helper text-[var(--publy-danger)]"
+						role="alert"
+						data-testid="tenant-posts-create-image-error"
+					>
+						{error}
+					</p>
+				)}
 				{altText.trim() === '' && !isLocked ? (
 					<p
 						className="publy-type-helper text-muted-foreground"
