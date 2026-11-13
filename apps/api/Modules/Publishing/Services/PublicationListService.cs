@@ -42,16 +42,15 @@ public record PublicationListItem {
 	/// <summary>True when this destination overrides part of the post's content (#2172).</summary>
 	public bool Customized { get; init; }
 	/// <summary>
-	/// Destinations of the post that are published; same derivation as the queue
-	/// (<see cref="PostStatusDerivation.Summarize"/>): superseded Failed rows excluded,
-	/// a cancelled newest row counts zero.
+	/// Destinations of the post that are published; same derivation as the queue: superseded
+	/// Failed rows excluded, a cancelled newest row counts zero.
 	/// </summary>
 	public int PublishedCount { get; init; }
-	/// <summary>Destinations of the post (see <see cref="PublishedCount"/>).</summary>
+	/// <summary>Destinations of the post, counted like the published ones.</summary>
 	public int DestinationCount { get; init; }
 	/// <summary>
 	/// The post's derived status wire value, as on the queue rows: History needs it to show
-	/// the same "Failed · 1/2 published" label (the label applies to a <c>failed</c> post).
+	/// the same "Failed · 1/2 published" label (the label applies to a failed post).
 	/// </summary>
 	public string PostStatus { get; init; } = "draft";
 }
@@ -164,25 +163,19 @@ public sealed class PublicationListService : IPublicationListService {
 				.ToString();
 		}
 
-		// EVERY row of the page's posts, soft-deleted included (as the queue does): a
-		// cancelled newer row still supersedes an older failure.
-		var postIds = rows.Select(row => row.Publication.PostId).Distinct().ToList();
-		var summaries = (await this._Db.Publication
-			.AsNoTracking()
-			.Where(publication => publication.TenantId == args.TenantId
-				&& postIds.Contains(publication.PostId))
-			.ToListAsync(cancellationToken))
-			.GroupBy(publication => publication.PostId)
-			.ToDictionary(
-				group => group.Key,
-				group => PostStatusDerivation.Summarize(group.ToList())
-			);
+		// SQL aggregate, same derivation as the queue (PostStatusSummaryQuery).
+		var summaries = await PostStatusSummaryQuery.SummarizeAsync(
+			this._Db,
+			args.TenantId,
+			rows.Select(row => row.Publication.PostId).Distinct().ToList(),
+			cancellationToken
+		);
 
 		return new FindPublicationsResult.Success(
 			new CursorPaginatedResult<PublicationListItem> {
 				Data = rows
 					.Select(row => PublicationListService.ToListItem(
-						row, summaries[row.Publication.PostId]))
+						row, summaries.GetValueOrDefault(row.Publication.PostId, PostStatusSummaryQuery.Empty)))
 					.ToList(),
 				NextCursor = nextCursor,
 			}

@@ -244,11 +244,11 @@ public interface IPublicationService {
 	);
 
 	/// <summary>
-	/// The post's live (not cancelled) publications in every status, oldest schedule
-	/// first, with the same fields as the queue rows. Not windowed or paginated: a post
-	/// has a handful of destinations.
+	/// The post's live publications in every status that a newer one did not replace,
+	/// oldest schedule first, capped, with the same fields as the queue rows. Null when the
+	/// post does not exist in the tenant.
 	/// </summary>
-	Task<IReadOnlyList<ScheduledPublicationItem>> FindForPostAsync(
+	Task<IReadOnlyList<ScheduledPublicationItem>?> FindForPostAsync(
 		Guid tenantId,
 		Guid postId,
 		CancellationToken cancellationToken = default
@@ -951,17 +951,15 @@ public sealed class PublicationService : IPublicationService {
 				cancellationToken
 			);
 
-		// EVERY row of the posts, soft-deleted included: a soft-deleted newer row still
-		// supersedes an older failure (PublicationSupersession).
-		var publicationsByPost = (await (
-			from p in this._DbContext.Publication.AsNoTracking()
-			where p.TenantId == tenantId && postIds.Contains(p.PostId)
-			select p
-		).ToListAsync(cancellationToken))
-			.ToLookup(p => p.PostId);
+		// SQL aggregates (soft-deleted newer rows still supersede, as PublicationSupersession).
+		var summaries = await PostStatusSummaryQuery.SummarizeAsync(
+			this._DbContext, tenantId, postIds, cancellationToken
+		);
+		var supersededIds = await PostStatusSummaryQuery.SupersededIdsAsync(
+			this._DbContext, tenantId, pagePublicationIds, cancellationToken
+		);
 
 		var items = new List<ScheduledPublicationItem>(rows.Count);
-		var summaries = new Dictionary<Guid, PostStatusSummary>();
 		foreach (var (publication, accountHandle) in rows) {
 			var postId = publication.PostId;
 			var sourceBody = postInfos.TryGetValue(postId, out var value)
@@ -969,11 +967,7 @@ public sealed class PublicationService : IPublicationService {
 				: string.Empty;
 			var hasRendition = renditionTexts.TryGetValue(publication.GetRequiredId(), out var textsJson);
 			var body = RenditionResolver.EffectiveRootText(sourceBody, textsJson);
-			var postRowsAll = publicationsByPost[postId].ToList();
-			if (!summaries.TryGetValue(postId, out var summary)) {
-				summary = PostStatusDerivation.Summarize(postRowsAll);
-				summaries[postId] = summary;
-			}
+			var summary = summaries.GetValueOrDefault(postId, PostStatusSummaryQuery.Empty);
 
 			items.Add(new ScheduledPublicationItem {
 				PublicationId = publication.GetRequiredId(),
@@ -984,7 +978,7 @@ public sealed class PublicationService : IPublicationService {
 				PostStatus = PostStatusDerivation.FormatPostStatus(summary.Status),
 				PublishedCount = summary.PublishedCount,
 				DestinationCount = summary.DestinationCount,
-				Superseded = PublicationSupersession.IsSuperseded(publication, postRowsAll),
+				Superseded = supersededIds.Contains(publication.GetRequiredId()),
 				Customized = hasRendition,
 				SocialAccountId = publication.SocialAccountId,
 				AccountDisplayHandle = accountHandle ?? string.Empty,
@@ -1009,18 +1003,31 @@ public sealed class PublicationService : IPublicationService {
 		return items;
 	}
 
-	public async Task<IReadOnlyList<ScheduledPublicationItem>> FindForPostAsync(
+	/// <summary>Most rows the post's own list returns; a post's live destinations stay far below it.</summary>
+	private const int _PostListCap = 100;
+
+	public async Task<IReadOnlyList<ScheduledPublicationItem>?> FindForPostAsync(
 		Guid tenantId,
 		Guid postId,
 		CancellationToken cancellationToken = default
 	) {
-		// Live rows only: a cancelled (soft-deleted) publication is not listed. No window,
-		// no status filter: a failed or far-out row is exactly what the edit page needs.
+		if (await this._LoadPostAsync(postId, tenantId, cancellationToken) is null) {
+			return null;
+		}
+
+		// Live, non-replaced rows only (a cancelled or replaced publication is history),
+		// every status, no window: a failed or far-out row is what the edit page needs.
 		var rows = await (
 			from publication in this._DbContext.Publication.AsNoTracking()
 			where publication.TenantId == tenantId
 				&& publication.PostId == postId
 				&& !publication.IsDeleted
+				&& !this._DbContext.Publication.Any(other =>
+					other.TenantId == publication.TenantId
+					&& other.PostId == publication.PostId
+					&& other.SocialAccountId == publication.SocialAccountId
+					&& other.Id != publication.Id
+					&& other.CreatedAt > publication.CreatedAt)
 			orderby publication.ScheduledAtUtc, publication.Id
 			select new {
 				Publication = publication,
@@ -1029,7 +1036,7 @@ public sealed class PublicationService : IPublicationService {
 					.Select(a => a.DisplayHandle)
 					.FirstOrDefault(),
 			}
-		).ToListAsync(cancellationToken);
+		).Take(PublicationService._PostListCap).ToListAsync(cancellationToken);
 
 		return await this._ToItemsAsync(
 			tenantId,

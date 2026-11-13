@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 using PublyApp.Api.Lib;
+using PublyApp.Api.Lib.ProblemResults;
+using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Publishing.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Handlers.Tenant;
@@ -10,13 +12,16 @@ public sealed class FindPostPublicationsResponse {
 	public required IReadOnlyList<ScheduledPublicationItem> Data { get; init; }
 }
 
-/// <summary>
-/// A post's own publications (#2208): every live status, no window, so the edit page can
-/// reach a row that failed long ago or is scheduled far out. Same row shape as the queue.
-/// </summary>
+// A post's own publications (#2208): every live, non-replaced row in every status and no
+// window, so the edit page reaches a row that failed long ago or is scheduled far out. Same
+// row shape as the queue. 404 for an unknown or foreign post.
 public sealed class FindPostPublicationsForTenant {
-	public static async Task<Ok<FindPostPublicationsResponse>> Handle(
-		[FromRoute] Guid postId,
+	public static async Task<Results<
+		Ok<FindPostPublicationsResponse>,
+		AppBadRequestHttpResult,
+		AppNotFoundHttpResult
+	>> Handle(
+		[FromRoute] string postId,
 		[FromServices] IRequestAuthContext authContext,
 		[FromServices] IPublicationService publicationService,
 		CancellationToken cancellationToken = default
@@ -30,8 +35,15 @@ public sealed class FindPostPublicationsForTenant {
 		// Guard: this endpoint must stay behind .WithTenantPermission(...).
 		_ = authContext.GetRequiredTenantAccount();
 
-		return TypedResults.Ok(new FindPostPublicationsResponse {
-			Data = await publicationService.FindForPostAsync(tenantId, postId, cancellationToken),
-		});
+		if (!Guid.TryParse(postId, out var postIdGuid)) {
+			return TypedProblems.BadRequest("Invalid postId", ResponseKeys.MalformedId);
+		}
+
+		var items = await publicationService.FindForPostAsync(tenantId, postIdGuid, cancellationToken);
+		if (items is null) {
+			return TypedProblems.NotFound("Post not found", ResponseKeys.NotFound);
+		}
+
+		return TypedResults.Ok(new FindPostPublicationsResponse { Data = items });
 	}
 }

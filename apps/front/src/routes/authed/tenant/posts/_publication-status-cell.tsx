@@ -8,6 +8,7 @@ import { PublicationSegmentProgress } from './_publication-segment-progress';
 import {
 	MixedOutcomeNote,
 	useMixedOutcomeLabel,
+	useStatusPillLabel,
 } from './_scheduled-publication-display';
 
 export const PublicationStatusCell = ({
@@ -23,6 +24,7 @@ export const PublicationStatusCell = ({
 
 	const presentation = publicationStatusPresentation(publication.status);
 	const mixedLabel = useMixedOutcomeLabel(publication);
+	const pillLabel = useStatusPillLabel(publication);
 	if (presentation === null) {
 		return <span className="text-muted-foreground">{'—'}</span>;
 	}
@@ -56,9 +58,7 @@ export const PublicationStatusCell = ({
 			tone={presentation.tone}
 			testId="tenant-posts-history-status-pill"
 		>
-			{mixedLabel !== null && publication.status === 'failed'
-				? mixedLabel
-				: t(presentation.labelKey)}
+			{pillLabel}
 		</StatusPill>
 	);
 

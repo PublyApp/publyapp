@@ -15966,8 +15966,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "string",
-              "format": "uuid"
+              "type": "string"
             }
           }
         ],
@@ -16028,6 +16027,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FindPostPublicationsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
                 }
               }
             }
@@ -20177,18 +20186,18 @@
           "publishedCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
-            "description": "Destinations of the post that are published; same derivation as the queue\n(PostStatusSummary PostStatusDerivation.Summarize(IReadOnlyCollection&lt;Publication&gt; publications)): superseded Failed rows excluded,\na cancelled newest row counts zero.",
+            "description": "Destinations of the post that are published; same derivation as the queue: superseded\nFailed rows excluded, a cancelled newest row counts zero.",
             "format": "int32"
           },
           "destinationCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
-            "description": "Destinations of the post (see int PublicationListItem.PublishedCount).",
+            "description": "Destinations of the post, counted like the published ones.",
             "format": "int32"
           },
           "postStatus": {
             "type": "string",
-            "description": "The post's derived status wire value, as on the queue rows: History needs it to show\nthe same \"Failed · 1/2 published\" label (the label applies to a `failed` post)."
+            "description": "The post's derived status wire value, as on the queue rows: History needs it to show\nthe same \"Failed · 1/2 published\" label (the label applies to a failed post)."
           }
         },
         "description": "History row: one publication with the context History renders."

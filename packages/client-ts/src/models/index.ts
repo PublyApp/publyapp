@@ -8049,7 +8049,7 @@ export interface PublicationListItem extends AdditionalDataHolder, Parsable {
      */
     customized?: boolean | null;
     /**
-     * Destinations of the post (see int PublicationListItem.PublishedCount).
+     * Destinations of the post, counted like the published ones.
      */
     destinationCount?: number | null;
     /**
@@ -8077,11 +8077,11 @@ export interface PublicationListItem extends AdditionalDataHolder, Parsable {
      */
     postId?: Guid | null;
     /**
-     * The post's derived status wire value, as on the queue rows: History needs it to showthe same "Failed · 1/2 published" label (the label applies to a `failed` post).
+     * The post's derived status wire value, as on the queue rows: History needs it to showthe same "Failed · 1/2 published" label (the label applies to a failed post).
      */
     postStatus?: string | null;
     /**
-     * Destinations of the post that are published; same derivation as the queue(PostStatusSummary PostStatusDerivation.Summarize(IReadOnlyCollection&lt;Publication&gt; publications)): superseded Failed rows excluded,a cancelled newest row counts zero.
+     * Destinations of the post that are published; same derivation as the queue: supersededFailed rows excluded, a cancelled newest row counts zero.
      */
     publishedCount?: number | null;
     /**

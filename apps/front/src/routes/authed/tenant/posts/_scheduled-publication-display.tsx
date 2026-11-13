@@ -35,6 +35,21 @@ export const useMixedOutcomeLabel = (row: StatusRow): string | null => {
 	});
 };
 
+/** The text of a status pill: "Failed · 1/2 published" for a failed destination
+ * of a partly published post, else the status label. One rule for the queue, the
+ * calendar and History. */
+export const useStatusPillLabel = (row: StatusRow): string | null => {
+	const { t } = useTranslation('posts');
+	const mixedLabel = useMixedOutcomeLabel(row);
+	const presentation = publicationStatusPresentation(row.status);
+
+	if (mixedLabel !== null && row.status === 'failed') {
+		return mixedLabel;
+	}
+
+	return presentation && t(presentation.labelKey);
+};
+
 /** The mixed-outcome line under a non-failed destination's own pill. */
 export const MixedOutcomeNote = ({ row }: { row: StatusRow }) => {
 	const mixedLabel = useMixedOutcomeLabel(row);
@@ -60,7 +75,7 @@ export const MixedOutcomeNote = ({ row }: { row: StatusRow }) => {
 export const ScheduledPublicationStatus = ({ row }: { row: StatusRow }) => {
 	const { t } = useTranslation('posts');
 	const presentation = publicationStatusPresentation(row.status);
-	const mixedLabel = useMixedOutcomeLabel(row);
+	const pillLabel = useStatusPillLabel(row);
 
 	if (row.superseded && row.status !== 'published') {
 		return (
@@ -69,11 +84,6 @@ export const ScheduledPublicationStatus = ({ row }: { row: StatusRow }) => {
 			</StatusPill>
 		);
 	}
-
-	const pillLabel =
-		mixedLabel !== null && row.status === 'failed'
-			? mixedLabel
-			: presentation && t(presentation.labelKey);
 
 	return (
 		<div className="flex flex-col items-start gap-1">

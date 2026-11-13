@@ -375,7 +375,6 @@ describe('ScheduledRenditionsBlock', () => {
 		mocks.rows = [
 			rowOf('pub-a', { customized: true }),
 			rowOf('pub-b', { accountDisplayHandle: '@second.example' }),
-			rowOf('pub-replaced', { superseded: true }),
 			rowOf('pub-published', { status: 'published' }),
 		];
 		renderBlock();

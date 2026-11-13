@@ -43,19 +43,32 @@ public static class PostStatusDerivation {
 	}
 
 	public static DerivedPostStatus Derive(IReadOnlyCollection<Publication> publications) {
-		if (publications.Count == 0) {
+		return PostStatusDerivation.FromCounts(
+			publications.Count,
+			publications.Count(p => p.Status == PublicationStatus.Failed),
+			publications.Count(p => p.Status == PublicationStatus.Published),
+			publications.Count(p => p.Status == PublicationStatus.Scheduled)
+		);
+	}
+
+	/// <summary>
+	/// The derivation over counts of the post's destinations, so a SQL aggregate and the
+	/// in-memory <see cref="Derive"/> share ONE rule.
+	/// </summary>
+	public static DerivedPostStatus FromCounts(int total, int failed, int published, int scheduled) {
+		if (total == 0) {
 			return DerivedPostStatus.Draft;
 		}
 
-		if (publications.Any(p => p.Status == PublicationStatus.Failed)) {
+		if (failed > 0) {
 			return DerivedPostStatus.Failed;
 		}
 
-		if (publications.All(p => p.Status == PublicationStatus.Published)) {
+		if (published == total) {
 			return DerivedPostStatus.Published;
 		}
 
-		if (publications.All(p => p.Status == PublicationStatus.Scheduled)) {
+		if (scheduled == total) {
 			return DerivedPostStatus.Scheduled;
 		}
 

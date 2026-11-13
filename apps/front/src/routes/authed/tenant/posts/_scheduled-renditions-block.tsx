@@ -53,11 +53,9 @@ export const ScheduledRenditionsBlock = ({
 	const { hasPermission } = useTenantPermissions(tenantId);
 	const [openId, setOpenId] = useState<string | null>(null);
 	const query = usePostPublicationsQuery({ postId, tenantId });
+	// The server already leaves out cancelled and replaced rows.
 	const rows = toScheduledPublicationRows(query.data).filter(
-		(row) =>
-			!row.superseded &&
-			row.status !== null &&
-			CUSTOMIZABLE_STATUSES.includes(row.status),
+		(row) => row.status !== null && CUSTOMIZABLE_STATUSES.includes(row.status),
 	);
 
 	if (!hasPermission(POSTS_PUBLISH)) {
