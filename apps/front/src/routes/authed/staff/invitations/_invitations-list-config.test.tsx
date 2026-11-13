@@ -65,6 +65,18 @@ describe('invitations role facet', () => {
 		expect(filter.choices[0]?.label).toBe('loading');
 	});
 
+	test('once the roles list has settled an id nobody knows reads « unknown »', () => {
+		const filter = buildInvitationFilters(
+			t,
+			['id-gone'],
+			[],
+			new Map(),
+			true,
+		).find((candidate) => candidate.key === 'role');
+
+		expect(filter?.choices[0]?.label).toBe('unknown-role');
+	});
+
 	test('shows no role filter while neither counts nor a picked role exist', () => {
 		expect(
 			buildInvitationFilters(t, [], null).some(

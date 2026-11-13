@@ -14,10 +14,7 @@ import {
 	useTableController,
 } from '~/components/table/use-table-controller';
 import { preloadRouteQueries } from '~/lib/query/route-preload';
-import {
-	staffInvitationsQueryOptions,
-	useStaffInvitationsQuery,
-} from '~/lib/query/staff-invitations';
+import { staffInvitationsQueryOptions } from '~/lib/query/staff-invitations';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 import { formatDateTime } from '~/utils/format-time';
 
@@ -28,6 +25,12 @@ import {
 	buildStaffTeamPanelGroups,
 	useStaffTeamOverview,
 } from '../_staff-list-team';
+import {
+	ROLES_LOOKUP_VARIABLES,
+	staffRolesQueryOptions,
+	useInvitationsListQuery,
+	useRolesLookup,
+} from './_invitations-data';
 import { invitationColumns } from './_invitations-list-columns';
 import {
 	buildInvitationFilters,
@@ -80,7 +83,32 @@ const staffInvitationsQueries = ({
 					.join(',') || undefined,
 		},
 	},
+	roles: {
+		options: staffRolesQueryOptions,
+		variables: ROLES_LOOKUP_VARIABLES,
+	},
 });
+
+/** A role filter value against the full roles list: a legacy name becomes its
+ * id, an id whose role is gone (or a name no role carries) resolves to nothing.
+ * Until the list has loaded (a failed lookup) ids are kept as they are. */
+const resolveRoleValue = (
+	value: string,
+	roles: readonly { id?: string | null; name?: string | null }[],
+	rolesLoaded: boolean,
+): string | undefined => {
+	if (ROLE_ID_PATTERN.test(value)) {
+		if (!rolesLoaded || roles.some((role) => role.id === value)) {
+			return value;
+		}
+		return undefined;
+	}
+	const wanted = value.toLowerCase();
+	return (
+		roles.find((role) => role.name?.trim().toLowerCase() === wanted)?.id ??
+		undefined
+	);
+};
 
 const StaffInvitationsPage = () => {
 	const { t, i18n } = useTranslation('common');
@@ -94,9 +122,12 @@ const StaffInvitationsPage = () => {
 	const selectedRoles = selectedRoleValues.filter((value) =>
 		ROLE_ID_PATTERN.test(value),
 	);
-	const legacyRoleNames = selectedRoleValues.filter(
-		(value) => !ROLE_ID_PATTERN.test(value),
-	);
+	const hasLegacyRoleName = selectedRoleValues.length > selectedRoles.length;
+	// Every staff role (not the q/status-narrowed facet): the source of truth for
+	// names and for whether an id still exists. Warmed by the route loader.
+	const rolesLookup = useRolesLookup();
+	// While a name is unresolved the list would be the unfiltered one: hold it.
+	const isResolvingRole = hasLegacyRoleName && !rolesLookup.settled;
 
 	const onSearchChange = (next: InvitationListSearchParams): void => {
 		void navigate({
@@ -126,7 +157,7 @@ const StaffInvitationsPage = () => {
 		// loader warms the first page, the page adds its own cursor.
 		cursor: controller.apiVariables.cursor,
 	};
-	const query = useStaffInvitationsQuery(listVariables);
+	const query = useInvitationsListQuery(listVariables, isResolvingRole);
 	// The overview publishes these variables as the counter only while they
 	// carry no filter/search; it owns that guard (see `_staff-list-team.tsx`).
 	const team = useStaffTeamOverview({ invitations: listVariables });
@@ -158,40 +189,50 @@ const StaffInvitationsPage = () => {
 			? null
 			: Object.fromEntries(roleChoices.map((role) => [role.id, role.count]));
 
-	// A selected id keeps its name while its request loads and when another
-	// filter drops it from the facet: facet first, then the staff roles list.
+	// A selected id's name comes from the full roles list, so it stays put while
+	// its request loads and when another filter drops it from the facet.
 	const roleNames = new Map<string, string>(
-		team.roles.map((role) => [role.id, role.name]),
+		rolesLookup.roles.flatMap((role) =>
+			role.id ? [[role.id, role.name ?? ''] as const] : [],
+		),
 	);
-	for (const role of roleChoices ?? []) {
-		roleNames.set(role.id, role.name);
-	}
 
-	// Legacy name links: resolve against the facet, swap the URL to the id, and
-	// drop a name no role matches (the list is unfiltered by it anyway).
-	const legacyKey = legacyRoleNames.join(',');
+	// Normalise the role filter against the full roles list once it has loaded:
+	// a legacy name becomes its id, a name no role carries is dropped, and an id
+	// whose role is gone is dropped too (a failed lookup keeps the ids as is).
+	const roleValuesKey = selectedRoleValues.join(',');
 	useEffect(() => {
-		if (legacyKey.length === 0 || apiRoleCounts == null) {
+		if (!rolesLookup.settled || roleValuesKey.length === 0) {
 			return;
 		}
-		const resolved = legacyKey.split(',').flatMap((name) => {
-			const match = apiRoleCounts.find(
-				(role) => role.name?.trim().toLowerCase() === name.toLowerCase(),
-			);
-			return match?.roleId ? [match.roleId] : [];
-		});
+		const values = roleValuesKey.split(',');
+		const next: string[] = [];
+		for (const value of values) {
+			const id = resolveRoleValue(value, rolesLookup.roles, rolesLookup.loaded);
+			if (id !== undefined && !next.includes(id)) {
+				next.push(id);
+			}
+		}
+		if (next.join(',') === roleValuesKey) {
+			return;
+		}
 		void navigate({
 			search: serializeInvitationListSearchParams({
 				...search,
-				role: serializeInvitationRoleFilter([...selectedRoles, ...resolved]),
+				role: serializeInvitationRoleFilter(next),
 				cursor: undefined,
 			}) as InvitationListSearchParams,
 			replace: true,
 		});
-		// `search`/`selectedRoles` are read at fire time; the legacy names and
-		// the facet are the triggers.
+		// `search` is read at fire time; the role values and the lookup are the
+		// triggers.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [legacyKey, apiRoleCounts]);
+	}, [
+		roleValuesKey,
+		rolesLookup.settled,
+		rolesLookup.loaded,
+		rolesLookup.roles,
+	]);
 
 	const listCounts: FilterCounts = {
 		status: {
@@ -275,7 +316,13 @@ const StaffInvitationsPage = () => {
 				}
 				onSearchChange({ ...search, q: next, cursor: undefined });
 			}}
-			filters={buildInvitationFilters(t, selectedRoles, roleChoices, roleNames)}
+			filters={buildInvitationFilters(
+				t,
+				selectedRoles,
+				roleChoices,
+				roleNames,
+				rolesLookup.settled,
+			)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
 			counts={listCounts}

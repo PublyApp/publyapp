@@ -274,10 +274,12 @@ export const useBulkRevokeStaffInvitationsMutation = () =>
 
 export const useStaffInvitationsQuery = (
 	variables: StaffInvitationsQueryVariables,
+	options?: { enabled?: boolean },
 ) =>
 	useQuery({
 		queryKey: staffInvitationsQueryOptions.queryKey(variables),
 		queryFn: () => staffInvitationsQueryOptions.fetcher(variables),
+		enabled: options?.enabled ?? true,
 	});
 
 export const useStaffInvitationDetailsQuery = (

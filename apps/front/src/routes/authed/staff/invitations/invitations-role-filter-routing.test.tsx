@@ -30,7 +30,16 @@ const LIST_ROUTE_PATH = '/staff/invitations';
 
 const mocks = vi.hoisted(() => ({
 	useStaffInvitationsQuery: vi.fn(),
-	teamRoles: [] as { id: string; name: string; memberCount: number }[],
+	useStaffRolesQuery: vi.fn(),
+}));
+
+vi.mock('~/lib/query/staff-roles', async (importOriginal) => ({
+	...(await importOriginal<typeof import('~/lib/query/staff-roles')>()),
+	staffRolesQueryOptions: {
+		queryKey: () => ['staff-roles'],
+		fetcher: () => Promise.resolve({}),
+	},
+	useStaffRolesQuery: mocks.useStaffRolesQuery,
 }));
 
 vi.mock('~/lib/query/staff-invitations', () => ({
@@ -67,7 +76,7 @@ vi.mock('../_staff-list-team', async (importOriginal) => {
 			counts: { staff: 1, invitations: 1, roles: 2 },
 			staffCounts: null,
 			invitationCounts: null,
-			roles: mocks.teamRoles,
+			roles: [],
 		}),
 	};
 });
@@ -131,6 +140,17 @@ const settled = (data: unknown) => ({
 	refetch: () => Promise.resolve(),
 });
 
+const ALL_ROLES = [
+	{ id: ROLE_WRITER, name: 'Writer' },
+	{ id: ROLE_READER, name: 'Reader' },
+];
+const rolesLoaded = (roles = ALL_ROLES) => ({
+	data: { data: roles },
+	status: 'success',
+});
+const rolesPending = { data: undefined, status: 'pending' };
+const rolesFailed = { data: undefined, status: 'error' };
+
 const histories: { destroy: () => void }[] = [];
 
 const mount = async (initialUrl: string) => {
@@ -192,11 +212,12 @@ afterEach(() => {
 		histories.pop()?.destroy();
 	}
 	mocks.useStaffInvitationsQuery.mockReset();
-	mocks.teamRoles = [];
+	mocks.useStaffRolesQuery.mockReset();
 });
 
 describe('invitations role filter (real route)', () => {
 	test('changing the role from page 2 requests the first page, not the page-2 cursor', async () => {
+		mocks.useStaffRolesQuery.mockReturnValue(rolesLoaded());
 		mocks.useStaffInvitationsQuery.mockReturnValue(
 			settled(payload('cursor-2')),
 		);
@@ -211,16 +232,24 @@ describe('invitations role filter (real route)', () => {
 		expect(lastVariables().cursor).toBeUndefined();
 	});
 
-	test('a legacy ?role=<name> link is replaced by the role id and filters by it', async () => {
-		mocks.useStaffInvitationsQuery.mockReturnValue(settled(payload(null)));
-		const { history } = await mount(`${LIST_ROUTE_PATH}?role=writer`);
+	test('a legacy name resolves against the FULL roles list, even when the facet omits the role', async () => {
+		mocks.useStaffRolesQuery.mockReturnValue(rolesLoaded());
+		// A status filter narrowed the facet: Writer has no invitation in it.
+		const narrowed = payload(null);
+		narrowed.counts.roleCounts = [
+			{ roleId: ROLE_READER, name: 'Reader', count: 1 },
+		];
+		mocks.useStaffInvitationsQuery.mockReturnValue(settled(narrowed));
+		const { history } = await mount(
+			`${LIST_ROUTE_PATH}?status=accepted&role=writer`,
+		);
 
 		await waitFor(() => expect(history.location.search).toContain(ROLE_WRITER));
-		expect(history.location.search).not.toContain('writer&');
 		await waitFor(() => expect(lastVariables().roleId).toBe(ROLE_WRITER));
 	});
 
-	test('a legacy name no role matches is dropped from the URL', async () => {
+	test('a legacy name no role carries is dropped from the URL', async () => {
+		mocks.useStaffRolesQuery.mockReturnValue(rolesLoaded());
 		mocks.useStaffInvitationsQuery.mockReturnValue(settled(payload(null)));
 		const { history } = await mount(`${LIST_ROUTE_PATH}?role=Ghost`);
 
@@ -228,8 +257,35 @@ describe('invitations role filter (real route)', () => {
 		expect(lastVariables().roleId).toBeUndefined();
 	});
 
-	test('a valid id keeps its name when another filter drops it from the facet', async () => {
-		mocks.teamRoles = [{ id: ROLE_READER, name: 'Reader', memberCount: 1 }];
+	test('an id whose role is gone from the roles list is dropped, never left loading', async () => {
+		const GONE = '99999999-9999-4999-8999-999999999999';
+		mocks.useStaffRolesQuery.mockReturnValue(rolesLoaded());
+		mocks.useStaffInvitationsQuery.mockReturnValue(settled(payload(null)));
+		const { history } = await mount(
+			`${LIST_ROUTE_PATH}?role=${GONE},${ROLE_READER}`,
+		);
+
+		await waitFor(() => expect(history.location.search).not.toContain(GONE));
+		expect(history.location.search).toContain(ROLE_READER);
+		expect(screen.queryByText('roles: loading')).toBeNull();
+	});
+
+	test('holds the list while a legacy name is unresolved: no request, no unfiltered flash', async () => {
+		mocks.useStaffRolesQuery.mockReturnValue(rolesPending);
+		// The loader already cached the unfiltered first page.
+		mocks.useStaffInvitationsQuery.mockReturnValue(settled(payload(null)));
+		await mount(`${LIST_ROUTE_PATH}?role=Writer`);
+
+		const [, options] = mocks.useStaffInvitationsQuery.mock.calls.at(-1) as [
+			unknown,
+			{ enabled?: boolean },
+		];
+		expect(options.enabled).toBe(false);
+		expect(screen.queryByText('writer@example.com')).toBeNull();
+	});
+
+	test('a valid id is labelled from the roles list even though the facet omits it', async () => {
+		mocks.useStaffRolesQuery.mockReturnValue(rolesLoaded());
 		const withoutReader = payload(null);
 		withoutReader.counts.roleCounts = [
 			{ roleId: ROLE_WRITER, name: 'Writer', count: 1 },
@@ -237,11 +293,23 @@ describe('invitations role filter (real route)', () => {
 		mocks.useStaffInvitationsQuery.mockReturnValue(settled(withoutReader));
 		await mount(`${LIST_ROUTE_PATH}?role=${ROLE_READER}`);
 
-		// The chip carries the role's name (from the staff roles list), never a
-		// placeholder, although the facet does not list the role.
 		await waitFor(() =>
 			expect(screen.getAllByText('roles: Reader').length).toBeGreaterThan(0),
 		);
-		expect(screen.queryByText('loading')).toBeNull();
+	});
+
+	test('when the roles lookup fails the ids are kept and labelled unknown, not loading', async () => {
+		mocks.useStaffRolesQuery.mockReturnValue(rolesFailed);
+		const noFacet = payload(null);
+		noFacet.counts.roleCounts = [];
+		mocks.useStaffInvitationsQuery.mockReturnValue(settled(noFacet));
+		const { history } = await mount(`${LIST_ROUTE_PATH}?role=${ROLE_READER}`);
+
+		await waitFor(() =>
+			expect(screen.getAllByText('roles: unknown-role').length).toBeGreaterThan(
+				0,
+			),
+		);
+		expect(history.location.search).toContain(ROLE_READER);
 	});
 });

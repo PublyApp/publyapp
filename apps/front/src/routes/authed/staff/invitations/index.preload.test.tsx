@@ -67,6 +67,8 @@ vi.mock('react-i18next', async (importOriginal) => {
 });
 
 const INVITATIONS_PATH = ['staff', 'invitations', 'get'] as const;
+// The full staff roles list that resolves the role filter, warmed with the list.
+const ROLES_LOOKUP_PATH = ['staff', 'roles', 'get'] as const;
 const LINK_LABEL = 'open invitations';
 
 const destination = widenOptions<PreloadDestination>({
@@ -101,8 +103,9 @@ describe('#2340 staff invitations route preload', () => {
 		});
 
 		const warmed = preloadedQueries(queryClient);
-		expect(warmed).toHaveLength(1);
-		expect(warmed[0]?.state.data).toBeDefined();
+		expect(warmed).toHaveLength(2);
+		expect(countCallsByPath(mocks.respond, ...ROLES_LOOKUP_PATH)).toBe(1);
+		expect(warmed.every((query) => query.state.data !== undefined)).toBe(true);
 		expect(screen.queryByTestId('staff-invitations-table')).toBeNull();
 	});
 
