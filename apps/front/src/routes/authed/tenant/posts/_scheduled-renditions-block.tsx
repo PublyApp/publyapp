@@ -87,7 +87,7 @@ export const ScheduledRenditionsBlock = ({
 			EmptySlot={null}
 		>
 			<section
-				className="space-y-3"
+				className="mt-6 space-y-3"
 				data-testid="tenant-posts-scheduled-destinations"
 			>
 				<div>
@@ -107,18 +107,22 @@ export const ScheduledRenditionsBlock = ({
 								className="space-y-3"
 								data-testid="tenant-posts-scheduled-destination"
 							>
-								<div className="flex flex-wrap items-center gap-3">
-									<span className="text-sm font-medium">
+								<div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_13rem_auto] sm:items-center sm:gap-4">
+									<span className="min-w-0 truncate text-sm font-medium">
 										{row.accountDisplayHandle ?? ''}
 									</span>
-									<ScheduledPublicationStatus row={row} />
-									<ScheduledPublicationCustomized customized={row.customized} />
+									<div className="flex flex-wrap items-center gap-2">
+										<ScheduledPublicationStatus row={row} />
+										<ScheduledPublicationCustomized
+											customized={row.customized}
+										/>
+									</div>
 									<ScheduledPublicationTime row={row} />
 									<Button
 										type="button"
 										variant="outline"
 										size="sm"
-										className="ml-auto"
+										className="shrink-0 justify-self-start whitespace-nowrap sm:justify-self-end"
 										aria-expanded={isOpen}
 										aria-label={t('posts:destination-customize-aria', {
 											destination: row.accountDisplayHandle ?? '',

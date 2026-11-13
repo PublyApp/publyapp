@@ -60,7 +60,7 @@ export const MixedOutcomeNote = ({ row }: { row: StatusRow }) => {
 
 	return (
 		<span
-			className="text-xs text-muted-foreground"
+			className="text-xs whitespace-nowrap text-muted-foreground"
 			data-testid="tenant-posts-mixed-status"
 		>
 			{mixedLabel}

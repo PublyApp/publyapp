@@ -260,6 +260,20 @@ describe('ScheduledRenditionsBlock gating and load states', () => {
 		expect(mocks.walk.restart).toHaveBeenCalledTimes(1);
 	});
 
+	test('the title fits failed rows too, and the action never wraps', () => {
+		mocks.rows = [rowOf('pub-a', { status: 'failed' })];
+		renderBlock();
+
+		expect(
+			screen.getByRole('heading', { name: 'Upcoming or failed destinations' }),
+		).toBeTruthy();
+		expect(
+			screen
+				.getByTestId('tenant-posts-scheduled-customize')
+				.className.includes('whitespace-nowrap'),
+		).toBe(true);
+	});
+
 	test('a post that vanished (404) shows the failure card, not a logout and not an empty block', () => {
 		mocks.rows = [];
 		mocks.walk.error = Object.assign(new Error('Post not found'), {
