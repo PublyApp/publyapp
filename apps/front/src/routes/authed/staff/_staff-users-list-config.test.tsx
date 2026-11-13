@@ -102,6 +102,36 @@ describe('staff users list API-backed columns', () => {
 		}
 	});
 
+	test('composes the roles footer from the facets, filtered by the selected access level', () => {
+		const counts = {
+			total: 3,
+			active: 3,
+			suspended: 0,
+			fullAccess: 2,
+			standardAccess: 3,
+		};
+		const echo = (key: string, options?: Record<string, unknown>): string =>
+			`${key}:${String(options?.fullAccess)}/${String(options?.standard)}`;
+		const roles = (access: string[], source = counts) =>
+			buildStaffUserTotals(echo, source, access).get('roles');
+		expect(roles([])).toBe('list-total-staff-roles:2/3');
+		expect(roles(['standard'])).toBe('list-total-staff-roles:0/3');
+		expect(roles(['full_access'])).toBe('list-total-staff-roles:2/0');
+		expect(roles(['full_access', 'standard'])).toBe(
+			'list-total-staff-roles:2/3',
+		);
+		// status + access: never negative.
+		expect(
+			roles(['standard'], {
+				total: 0,
+				active: 0,
+				suspended: 0,
+				fullAccess: 1,
+				standardAccess: 0,
+			}),
+		).toBe('list-total-staff-roles:0/0');
+	});
+
 	test('totals the open sessions from the whole-collection counts', () => {
 		const totals = buildStaffUserTotals(t, {
 			total: 12,

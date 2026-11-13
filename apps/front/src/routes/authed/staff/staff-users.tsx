@@ -222,7 +222,7 @@ const StaffUsersPage = () => {
 			emptyText={t('list-empty-staff-users')}
 			locale={i18n.language}
 			cards={<StaffUsersStatCards counts={team.staffCounts} t={t} />}
-			totals={() => buildStaffUserTotals(t, counts)}
+			totals={() => buildStaffUserTotals(t, counts, search.role)}
 			panelGroups={[
 				...buildStaffTeamPanelGroups(t, 'staff', team.counts, navigateToTeam),
 				...buildStaffRolesPanelGroup(t, team.roles, navigateToRole),

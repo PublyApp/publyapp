@@ -20,7 +20,7 @@ import { statusPillTone } from '~/components/ui/status-tone';
 import type { StaffUserRow } from '~/lib/query/staff-users';
 import { buildCsv } from '~/utils/csv';
 import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
-import { formatDateTime } from '~/utils/format-time';
+import { formatDateTime, formatShortDate } from '~/utils/format-time';
 
 import type { StaffUserListCounts } from '@org/client-ts/models/index';
 
@@ -172,14 +172,14 @@ export const staffUserColumns = (
 		id: 'createdAt',
 		header: t('member-since'),
 		icon: IconCalendar,
-		width: 140,
+		width: 180,
 		value: (row) =>
-			row.createdAt === null ? '' : formatDateTime(row.createdAt, locale),
+			row.createdAt === null ? '' : formatShortDate(row.createdAt, locale),
 		cell: (row) =>
 			row.createdAt === null ? (
 				<Dash />
 			) : (
-				<span>{formatDateTime(row.createdAt, locale)}</span>
+				<span>{formatShortDate(row.createdAt, locale)}</span>
 			),
 		sortable: false,
 	},
@@ -244,11 +244,19 @@ export const buildStaffUserFilters = (
 export const buildStaffUserTotals = (
 	t: Translate,
 	counts: StaffUserListCounts | null | undefined,
+	accessFilter: readonly string[] = [],
 ): Map<string, string> => {
 	const active = counts?.active ?? 0;
 	const suspended = counts?.suspended ?? 0;
-	const fullAccess = counts?.fullAccess ?? 0;
-	const standard = (counts?.total ?? 0) - fullAccess;
+	// The access facet ignores its own filter, so the composition of the
+	// FILTERED collection is the selected choice's facet count and zero for the
+	// choice it excludes (never the filtered total minus an unfiltered facet).
+	const onlyFullAccess =
+		accessFilter.includes('full_access') && !accessFilter.includes('standard');
+	const onlyStandard =
+		accessFilter.includes('standard') && !accessFilter.includes('full_access');
+	const fullAccess = onlyStandard ? 0 : (counts?.fullAccess ?? 0);
+	const standard = onlyFullAccess ? 0 : (counts?.standardAccess ?? 0);
 
 	const totals = new Map<string, string>();
 	totals.set(
