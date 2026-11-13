@@ -10,6 +10,7 @@ import { BrandTile } from '~/components/ui/initials-avatar';
 import { Label } from '~/components/ui/label';
 import { resolveApiFileUrl } from '~/lib/api-client/resolve-api-file-url';
 import { formatBytes } from '~/lib/format-bytes';
+import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import { toastLocalMutationResult } from '~/lib/mutation-feedback/mutation-toast';
 import { useUploadStaffImageMutation } from '~/lib/query/staff-uploads';
 
@@ -62,6 +63,10 @@ export const FieldImageUpload = ({
 }: FieldImageUploadProps) => {
 	const { t, i18n } = useTranslation('common');
 	const { control } = useFormContext();
+	const translateResponseMessage = useResponseMessageTranslator();
+	// The same value feeds the pre-check, its message and the drop hint, so the
+	// limit reads one way everywhere (the API's refusal builds it from `maxBytes`).
+	const maxSize = formatBytes(MAX_UPLOAD_BYTES, i18n.language, 'limit');
 	const uploadImage = useUploadStaffImageMutation();
 	const [localError, setLocalError] = useState('');
 	const [picked, setPicked] = useState<DropZoneFile | null>(null);
@@ -92,7 +97,7 @@ export const FieldImageUpload = ({
 					}
 
 					if (file.size > MAX_UPLOAD_BYTES) {
-						setLocalError(t('logo-upload-too-large'));
+						setLocalError(t('logo-upload-too-large', { size: maxSize }));
 						return;
 					}
 
@@ -112,6 +117,7 @@ export const FieldImageUpload = ({
 								setLocalError(
 									getFailureMessage(toApiFailure(uploadError), {
 										fallback: t('logo-upload-failed'),
+										translate: translateResponseMessage,
 									}),
 								);
 							},
@@ -143,7 +149,7 @@ export const FieldImageUpload = ({
 							action={t('choose-image')}
 							hint={
 								<span>
-									{t('or-drag-here')} · {t('logo-drop-hint')}
+									{t('or-drag-here')} · {t('logo-drop-hint', { size: maxSize })}
 								</span>
 							}
 							inputId={fieldId}

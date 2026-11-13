@@ -41,6 +41,38 @@ public sealed class CustomExceptionHandlerSpec {
 		mapped.Extensions.Required()["maxBytes"].Should().Be(16_777_216L);
 	}
 
+	[Fact]
+	public void ItShouldResolveTheFileLimitOfAnUploadEndpoint() {
+		var endpoint = new Endpoint(
+			null,
+			new EndpointMetadataCollection(
+				new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(
+					2_000_000 + PublyApp.Api.Modules.Uploads.UploadLimits.MultipartHeaderHeadroomBytes
+				)
+			),
+			"upload"
+		);
+
+		CustomExceptionHandler.ResolveUploadFileLimit(endpoint, 2_000_000)
+			.Should().Be(2_000_000);
+	}
+
+	[Fact]
+	public void ItShouldNotResolveAFileLimitForAnotherEndpointOrNone() {
+		var otherLimit = new Endpoint(
+			null,
+			new EndpointMetadataCollection(
+				new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(1_000)
+			),
+			"other"
+		);
+		var noLimit = new Endpoint(null, new EndpointMetadataCollection(), "plain");
+
+		CustomExceptionHandler.ResolveUploadFileLimit(otherLimit, 2_000_000).Should().BeNull();
+		CustomExceptionHandler.ResolveUploadFileLimit(noLimit, 2_000_000).Should().BeNull();
+		CustomExceptionHandler.ResolveUploadFileLimit(null, 2_000_000).Should().BeNull();
+	}
+
 	[Theory]
 	[InlineData(16_777_216L, "16.7 MB")]
 	[InlineData(2_000_000L, "2 MB")]

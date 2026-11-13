@@ -4,8 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Projects.Entities;
+using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 
 using Xunit;
@@ -21,6 +23,24 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 
 	public PublishTargetServiceSpec(ApiFixture fixture) {
 		this._Fixture = fixture;
+	}
+
+	[Fact]
+	public void ItShouldNeverAdvertiseAnImageCapAboveTheEnforcedUploadCap() {
+		var enforced = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
+		ProviderCapability[] capabilities = [
+			ProviderCapabilityRegistry.Bluesky,
+			ProviderCapabilityRegistry.Mastodon,
+			ProviderCapabilityRegistry.Pixelfed,
+			ProviderCapabilityRegistry.DiscordWebhook,
+		];
+
+		foreach (var capability in capabilities) {
+			PublishTargetLimits.FromCapability(capability).MaxImageBytes
+				.Should().BeLessThanOrEqualTo(enforced);
+		}
+		PublishTargetAttachLimits.FromRegistry().MaxImageBytes
+			.Should().BeLessThanOrEqualTo(enforced);
 	}
 
 	[Fact]

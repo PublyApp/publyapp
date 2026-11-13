@@ -283,6 +283,13 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.RequestEntityTooLarge);
+		var problem = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+		problem.GetProperty("translationKey").GetString().Should().Be("upload-file-too-large");
+		problem.GetProperty("maxBytes").GetInt64().Should().Be(AppEnvironment.Instance.UPLOAD_MAX_BYTES);
+		problem.GetProperty("detail").GetString().Should().Be(
+			"File exceeds the maximum size of "
+			+ PublyApp.Api.Modules.Uploads.UploadLimits.FormatLimit(AppEnvironment.Instance.UPLOAD_MAX_BYTES)
+		);
 	}
 
 	[Fact]

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
@@ -40,6 +41,15 @@ public record PublishTargetLimits {
 	/// <summary>True when this destination can carry a video.</summary>
 	public required bool SupportsVideo { get; init; }
 
+	/// <summary>
+	/// The attach endpoint refuses anything above <c>UPLOAD_MAX_BYTES</c>, so the cap
+	/// advertised to the composer never exceeds it: the help text and the refusal
+	/// name the same limit (#2421).
+	/// </summary>
+	internal static long EnforcedImageBytes(long providerBytes) {
+		return Math.Min(providerBytes, AppEnvironment.Instance.UPLOAD_MAX_BYTES);
+	}
+
 	public static PublishTargetLimits FromCapability(ProviderCapability capability) {
 		return new PublishTargetLimits {
 			TextLimits = capability.TextLimits
@@ -50,7 +60,7 @@ public record PublishTargetLimits {
 				})
 				.ToList(),
 			MaxImages = capability.MaxImages,
-			MaxImageBytes = capability.MaxImageBytes,
+			MaxImageBytes = PublishTargetLimits.EnforcedImageBytes(capability.MaxImageBytes),
 			AcceptedImageContentTypes = capability.AcceptedImageContentTypes,
 			RequiresMedia = capability.RequiresMedia,
 			SupportsThreads = capability.SupportsThreads,
@@ -73,7 +83,7 @@ public record PublishTargetAttachLimits {
 	public static PublishTargetAttachLimits FromRegistry() {
 		return new PublishTargetAttachLimits {
 			MaxImages = ProviderCapabilityRegistry.MaxImagesPerPost,
-			MaxImageBytes = ProviderCapabilityRegistry.MaxImageBytes,
+			MaxImageBytes = PublishTargetLimits.EnforcedImageBytes(ProviderCapabilityRegistry.MaxImageBytes),
 			AcceptedImageContentTypes = ProviderCapabilityRegistry.AcceptedImageContentTypes,
 		};
 	}

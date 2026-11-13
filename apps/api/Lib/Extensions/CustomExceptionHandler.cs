@@ -175,6 +175,20 @@ public static partial class CustomExceptionHandler {
 		);
 	}
 
+	/// <summary>
+	/// An upload endpoint caps the whole body at UPLOAD_MAX_BYTES plus the multipart
+	/// headroom; when the endpoint carries exactly that request-size limit, the FILE
+	/// limit (UPLOAD_MAX_BYTES) is what the user should be told (#2421). Any other
+	/// endpoint (or none) yields null.
+	/// </summary>
+	public static long? ResolveUploadFileLimit(Endpoint? endpoint, long uploadMaxBytes) {
+		var requestSizeLimit = endpoint?.Metadata
+			.GetMetadata<Microsoft.AspNetCore.Http.Metadata.IRequestSizeLimitMetadata>();
+		return requestSizeLimit?.MaxRequestBodySize == uploadMaxBytes + UploadLimits.MultipartHeaderHeadroomBytes
+			? uploadMaxBytes
+			: null;
+	}
+
 	public static void UseCustomExceptionHandler(this IApplicationBuilder app) {
 		app.UseExceptionHandler(exceptionHandlerApp => {
 			exceptionHandlerApp.Run(async context => {
@@ -187,16 +201,12 @@ public static partial class CustomExceptionHandler {
 				var exceptionHandlerFeature = context.Features.Get<IExceptionHandlerFeature>();
 				var exceptionType = exceptionHandlerFeature?.Error;
 
-				// An upload endpoint caps the whole body at UPLOAD_MAX_BYTES plus the multipart
-				// headroom; name the FILE limit so the client can tell the user (#2421).
-				var uploadMaxBytes = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
-				var requestSizeLimit = context.GetEndpoint()?.Metadata
-					.GetMetadata<Microsoft.AspNetCore.Http.Metadata.IRequestSizeLimitMetadata>();
 				var mapped = CustomExceptionHandler.MapException(
 					exceptionType,
-					requestSizeLimit?.MaxRequestBodySize == uploadMaxBytes + UploadLimits.MultipartHeaderHeadroomBytes
-						? uploadMaxBytes
-						: null
+					CustomExceptionHandler.ResolveUploadFileLimit(
+						context.GetEndpoint(),
+						AppEnvironment.Instance.UPLOAD_MAX_BYTES
+					)
 				);
 
 				if (exceptionType is not null) {
