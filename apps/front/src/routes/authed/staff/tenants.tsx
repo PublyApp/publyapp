@@ -129,6 +129,8 @@ const StaffTenantsPage = () => {
 	// `totalCount`/`counts` describe the whole filtered collection (#2301).
 	const countsKnown = query.data !== undefined;
 	const counts = query.data?.counts;
+	// The panel counters ignore the other filters but respect the search (#2275).
+	const panel = query.data?.panelCounts;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 
@@ -200,26 +202,18 @@ const StaffTenantsPage = () => {
 			onFiltersChange={setFilters}
 			counts={{
 				status: {
-					active: counts?.active ?? null,
-					pending: counts?.pending ?? null,
-					suspended: counts?.suspended ?? null,
+					active: panel?.status?.active ?? null,
+					pending: panel?.status?.pending ?? null,
+					suspended: panel?.status?.suspended ?? null,
 				},
 				occupancy: {
-					full: counts?.full ?? null,
-					high:
-						counts == null
-							? null
-							: (counts.almostFull ?? 0) - (counts.full ?? 0),
-					available:
-						counts == null
-							? null
-							: (counts.total ?? 0) - (counts.almostFull ?? 0),
+					full: panel?.seats?.full ?? null,
+					high: panel?.seats?.high ?? null,
+					available: panel?.seats?.available ?? null,
 				},
 				locale: {
-					fr:
-						counts?.byLocale?.find((row) => row.locale === 'fr')?.count ?? null,
-					en:
-						counts?.byLocale?.find((row) => row.locale === 'en')?.count ?? null,
+					fr: panel?.locales?.find((row) => row.locale === 'fr')?.count ?? null,
+					en: panel?.locales?.find((row) => row.locale === 'en')?.count ?? null,
 				},
 			}}
 			countsKnown={countsKnown}

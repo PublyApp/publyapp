@@ -135,9 +135,32 @@ public class TenantListCountsResponse {
 	public List<TenantLocaleCountItem> ByLocale { get; set; } = [];
 }
 
+public class TenantStatusPanelCountsResponse {
+	public int Active { get; set; }
+	public int Pending { get; set; }
+	public int Suspended { get; set; }
+}
+
+public class TenantSeatsPanelCountsResponse {
+	public int Full { get; set; }
+	public int High { get; set; }
+	public int Available { get; set; }
+}
+
+/// <summary>
+/// Side-panel counters: per status, seats bucket and language. They ignore the
+/// status filter but respect the search.
+/// </summary>
+public class TenantPanelCountsResponse {
+	public TenantStatusPanelCountsResponse Status { get; set; } = new();
+	public TenantSeatsPanelCountsResponse Seats { get; set; } = new();
+	public List<TenantLocaleCountItem> Locales { get; set; } = [];
+}
+
 public class FindTenantsAsStaffResponse : CursorPaginatedResult<TenantAsStaffListItem> {
 	public int TotalCount { get; set; }
 	public TenantListCountsResponse Counts { get; set; } = new();
+	public TenantPanelCountsResponse PanelCounts { get; set; } = new();
 }
 
 public sealed class FindTenantsAsStaff {
@@ -197,6 +220,24 @@ public sealed class FindTenantsAsStaff {
 				Data = success.Data.Data,
 				NextCursor = success.Data.NextCursor,
 				TotalCount = success.Counts.Total,
+				PanelCounts = new TenantPanelCountsResponse {
+					Status = new TenantStatusPanelCountsResponse {
+						Active = success.PanelCounts.Status.Active,
+						Pending = success.PanelCounts.Status.Pending,
+						Suspended = success.PanelCounts.Status.Suspended,
+					},
+					Seats = new TenantSeatsPanelCountsResponse {
+						Full = success.PanelCounts.Seats.Full,
+						High = success.PanelCounts.Seats.High,
+						Available = success.PanelCounts.Seats.Available,
+					},
+					Locales = success.PanelCounts.Locales
+						.Select(count => new TenantLocaleCountItem {
+							Locale = count.Locale,
+							Count = count.Count,
+						})
+						.ToList(),
+				},
 				Counts = new TenantListCountsResponse {
 					Total = success.Counts.Total,
 					Active = success.Counts.Active,

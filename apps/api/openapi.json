@@ -18516,6 +18516,10 @@
           "counts": {
             "$ref": "#/components/schemas/TenantListCountsResponse"
           },
+          "panelCounts": {
+            "description": "Side-panel counters: per status, seats bucket and language. They ignore the\nstatus filter but respect the search.",
+            "$ref": "#/components/schemas/TenantPanelCountsResponse"
+          },
           "data": {
             "type": "array",
             "items": {
@@ -21904,7 +21908,13 @@
           "usersCount",
           "projectsCount",
           "maxUsers",
-          "status"
+          "status",
+          "createdAt",
+          "ownersCount",
+          "rolesCount",
+          "connectedAccountsCount",
+          "postsThisMonthCount",
+          "pendingInvitationsCount"
         ],
         "type": "object",
         "properties": {
@@ -21954,6 +21964,53 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timezone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "websiteUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "billingEmail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ownersCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "rolesCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "connectedAccountsCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "postsThisMonthCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "pendingInvitationsCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -22084,6 +22141,24 @@
             "format": "int32"
           }
         }
+      },
+      "TenantPanelCountsResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/TenantStatusPanelCountsResponse"
+          },
+          "seats": {
+            "$ref": "#/components/schemas/TenantSeatsPanelCountsResponse"
+          },
+          "locales": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantLocaleCountItem"
+            }
+          }
+        },
+        "description": "Side-panel counters: per status, seats bucket and language. They ignore the\nstatus filter but respect the search."
       },
       "TenantReactivatedResult": {
         "required": [
@@ -22227,6 +22302,26 @@
           }
         }
       },
+      "TenantSeatsPanelCountsResponse": {
+        "type": "object",
+        "properties": {
+          "full": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "high": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "available": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "TenantSettingsGeneralResult": {
         "type": "object",
         "properties": {
@@ -22296,6 +22391,26 @@
           "Active",
           "Suspended"
         ]
+      },
+      "TenantStatusPanelCountsResponse": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "pending": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "suspended": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       },
       "TenantSuspendedResult": {
         "required": [

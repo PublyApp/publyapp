@@ -285,8 +285,14 @@ const counts = {
 	activeThisWeek: 1,
 };
 
+const panelCounts = {
+	status: { active: 1, pending: 1, suspended: 0 },
+	seats: { full: 0, high: 1, available: 1 },
+	locales: [{ locale: 'fr', count: 2 }],
+};
+
 const queryResult = (overrides: Record<string, unknown> = {}) => ({
-	data: { data: rows, nextCursor: null, totalCount: 2, counts },
+	data: { data: rows, nextCursor: null, totalCount: 2, counts, panelCounts },
 	error: null,
 	isPending: false,
 	isError: false,
@@ -429,7 +435,13 @@ describe('staff tenants route (organisations list)', () => {
 	test('counters and totals still use the API counts when more pages exist', async () => {
 		mocks.useStaffTenantsQuery.mockReturnValue(
 			queryResult({
-				data: { data: rows, nextCursor: 'next-page', totalCount: 2, counts },
+				data: {
+					data: rows,
+					nextCursor: 'next-page',
+					totalCount: 2,
+					counts,
+					panelCounts,
+				},
 			}),
 		);
 		renderPage();

@@ -23,6 +23,15 @@ const tenantRow: StaffTenantRow = {
 	projectsCount: 2,
 	maxUsers: 10,
 	lastActivityAt: null,
+	createdAt: new Date('2026-01-15T00:00:00Z'),
+	timezone: 'Indian/Antananarivo',
+	websiteUrl: 'https://acme.example',
+	billingEmail: 'billing@acme.example',
+	ownersCount: 2,
+	rolesCount: 3,
+	connectedAccountsCount: 5,
+	postsThisMonthCount: 12,
+	pendingInvitationsCount: 1,
 };
 
 const columnById = (id: string) =>
@@ -63,6 +72,29 @@ describe('tenants list — « Identifiant » and « Langues »', () => {
 		render(<>{buildTenantMobileCard(t, 'fr')(tenantRow).code}</>);
 
 		expect(screen.getByText('acme-corp')).toBeTruthy();
+	});
+});
+
+describe('tenants list — columns filled by #2275', () => {
+	test.each([
+		['timezone', 'Indian/Antananarivo'],
+		['website', 'https://acme.example'],
+		['billingEmail', 'billing@acme.example'],
+	])('renders %s from the row', (id, text) => {
+		render(<>{columnById(id)?.cell?.(tenantRow)}</>);
+		expect(screen.getByText(text)).toBeTruthy();
+	});
+
+	test('renders the counts', () => {
+		render(<>{columnById('postsMonth')?.cell?.(tenantRow)}</>);
+		expect(screen.getByText('12')).toBeTruthy();
+	});
+
+	test('falls back to « — » for missing text', () => {
+		render(
+			<>{columnById('timezone')?.cell?.({ ...tenantRow, timezone: null })}</>,
+		);
+		expect(screen.getByText('—')).toBeTruthy();
 	});
 });
 

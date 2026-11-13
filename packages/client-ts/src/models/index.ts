@@ -2663,6 +2663,15 @@ export function createTenantLocaleCountItemFromDiscriminatorValue(parseNode: Par
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantPanelCountsResponse}
+ */
+// @ts-ignore
+export function createTenantPanelCountsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantPanelCountsResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {TenantReactivatedResult}
  */
 // @ts-ignore
@@ -2721,11 +2730,29 @@ export function createTenantRoleUserRoleItemFromDiscriminatorValue(parseNode: Pa
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantSeatsPanelCountsResponse}
+ */
+// @ts-ignore
+export function createTenantSeatsPanelCountsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantSeatsPanelCountsResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {TenantSettingsGeneralResult}
  */
 // @ts-ignore
 export function createTenantSettingsGeneralResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoTenantSettingsGeneralResult;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {TenantStatusPanelCountsResponse}
+ */
+// @ts-ignore
+export function createTenantStatusPanelCountsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoTenantStatusPanelCountsResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -4433,6 +4460,7 @@ export function deserializeIntoFindTenantsAsStaffResponse(findTenantsAsStaffResp
         "counts": n => { findTenantsAsStaffResponse.counts = n.getObjectValue<TenantListCountsResponse>(createTenantListCountsResponseFromDiscriminatorValue); },
         "data": n => { findTenantsAsStaffResponse.data = n.getCollectionOfObjectValues<TenantAsStaffListItem>(createTenantAsStaffListItemFromDiscriminatorValue); },
         "nextCursor": n => { findTenantsAsStaffResponse.nextCursor = n.getStringValue(); },
+        "panelCounts": n => { findTenantsAsStaffResponse.panelCounts = n.getObjectValue<TenantPanelCountsResponse>(createTenantPanelCountsResponseFromDiscriminatorValue); },
         "totalCount": n => { findTenantsAsStaffResponse.totalCount = n.getNumberValue(); },
     }
 }
@@ -6128,16 +6156,25 @@ export function deserializeIntoSystemNoticeUpdated(systemNoticeUpdated: Partial<
 // @ts-ignore
 export function deserializeIntoTenantAsStaffListItem(tenantAsStaffListItem: Partial<TenantAsStaffListItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "billingEmail": n => { tenantAsStaffListItem.billingEmail = n.getStringValue(); },
         "code": n => { tenantAsStaffListItem.code = n.getStringValue(); },
+        "connectedAccountsCount": n => { tenantAsStaffListItem.connectedAccountsCount = n.getNumberValue(); },
+        "createdAt": n => { tenantAsStaffListItem.createdAt = n.getDateValue(); },
         "defaultLocale": n => { tenantAsStaffListItem.defaultLocale = n.getStringValue(); },
         "id": n => { tenantAsStaffListItem.id = n.getGuidValue(); },
         "lastActivityAt": n => { tenantAsStaffListItem.lastActivityAt = n.getDateValue(); },
         "logoUrl": n => { tenantAsStaffListItem.logoUrl = n.getStringValue(); },
         "maxUsers": n => { tenantAsStaffListItem.maxUsers = n.getNumberValue(); },
         "name": n => { tenantAsStaffListItem.name = n.getStringValue(); },
+        "ownersCount": n => { tenantAsStaffListItem.ownersCount = n.getNumberValue(); },
+        "pendingInvitationsCount": n => { tenantAsStaffListItem.pendingInvitationsCount = n.getNumberValue(); },
+        "postsThisMonthCount": n => { tenantAsStaffListItem.postsThisMonthCount = n.getNumberValue(); },
         "projectsCount": n => { tenantAsStaffListItem.projectsCount = n.getNumberValue(); },
+        "rolesCount": n => { tenantAsStaffListItem.rolesCount = n.getNumberValue(); },
         "status": n => { tenantAsStaffListItem.status = n.getEnumValue<TenantStatus>(TenantStatusObject); },
+        "timezone": n => { tenantAsStaffListItem.timezone = n.getStringValue(); },
         "usersCount": n => { tenantAsStaffListItem.usersCount = n.getNumberValue(); },
+        "websiteUrl": n => { tenantAsStaffListItem.websiteUrl = n.getStringValue(); },
     }
 }
 /**
@@ -6202,6 +6239,19 @@ export function deserializeIntoTenantLocaleCountItem(tenantLocaleCountItem: Part
     return {
         "count": n => { tenantLocaleCountItem.count = n.getNumberValue(); },
         "locale": n => { tenantLocaleCountItem.locale = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param TenantPanelCountsResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantPanelCountsResponse(tenantPanelCountsResponse: Partial<TenantPanelCountsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "locales": n => { tenantPanelCountsResponse.locales = n.getCollectionOfObjectValues<TenantLocaleCountItem>(createTenantLocaleCountItemFromDiscriminatorValue); },
+        "seats": n => { tenantPanelCountsResponse.seats = n.getObjectValue<TenantSeatsPanelCountsResponse>(createTenantSeatsPanelCountsResponseFromDiscriminatorValue); },
+        "status": n => { tenantPanelCountsResponse.status = n.getObjectValue<TenantStatusPanelCountsResponse>(createTenantStatusPanelCountsResponseFromDiscriminatorValue); },
     }
 }
 /**
@@ -6272,6 +6322,19 @@ export function deserializeIntoTenantRoleUserRoleItem(tenantRoleUserRoleItem: Pa
 }
 /**
  * The deserialization information for the current model
+ * @param TenantSeatsPanelCountsResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantSeatsPanelCountsResponse(tenantSeatsPanelCountsResponse: Partial<TenantSeatsPanelCountsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "available": n => { tenantSeatsPanelCountsResponse.available = n.getNumberValue(); },
+        "full": n => { tenantSeatsPanelCountsResponse.full = n.getNumberValue(); },
+        "high": n => { tenantSeatsPanelCountsResponse.high = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param TenantSettingsGeneralResult The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -6289,6 +6352,19 @@ export function deserializeIntoTenantSettingsGeneralResult(tenantSettingsGeneral
         "supportEmail": n => { tenantSettingsGeneralResult.supportEmail = n.getStringValue(); },
         "timezone": n => { tenantSettingsGeneralResult.timezone = n.getStringValue(); },
         "websiteUrl": n => { tenantSettingsGeneralResult.websiteUrl = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param TenantStatusPanelCountsResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoTenantStatusPanelCountsResponse(tenantStatusPanelCountsResponse: Partial<TenantStatusPanelCountsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "active": n => { tenantStatusPanelCountsResponse.active = n.getNumberValue(); },
+        "pending": n => { tenantStatusPanelCountsResponse.pending = n.getNumberValue(); },
+        "suspended": n => { tenantStatusPanelCountsResponse.suspended = n.getNumberValue(); },
     }
 }
 /**
@@ -7003,6 +7079,10 @@ export interface FindTenantsAsStaffResponse extends AdditionalDataHolder, Parsab
      * The nextCursor property
      */
     nextCursor?: string | null;
+    /**
+     * Side-panel counters: per status, seats bucket and language. They ignore thestatus filter but respect the search.
+     */
+    panelCounts?: TenantPanelCountsResponse | null;
     /**
      * The totalCount property
      */
@@ -9808,6 +9888,7 @@ export function serializeFindTenantsAsStaffResponse(writer: SerializationWriter,
     writer.writeObjectValue<TenantListCountsResponse>("counts", findTenantsAsStaffResponse.counts, serializeTenantListCountsResponse);
     writer.writeCollectionOfObjectValues<TenantAsStaffListItem>("data", findTenantsAsStaffResponse.data, serializeTenantAsStaffListItem);
     writer.writeStringValue("nextCursor", findTenantsAsStaffResponse.nextCursor);
+    writer.writeObjectValue<TenantPanelCountsResponse>("panelCounts", findTenantsAsStaffResponse.panelCounts, serializeTenantPanelCountsResponse);
     writer.writeNumberValue("totalCount", findTenantsAsStaffResponse.totalCount);
     writer.writeAdditionalData(findTenantsAsStaffResponse.additionalData);
 }
@@ -11618,16 +11699,25 @@ export function serializeSystemNoticeUpdated(writer: SerializationWriter, system
 // @ts-ignore
 export function serializeTenantAsStaffListItem(writer: SerializationWriter, tenantAsStaffListItem: Partial<TenantAsStaffListItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!tenantAsStaffListItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("billingEmail", tenantAsStaffListItem.billingEmail);
     writer.writeStringValue("code", tenantAsStaffListItem.code);
+    writer.writeNumberValue("connectedAccountsCount", tenantAsStaffListItem.connectedAccountsCount);
+    writer.writeDateValue("createdAt", tenantAsStaffListItem.createdAt);
     writer.writeStringValue("defaultLocale", tenantAsStaffListItem.defaultLocale);
     writer.writeGuidValue("id", tenantAsStaffListItem.id);
     writer.writeDateValue("lastActivityAt", tenantAsStaffListItem.lastActivityAt);
     writer.writeStringValue("logoUrl", tenantAsStaffListItem.logoUrl);
     writer.writeNumberValue("maxUsers", tenantAsStaffListItem.maxUsers);
     writer.writeStringValue("name", tenantAsStaffListItem.name);
+    writer.writeNumberValue("ownersCount", tenantAsStaffListItem.ownersCount);
+    writer.writeNumberValue("pendingInvitationsCount", tenantAsStaffListItem.pendingInvitationsCount);
+    writer.writeNumberValue("postsThisMonthCount", tenantAsStaffListItem.postsThisMonthCount);
     writer.writeNumberValue("projectsCount", tenantAsStaffListItem.projectsCount);
+    writer.writeNumberValue("rolesCount", tenantAsStaffListItem.rolesCount);
     writer.writeEnumValue<TenantStatus>("status", tenantAsStaffListItem.status);
+    writer.writeStringValue("timezone", tenantAsStaffListItem.timezone);
     writer.writeNumberValue("usersCount", tenantAsStaffListItem.usersCount);
+    writer.writeStringValue("websiteUrl", tenantAsStaffListItem.websiteUrl);
     writer.writeAdditionalData(tenantAsStaffListItem.additionalData);
 }
 /**
@@ -11697,6 +11787,20 @@ export function serializeTenantLocaleCountItem(writer: SerializationWriter, tena
     writer.writeNumberValue("count", tenantLocaleCountItem.count);
     writer.writeStringValue("locale", tenantLocaleCountItem.locale);
     writer.writeAdditionalData(tenantLocaleCountItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantPanelCountsResponse The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantPanelCountsResponse(writer: SerializationWriter, tenantPanelCountsResponse: Partial<TenantPanelCountsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantPanelCountsResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<TenantLocaleCountItem>("locales", tenantPanelCountsResponse.locales, serializeTenantLocaleCountItem);
+    writer.writeObjectValue<TenantSeatsPanelCountsResponse>("seats", tenantPanelCountsResponse.seats, serializeTenantSeatsPanelCountsResponse);
+    writer.writeObjectValue<TenantStatusPanelCountsResponse>("status", tenantPanelCountsResponse.status, serializeTenantStatusPanelCountsResponse);
+    writer.writeAdditionalData(tenantPanelCountsResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -11771,6 +11875,20 @@ export function serializeTenantRoleUserRoleItem(writer: SerializationWriter, ten
 /**
  * Serializes information the current object
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantSeatsPanelCountsResponse The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantSeatsPanelCountsResponse(writer: SerializationWriter, tenantSeatsPanelCountsResponse: Partial<TenantSeatsPanelCountsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantSeatsPanelCountsResponse || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("available", tenantSeatsPanelCountsResponse.available);
+    writer.writeNumberValue("full", tenantSeatsPanelCountsResponse.full);
+    writer.writeNumberValue("high", tenantSeatsPanelCountsResponse.high);
+    writer.writeAdditionalData(tenantSeatsPanelCountsResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param TenantSettingsGeneralResult The instance to serialize from.
  * @param writer Serialization writer to use to serialize this model
  */
@@ -11789,6 +11907,20 @@ export function serializeTenantSettingsGeneralResult(writer: SerializationWriter
     writer.writeStringValue("timezone", tenantSettingsGeneralResult.timezone);
     writer.writeStringValue("websiteUrl", tenantSettingsGeneralResult.websiteUrl);
     writer.writeAdditionalData(tenantSettingsGeneralResult.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param TenantStatusPanelCountsResponse The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeTenantStatusPanelCountsResponse(writer: SerializationWriter, tenantStatusPanelCountsResponse: Partial<TenantStatusPanelCountsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!tenantStatusPanelCountsResponse || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("active", tenantStatusPanelCountsResponse.active);
+    writer.writeNumberValue("pending", tenantStatusPanelCountsResponse.pending);
+    writer.writeNumberValue("suspended", tenantStatusPanelCountsResponse.suspended);
+    writer.writeAdditionalData(tenantStatusPanelCountsResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -13026,9 +13158,21 @@ export interface SystemNoticeUpdated extends AdditionalDataHolder, Parsable {
 }
 export interface TenantAsStaffListItem extends AdditionalDataHolder, Parsable {
     /**
+     * The billingEmail property
+     */
+    billingEmail?: string | null;
+    /**
      * The code property
      */
     code?: string | null;
+    /**
+     * The connectedAccountsCount property
+     */
+    connectedAccountsCount?: number | null;
+    /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
     /**
      * The defaultLocale property
      */
@@ -13054,17 +13198,41 @@ export interface TenantAsStaffListItem extends AdditionalDataHolder, Parsable {
      */
     name?: string | null;
     /**
+     * The ownersCount property
+     */
+    ownersCount?: number | null;
+    /**
+     * The pendingInvitationsCount property
+     */
+    pendingInvitationsCount?: number | null;
+    /**
+     * The postsThisMonthCount property
+     */
+    postsThisMonthCount?: number | null;
+    /**
      * The projectsCount property
      */
     projectsCount?: number | null;
+    /**
+     * The rolesCount property
+     */
+    rolesCount?: number | null;
     /**
      * The status property
      */
     status?: TenantStatus | null;
     /**
+     * The timezone property
+     */
+    timezone?: string | null;
+    /**
      * The usersCount property
      */
     usersCount?: number | null;
+    /**
+     * The websiteUrl property
+     */
+    websiteUrl?: string | null;
 }
 export interface TenantForPickerItem extends AdditionalDataHolder, Parsable {
     /**
@@ -13169,6 +13337,23 @@ export interface TenantLocaleCountItem extends AdditionalDataHolder, Parsable {
      * The locale property
      */
     locale?: string | null;
+}
+/**
+ * Side-panel counters: per status, seats bucket and language. They ignore thestatus filter but respect the search.
+ */
+export interface TenantPanelCountsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The locales property
+     */
+    locales?: TenantLocaleCountItem[] | null;
+    /**
+     * The seats property
+     */
+    seats?: TenantSeatsPanelCountsResponse | null;
+    /**
+     * The status property
+     */
+    status?: TenantStatusPanelCountsResponse | null;
 }
 export interface TenantReactivatedResult extends AdditionalDataHolder, Parsable {
     /**
@@ -13282,6 +13467,20 @@ export interface TenantRoleUserRoleItem extends AdditionalDataHolder, Parsable {
      */
     name?: string | null;
 }
+export interface TenantSeatsPanelCountsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The available property
+     */
+    available?: number | null;
+    /**
+     * The full property
+     */
+    full?: number | null;
+    /**
+     * The high property
+     */
+    high?: number | null;
+}
 export interface TenantSettingsGeneralResult extends AdditionalDataHolder, Parsable {
     /**
      * The billingEmail property
@@ -13329,6 +13528,20 @@ export interface TenantSettingsGeneralResult extends AdditionalDataHolder, Parsa
     websiteUrl?: string | null;
 }
 export type TenantStatus = (typeof TenantStatusObject)[keyof typeof TenantStatusObject];
+export interface TenantStatusPanelCountsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The active property
+     */
+    active?: number | null;
+    /**
+     * The pending property
+     */
+    pending?: number | null;
+    /**
+     * The suspended property
+     */
+    suspended?: number | null;
+}
 export interface TenantSuspendedResult extends AdditionalDataHolder, Parsable {
     /**
      * The name property
