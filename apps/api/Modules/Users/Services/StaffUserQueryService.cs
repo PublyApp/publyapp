@@ -35,6 +35,7 @@ public sealed record StaffUserCounts(
 	int Active,
 	int Suspended,
 	int FullAccess,
+	int StandardAccess,
 	int ConnectedToday,
 	int OpenSessions,
 	IReadOnlyList<StaffRoleCount> RoleCounts
@@ -58,7 +59,9 @@ public abstract record FindStaffUsersResult {
 public sealed record FindStaffUsersFilters(
 	string? Search,
 	IReadOnlySet<UserStatus>? Status,
-	Guid? ExcludeRoleId = null
+	Guid? ExcludeRoleId = null,
+	// true = only full-access members, false = only the others; null = both.
+	bool? FullAccess = null
 );
 
 public sealed record FindStaffUsersArgs(
@@ -269,6 +272,34 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				select ua;
 		}
 
+		// The access-level facet ignores its own filter (like the role facet), so
+		// both choices keep their whole-collection counts while one is selected.
+		var accessFacetQuery = query;
+		var fullAccessRows = await (
+			from ua in accessFacetQuery
+			group ua by this._DbContext.UserAccountRole.Any(uap =>
+				uap.UserAccountId == ua.Id
+				&& !uap.Role.IsDeleted
+				&& uap.Role.IsFullAccess) into g
+			select new { IsFullAccess = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+		var fullAccess = fullAccessRows
+			.Where(row => row.IsFullAccess)
+			.Sum(row => row.Count);
+		var standardAccess = fullAccessRows
+			.Where(row => !row.IsFullAccess)
+			.Sum(row => row.Count);
+
+		if (args.Filters?.FullAccess is { } wantsFullAccess) {
+			query =
+				from ua in query
+				where this._DbContext.UserAccountRole.Any(uap =>
+					uap.UserAccountId == ua.Id
+					&& !uap.Role.IsDeleted
+					&& uap.Role.IsFullAccess) == wantsFullAccess
+				select ua;
+		}
+
 		// Facets cover the whole filtered collection (cursor and page size are
 		// pagination only, never a filter).
 		var facetRows = await (
@@ -288,16 +319,6 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				suspended += facet.Count;
 			}
 		}
-
-		// Full access is a protected system role, not a level: count the accounts
-		// holding it over the same filtered collection.
-		var fullAccess = await query.CountAsync(
-			ua => this._DbContext.UserAccountRole.Any(uap =>
-				uap.UserAccountId == ua.Id
-				&& !uap.Role.IsDeleted
-				&& uap.Role.IsFullAccess),
-			cancellationToken
-		);
 
 		// « Connectés aujourd'hui » is the members whose durable last sign-in
 		// (users.last_sign_in_at, stamped at login, impersonation excluded) falls
@@ -341,6 +362,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			Active: active,
 			Suspended: suspended,
 			FullAccess: fullAccess,
+			StandardAccess: standardAccess,
 			ConnectedToday: connectedToday,
 			OpenSessions: openSessions,
 			RoleCounts: roleCounts

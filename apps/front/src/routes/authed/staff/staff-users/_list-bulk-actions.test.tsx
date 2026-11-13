@@ -153,6 +153,7 @@ const row = (
 	openSessions: 0,
 	lastSignInAt: null,
 	invitedByName: null,
+	createdAt: null,
 });
 
 const buildSelection = (selectedIds: string[]): UseRowSelectionResult => ({

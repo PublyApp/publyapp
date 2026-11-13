@@ -34,6 +34,9 @@ public class StaffUserItem {
 
 	// Who invited this member (accepted invitation); null when not invited.
 	public string? InvitedByName { get; set; }
+
+	// When the account was created (the « Membre depuis » column).
+	public DateTime CreatedAt { get; set; }
 }
 
 
@@ -41,7 +44,10 @@ public class StaffUserListCounts {
 	public int Total { get; set; }
 	public int Active { get; set; }
 	public int Suspended { get; set; }
+	// Access-level facet over the collection narrowed by every filter but the
+	// access filter itself.
 	public int FullAccess { get; set; }
+	public int StandardAccess { get; set; }
 	public int ConnectedToday { get; set; }
 	public int OpenSessions { get; set; }
 
@@ -64,6 +70,21 @@ public class FindStaffUsersQuery : CursorPaginatedQuery {
 	// Only members who do NOT hold this staff role (the « assign members » picker).
 	[FromQuery(Name = "exclude_role_id")]
 	public string? ExcludeRoleId { get; set; }
+
+	// Access level: « full_access » and/or « standard » (CSV). Both or none = all.
+	[FromQuery(Name = "access")]
+	public string? Access { get; set; }
+
+	public bool? GetFullAccessOrNull() {
+		var parts = (this.Access ?? string.Empty)
+			.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+			.ToHashSet(StringComparer.Ordinal);
+		if (parts.Contains("full_access") == parts.Contains("standard")) {
+			return null;
+		}
+
+		return parts.Contains("full_access");
+	}
 
 	public string? GetSearchNormalized() {
 		if (this.Search is null) {
@@ -108,6 +129,11 @@ public class FindStaffUsersQueryValidator
 
 	public FindStaffUsersQueryValidator() {
 		this.RuleFor(x => x.Search).MaximumLength(200);
+		this.RuleFor(x => x.Access)
+			.Must(raw => string.IsNullOrEmpty(raw)
+				|| raw.Split(',', StringSplitOptions.TrimEntries)
+					.All(part => part is "full_access" or "standard"))
+			.WithMessage("Invalid access value. Must be comma-separated: full_access,standard");
 		this.RuleFor(x => x.ExcludeRoleId)
 			.Must(raw => string.IsNullOrEmpty(raw) || Guid.TryParse(raw, out _))
 			.WithMessage("Invalid exclude_role_id. Must be a GUID.");
@@ -172,7 +198,8 @@ public sealed class FindStaffUsers {
 					Status: findStaffUsersQuery.GetStatusesOrNull(),
 					ExcludeRoleId: Guid.TryParse(findStaffUsersQuery.ExcludeRoleId, out var excludeRoleId)
 						? excludeRoleId
-						: null
+						: null,
+					FullAccess: findStaffUsersQuery.GetFullAccessOrNull()
 				)
 			),
 			cancellationToken
@@ -208,6 +235,7 @@ public sealed class FindStaffUsers {
 							OpenSessions = staffUser.OpenSessions,
 							LastSignInAt = staffUser.LastSignInAt,
 							InvitedByName = staffUser.InvitedByName,
+							CreatedAt = staffUser.User.CreatedAt,
 						})
 						.ToList(),
 					NextCursor = success.Data.NextCursor,
@@ -217,6 +245,7 @@ public sealed class FindStaffUsers {
 						Active = success.Counts.Active,
 						Suspended = success.Counts.Suspended,
 						FullAccess = success.Counts.FullAccess,
+						StandardAccess = success.Counts.StandardAccess,
 						ConnectedToday = success.Counts.ConnectedToday,
 						OpenSessions = success.Counts.OpenSessions,
 						RoleCounts = success.Counts.RoleCounts

@@ -119,6 +119,7 @@ const staffUserRow = {
 	openSessions: 0,
 	lastSignInAt: null,
 	invitedByName: null,
+	createdAt: null,
 };
 
 const staffSelection = {

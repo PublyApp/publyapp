@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import type { FilterCounts } from '~/components/list/filter-menu';
 import { ListPage } from '~/components/list/list-page';
 import type { ListFiltersValue } from '~/components/list/list-types';
 import { DataTableCursorFooter } from '~/components/table/data-table';
@@ -63,6 +64,8 @@ const staffUsersQueries = ({
 		variables: {
 			...buildTableApiVariables(search, DEFAULT_SORT, DEFAULT_SIZE),
 			status: search.status.length > 0 ? search.status.join(',') : undefined,
+			// Access level, filtered by the API so it spans every page.
+			access: search.role.length > 0 ? search.role.join(',') : undefined,
 		},
 	},
 });
@@ -120,6 +123,19 @@ const StaffUsersPage = () => {
 	// collection, so the totals row and filter badges never sum the page.
 	const countsKnown = query.data !== undefined;
 	const counts = query.data?.counts;
+	const listCounts: FilterCounts = {
+		status: {
+			active: team.staffCounts?.active ?? null,
+			suspended: team.staffCounts?.suspended ?? null,
+		},
+	};
+	if (counts !== undefined && counts !== null) {
+		// Whole-collection access-level facet (ignores its own filter).
+		listCounts.role = {
+			full_access: counts.fullAccess ?? 0,
+			standard: counts.standardAccess ?? 0,
+		};
+	}
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToRole = useCallback(
@@ -198,17 +214,10 @@ const StaffUsersPage = () => {
 				}
 				onSearchChange({ ...search, q: next, cursor: undefined });
 			}}
-			filters={buildStaffUserFilters(t, {
-				includeRoles: countsKnown || search.role.length > 0,
-			})}
+			filters={buildStaffUserFilters(t)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
-			counts={{
-				status: {
-					active: team.staffCounts?.active ?? null,
-					suspended: team.staffCounts?.suspended ?? null,
-				},
-			}}
+			counts={listCounts}
 			countsKnown={countsKnown}
 			emptyText={t('list-empty-staff-users')}
 			locale={i18n.language}

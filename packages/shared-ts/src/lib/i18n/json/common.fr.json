@@ -1864,6 +1864,7 @@
 	"preview-members-checklist_other": "{{count}} membres invités",
 	"all-roles": "Tous les rôles",
 	"view-role": "Voir le rôle",
+	"list-access-level": "Niveau d'accès",
 	"list-roles": "Rôles",
 	"list-total-staff-roles": "{{fullAccess}} accès complet · {{standard}} standard",
 	"full-access": "Accès complet",

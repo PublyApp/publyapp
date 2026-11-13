@@ -173,71 +173,70 @@ export const staffUserColumns = (
 		header: t('member-since'),
 		icon: IconCalendar,
 		width: 140,
-		cell: Dash,
+		value: (row) =>
+			row.createdAt === null ? '' : formatDateTime(row.createdAt, locale),
+		cell: (row) =>
+			row.createdAt === null ? (
+				<Dash />
+			) : (
+				<span>{formatDateTime(row.createdAt, locale)}</span>
+			),
 		sortable: false,
 	},
 ];
 
-/** Statuses reach the API; the role filter is applied to the loaded
- * collection only and is offered only when the list page knows it holds the
- * whole collection. Double authentification is omitted (no field at all) rather
- * than rendering an always-empty filter — #2281 API gap. The full-access role is
- * the only role distinction the list DTO carries, plus the role names it
- * renders. */
+/** Status and access level both reach the API (whole collection, cursor reset).
+ * Double authentification is omitted (no field at all) rather than rendering an
+ * always-empty filter — #2281 API gap. The full-access role is the only role
+ * distinction the list DTO carries; the per-role breakdown is its own panel. */
 export const buildStaffUserFilters = (
 	t: Translate,
-	options: { includeRoles: boolean },
-): ListFilter<StaffUserRow>[] => {
-	const filters: ListFilter<StaffUserRow>[] = [
-		{
-			key: 'status',
-			label: t('list-statuses'),
-			icon: IconCircleDashed,
-			panel: true,
-			choices: [
-				{
-					value: 'active',
-					label: t('list-staff-status-active'),
-					icon: (
-						<IconCircleCheck className="size-4 shrink-0 text-[var(--publy-chip-active-text)]" />
-					),
-				},
-				{
-					value: 'suspended',
-					label: t('list-staff-status-suspended'),
-					icon: (
-						<IconCircleX className="size-4 shrink-0 text-[var(--publy-chip-suspended-text)]" />
-					),
-				},
-			],
-			valueOf: (row) => deriveStaffUserStatusKey(row.status) ?? [],
-		},
-	];
-
-	if (options.includeRoles) {
-		filters.push({
-			key: 'role',
-			label: t('list-roles'),
-			icon: IconCrown,
-			panel: true,
-			choices: [
-				{
-					value: 'full_access',
-					label: t('full-access'),
-					icon: <IconCrown className="size-4 shrink-0 text-muted-foreground" />,
-				},
-				{
-					value: 'standard',
-					label: t('standard-access'),
-					icon: <IconUser className="size-4 shrink-0 text-muted-foreground" />,
-				},
-			],
-			valueOf: (row) => deriveStaffUserRoleKey(row.isFullAccess),
-		});
-	}
-
-	return filters;
-};
+): ListFilter<StaffUserRow>[] => [
+	{
+		key: 'status',
+		label: t('list-statuses'),
+		icon: IconCircleDashed,
+		panel: true,
+		choices: [
+			{
+				value: 'active',
+				label: t('list-staff-status-active'),
+				icon: (
+					<IconCircleCheck className="size-4 shrink-0 text-[var(--publy-chip-active-text)]" />
+				),
+			},
+			{
+				value: 'suspended',
+				label: t('list-staff-status-suspended'),
+				icon: (
+					<IconCircleX className="size-4 shrink-0 text-[var(--publy-chip-suspended-text)]" />
+				),
+			},
+		],
+		valueOf: (row) => deriveStaffUserStatusKey(row.status) ?? [],
+	},
+	{
+		key: 'role',
+		// Its own title: « Rôles » is the per-role panel below it.
+		label: t('list-access-level'),
+		icon: IconCrown,
+		panel: true,
+		serverSide: true,
+		choices: [
+			{
+				value: 'full_access',
+				label: t('full-access'),
+				icon: <IconCrown className="size-4 shrink-0 text-muted-foreground" />,
+			},
+			{
+				value: 'standard',
+				label: t('standard-access'),
+				icon: <IconUser className="size-4 shrink-0 text-muted-foreground" />,
+			},
+		],
+		valueOf: (row) => deriveStaffUserRoleKey(row.isFullAccess),
+	},
+];
 
 /** The pinned footer: only the columns backed by a list-API value get a real
  * summary; the rest stay « — ». The generic page blanks the whole row when the

@@ -20,6 +20,7 @@ const rowWithRoles = (roles: string[]): StaffUserRow => ({
 	openSessions: 0,
 	lastSignInAt: null,
 	invitedByName: null,
+	createdAt: null,
 });
 
 const rolesCell = (roles: string[]) => {

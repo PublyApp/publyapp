@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import type { StaffUserRow } from '~/lib/query/staff-users';
 
 import {
+	buildStaffUserFilters,
 	buildStaffUserTotals,
 	staffUserColumns,
 } from './_staff-users-list-config';
@@ -23,6 +24,7 @@ const row = (overrides: Partial<StaffUserRow> = {}): StaffUserRow => ({
 	openSessions: 0,
 	lastSignInAt: null,
 	invitedByName: null,
+	createdAt: null,
 	...overrides,
 });
 
@@ -67,6 +69,29 @@ describe('staff users list API-backed columns', () => {
 		cleanup();
 		render(<>{cell('invitedBy', row())}</>);
 		expect(screen.getByText('—')).toBeTruthy();
+	});
+
+	test('shows the account creation date in « Membre depuis », or a dash when unknown', () => {
+		render(
+			<>
+				{cell(
+					'createdAt',
+					row({ createdAt: new Date('2026-01-15T09:30:00Z') }),
+				)}
+			</>,
+		);
+		expect(screen.queryByText('—')).toBeNull();
+		cleanup();
+		render(<>{cell('createdAt', row())}</>);
+		expect(screen.getByText('—')).toBeTruthy();
+	});
+
+	test('titles the access-level facet apart from the per-role panel and sends it to the API', () => {
+		const filters = buildStaffUserFilters(t);
+		const access = filters.find((filter) => filter.key === 'role');
+		expect(access?.label).toBe('list-access-level');
+		expect(access?.label).not.toBe('list-roles');
+		expect(access?.serverSide).toBe(true);
 	});
 
 	test('keeps 2FA and language at the dash: no source exists', () => {

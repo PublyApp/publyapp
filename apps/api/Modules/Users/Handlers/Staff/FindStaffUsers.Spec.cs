@@ -1033,6 +1033,128 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldFilterByAccessLevelAndKeepBothFacetCountsOverTheWholeCollection() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"access-{Guid.NewGuid():N}";
+
+		for (var i = 0; i < 2; i++) {
+			_ = await StaffUserTestHelper.SeedStaffUserAsync(
+				this._Fixture,
+				$"{marker}-owner{i}@example.com",
+				firstName: marker,
+				lastName: "Owner",
+				fullAccess: true
+			);
+		}
+		for (var i = 0; i < 3; i++) {
+			_ = await StaffUserTestHelper.SeedStaffUserAsync(
+				this._Fixture,
+				$"{marker}-user{i}@example.com",
+				firstName: marker,
+				lastName: "User"
+			);
+		}
+
+		// limit=1 proves the counts are not the page length; the facet ignores
+		// its own filter, so selecting one choice keeps both counts.
+		foreach (var (access, expectedTotal, expectedFullAccess) in new[] {
+			("full_access", 2, true),
+			("standard", 3, false),
+			("full_access,standard", 5, (bool?)null),
+		}) {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				FindStaffUserSpec._GetFindUrl(limit: 1, q: marker, access: access)
+			).WithSessionToken(token);
+			using var response = await this._Http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+			var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+			Assert.NotNull(result);
+
+			result.TotalCount.Should().Be(expectedTotal);
+			result.Counts.FullAccess.Should().Be(2);
+			result.Counts.StandardAccess.Should().Be(3);
+			if (expectedFullAccess is { } wanted) {
+				result.Data.Should().OnlyContain(user => user.IsFullAccess == wanted);
+			}
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldPageThroughTheAccessFilteredCollectionWithoutSkippingRows() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"accesspage-{Guid.NewGuid():N}";
+		for (var i = 0; i < 3; i++) {
+			_ = await StaffUserTestHelper.SeedStaffUserAsync(
+				this._Fixture,
+				$"{marker}-owner{i}@example.com",
+				firstName: marker,
+				lastName: "Owner",
+				fullAccess: true
+			);
+			_ = await StaffUserTestHelper.SeedStaffUserAsync(
+				this._Fixture,
+				$"{marker}-user{i}@example.com",
+				firstName: marker,
+				lastName: "User"
+			);
+		}
+
+		var seen = new List<Guid>();
+		string? cursor = null;
+		do {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				FindStaffUserSpec._GetFindUrl(
+					cursor: cursor,
+					limit: 2,
+					q: marker,
+					access: "full_access"
+				)
+			).WithSessionToken(token);
+			using var response = await this._Http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+			var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+			Assert.NotNull(result);
+			result.Data.Should().OnlyContain(user => user.IsFullAccess);
+			seen.AddRange(result.Data.Select(user => user.Id));
+			cursor = result.NextCursor;
+		} while (cursor is not null);
+
+		seen.Should().HaveCount(3).And.OnlyHaveUniqueItems();
+	}
+
+	[Fact]
+	public async Task ItShouldReturnValidationProblemForUnknownAccessFilter() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(access: "admin")
+		).WithSessionToken(token);
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnTheAccountCreationDateOnEveryRow() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"since-{Guid.NewGuid():N}";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}@example.com",
+			firstName: marker,
+			lastName: "Since"
+		);
+		var createdAt = new DateTime(2025, 3, 4, 5, 6, 7, DateTimeKind.Utc);
+		await this._SeedStaffUserCreatedAtAsync(userId, createdAt);
+
+		var result = await this._FindAsync(token, marker);
+
+		result.Data.Should().ContainSingle()
+			.Which.CreatedAt.Should().BeCloseTo(createdAt, TimeSpan.FromSeconds(1));
+	}
+
+	[Fact]
 	public async Task ItShouldReturnAssignedRoleNamesOnTheRow() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = $"roled-{Guid.NewGuid():N}";
@@ -1462,7 +1584,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		string? sortOrder = null,
 		string? q = null,
 		string? status = null,
-		string? excludeRoleId = null
+		string? excludeRoleId = null,
+		string? access = null
 	) {
 		var basePath = PathUtils.Join(
 			Routes.Staff.Root,
@@ -1492,6 +1615,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		}
 		if (excludeRoleId is not null) {
 			queryParams.Add($"exclude_role_id={Uri.EscapeDataString(excludeRoleId)}");
+		}
+		if (access is not null) {
+			queryParams.Add($"access={Uri.EscapeDataString(access)}");
 		}
 
 		return queryParams.Count > 0
@@ -1680,6 +1806,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		public int Active { get; init; }
 		public int Suspended { get; init; }
 		public int FullAccess { get; init; }
+		public int StandardAccess { get; init; }
 		public int ConnectedToday { get; init; }
 		public int OpenSessions { get; init; }
 		public List<ProfileCountDto> RoleCounts { get; init; } = [];
@@ -1703,6 +1830,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		public int OpenSessions { get; init; }
 		public DateTime? LastSignInAt { get; init; }
 		public string? InvitedByName { get; init; }
+		public DateTime CreatedAt { get; init; }
 	}
 
 	private static async Task<AppProblemDetails?> _ReadProblemAsync(

@@ -1536,6 +1536,13 @@
         "operationId": "FindStaffUsers",
         "parameters": [
           {
+            "name": "access",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "cursor",
             "in": "query",
             "schema": {
@@ -21596,6 +21603,10 @@
               "null",
               "string"
             ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -21618,6 +21629,11 @@
             "format": "int32"
           },
           "fullAccess": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "standardAccess": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"

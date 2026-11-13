@@ -5982,6 +5982,7 @@ export function deserializeIntoStaffUploadCreated(staffUploadCreated: Partial<St
 export function deserializeIntoStaffUserItem(staffUserItem: Partial<StaffUserItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "avatarUrl": n => { staffUserItem.avatarUrl = n.getStringValue(); },
+        "createdAt": n => { staffUserItem.createdAt = n.getDateValue(); },
         "email": n => { staffUserItem.email = n.getStringValue(); },
         "firstName": n => { staffUserItem.firstName = n.getStringValue(); },
         "id": n => { staffUserItem.id = n.getGuidValue(); },
@@ -6007,6 +6008,7 @@ export function deserializeIntoStaffUserListCounts(staffUserListCounts: Partial<
         "fullAccess": n => { staffUserListCounts.fullAccess = n.getNumberValue(); },
         "openSessions": n => { staffUserListCounts.openSessions = n.getNumberValue(); },
         "roleCounts": n => { staffUserListCounts.roleCounts = n.getCollectionOfObjectValues<StaffRoleCountItem>(createStaffRoleCountItemFromDiscriminatorValue); },
+        "standardAccess": n => { staffUserListCounts.standardAccess = n.getNumberValue(); },
         "suspended": n => { staffUserListCounts.suspended = n.getNumberValue(); },
         "total": n => { staffUserListCounts.total = n.getNumberValue(); },
     }
@@ -11536,6 +11538,7 @@ export function serializeStaffUploadCreated(writer: SerializationWriter, staffUp
 export function serializeStaffUserItem(writer: SerializationWriter, staffUserItem: Partial<StaffUserItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!staffUserItem || isSerializingDerivedType) { return; }
     writer.writeStringValue("avatarUrl", staffUserItem.avatarUrl);
+    writer.writeDateValue("createdAt", staffUserItem.createdAt);
     writer.writeStringValue("email", staffUserItem.email);
     writer.writeStringValue("firstName", staffUserItem.firstName);
     writer.writeGuidValue("id", staffUserItem.id);
@@ -11562,6 +11565,7 @@ export function serializeStaffUserListCounts(writer: SerializationWriter, staffU
     writer.writeNumberValue("fullAccess", staffUserListCounts.fullAccess);
     writer.writeNumberValue("openSessions", staffUserListCounts.openSessions);
     writer.writeCollectionOfObjectValues<StaffRoleCountItem>("roleCounts", staffUserListCounts.roleCounts, serializeStaffRoleCountItem);
+    writer.writeNumberValue("standardAccess", staffUserListCounts.standardAccess);
     writer.writeNumberValue("suspended", staffUserListCounts.suspended);
     writer.writeNumberValue("total", staffUserListCounts.total);
     writer.writeAdditionalData(staffUserListCounts.additionalData);
@@ -12862,6 +12866,10 @@ export interface StaffUserItem extends AdditionalDataHolder, Parsable {
      */
     avatarUrl?: string | null;
     /**
+     * The createdAt property
+     */
+    createdAt?: Date | null;
+    /**
      * The email property
      */
     email?: string | null;
@@ -12923,6 +12931,10 @@ export interface StaffUserListCounts extends AdditionalDataHolder, Parsable {
      * The roleCounts property
      */
     roleCounts?: StaffRoleCountItem[] | null;
+    /**
+     * The standardAccess property
+     */
+    standardAccess?: number | null;
     /**
      * The suspended property
      */

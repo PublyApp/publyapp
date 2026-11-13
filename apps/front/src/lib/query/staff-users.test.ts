@@ -69,6 +69,17 @@ describe('buildFindStaffUsersQueryParameters excludeRoleId', () => {
 	});
 });
 
+describe('buildFindStaffUsersQueryParameters access', () => {
+	test('forwards the access CSV and omits it when blank', () => {
+		expect(
+			buildFindStaffUsersQueryParameters({ access: ' full_access ' }).access,
+		).toBe('full_access');
+		expect(
+			buildFindStaffUsersQueryParameters({ access: '' }).access,
+		).toBeUndefined();
+	});
+});
+
 describe('toStaffUserRows', () => {
 	test('normalizes API items and skips rows without usable ids', () => {
 		const items: StaffUserItem[] = [
@@ -84,6 +95,7 @@ describe('toStaffUserRows', () => {
 				openSessions: 2,
 				lastSignInAt: new Date('2026-11-10T09:30:00Z'),
 				invitedByName: ' Jean Admin ',
+				createdAt: new Date('2026-01-15T09:30:00Z'),
 			},
 			{
 				id: '',
@@ -117,6 +129,7 @@ describe('toStaffUserRows', () => {
 				openSessions: 2,
 				lastSignInAt: new Date('2026-11-10T09:30:00Z'),
 				invitedByName: 'Jean Admin',
+				createdAt: new Date('2026-01-15T09:30:00Z'),
 			},
 			{
 				id: 'user-2',
@@ -131,6 +144,7 @@ describe('toStaffUserRows', () => {
 				openSessions: 0,
 				lastSignInAt: null,
 				invitedByName: null,
+				createdAt: null,
 			},
 		]);
 	});
