@@ -111,8 +111,8 @@ describe('tenants StatCards — « Invitations en attente »', () => {
 					members: 12,
 					seats: 15,
 					projects: 2,
-					almostFull: 1,
-					full: 1,
+					almostFull: 5,
+					full: 2,
 					activeThisWeek: 2,
 					pendingInvitations: 7,
 					pendingInvitationTenants: 4,
@@ -121,6 +121,12 @@ describe('tenants StatCards — « Invitations en attente »', () => {
 				}}
 			/>,
 		);
+
+		// « Presque pleines » is the 80-99 % bucket (almostFull 5 incl. 2 full = 3),
+		// the same number as the side panel; the full ones stay in the subtitle.
+		const almost = screen.getByTestId('tenant-stat-almost-full');
+		expect(almost.textContent).toContain('3');
+		expect(almost.textContent).toContain('list-stat-full');
 
 		const card = screen.getByTestId('tenant-stat-pending-invitations');
 		// `t` is key-only here, so the figure is the only interpolated number.

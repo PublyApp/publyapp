@@ -104,8 +104,11 @@ const TableHead = ({
 							}}
 							onDragEnd={end}
 							className={cn(
-								'sticky top-0 z-(--publy-z-raised) h-10 truncate border-r border-b bg-background px-2 text-left font-medium text-muted-foreground last:border-r-0',
-								index === 0 && 'left-0',
+								'sticky top-0 h-10 truncate border-r border-b bg-background px-2 text-left font-medium text-muted-foreground last:border-r-0',
+								// Only the pinned first header takes the raised layer: with every
+								// header at the same z-index the later ones, being later in the
+								// DOM, painted over it while the table scrolled sideways.
+								index === 0 && 'left-0 z-(--publy-z-raised)',
 								over === cell.id &&
 									dragged !== cell.id &&
 									'shadow-[inset_2px_0_0_var(--primary)]',
