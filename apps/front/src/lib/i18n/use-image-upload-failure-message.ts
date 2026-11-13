@@ -19,10 +19,13 @@ export const useImageUploadFailureMessage = (
 	const { t } = useTranslation('common');
 	const translate = useResponseMessageTranslator();
 
-	return (error: unknown): string => {
+	// `update`: a remove, reorder, alt or save, where no upload was attempted.
+	return (error: unknown, action: 'upload' | 'update' = 'upload'): string => {
 		const failure = toApiFailure(error);
 		if (failure.kind === 'network') {
-			return t('image-upload-failed');
+			return t(
+				action === 'upload' ? 'image-upload-failed' : 'image-action-failed',
+			);
 		}
 		return getFailureMessage(failure, {
 			fallback: t(fallbackKey),

@@ -340,3 +340,21 @@ describe('getFailureMessage translationKey resolution (#2209)', () => {
 		expect(message).toBe('Bluesky: Segment 2: the text is too long.');
 	});
 });
+
+test.each([
+	'Failed to fetch',
+	'Load failed',
+	'NetworkError when attempting to fetch resource.',
+	'fetch failed',
+])(
+	'classifies the TypeError "%s" as a network failure (Chrome, Safari, Firefox, Node)',
+	(message) => {
+		expect(toApiFailure(new TypeError(message)).kind).toBe('network');
+	},
+);
+
+test('does not classify an unrelated TypeError as a network failure', () => {
+	expect(toApiFailure(new TypeError('x is not a function')).kind).not.toBe(
+		'network',
+	);
+});

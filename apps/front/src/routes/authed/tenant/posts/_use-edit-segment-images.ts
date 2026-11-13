@@ -88,7 +88,7 @@ export const useEditSegmentImages = ({
 		);
 
 	const failureText = (cause: unknown): string =>
-		imageUploadFailureMessage(cause);
+		imageUploadFailureMessage(cause, 'update');
 
 	const causeText = (cause: unknown): string => {
 		if (cause instanceof SegmentIdsUnreadError) {

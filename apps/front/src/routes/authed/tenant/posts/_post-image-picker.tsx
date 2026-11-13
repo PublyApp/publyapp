@@ -133,8 +133,11 @@ export const PostImagePicker = ({
 	// brings the committed text back.
 	const [altDrafts, setAltDrafts] = useState<Record<string, string>>({});
 
-	const showFailure = (error: unknown) => {
-		setFailureMessage(imageUploadFailureMessage(error));
+	const showFailure = (
+		error: unknown,
+		action: 'upload' | 'update' = 'update',
+	) => {
+		setFailureMessage(imageUploadFailureMessage(error, action));
 	};
 
 	const isBusy =
@@ -169,7 +172,7 @@ export const PostImagePicker = ({
 		try {
 			await attachInOrder(files);
 		} catch (error) {
-			showFailure(error);
+			showFailure(error, 'upload');
 		} finally {
 			invalidateCaches();
 		}
@@ -179,10 +182,7 @@ export const PostImagePicker = ({
 		setFailureMessage('');
 		const room = maxImages - count;
 		setLimitNotice(picked.length > room);
-		const { fitting, tooLarge } = checkOversize(picked);
-		if (tooLarge) {
-			setFailureMessage(tooLarge);
-		}
+		const fitting = checkOversize(picked, setFailureMessage);
 		const accepted = fitting.slice(0, Math.max(room, 0));
 		if (accepted.length === 0) {
 			return;

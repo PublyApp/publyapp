@@ -50,6 +50,7 @@ const EN_LABELS: TestLabelMap = {
 	'posts:image-alt-nudge': 'Add alt text so everyone can follow your post.',
 	'posts:image-alt-placeholder': 'Describe the image',
 	'image-upload-failed': 'Upload failed (network)',
+	'image-action-failed': 'Update failed (network)',
 };
 
 vi.mock('react-i18next', () => ({
@@ -704,5 +705,62 @@ describe('PostImagePicker (size pre-check, #2421)', () => {
 				'Upload failed (network)',
 			);
 		});
+	});
+
+	test('Safari "Load failed" shows the same translated message', async () => {
+		const user = userEvent.setup();
+		mocks.attachMutateAsync.mockRejectedValueOnce(new TypeError('Load failed'));
+		render(
+			<PostImagePicker limits={LIMITS} postId="post-1" tenantId="tenant-1" />,
+		);
+
+		await user.upload(
+			screen.getByTestId('tenant-posts-create-image-input'),
+			pngFile(),
+		);
+
+		await waitFor(() => {
+			expect(screen.getByRole('alert').textContent).toBe(
+				'Upload failed (network)',
+			);
+		});
+	});
+
+	test('a failed remove says the update failed, not that an upload did', async () => {
+		const user = userEvent.setup();
+		mocks.removeMutateAsync.mockRejectedValueOnce(
+			new TypeError('Failed to fetch'),
+		);
+		render(
+			<PostImagePicker
+				limits={LIMITS}
+				postId="post-1"
+				tenantId="tenant-1"
+				existingImages={THREE}
+			/>,
+		);
+
+		await user.click(
+			screen.getAllByTestId('tenant-posts-create-image-remove')[0],
+		);
+
+		await waitFor(() => {
+			expect(screen.getByRole('alert').textContent).toBe(
+				'Update failed (network)',
+			);
+		});
+	});
+
+	test('limits unknown: the server cap still refuses an oversize file', async () => {
+		const user = userEvent.setup();
+		render(<PostImagePicker postId="post-1" tenantId="tenant-1" />);
+
+		await user.upload(
+			screen.getByTestId('tenant-posts-create-image-input'),
+			new File([new Uint8Array(2_000_001)], 'huge.png', { type: 'image/png' }),
+		);
+
+		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+		expect(screen.getByRole('alert').textContent).toBe('Too large: 2 MB');
 	});
 });
