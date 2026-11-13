@@ -46,12 +46,12 @@ vi.mock('~/lib/query/staff-users', async (importOriginal) => {
 import { AssignMembersDrawer } from './_assign-members-drawer';
 
 const ROLE_ID = 'role-1';
-const item = (id: string, firstName: string, roles: string[] = []) => ({
+const item = (id: string, firstName: string) => ({
 	id,
 	email: `${firstName.toLowerCase()}@example.com`,
 	firstName,
 	lastName: 'Staff',
-	roles,
+	roles: [],
 });
 
 const queryResult = (data: unknown[]) => ({
@@ -68,7 +68,6 @@ const renderDrawer = (isOpen = true, onOpenChange = vi.fn()) => {
 	render(
 		<AssignMembersDrawer
 			roleId={ROLE_ID}
-			roleName="Support"
 			isOpen={isOpen}
 			onOpenChange={onOpenChange}
 			onSessionExpired={vi.fn()}
@@ -79,11 +78,7 @@ const renderDrawer = (isOpen = true, onOpenChange = vi.fn()) => {
 
 beforeEach(() => {
 	mocks.useUsersQuery.mockReturnValue(
-		queryResult([
-			item('u1', 'Alice'),
-			item('u2', 'Bob'),
-			item('u3', 'Carol', ['Support']),
-		]),
+		queryResult([item('u1', 'Alice'), item('u2', 'Bob')]),
 	);
 	mocks.mutateAsync.mockResolvedValue({ succeededCount: 2, failedCount: 0 });
 });
@@ -100,12 +95,14 @@ describe('staff role assign members drawer', () => {
 		expect(mocks.useUsersQuery).not.toHaveBeenCalled();
 	});
 
-	test('lists the members not yet in the role, with the submit disabled until one is picked', () => {
+	test('asks the API for the members not yet in the role (by id) and lists them, with the submit disabled until one is picked', () => {
 		renderDrawer();
 		expect(screen.getByLabelText('Alice Staff')).toBeTruthy();
 		expect(screen.getByLabelText('Bob Staff')).toBeTruthy();
-		// Carol already holds « Support ».
-		expect(screen.queryByLabelText('Carol Staff')).toBeNull();
+		// Members already in the role are excluded by the server, by id.
+		expect(mocks.useUsersQuery).toHaveBeenCalledWith(
+			expect.objectContaining({ excludeRoleId: ROLE_ID }),
+		);
 		const submit = screen.getByRole('button', {
 			name: 'assign-selected-members:0',
 		});

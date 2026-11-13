@@ -60,6 +60,7 @@ export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuil
  */
 export interface UsersRequestBuilderGetQueryParameters {
     cursor?: string;
+    excludeRoleId?: string;
     limit?: string;
     q?: string;
     sortId?: string;
@@ -69,11 +70,12 @@ export interface UsersRequestBuilderGetQueryParameters {
 /**
  * Uri template for the request builder.
  */
-export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/users{?cursor*,limit*,q*,sort_id*,sort_order*,status*}";
+export const UsersRequestBuilderUriTemplate = "{+baseurl}/staff/users{?cursor*,exclude_role_id*,limit*,q*,sort_id*,sort_order*,status*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */
 const UsersRequestBuilderGetQueryParametersMapper: Record<string, string> = {
+    "excludeRoleId": "exclude_role_id",
     "sortId": "sort_id",
     "sortOrder": "sort_order",
 };

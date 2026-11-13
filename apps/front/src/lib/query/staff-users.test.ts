@@ -57,6 +57,18 @@ describe('buildFindStaffUsersQueryParameters', () => {
 	});
 });
 
+describe('buildFindStaffUsersQueryParameters excludeRoleId', () => {
+	test('forwards the trimmed role id and omits it when blank', () => {
+		expect(
+			buildFindStaffUsersQueryParameters({ excludeRoleId: ' role-1 ' })
+				.excludeRoleId,
+		).toBe('role-1');
+		expect(
+			buildFindStaffUsersQueryParameters({ excludeRoleId: '  ' }).excludeRoleId,
+		).toBeUndefined();
+	});
+});
+
 describe('toStaffUserRows', () => {
 	test('normalizes API items and skips rows without usable ids', () => {
 		const items: StaffUserItem[] = [

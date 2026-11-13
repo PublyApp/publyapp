@@ -31,7 +31,6 @@ const displayName = (row: StaffRoleUserRow, t: Translate): string =>
 
 type StaffRoleUsersListProps = {
 	roleId: string;
-	roleName: string;
 	rows: StaffRoleUserRow[];
 	columns: ListColumn<StaffRoleUserRow>[];
 	totalCount: number | null;
@@ -71,7 +70,6 @@ type StaffRoleUsersListProps = {
  * data/error orchestration under the giant-component bound. */
 export const StaffRoleUsersList = ({
 	roleId,
-	roleName,
 	rows,
 	columns,
 	totalCount,
@@ -186,7 +184,6 @@ export const StaffRoleUsersList = ({
 			/>
 			<AssignMembersDrawer
 				roleId={roleId}
-				roleName={roleName}
 				isOpen={isAssignOpen}
 				onOpenChange={setIsAssignOpen}
 				onSessionExpired={onSessionExpired}

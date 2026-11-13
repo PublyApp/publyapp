@@ -61,6 +61,10 @@ public class FindStaffUsersQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "status")]
 	public string? Status { get; set; }
 
+	// Only members who do NOT hold this staff role (the « assign members » picker).
+	[FromQuery(Name = "exclude_role_id")]
+	public string? ExcludeRoleId { get; set; }
+
 	public string? GetSearchNormalized() {
 		if (this.Search is null) {
 			return null;
@@ -104,6 +108,9 @@ public class FindStaffUsersQueryValidator
 
 	public FindStaffUsersQueryValidator() {
 		this.RuleFor(x => x.Search).MaximumLength(200);
+		this.RuleFor(x => x.ExcludeRoleId)
+			.Must(raw => string.IsNullOrEmpty(raw) || Guid.TryParse(raw, out _))
+			.WithMessage("Invalid exclude_role_id. Must be a GUID.");
 		this.RuleFor(x => x.Status)
 			.Must(raw => {
 				if (string.IsNullOrEmpty(raw)) {
@@ -162,7 +169,10 @@ public sealed class FindStaffUsers {
 				SortOrder: sortOrder,
 				Filters: new FindStaffUsersFilters(
 					Search: search,
-					Status: findStaffUsersQuery.GetStatusesOrNull()
+					Status: findStaffUsersQuery.GetStatusesOrNull(),
+					ExcludeRoleId: Guid.TryParse(findStaffUsersQuery.ExcludeRoleId, out var excludeRoleId)
+						? excludeRoleId
+						: null
 				)
 			),
 			cancellationToken

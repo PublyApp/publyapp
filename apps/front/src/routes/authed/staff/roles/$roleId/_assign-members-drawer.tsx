@@ -49,12 +49,10 @@ export const buildAssignFailureLines = (
 
 const AssignMembersBody = ({
 	roleId,
-	roleName,
 	onClose,
 	onSessionExpired,
 }: {
 	roleId: string;
-	roleName: string;
 	onClose: () => void;
 	onSessionExpired: () => void;
 }) => {
@@ -63,13 +61,12 @@ const AssignMembersBody = ({
 	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 	const assignMutation = useBulkAssignStaffRoleUsersMutation();
 	// preload-exempt: opened on demand from the page's action, nothing to warm
-	const usersQuery = useStaffUsersQuery({ q: q.trim(), size: PAGE_SIZE });
-	// ponytail: the staff list has no "not in role" filter; members already
-	// holding the role (by name) are hidden, the API still reports any
-	// leftover as already_assigned. Add a server-side filter if roles > 1 page.
-	const rows = toStaffUserRows(usersQuery.data?.data).filter(
-		(row) => !row.roles.includes(roleName),
-	);
+	const usersQuery = useStaffUsersQuery({
+		q: q.trim(),
+		size: PAGE_SIZE,
+		excludeRoleId: roleId,
+	});
+	const rows = toStaffUserRows(usersQuery.data?.data);
 
 	const toggle = (id: string, checked: boolean): void => {
 		setSelected((current) => {
@@ -188,13 +185,11 @@ const AssignMembersBody = ({
 
 export const AssignMembersDrawer = ({
 	roleId,
-	roleName,
 	isOpen,
 	onOpenChange,
 	onSessionExpired,
 }: {
 	roleId: string;
-	roleName: string;
 	isOpen: boolean;
 	onOpenChange: (isOpen: boolean) => void;
 	onSessionExpired: () => void;
@@ -213,7 +208,6 @@ export const AssignMembersDrawer = ({
 				{isOpen ? (
 					<AssignMembersBody
 						roleId={roleId}
-						roleName={roleName}
 						onClose={() => onOpenChange(false)}
 						onSessionExpired={onSessionExpired}
 					/>

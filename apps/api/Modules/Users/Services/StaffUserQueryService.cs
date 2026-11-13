@@ -57,7 +57,8 @@ public abstract record FindStaffUsersResult {
 
 public sealed record FindStaffUsersFilters(
 	string? Search,
-	IReadOnlySet<UserStatus>? Status
+	IReadOnlySet<UserStatus>? Status,
+	Guid? ExcludeRoleId = null
 );
 
 public sealed record FindStaffUsersArgs(
@@ -255,6 +256,16 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			query =
 				from ua in query
 				where statuses.Contains(ua.User.Status)
+				select ua;
+		}
+
+		if (args.Filters?.ExcludeRoleId is { } excludeRoleId) {
+			// By id, in the query: composes with search, status, cursor and page size.
+			query =
+				from ua in query
+				where !this._DbContext.UserAccountRole.Any(
+					uar => uar.UserAccountId == ua.Id && uar.RoleId == excludeRoleId
+				)
 				select ua;
 		}
 

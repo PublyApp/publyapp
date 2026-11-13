@@ -37,6 +37,8 @@ import { getUserFullName } from '@org/shared-ts/utils/user.utils';
  * fields here is what let a fourth field drift in earlier. */
 export type StaffUsersQueryVariables = TableSearchParams & {
 	status?: string;
+	/** Only members NOT holding this staff role (the assign-members picker). */
+	excludeRoleId?: string;
 };
 
 export type StaffUserDetailsQueryVariables = {
@@ -185,6 +187,7 @@ export const buildFindStaffUsersQueryParameters = (
 	return {
 		q: normalizeString(variables.q),
 		status: normalizeString(variables.status),
+		excludeRoleId: normalizeString(variables.excludeRoleId),
 		sortId: normalizeString(variables.sortId),
 		sortOrder: variables.sortOrder,
 		cursor: normalizeString(variables.cursor),

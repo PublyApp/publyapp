@@ -1543,6 +1543,13 @@
             }
           },
           {
+            "name": "exclude_role_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "schema": {

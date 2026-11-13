@@ -1225,6 +1225,95 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		result.Counts.RoleCounts.Should().HaveCount(2);
 	}
 
+	[Fact]
+	public async Task ItShouldExcludeMembersHoldingTheRoleById() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"excl-{Guid.NewGuid():N}";
+		var support = await this._CreateStaffRoleAsync($"Support {marker}");
+		// A similar name must not be caught by the exclusion.
+		var supportLead = await this._CreateStaffRoleAsync($"Support Lead {marker}");
+		var inRole = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, $"{marker}-a@example.com", firstName: marker);
+		var inSimilarRole = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, $"{marker}-b@example.com", firstName: marker);
+		var noRole = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, $"{marker}-c@example.com", firstName: marker);
+		await this._AssignRoleAsync(inRole, support);
+		await this._AssignRoleAsync(inSimilarRole, supportLead);
+
+		var ids = await this._FindAllIdsAsync(token, marker, support, limit: 50);
+
+		ids.Should().BeEquivalentTo([inSimilarRole, noRole]);
+	}
+
+	[Fact]
+	public async Task ItShouldExcludeByRoleAcrossPages() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"exclpage-{Guid.NewGuid():N}";
+		var role = await this._CreateStaffRoleAsync($"Role {marker}");
+		var kept = new List<Guid>();
+		for (var i = 0; i < 5; i++) {
+			var id = await StaffUserTestHelper.SeedStaffUserAsync(
+				this._Fixture, $"{marker}-{i}@example.com", firstName: marker);
+			if (i % 2 == 0) {
+				await this._AssignRoleAsync(id, role);
+			} else {
+				kept.Add(id);
+			}
+		}
+
+		// One row per page: the excluded members must not leave holes or repeats.
+		var ids = await this._FindAllIdsAsync(token, marker, role, limit: 1);
+
+		ids.Should().BeEquivalentTo(kept);
+		ids.Should().OnlyHaveUniqueItems();
+	}
+
+	[Fact]
+	public async Task ItShouldRejectAMalformedExcludeRoleId() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(excludeRoleId: "not-a-guid")
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	private async Task<List<Guid>> _FindAllIdsAsync(
+		string token,
+		string marker,
+		Guid excludeRoleId,
+		int limit
+	) {
+		var ids = new List<Guid>();
+		string? cursor = null;
+		for (var page = 0; page < 20; page++) {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				FindStaffUserSpec._GetFindUrl(
+					cursor: cursor,
+					limit: limit,
+					q: marker,
+					excludeRoleId: excludeRoleId.ToString()
+				)
+			).WithSessionToken(token);
+			using var response = await this._Http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+			var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+			Assert.NotNull(result);
+			ids.AddRange(result.Data.Select(user => user.Id));
+			if (result.NextCursor is null) {
+				break;
+			}
+			cursor = result.NextCursor;
+		}
+
+		return ids;
+	}
+
 	private async Task<FindResponse> _FindAsync(string token, string marker, int limit = 50) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -1298,7 +1387,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		string? sortId = null,
 		string? sortOrder = null,
 		string? q = null,
-		string? status = null
+		string? status = null,
+		string? excludeRoleId = null
 	) {
 		var basePath = PathUtils.Join(
 			Routes.Staff.Root,
@@ -1325,6 +1415,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		}
 		if (status is not null) {
 			queryParams.Add($"status={Uri.EscapeDataString(status)}");
+		}
+		if (excludeRoleId is not null) {
+			queryParams.Add($"exclude_role_id={Uri.EscapeDataString(excludeRoleId)}");
 		}
 
 		return queryParams.Count > 0
