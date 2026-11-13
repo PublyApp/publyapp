@@ -29,7 +29,7 @@ export type RolesLookup = {
 /** Pure enrichment with no loading surface of its own, so it lives in a data
  * hook (`publy/prefer-query-display` only checks JSX-returning functions; same
  * shape as `_staff-list-team.tsx`'s counter hook). */
-export const useRolesLookup = (): RolesLookup => {
+const useRolesLookup = (): RolesLookup => {
 	const lookup = useStaffRolesQuery(ROLES_LOOKUP_VARIABLES);
 	const roles = useMemo(() => lookup.data?.data ?? [], [lookup.data]);
 	return {
@@ -83,7 +83,7 @@ const resolveAll = (
 /** Resolves the URL role values synchronously. Roles lookup loaded: it is
  * authoritative (names resolve, gone ids drop). Otherwise ids are kept and names
  * resolve against the list's role facet (roles ∪ facet) once it is known. */
-export const resolveEffectiveRoleIds = (
+const resolveEffectiveRoleIds = (
 	values: readonly string[],
 	lookup: RolesLookup,
 	facet: readonly RoleSource[] | null,
