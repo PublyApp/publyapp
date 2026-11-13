@@ -98,7 +98,7 @@ export const ScheduledRenditionsBlock = ({
 						{t('posts:scheduled-destinations-description')}
 					</p>
 				</div>
-				<ul className="space-y-3">
+				<ul className="space-y-6">
 					{rows.map((row) => {
 						const isOpen = openId === row.publicationId;
 						return (
@@ -107,12 +107,13 @@ export const ScheduledRenditionsBlock = ({
 								className="space-y-3"
 								data-testid="tenant-posts-scheduled-destination"
 							>
-								{/* Narrow (the edit column is ~35rem even on a wide screen): handle and
+								{/* Very narrow: handle, then status and date, then the action. Narrow
+										 (the edit column is ~35rem even on a wide screen): handle and
 										 action on one line, status and date under them. Wide container:
 										 one aligned line per destination. */}
 								<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 @2xl:grid-cols-[minmax(0,1fr)_8rem_12rem_auto] @2xl:gap-x-4">
 									<span
-										className="col-start-1 row-start-1 min-w-0 truncate text-sm font-medium"
+										className="col-span-2 col-start-1 row-start-1 min-w-0 truncate text-sm font-medium @sm:col-span-1"
 										title={row.accountDisplayHandle ?? undefined}
 									>
 										{row.accountDisplayHandle ?? ''}
@@ -130,7 +131,7 @@ export const ScheduledRenditionsBlock = ({
 										type="button"
 										variant="outline"
 										size="sm"
-										className="col-start-2 row-start-1 whitespace-nowrap @2xl:col-start-4"
+										className="col-span-2 row-start-3 shrink-0 justify-self-start whitespace-nowrap @sm:col-span-1 @sm:col-start-2 @sm:row-start-1 @sm:justify-self-end @2xl:col-start-4"
 										aria-expanded={isOpen}
 										aria-label={t('posts:destination-customize-aria', {
 											destination: row.accountDisplayHandle ?? '',

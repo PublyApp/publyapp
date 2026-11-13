@@ -272,6 +272,12 @@ describe('ScheduledRenditionsBlock gating and load states', () => {
 				.getByTestId('tenant-posts-scheduled-customize')
 				.className.includes('whitespace-nowrap'),
 		).toBe(true);
+		// Very narrow: the action drops under the row instead of overflowing it.
+		expect(
+			screen
+				.getByTestId('tenant-posts-scheduled-customize')
+				.className.includes('row-start-3'),
+		).toBe(true);
 	});
 
 	test('a post that vanished (404) shows the failure card, not a logout and not an empty block', () => {
