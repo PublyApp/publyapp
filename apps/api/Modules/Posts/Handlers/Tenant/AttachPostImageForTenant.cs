@@ -12,6 +12,7 @@ using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Posts.Services;
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
+using PublyApp.Api.Modules.Uploads;
 using PublyApp.Api.Modules.Uploads.Entities;
 using PublyApp.Api.Modules.Uploads.Services;
 
@@ -143,7 +144,7 @@ public sealed class AttachPostImageForTenant {
 		var maxBytes = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
 		if (file.Length > maxBytes) {
 			return TypedProblems.PayloadTooLarge(
-				$"Image exceeds the maximum size of {AttachPostImageForTenant._FormatBytes(maxBytes)}",
+				$"Image exceeds the maximum size of {UploadLimits.FormatLimit(maxBytes)}",
 				ResponseKeys.PostImageTooLarge,
 				extensions: new Dictionary<string, object?> {
 					["maxBytes"] = (long)maxBytes,

@@ -235,6 +235,10 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// the English detail never carries the raw byte count (#2421).
 		problem.Extensions["maxBytes"].Should().BeOfType<JsonElement>()
 			.Which.GetInt64().Should().Be(AppEnvironment.Instance.UPLOAD_MAX_BYTES);
+		problem.Detail.Should().Be(
+			"Image exceeds the maximum size of "
+			+ PublyApp.Api.Modules.Uploads.UploadLimits.FormatLimit(AppEnvironment.Instance.UPLOAD_MAX_BYTES)
+		);
 		problem.Detail.Should().NotContain(
 			AppEnvironment.Instance.UPLOAD_MAX_BYTES.ToString(System.Globalization.CultureInfo.InvariantCulture)
 		);

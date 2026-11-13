@@ -146,6 +146,9 @@ describe('useResponseMessageTranslator in French', () => {
 		const translate = translatorFor('fr');
 
 		const message = translate('post-image-too-large', { maxBytes: 16_777_216 });
+		expect(translate('upload-file-too-large', { maxBytes: 16_777_216 })).toBe(
+			message,
+		);
 		expect(message).toMatch(/16,7\sMo/);
 		expect(message).not.toContain('16777216');
 		expect(translate('post-image-too-large', {})).toBeUndefined();
@@ -161,11 +164,22 @@ describe('useResponseMessageTranslator in French', () => {
 });
 
 describe('useResponseMessageTranslator in English', () => {
+	test.each(['post-image-too-large', 'upload-file-too-large'])(
+		'%s names the size limit from maxBytes, floored like the add-row help',
+		(key) => {
+			const translate = translatorFor('en');
+
+			expect(translate(key, { maxBytes: 16_777_216 })).toBe(
+				'The image exceeds the 16.7 MB limit.',
+			);
+			expect(translate(key, {})).toBeUndefined();
+		},
+	);
+
 	test.each([
 		['post-segment-blank', { segmentNumber: 3 }],
 		['publication-rendition-locked', {}],
 		['post-segments-locked', {}],
-		['post-image-too-large', { maxBytes: 16_777_216 }],
 		[
 			RENDITION_INVALID,
 			{

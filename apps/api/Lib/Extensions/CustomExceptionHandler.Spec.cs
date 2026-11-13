@@ -27,6 +27,30 @@ public sealed class CustomExceptionHandlerSpec {
 	}
 
 	[Fact]
+	public void ItShouldNameTheFileLimitOnAnUploadEndpointsTransport413() {
+		var exception = new BadHttpRequestException(
+			"Request body too large.",
+			StatusCodes.Status413PayloadTooLarge
+		);
+
+		var mapped = CustomExceptionHandler.MapException(exception, 16_777_216);
+
+		mapped.StatusCode.Should().Be(StatusCodes.Status413PayloadTooLarge);
+		mapped.Key.Should().Be(ResponseKeys.UploadFileTooLarge);
+		mapped.Detail.Should().Be("File exceeds the maximum size of 16.7 MB");
+		mapped.Extensions.Required()["maxBytes"].Should().Be(16_777_216L);
+	}
+
+	[Theory]
+	[InlineData(16_777_216L, "16.7 MB")]
+	[InlineData(2_000_000L, "2 MB")]
+	[InlineData(1_500L, "1.5 KB")]
+	[InlineData(999L, "999 B")]
+	public void ItShouldFormatALimitFlooredToATenth(long bytes, string expected) {
+		PublyApp.Api.Modules.Uploads.UploadLimits.FormatLimit(bytes).Should().Be(expected);
+	}
+
+	[Fact]
 	public void ItShouldMapAMissingRequiredBodyParameterToRequestBodyMissing() {
 		var exception = new BadHttpRequestException(
 			"Required parameter \"CreateStaffUserBody body\" was not provided from body."

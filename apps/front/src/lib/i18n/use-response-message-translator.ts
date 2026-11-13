@@ -24,7 +24,11 @@ const AS_INFORMATIVE_AS_DETAIL: ReadonlySet<string> = new Set([
 const RENDITION_INVALID_PROBLEM = 'publish-rendition-invalid';
 const PUBLISH_PROVIDER_DISABLED_PROBLEM = 'publish-provider-disabled';
 const SEGMENT_BLANK_PROBLEM = 'post-segment-blank';
-const IMAGE_TOO_LARGE_PROBLEM = 'post-image-too-large';
+// The handler's own refusal and Kestrel's transport 413 on an upload endpoint.
+const IMAGE_TOO_LARGE_PROBLEMS: ReadonlySet<string> = new Set([
+	'post-image-too-large',
+	'upload-file-too-large',
+]);
 const SEGMENT_IMAGE_LIMIT_PROBLEM = 'post-segment-image-limit-reached';
 
 const asText = (value: unknown): string | undefined =>
@@ -39,8 +43,8 @@ const asPositiveInteger = (value: unknown): number | undefined =>
  * The `translate` option of `getFailureMessage`: a localized message for a
  * backend `translationKey`, or `undefined` to keep the API's own `detail`.
  *
- * - English UI: always `undefined`; the `detail` is already English and more
- *   specific than the bundle's generic entry.
+ * - English UI: `undefined`, except the too-large image refusals, which are built
+ *   from `maxBytes` like the French one so a limit reads the same everywhere.
  * - A key whose translation is as informative as the detail resolves through
  *   the always-loaded `response-message` namespace.
  * - `post-segment-blank` is built from the problem's `segmentNumber`, so the message
@@ -80,6 +84,18 @@ export const useResponseMessageTranslator = () => {
 		translationKey: string,
 		extensions: Record<string, unknown>,
 	): string | undefined => {
+		// Names the size limit from the problem's `maxBytes` (decimal units, in the
+		// user's language) instead of a raw byte count (#2421).
+		if (IMAGE_TOO_LARGE_PROBLEMS.has(translationKey)) {
+			const maxBytes = asPositiveInteger(extensions.maxBytes);
+			if (maxBytes === undefined) {
+				return undefined;
+			}
+			return t('posts:image-too-large', {
+				size: formatBytes(maxBytes, i18n.language, 'limit'),
+			});
+		}
+
 		if (isEnglish) {
 			return undefined;
 		}
@@ -113,18 +129,6 @@ export const useResponseMessageTranslator = () => {
 				return undefined;
 			}
 			return t('posts:segment-image-limit', { limit });
-		}
-
-		// Names the size limit from the problem's `maxBytes` (decimal units, in the
-		// user's language) instead of a raw byte count (#2421).
-		if (translationKey === IMAGE_TOO_LARGE_PROBLEM) {
-			const maxBytes = asPositiveInteger(extensions.maxBytes);
-			if (maxBytes === undefined) {
-				return undefined;
-			}
-			return t('posts:image-too-large', {
-				size: formatBytes(maxBytes, i18n.language, 'limit'),
-			});
 		}
 
 		if (!AS_INFORMATIVE_AS_DETAIL.has(translationKey)) {

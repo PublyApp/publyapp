@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.WebUtilities;
 
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Uploads;
 
 namespace PublyApp.Api.Lib.Extensions;
 
@@ -15,7 +16,8 @@ public static partial class CustomExceptionHandler {
 		string Title,
 		string Detail,
 		TranslationKey Key,
-		IDictionary<string, string[]>? Errors
+		IDictionary<string, string[]>? Errors,
+		IReadOnlyDictionary<string, object?>? Extensions = null
 	);
 
 	[GeneratedRegex(@"Required parameter ""string (\w+)"" was not provided")]
@@ -52,7 +54,10 @@ public static partial class CustomExceptionHandler {
 	/// conditions (a body-size trip, a malformed binder message) it cannot
 	/// reliably trigger.
 	/// </summary>
-	public static ExceptionMapping MapException(Exception? exceptionType) {
+	public static ExceptionMapping MapException(
+		Exception? exceptionType,
+		long? uploadMaxBytes = null
+	) {
 		// Kestrel throws this when a request body exceeds the limit set by
 		// RequestSizeLimitAttribute / FormOptions.MultipartBodyLengthLimit
 		// (see UploadEndpointsForStaff), before the handler's own size check runs.
@@ -63,9 +68,14 @@ public static partial class CustomExceptionHandler {
 			return new ExceptionMapping(
 				StatusCodes.Status413PayloadTooLarge,
 				"Payload Too Large",
-				"Request body exceeds the maximum allowed size",
+				uploadMaxBytes is { } maxBytes
+					? $"File exceeds the maximum size of {UploadLimits.FormatLimit(maxBytes)}"
+					: "Request body exceeds the maximum allowed size",
 				ResponseKeys.UploadFileTooLarge,
-				null
+				null,
+				uploadMaxBytes is { } limit
+					? new Dictionary<string, object?> { ["maxBytes"] = limit }
+					: null
 			);
 		}
 
@@ -177,7 +187,17 @@ public static partial class CustomExceptionHandler {
 				var exceptionHandlerFeature = context.Features.Get<IExceptionHandlerFeature>();
 				var exceptionType = exceptionHandlerFeature?.Error;
 
-				var mapped = CustomExceptionHandler.MapException(exceptionType);
+				// An upload endpoint caps the whole body at UPLOAD_MAX_BYTES plus the multipart
+				// headroom; name the FILE limit so the client can tell the user (#2421).
+				var uploadMaxBytes = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
+				var requestSizeLimit = context.GetEndpoint()?.Metadata
+					.GetMetadata<Microsoft.AspNetCore.Http.Metadata.IRequestSizeLimitMetadata>();
+				var mapped = CustomExceptionHandler.MapException(
+					exceptionType,
+					requestSizeLimit?.MaxRequestBodySize == uploadMaxBytes + UploadLimits.MultipartHeaderHeadroomBytes
+						? uploadMaxBytes
+						: null
+				);
 
 				if (exceptionType is not null) {
 					if (mapped.StatusCode == StatusCodes.Status500InternalServerError) {
@@ -198,6 +218,11 @@ public static partial class CustomExceptionHandler {
 					: AppProblemDetails.Create(mapped.StatusCode, mapped.Title, mapped.Detail, mapped.Key);
 				response.Instance = context.Request.Path.Value;
 				response.Extensions["traceId"] = context.TraceIdentifier;
+				if (mapped.Extensions is not null) {
+					foreach (var (name, value) in mapped.Extensions) {
+						response.Extensions[name] = value;
+					}
+				}
 
 				// Serialize the RUNTIME type: WriteAsJsonAsync<T> would use the
 				// AppProblemDetails static type and drop ValidationProblemDetails'

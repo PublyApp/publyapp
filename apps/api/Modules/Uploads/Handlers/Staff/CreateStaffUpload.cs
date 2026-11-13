@@ -61,7 +61,7 @@ public sealed class CreateStaffUpload {
 		var maxBytes = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
 		if (file.Length > maxBytes) {
 			return TypedProblems.PayloadTooLarge(
-				$"File exceeds the maximum size of {CreateStaffUpload._FormatBytes(maxBytes)}",
+				$"File exceeds the maximum size of {UploadLimits.FormatLimit(maxBytes)}",
 				ResponseKeys.UploadFileTooLarge,
 				extensions: new Dictionary<string, object?> {
 					["maxBytes"] = (long)maxBytes,
