@@ -60,9 +60,11 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 		await this._AddRoleAsync(tenantId, "Editors");
 		await this._AddRoleAsync(tenantId, "Deleted role", isDeleted: true);
 
-		// Active accounts only: revoked and soft-deleted ones are not connected.
+		// Active and needs-reconnect accounts are connected (as the integrations screen
+		// lists them); revoked and soft-deleted ones are not.
 		await this._AddSocialAccountAsync(tenantId, SocialAccountStatus.Active);
 		await this._AddSocialAccountAsync(tenantId, SocialAccountStatus.Active);
+		await this._AddSocialAccountAsync(tenantId, SocialAccountStatus.NeedsReconnect);
 		await this._AddSocialAccountAsync(tenantId, SocialAccountStatus.Revoked);
 		await this._AddSocialAccountAsync(
 			tenantId, SocialAccountStatus.Active, isDeleted: true
@@ -95,7 +97,7 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 		row.OwnersCount.Should().Be(2);
 		// The full-access role plus « Editors »; the deleted role is out.
 		row.RolesCount.Should().Be(2);
-		row.ConnectedAccountsCount.Should().Be(2);
+		row.ConnectedAccountsCount.Should().Be(3);
 		row.PostsThisMonthCount.Should().Be(2);
 		row.PendingInvitationsCount.Should().Be(2);
 
@@ -133,10 +135,15 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 		_ = await this._AddMemberAsync(availableId, isOwner: false);
 
 		// The status filter narrows the rows and the stat cards...
-		var result = await this._FindAsync(token, marker, status: "active");
-		result.Data.Should().HaveCount(2);
+		// limit: 1 pins that the counters cover the whole collection, not page 1.
+		var result = await this._FindAsync(token, marker, status: "active", limit: 1);
+		result.Data.Should().HaveCount(1);
 		result.Counts.Total.Should().Be(2);
 		result.Counts.Pending.Should().Be(0);
+		// The status-filtered facets feed the Filters popover: seats and languages
+		// of the active organisations only.
+		result.Counts.ByLocale.Should().ContainSingle(l => l.Locale == "fr" && l.Count == 2);
+		result.Counts.ByLocale.Should().NotContain(l => l.Locale == "en");
 
 		// ...but the panel counts every status, bucket and language of the search.
 		var panel = result.PanelCounts;
@@ -154,9 +161,10 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 	private async Task<FindResponse> _FindAsync(
 		string token,
 		string q,
-		string? status = null
+		string? status = null,
+		int limit = 100
 	) {
-		var url = TenantTestHelper.GetFindUrl(q: q, limit: 100, status: status);
+		var url = TenantTestHelper.GetFindUrl(q: q, limit: limit, status: status);
 		using var request = new HttpRequestMessage(HttpMethod.Get, url)
 			.WithSessionToken(token);
 		using var response = await this._Http.SendAsync(request);
@@ -299,6 +307,7 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 	private record CountsDto {
 		public int Total { get; init; }
 		public int Pending { get; init; }
+		public List<LocaleDto> ByLocale { get; init; } = [];
 	}
 
 	private record PanelDto {

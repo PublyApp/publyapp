@@ -392,6 +392,40 @@ describe('staff tenants route (organisations list)', () => {
 		).toBe('/staff/tenants/new');
 	});
 
+	test('the Filters popover keeps status-filtered counts while the panel counts the whole search', () => {
+		mocks.search = { status: 'pending' };
+		mocks.useStaffTenantsQuery.mockReturnValue(
+			queryResult({
+				data: {
+					data: rows.slice(1),
+					nextCursor: null,
+					totalCount: 1,
+					counts: { ...counts, total: 1, active: 0, pending: 1 },
+					panelCounts,
+				},
+			}),
+		);
+		renderPage();
+
+		fireEvent.click(
+			screen.getByText('Filtres').closest('button') as HTMLElement,
+		);
+		const popover = document.querySelector('[data-slot="popover-content"]');
+		if (!popover) {
+			throw new Error('filters popover missing');
+		}
+		const activeChoice = within(popover as HTMLElement)
+			.getByText('Active')
+			.closest('label');
+		// Active organisations inside the pending filter: 0 (panel says 1).
+		expect(activeChoice?.textContent).toContain('0');
+		const panel = document.getElementById('app-shell-page-panel');
+		const panelActive = within(panel as HTMLElement)
+			.getByText('Active')
+			.closest('button');
+		expect(panelActive?.textContent).toContain('1');
+	});
+
 	test('a ?status=pending link filters server-side and shows its chip', () => {
 		mocks.search = { status: 'pending' };
 		renderPage();

@@ -26,7 +26,9 @@ import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-fai
 import { TenantBulkActions } from './_tenants-list-bulk-actions';
 import { tenantColumns } from './_tenants-list-columns';
 import {
+	buildTenantFacetCounts,
 	buildTenantFilters,
+	buildTenantPanelFacetCounts,
 	buildTenantMobileCard,
 	buildTenantTotals,
 	DEFAULT_TENANT_COLUMNS,
@@ -200,22 +202,10 @@ const StaffTenantsPage = () => {
 			filters={buildTenantFilters(t)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
-			counts={{
-				status: {
-					active: panel?.status?.active ?? null,
-					pending: panel?.status?.pending ?? null,
-					suspended: panel?.status?.suspended ?? null,
-				},
-				occupancy: {
-					full: panel?.seats?.full ?? null,
-					high: panel?.seats?.high ?? null,
-					available: panel?.seats?.available ?? null,
-				},
-				locale: {
-					fr: panel?.locales?.find((row) => row.locale === 'fr')?.count ?? null,
-					en: panel?.locales?.find((row) => row.locale === 'en')?.count ?? null,
-				},
-			}}
+			// The Filters popover facets within the other filters (status-filtered
+			// `counts`); the side panel keeps whole-collection `panelCounts`.
+			counts={buildTenantFacetCounts(counts)}
+			panelCounts={buildTenantPanelFacetCounts(panel)}
 			countsKnown={countsKnown}
 			emptyText={t('list-empty')}
 			locale={locale}

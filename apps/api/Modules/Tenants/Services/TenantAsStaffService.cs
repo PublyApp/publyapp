@@ -421,26 +421,17 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		}
 
 		// Facets describe the whole collection (cursor and limit are pagination
-		// only). One light row per searched tenant (never whole rows) feeds every
-		// counter: the member count is a correlated subquery, so tenants with no
-		// member are included.
-		var facetRows = await (
-			from tenant in searchQuery
-			select new {
-				tenant.Status,
-				tenant.DefaultLocale,
-				tenant.MaxUsers,
-				tenant.LastActivityAt,
-				Members = this._DbContext.UserAccount.AsNoTracking().Count(ua =>
-					ua.TenantId == tenant.Id
-					&& ua.Scope == AccountScope.Tenant
-					&& !ua.IsDeleted
-					&& !ua.User.IsDeleted
-				),
-			}
-		).ToListAsync(cancellationToken);
-
+		// only). Every counter is a SQL aggregate: nothing is materialized per tenant.
 		var weekAgo = DateTime.UtcNow.AddDays(-7);
+		var listFacets = await this._FindTenantFacetsAsync(baseQuery, weekAgo, cancellationToken);
+		var panelFacets = listFacets;
+		if (args.Filters?.Status is { Count: > 0 }) {
+			panelFacets = await this._FindTenantFacetsAsync(
+				searchQuery,
+				weekAgo,
+				cancellationToken
+			);
+		}
 		var projects = await (
 			from project in this._DbContext.Project.AsNoTracking()
 			where !project.IsDeleted
@@ -448,79 +439,28 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			select project
 		).CountAsync(cancellationToken);
 
-		var total = 0;
-		var active = 0;
-		var pending = 0;
-		var suspended = 0;
-		var members = 0;
-		var seats = 0;
-		var almostFull = 0;
-		var full = 0;
-		var activeThisWeek = 0;
-		var localeCounts = new Dictionary<string, int>();
-		var panelActive = 0;
-		var panelPending = 0;
-		var panelSuspended = 0;
-		var panelFull = 0;
-		var panelHigh = 0;
-		var panelAvailable = 0;
-		var panelLocales = new Dictionary<string, int>();
-		var statusFilter = args.Filters?.Status;
-		foreach (var row in facetRows) {
-			var band = TenantAsStaffService._OccupancyBand(row.Members, row.MaxUsers);
-			var locale = row.DefaultLocale ?? string.Empty;
-			panelLocales[locale] = panelLocales.GetValueOrDefault(locale) + 1;
-			if (row.Status == TenantStatus.Active) {
-				panelActive += 1;
-			} else if (row.Status == TenantStatus.Pending) {
-				panelPending += 1;
-			} else if (row.Status == TenantStatus.Suspended) {
-				panelSuspended += 1;
-			}
-			if (band == "full") {
-				panelFull += 1;
-			} else if (band == "high") {
-				panelHigh += 1;
-			} else if (band == "available") {
-				panelAvailable += 1;
-			}
-
-			if (statusFilter is { Count: > 0 } wanted && !wanted.Contains(row.Status)) {
-				continue;
-			}
-
-			total += 1;
-			if (row.Status == TenantStatus.Active) {
-				active += 1;
-			} else if (row.Status == TenantStatus.Pending) {
-				pending += 1;
-			} else if (row.Status == TenantStatus.Suspended) {
-				suspended += 1;
-			}
-			members += row.Members;
-			seats += row.MaxUsers;
-			if (band is "full" or "high") {
-				almostFull += 1;
-			}
-			if (band == "full") {
-				full += 1;
-			}
-			if (row.LastActivityAt is { } lastActivityAt && lastActivityAt >= weekAgo) {
-				activeThisWeek += 1;
-			}
-			// The « Langues » panel counts the tenants' own default language.
-			localeCounts[locale] = localeCounts.GetValueOrDefault(locale) + 1;
-		}
-
-		var byLocale = localeCounts
-			.Select(facet => new TenantLocaleCount(Locale: facet.Key, Count: facet.Value))
-			.ToList();
+		var total = listFacets.Active + listFacets.Pending + listFacets.Suspended;
+		var active = listFacets.Active;
+		var pending = listFacets.Pending;
+		var suspended = listFacets.Suspended;
+		var members = listFacets.Members;
+		var seats = listFacets.Seats;
+		var almostFull = listFacets.Full + listFacets.High;
+		var full = listFacets.Full;
+		var activeThisWeek = listFacets.ActiveThisWeek;
+		var byLocale = listFacets.Locales;
 		var panelCounts = new TenantPanelCounts(
-			Status: new TenantStatusPanelCounts(panelActive, panelPending, panelSuspended),
-			Seats: new TenantSeatsPanelCounts(panelFull, panelHigh, panelAvailable),
-			Locales: panelLocales
-				.Select(facet => new TenantLocaleCount(Locale: facet.Key, Count: facet.Value))
-				.ToList()
+			Status: new TenantStatusPanelCounts(
+				panelFacets.Active,
+				panelFacets.Pending,
+				panelFacets.Suspended
+			),
+			Seats: new TenantSeatsPanelCounts(
+				panelFacets.Full,
+				panelFacets.High,
+				panelFacets.Available
+			),
+			Locales: panelFacets.Locales
 		);
 
 		// « Invitations en attente »: pending organisation invitations for the
@@ -660,7 +600,8 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		var connectedCounts = await (
 			from account in this._DbContext.SocialAccount.AsNoTracking()
 			where !account.IsDeleted
-				&& account.Status == SocialAccountStatus.Active
+				&& (account.Status == SocialAccountStatus.Active
+					|| account.Status == SocialAccountStatus.NeedsReconnect)
 				&& tenantIds.Contains(account.TenantId)
 			group account by account.TenantId into g
 			select new { TenantId = g.Key, Count = g.Count() }
@@ -725,18 +666,85 @@ public class TenantAsStaffService : ITenantAsStaffService {
 
 	// Seats bucket: full at 100%, high from 80%, otherwise available; a tenant
 	// with no seat cap sits in no bucket (the list shows no ratio for it).
-	private static string? _OccupancyBand(int members, int maxUsers) {
-		if (maxUsers <= 0) {
-			return null;
-		}
-		var percent = Math.Min(
-			100,
-			(int)Math.Round(members * 100.0 / maxUsers, MidpointRounding.AwayFromZero)
+	private sealed record TenantFacets(
+		int Active,
+		int Pending,
+		int Suspended,
+		int Members,
+		int Seats,
+		int Full,
+		int High,
+		int Available,
+		int ActiveThisWeek,
+		List<TenantLocaleCount> Locales
+	);
+
+	// Occupancy band in SQL, integer math only: percent = round(members * 100 / max)
+	// (half away from zero), so >= 80 % is members * 200 >= 159 * max and 100 % is
+	// members * 200 >= 199 * max. 0 = no seats defined, 1 = available, 2 = high, 3 = full.
+	private async Task<TenantFacets> _FindTenantFacetsAsync(
+		IQueryable<Tenant> query,
+		DateTime weekAgo,
+		CancellationToken cancellationToken
+	) {
+		var statusFacets = await (
+			from tenant in query
+			group tenant by tenant.Status into g
+			select new { Status = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+		var localeFacets = await (
+			from tenant in query
+			group tenant by tenant.DefaultLocale into g
+			select new { Locale = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+		var bandFacets = await (
+			from tenant in query
+			let tenantMembers = this._DbContext.UserAccount.AsNoTracking().Count(ua =>
+				ua.TenantId == tenant.Id
+				&& ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			)
+			let band = tenant.MaxUsers <= 0
+				? 0
+				: tenantMembers * 200 >= 199 * tenant.MaxUsers
+					? 3
+					: tenantMembers * 200 >= 159 * tenant.MaxUsers
+						? 2
+						: 1
+			group tenant by band into g
+			select new { Band = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+		var members = await (
+			from ua in this._DbContext.UserAccount.AsNoTracking()
+			where ua.Scope == AccountScope.Tenant
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+				&& query.Any(tenant => tenant.Id == ua.TenantId)
+			select ua
+		).CountAsync(cancellationToken);
+		var seats = await query.SumAsync(t => t.MaxUsers, cancellationToken);
+		var activeThisWeek = await query.CountAsync(
+			t => t.LastActivityAt != null && t.LastActivityAt >= weekAgo,
+			cancellationToken
 		);
-		if (percent >= 100) {
-			return "full";
-		}
-		return percent >= 80 ? "high" : "available";
+
+		return new TenantFacets(
+			Active: statusFacets.Where(f => f.Status == TenantStatus.Active).Sum(f => f.Count),
+			Pending: statusFacets.Where(f => f.Status == TenantStatus.Pending).Sum(f => f.Count),
+			Suspended: statusFacets
+				.Where(f => f.Status == TenantStatus.Suspended)
+				.Sum(f => f.Count),
+			Members: members,
+			Seats: seats,
+			Full: bandFacets.Where(f => f.Band == 3).Sum(f => f.Count),
+			High: bandFacets.Where(f => f.Band == 2).Sum(f => f.Count),
+			Available: bandFacets.Where(f => f.Band == 1).Sum(f => f.Count),
+			ActiveThisWeek: activeThisWeek,
+			Locales: localeFacets
+				.Select(f => new TenantLocaleCount(Locale: f.Locale ?? string.Empty, Count: f.Count))
+				.ToList()
+		);
 	}
 
 	public async Task<CreateTenantWithInitialUsersOutcome> CreateTenantWithInitialUsersAsync(
