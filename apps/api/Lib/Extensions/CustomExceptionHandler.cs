@@ -184,9 +184,8 @@ public static partial class CustomExceptionHandler {
 	public static long? ResolveUploadFileLimit(Endpoint? endpoint, long uploadMaxBytes) {
 		var requestSizeLimit = endpoint?.Metadata
 			.GetMetadata<Microsoft.AspNetCore.Http.Metadata.IRequestSizeLimitMetadata>();
-		return requestSizeLimit?.MaxRequestBodySize == uploadMaxBytes + UploadLimits.MultipartHeaderHeadroomBytes
-			? uploadMaxBytes
-			: null;
+		var uploadRequestLimit = uploadMaxBytes + UploadLimits.MultipartHeaderHeadroomBytes;
+		return requestSizeLimit?.MaxRequestBodySize == uploadRequestLimit ? uploadMaxBytes : null;
 	}
 
 	private static async Task _WriteProblemAsync(HttpContext context, ExceptionMapping mapped) {
@@ -227,12 +226,18 @@ public static partial class CustomExceptionHandler {
 			return;
 		}
 
+		// Only an upload endpoint is answered; any other bodyless 413 stays as it was.
+		var uploadMaxBytes = CustomExceptionHandler.ResolveUploadFileLimit(
+			context.GetEndpoint(),
+			AppEnvironment.Instance.UPLOAD_MAX_BYTES
+		);
+		if (uploadMaxBytes is null) {
+			return;
+		}
+
 		var mapped = CustomExceptionHandler.MapException(
 			new BadHttpRequestException("Request body too large.", StatusCodes.Status413PayloadTooLarge),
-			CustomExceptionHandler.ResolveUploadFileLimit(
-				context.GetEndpoint(),
-				AppEnvironment.Instance.UPLOAD_MAX_BYTES
-			)
+			uploadMaxBytes
 		);
 		await CustomExceptionHandler._WriteProblemAsync(context, mapped);
 	}
