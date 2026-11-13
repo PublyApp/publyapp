@@ -5,11 +5,7 @@ import {
 	IconExternalLink,
 	type TablerIcon,
 } from '@tabler/icons-react';
-import {
-	flexRender,
-	functionalUpdate,
-	type SortingState,
-} from '@tanstack/react-table';
+import { functionalUpdate, type SortingState } from '@tanstack/react-table';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -247,6 +243,18 @@ const TableRow = ({
 };
 
 /**
+ * Calls a column def's `cell`/`header` renderer as a plain function.
+ * TanStack's `flexRender` treats any function as a React COMPONENT type; our
+ * renderers are fresh closures on every page render, so each render swapped
+ * the component type and remounted the cell (closing an open row menu and
+ * dropping its state, #2268).
+ */
+const renderDef = <Ctx,>(
+	def: ((ctx: Ctx) => ReactNode) | ReactNode | undefined,
+	ctx: Ctx,
+): ReactNode => (typeof def === 'function' ? def(ctx) : def);
+
+/**
  * A list table's columns, header cells and rows (TanStack Table, sorting
  * only): the rows come sorted by the caller (`manualSorting`), a header click
  * only asks for a sort (`onSortingChange`), cycling as TanStack does.
@@ -298,7 +306,7 @@ export const useListTable = <T extends { id: string }>({
 		.getHeaderGroups()[0]!
 		.headers.map((header) => ({
 			id: header.id,
-			label: flexRender(header.column.columnDef.header, header.getContext()),
+			label: renderDef(header.column.columnDef.header, header.getContext()),
 			icon: specs.get(header.id)?.icon ?? IconArrowsSort,
 			canSort: header.column.getCanSort(),
 			sorted: header.column.getIsSorted(),
@@ -312,7 +320,7 @@ export const useListTable = <T extends { id: string }>({
 			cells: row.getAllCells().map((cell) => ({
 				id: cell.id,
 				columnId: cell.column.id,
-				node: flexRender(cell.column.columnDef.cell, cell.getContext()),
+				node: renderDef(cell.column.columnDef.cell, cell.getContext()),
 			})),
 		})),
 		ids: table.getAllLeafColumns().map((column) => column.id),
