@@ -54,7 +54,11 @@ const asPositiveInteger = (value: unknown): number | undefined =>
  *   destination and the segment; without them the `detail` stays.
  */
 export const useResponseMessageTranslator = () => {
-	const { t, i18n } = useTranslation([RESPONSE_MESSAGE_NAMESPACE, 'posts']);
+	const { t, i18n } = useTranslation([
+		RESPONSE_MESSAGE_NAMESPACE,
+		'posts',
+		'common',
+	]);
 	const isEnglish = (i18n?.resolvedLanguage ?? i18n?.language ?? '').startsWith(
 		'en',
 	);
@@ -91,7 +95,7 @@ export const useResponseMessageTranslator = () => {
 			if (maxBytes === undefined) {
 				return undefined;
 			}
-			return t('posts:image-too-large', {
+			return t('common:image-too-large', {
 				size: formatBytes(maxBytes, i18n.language, 'limit'),
 			});
 		}

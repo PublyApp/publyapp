@@ -159,7 +159,6 @@
 	"segment-images-fix-form": "Fix the highlighted fields, then try again.",
 	"segment-too-long": "A segment must be 20000 characters or less.",
 	"segment-image-limit": "A follow-up segment can have at most {{limit}} images.",
-	"image-too-large": "The image exceeds the {{size}} limit.",
 	"segment-blank": "Segment {{index}} is empty. Write it, or remove it.",
 	"override-blank": "{{destination}}: the customized text of segment {{index}} is empty. Write it, or turn the customization off.",
 	"override-segment-missing": "{{destination}}: segment {{index}} no longer exists in the post. Reload the page and try again.",

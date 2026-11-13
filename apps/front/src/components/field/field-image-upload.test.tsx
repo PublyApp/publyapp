@@ -68,7 +68,7 @@ vi.mock('react-i18next', () => ({
 				'logo-upload-hint': 'PNG, JPEG, WEBP, or GIF — up to 2 MB',
 				'logo-upload-invalid-type': 'Image must be PNG, JPEG, WEBP, or GIF',
 				'logo-upload-too-large': `Image must be ${options?.size} or smaller`,
-				'posts:image-too-large': `The image exceeds the ${options?.size} limit.`,
+				'common:image-too-large': `The image exceeds the ${options?.size} limit.`,
 				'logo-upload-failed': "Couldn't upload the image. Please try again.",
 				'image-uploaded-success': 'Image uploaded successfully.',
 				'clear-logo': 'Clear logo',
