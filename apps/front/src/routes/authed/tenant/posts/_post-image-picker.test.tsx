@@ -49,12 +49,18 @@ const EN_LABELS: TestLabelMap = {
 	'posts:image-full': 'Limit reached: up to 4 images.',
 	'posts:image-alt-nudge': 'Add alt text so everyone can follow your post.',
 	'posts:image-alt-placeholder': 'Describe the image',
+	'image-upload-failed': 'Upload failed (network)',
 };
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string, options?: { index?: number; types?: string }) =>
-			(EN_LABELS[key] ?? key) +
+		t: (
+			key: string,
+			options?: { index?: number; types?: string; size?: string },
+		) =>
+			(key === 'image-too-large'
+				? `Too large: ${options?.size}`
+				: (EN_LABELS[key] ?? key)) +
 			(options?.index === undefined ? '' : ` ${options.index}`) +
 			(options?.types === undefined ? '' : ` ${JSON.stringify(options)}`),
 		i18n: { resolvedLanguage: 'en', language: 'en' },
@@ -78,6 +84,12 @@ afterEach(() => {
 	cleanup();
 	vi.clearAllMocks();
 });
+
+/** One byte over LIMITS.maxImageBytes (1 MB). */
+const oversizePng = (name = 'big.png') =>
+	new File([new Uint8Array(LIMITS.maxImageBytes + 1)], name, {
+		type: 'image/png',
+	});
 
 const pngFile = (name = 'logo.png') =>
 	new File([new Uint8Array([137, 80, 78, 71])], name, {
@@ -598,5 +610,99 @@ describe('PostImagePicker (deferred create-drawer mode)', () => {
 				) as HTMLInputElement
 			).disabled,
 		).toBe(true);
+	});
+});
+
+describe('PostImagePicker (size pre-check, #2421)', () => {
+	test('online: an oversize file is refused before any request, with the help text size', async () => {
+		const user = userEvent.setup();
+		render(
+			<PostImagePicker limits={LIMITS} postId="post-1" tenantId="tenant-1" />,
+		);
+
+		await user.upload(
+			screen.getByTestId('tenant-posts-create-image-input'),
+			oversizePng(),
+		);
+
+		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+		expect(screen.getByRole('alert').textContent).toBe('Too large: 1 MB');
+		// The help text names the very same cap.
+		expect(screen.getByText(/^Help .*"size":"1 MB"/)).toBeTruthy();
+	});
+
+	test('a follow-up segment picker refuses it the same way', async () => {
+		const user = userEvent.setup();
+		render(
+			<PostImagePicker
+				limits={LIMITS}
+				postId="post-1"
+				tenantId="tenant-1"
+				segmentId="segment-1"
+			/>,
+		);
+
+		await user.upload(
+			screen.getByTestId('tenant-posts-create-image-input'),
+			oversizePng(),
+		);
+
+		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+		expect(screen.getByRole('alert').textContent).toBe('Too large: 1 MB');
+	});
+
+	test('online: the files that fit are still attached', async () => {
+		const user = userEvent.setup();
+		mocks.attachMutateAsync.mockResolvedValue(undefined);
+		render(
+			<PostImagePicker limits={LIMITS} postId="post-1" tenantId="tenant-1" />,
+		);
+
+		await user.upload(screen.getByTestId('tenant-posts-create-image-input'), [
+			oversizePng(),
+			pngFile('ok.png'),
+		]);
+
+		await waitFor(() => {
+			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1);
+		});
+		expect(screen.getByRole('alert').textContent).toBe('Too large: 1 MB');
+	});
+
+	test('deferred (composer): an oversize file is never queued', async () => {
+		const user = userEvent.setup();
+		const onSelect = vi.fn();
+		render(
+			<PostImagePicker limits={LIMITS} selections={[]} onSelect={onSelect} />,
+		);
+
+		await user.upload(
+			screen.getByTestId('tenant-posts-create-image-input'),
+			oversizePng(),
+		);
+
+		expect(onSelect).not.toHaveBeenCalled();
+		expect(screen.getByRole('alert').textContent).toBe('Too large: 1 MB');
+	});
+
+	test('a network failure on upload shows the translated generic message', async () => {
+		const user = userEvent.setup();
+		mocks.attachMutateAsync.mockRejectedValueOnce(
+			new TypeError('Failed to fetch'),
+		);
+		render(
+			<PostImagePicker limits={LIMITS} postId="post-1" tenantId="tenant-1" />,
+		);
+
+		await user.upload(
+			screen.getByTestId('tenant-posts-create-image-input'),
+			pngFile(),
+		);
+
+		await waitFor(() => {
+			expect(screen.getByRole('alert').textContent).toBe(
+				'Upload failed (network)',
+			);
+		});
 	});
 });

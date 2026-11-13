@@ -989,6 +989,7 @@
 	"uploading-logo": "Téléversement…",
 	"logo-upload-hint": "PNG, JPEG, WEBP ou GIF — jusqu'à 2 Mo",
 	"logo-upload-invalid-type": "L'image doit être au format PNG, JPEG, WEBP ou GIF",
+	"image-upload-failed": "Impossible d’envoyer l’image. Vérifiez votre connexion et réessayez.",
 	"image-too-large": "L’image dépasse la taille maximale de {{size}}.",
 	"logo-upload-failed": "Impossible de téléverser l'image. Veuillez réessayer.",
 	"workspace-slug-immutable-hint": "Le slug de l'espace de travail ne peut pas être modifié",

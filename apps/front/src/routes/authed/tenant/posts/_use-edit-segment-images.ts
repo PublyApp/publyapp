@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
+import { useImageUploadFailureMessage } from '~/lib/i18n/use-image-upload-failure-message';
 import {
 	invalidateTenantPosts,
 	readCreatedSegments,
@@ -10,11 +10,6 @@ import {
 } from '~/lib/query/tenant-posts';
 import { invalidateTenantPublications } from '~/lib/query/tenant-publications';
 import { invalidateTenantScheduledPublications } from '~/lib/query/tenant-scheduled-publications';
-
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import {
 	AttemptCancelledError,
@@ -64,7 +59,7 @@ export const useEditSegmentImages = ({
 	hasStoredSegments: boolean;
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
-	const translateResponseMessage = useResponseMessageTranslator();
+	const imageUploadFailureMessage = useImageUploadFailureMessage();
 	const qc = useQueryClient();
 	const { attachAll } = useAttachDeferredImages(tenantId);
 	const raiseSessionEnd = useRaiseSessionEnd();
@@ -93,10 +88,7 @@ export const useEditSegmentImages = ({
 		);
 
 	const failureText = (cause: unknown): string =>
-		getFailureMessage(toApiFailure(cause), {
-			fallback: t('common:an-error-occurred'),
-			translate: translateResponseMessage,
-		}) ?? '';
+		imageUploadFailureMessage(cause);
 
 	const causeText = (cause: unknown): string => {
 		if (cause instanceof SegmentIdsUnreadError) {

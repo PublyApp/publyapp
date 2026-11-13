@@ -10,14 +10,10 @@ import { BrandTile } from '~/components/ui/initials-avatar';
 import { Label } from '~/components/ui/label';
 import { resolveApiFileUrl } from '~/lib/api-client/resolve-api-file-url';
 import { formatBytes } from '~/lib/format-bytes';
-import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
+import { useImageUploadFailureMessage } from '~/lib/i18n/use-image-upload-failure-message';
 import { toastLocalMutationResult } from '~/lib/mutation-feedback/mutation-toast';
 import { useUploadStaffImageMutation } from '~/lib/query/staff-uploads';
 
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { MAX_UPLOAD_BYTES } from '@org/shared-ts/lib/constants';
 
 /** Mirrors the server's accepted image types (apps/api/Lib/AppEnvironment.cs)
@@ -63,7 +59,8 @@ export const FieldImageUpload = ({
 }: FieldImageUploadProps) => {
 	const { t, i18n } = useTranslation('common');
 	const { control } = useFormContext();
-	const translateResponseMessage = useResponseMessageTranslator();
+	const imageUploadFailureMessage =
+		useImageUploadFailureMessage('logo-upload-failed');
 	// The same value feeds the pre-check, its message and the drop hint, so the
 	// limit reads one way everywhere (the API's refusal builds it from `maxBytes`).
 	const maxSize = formatBytes(MAX_UPLOAD_BYTES, i18n.language, 'limit');
@@ -114,12 +111,7 @@ export const FieldImageUpload = ({
 								}
 							},
 							onError: (uploadError) => {
-								setLocalError(
-									getFailureMessage(toApiFailure(uploadError), {
-										fallback: t('logo-upload-failed'),
-										translate: translateResponseMessage,
-									}),
-								);
+								setLocalError(imageUploadFailureMessage(uploadError));
 							},
 						},
 					);
