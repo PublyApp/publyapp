@@ -25,6 +25,7 @@ import { CreatePostFields } from './_create-post-drawer-body';
 import { CreatePostActions } from './_create-post-drawer-parts';
 import {
 	countBySegment,
+	imageSizesOf,
 	imagesOfLiveSegments,
 	postImages,
 } from './_deferred-images';
@@ -313,7 +314,12 @@ export const CreatePostDrawer = ({
 										segments.map((segment) => segment.id),
 									),
 								)}
-								imageSizes={deferredImages.map((image) => image.file.size)}
+								imageSizes={imageSizesOf(
+									imagesOfLiveSegments(
+										deferredImages,
+										segments.map((segment) => segment.id),
+									),
+								)}
 								onBeforePublish={prepareForPublish}
 								disabled={busy}
 								onPublishInterrupted={handoff.keepIntent}

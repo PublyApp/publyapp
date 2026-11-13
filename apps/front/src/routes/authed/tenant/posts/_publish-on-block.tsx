@@ -16,6 +16,7 @@ import {
 	findPublishProblems,
 	isPublishBlocked,
 } from './_publish-validation';
+import type { PickedImageSize } from './_publish-validation';
 import { NO_SEGMENTS } from './_segment-draft';
 import type { SegmentDraft } from './_segment-draft';
 import type { DestinationOverridesState } from './_use-destination-overrides';
@@ -66,7 +67,7 @@ export const PublishOnBlock = ({
 	segmentImageCounts?: Readonly<Record<string, number>>;
 	/** Byte size of every picked, not yet uploaded image: held against the
 	 * SELECTED destinations' size caps. */
-	imageSizes?: readonly number[];
+	imageSizes?: readonly PickedImageSize[];
 	/** Unsaved edits to the shared post (edit page). A customization names
 	 * segments by position and the server applies it to the SAVED post, so
 	 * while the post is dirty a customized publish or schedule is held back. */
