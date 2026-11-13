@@ -11,6 +11,7 @@ import {
 	SINGLE_TENANT_USER_CREDENTIALS,
 	TENANT_ADMIN_CREDENTIALS,
 } from './helpers/login';
+import { waitForBoundingBoxToSettle } from './helpers/settle';
 
 /**
  * #990 / PR #1054 browser-side guard. Earlier source-level checks could prove
@@ -374,6 +375,14 @@ const measureDrawer = async (
 ): Promise<DrawerMeasurements> => {
 	const drawer = page.getByTestId(drawerTestId);
 	await expect(drawer).toHaveCSS('translate', 'none');
+	// Async content (e.g. the create-post limit counter, #2279) can still grow
+	// the footer after the drawer is visible, which would make the before/after
+	// footer rects differ for a reason unrelated to scrolling. Measure only
+	// once the footer and the surface have stopped resizing.
+	await waitForBoundingBoxToSettle(drawer);
+	await waitForBoundingBoxToSettle(
+		drawer.locator('[data-slot="drawer-footer"]'),
+	);
 
 	return drawer.evaluate(
 		async (surface, forcedContentHeight): Promise<DrawerMeasurements> => {
@@ -589,6 +598,14 @@ const openTenantPostCreateDrawer = async (page: Page): Promise<void> => {
 	// (same reason tenant-posts-drafts.spec.ts clears its storageState).
 	await page.context().clearCookies();
 	await loginAsTenantUser(page, SINGLE_TENANT_USER_CREDENTIALS);
+	// The limit counter ("0 / 300 · @account") renders only after
+	// `GET /publishing/publish-targets` resolves (#2279). Arm the wait before
+	// navigating so a response that lands early is not missed.
+	const targetsLoaded = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'GET' &&
+			new URL(response.url()).pathname.endsWith('/publishing/publish-targets'),
+	);
 	await page.goto('/tenant/posts/drafts');
 	await expect(page.getByTestId('tenant-posts-drafts-page')).toBeVisible({
 		timeout: 10_000,
@@ -605,6 +622,7 @@ const openTenantPostCreateDrawer = async (page: Page): Promise<void> => {
 	await expect(page.getByTestId('tenant-posts-create-drawer')).toBeVisible({
 		timeout: 10_000,
 	});
+	await targetsLoaded;
 };
 
 // The link-companies drawer lives on the GLOBAL tenant-user organizations
