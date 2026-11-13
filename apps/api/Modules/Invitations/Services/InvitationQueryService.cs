@@ -5,6 +5,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Roles.Services;
 
 namespace PublyApp.Api.Modules.Invitations.Services;
 
@@ -318,13 +319,33 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			}
 		}
 
+		// Invitations per role over the same filtered collection (an invitation
+		// carrying several roles counts once in each).
+		var filteredInvitationIds = query.Select(inv => inv.Id);
+		var roleCountRows = await (
+			from invitationRole in this._DbContext.InvitationRole.AsNoTracking()
+			join role in this._DbContext.Role.AsNoTracking()
+				on (Guid?)invitationRole.RoleId equals role.Id
+			where !role.IsDeleted
+				&& filteredInvitationIds.Contains((Guid?)invitationRole.InvitationId)
+			group role by new { role.Id, role.Name } into g
+			select new { g.Key.Id, g.Key.Name, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+		var roleCounts = roleCountRows
+			.Where(row => row.Id is not null)
+			.Select(row => new StaffRoleCount(row.Id ?? Guid.Empty, row.Name, row.Count))
+			.OrderByDescending(row => row.Count)
+			.ThenBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
+			.ToList();
+
 		var counts = new StaffInvitationCounts(
 			Total: pending + accepted + expired + revoked,
 			Pending: pending,
 			Accepted: accepted,
 			Expired: expired,
 			Revoked: revoked,
-			ExpiringSoon: expiringSoon
+			ExpiringSoon: expiringSoon,
+			RoleCounts: roleCounts
 		);
 
 		if (cursor != Guid.Empty) {

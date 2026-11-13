@@ -815,6 +815,66 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldReturnRoleCountsOverTheWholeFilteredCollection() {
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"profiles-{Guid.NewGuid():N}";
+		var sharedRoleName = $"Shared-{marker}";
+		var soloRoleName = $"Solo-{marker}";
+		var (sharedRoleId, soloRoleId) = await this._CreateTwoStaffRolesAsync(sharedRoleName, soloRoleName);
+
+		await this._SeedStaffInvitationWithRolesAsync($"{marker}-1@example.com", [sharedRoleId]);
+		await this._SeedStaffInvitationWithRolesAsync($"{marker}-2@example.com", [sharedRoleId, soloRoleId]);
+		await this._SeedStaffInvitationWithRolesAsync($"{marker}-3@example.com", [sharedRoleId]);
+
+		// limit=1: the breakdown is not the page.
+		using var response = await this._Http.SendAsync(
+			FindStaffInvitationsSpec._CreateFindRequest(staffToken, limit: 1, q: marker)
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		_ = result.Should().NotBeNull();
+		Assert.NotNull(result);
+		_ = result.Data.Should().HaveCount(1);
+		_ = result.Counts.RoleCounts.Should().HaveCount(2);
+		_ = result.Counts.RoleCounts.Should().Contain(profile =>
+			profile.RoleId == sharedRoleId && profile.Name == sharedRoleName && profile.Count == 3
+		);
+		_ = result.Counts.RoleCounts.Should().Contain(profile =>
+			profile.RoleId == soloRoleId && profile.Count == 1
+		);
+	}
+
+	private async Task<(Guid First, Guid Second)> _CreateTwoStaffRolesAsync(string first, string second) {
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
+		AppDbContext dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		Role firstRole = Role.CreateStaffRole(first);
+		Role secondRole = Role.CreateStaffRole(second);
+		await dbContext.Role.AddRangeAsync(firstRole, secondRole);
+		_ = await dbContext.SaveChangesAsync();
+		return (firstRole.GetRequiredId(), secondRole.GetRequiredId());
+	}
+
+	private async Task _SeedStaffInvitationWithRolesAsync(string email, List<Guid> roleIds) {
+		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
+		AppDbContext dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		User staffUser = await dbContext.User
+			.Where(user => user.Email == SeedConstants.Staff.AdminEmail)
+			.FirstAsync();
+		Invitation invitation = Invitation.CreateStaffInvitationWithRoles(
+			email,
+			roleIds,
+			staffUser.GetRequiredId(),
+			DateTime.UtcNow.AddDays(7),
+			Guid.NewGuid().ToString("N")[..32]
+		);
+		_ = await dbContext.Invitation.AddAsync(invitation);
+		_ = await dbContext.SaveChangesAsync();
+	}
+
+	[Fact]
 	public async Task ItShouldSearchByEmailOnTheServer() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = $"search-{Guid.NewGuid():N}";
@@ -1121,6 +1181,13 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		public int Expired { get; init; }
 		public int Revoked { get; init; }
 		public int ExpiringSoon { get; init; }
+		public List<ProfileCountDto> RoleCounts { get; init; } = [];
+	}
+
+	private sealed record ProfileCountDto {
+		public Guid RoleId { get; init; }
+		public string Name { get; init; } = string.Empty;
+		public int Count { get; init; }
 	}
 
 	private sealed record InvitationListItemDto {

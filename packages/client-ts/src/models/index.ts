@@ -250,6 +250,12 @@ export interface AuditLogListItem extends AdditionalDataHolder, Parsable {
      */
     userName?: string | null;
 }
+export interface BulkAssignStaffRoleUsersBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The userIds property
+     */
+    userIds?: UntypedNode | null;
+}
 export interface BulkCreateStaffInvitationsBody extends AdditionalDataHolder, Parsable {
     /**
      * The invitations property
@@ -467,6 +473,30 @@ export interface BulkStaffInvitationsCreated extends AdditionalDataHolder, Parsa
      * The created property
      */
     created?: number | null;
+}
+export interface BulkStaffRoleUserAssignActionFailedItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The reason property
+     */
+    reason?: string | null;
+    /**
+     * The userId property
+     */
+    userId?: Guid | null;
+}
+export interface BulkStaffRoleUserAssignActionResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The failedCount property
+     */
+    failedCount?: number | null;
+    /**
+     * The failedItems property
+     */
+    failedItems?: BulkStaffRoleUserAssignActionFailedItem[] | null;
+    /**
+     * The succeededCount property
+     */
+    succeededCount?: number | null;
 }
 export interface BulkStaffRoleUserUnassignActionFailedItem extends AdditionalDataHolder, Parsable {
     /**
@@ -731,6 +761,15 @@ export function createAuditLogListItemFromDiscriminatorValue(parseNode: ParseNod
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkAssignStaffRoleUsersBody}
+ */
+// @ts-ignore
+export function createBulkAssignStaffRoleUsersBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkAssignStaffRoleUsersBody;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {BulkCreateStaffInvitationsBody}
  */
 // @ts-ignore
@@ -934,6 +973,24 @@ export function createBulkStaffInvitationActionResultFromDiscriminatorValue(pars
 // @ts-ignore
 export function createBulkStaffInvitationsCreatedFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoBulkStaffInvitationsCreated;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkStaffRoleUserAssignActionFailedItem}
+ */
+// @ts-ignore
+export function createBulkStaffRoleUserAssignActionFailedItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkStaffRoleUserAssignActionFailedItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {BulkStaffRoleUserAssignActionResult}
+ */
+// @ts-ignore
+export function createBulkStaffRoleUserAssignActionResultFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoBulkStaffRoleUserAssignActionResult;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2312,6 +2369,15 @@ export interface CreateStaffRoleBody extends AdditionalDataHolder, Parsable {
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StaffRoleCountItem}
+ */
+// @ts-ignore
+export function createStaffRoleCountItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStaffRoleCountItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {StaffRoleCreated}
  */
 // @ts-ignore
@@ -2326,6 +2392,15 @@ export function createStaffRoleCreatedFromDiscriminatorValue(parseNode: ParseNod
 // @ts-ignore
 export function createStaffRoleItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoStaffRoleItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {StaffRoleListCounts}
+ */
+// @ts-ignore
+export function createStaffRoleListCountsFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoStaffRoleListCounts;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -3443,6 +3518,17 @@ export function deserializeIntoAuditLogListItem(auditLogListItem: Partial<AuditL
 }
 /**
  * The deserialization information for the current model
+ * @param BulkAssignStaffRoleUsersBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkAssignStaffRoleUsersBody(bulkAssignStaffRoleUsersBody: Partial<BulkAssignStaffRoleUsersBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "userIds": n => { bulkAssignStaffRoleUsersBody.userIds = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param BulkCreateStaffInvitationsBody The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -3712,6 +3798,31 @@ export function deserializeIntoBulkStaffInvitationActionResult(bulkStaffInvitati
 export function deserializeIntoBulkStaffInvitationsCreated(bulkStaffInvitationsCreated: Partial<BulkStaffInvitationsCreated> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
         "created": n => { bulkStaffInvitationsCreated.created = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkStaffRoleUserAssignActionFailedItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkStaffRoleUserAssignActionFailedItem(bulkStaffRoleUserAssignActionFailedItem: Partial<BulkStaffRoleUserAssignActionFailedItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "reason": n => { bulkStaffRoleUserAssignActionFailedItem.reason = n.getStringValue(); },
+        "userId": n => { bulkStaffRoleUserAssignActionFailedItem.userId = n.getGuidValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param BulkStaffRoleUserAssignActionResult The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoBulkStaffRoleUserAssignActionResult(bulkStaffRoleUserAssignActionResult: Partial<BulkStaffRoleUserAssignActionResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "failedCount": n => { bulkStaffRoleUserAssignActionResult.failedCount = n.getNumberValue(); },
+        "failedItems": n => { bulkStaffRoleUserAssignActionResult.failedItems = n.getCollectionOfObjectValues<BulkStaffRoleUserAssignActionFailedItem>(createBulkStaffRoleUserAssignActionFailedItemFromDiscriminatorValue); },
+        "succeededCount": n => { bulkStaffRoleUserAssignActionResult.succeededCount = n.getNumberValue(); },
     }
 }
 /**
@@ -4317,6 +4428,7 @@ export function deserializeIntoFindStaffRolePermissionsResult(findStaffRolePermi
 // @ts-ignore
 export function deserializeIntoFindStaffRolesResult(findStaffRolesResult: Partial<FindStaffRolesResult> | undefined = {}) : Record<string, (node: ParseNode) => void> {
     return {
+        "counts": n => { findStaffRolesResult.counts = n.getObjectValue<StaffRoleListCounts>(createStaffRoleListCountsFromDiscriminatorValue); },
         "data": n => { findStaffRolesResult.data = n.getCollectionOfObjectValues<StaffRoleItem>(createStaffRoleItemFromDiscriminatorValue); },
         "nextCursor": n => { findStaffRolesResult.nextCursor = n.getStringValue(); },
         "totalAssignments": n => { findStaffRolesResult.totalAssignments = n.getNumberValue(); },
@@ -5722,6 +5834,7 @@ export function deserializeIntoStaffInvitationListCounts(staffInvitationListCoun
         "expiringSoon": n => { staffInvitationListCounts.expiringSoon = n.getNumberValue(); },
         "pending": n => { staffInvitationListCounts.pending = n.getNumberValue(); },
         "revoked": n => { staffInvitationListCounts.revoked = n.getNumberValue(); },
+        "roleCounts": n => { staffInvitationListCounts.roleCounts = n.getCollectionOfObjectValues<StaffRoleCountItem>(createStaffRoleCountItemFromDiscriminatorValue); },
         "total": n => { staffInvitationListCounts.total = n.getNumberValue(); },
     }
 }
@@ -5747,6 +5860,19 @@ export function deserializeIntoStaffInvitationRoleInfo(staffInvitationRoleInfo: 
     return {
         "id": n => { staffInvitationRoleInfo.id = n.getGuidValue(); },
         "name": n => { staffInvitationRoleInfo.name = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param StaffRoleCountItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoStaffRoleCountItem(staffRoleCountItem: Partial<StaffRoleCountItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "count": n => { staffRoleCountItem.count = n.getNumberValue(); },
+        "name": n => { staffRoleCountItem.name = n.getStringValue(); },
+        "roleId": n => { staffRoleCountItem.roleId = n.getGuidValue(); },
     }
 }
 /**
@@ -5779,7 +5905,21 @@ export function deserializeIntoStaffRoleItem(staffRoleItem: Partial<StaffRoleIte
         "isFullAccess": n => { staffRoleItem.isFullAccess = n.getBooleanValue(); },
         "name": n => { staffRoleItem.name = n.getStringValue(); },
         "tone": n => { staffRoleItem.tone = n.getStringValue(); },
+        "type": n => { staffRoleItem.type = n.getEnumValue<StaffRoleType>(StaffRoleTypeObject); },
         "userAccountCount": n => { staffRoleItem.userAccountCount = n.getNumberValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param StaffRoleListCounts The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoStaffRoleListCounts(staffRoleListCounts: Partial<StaffRoleListCounts> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "custom": n => { staffRoleListCounts.custom = n.getNumberValue(); },
+        "system": n => { staffRoleListCounts.system = n.getNumberValue(); },
+        "total": n => { staffRoleListCounts.total = n.getNumberValue(); },
     }
 }
 /**
@@ -5844,8 +5984,11 @@ export function deserializeIntoStaffUserItem(staffUserItem: Partial<StaffUserIte
         "email": n => { staffUserItem.email = n.getStringValue(); },
         "firstName": n => { staffUserItem.firstName = n.getStringValue(); },
         "id": n => { staffUserItem.id = n.getGuidValue(); },
+        "invitedByName": n => { staffUserItem.invitedByName = n.getStringValue(); },
         "isFullAccess": n => { staffUserItem.isFullAccess = n.getBooleanValue(); },
         "lastName": n => { staffUserItem.lastName = n.getStringValue(); },
+        "lastSignInAt": n => { staffUserItem.lastSignInAt = n.getDateValue(); },
+        "openSessions": n => { staffUserItem.openSessions = n.getNumberValue(); },
         "roles": n => { staffUserItem.roles = n.getCollectionOfPrimitiveValues<string>("string"); },
         "status": n => { staffUserItem.status = n.getEnumValue<UserStatus>(UserStatusObject); },
     }
@@ -5862,6 +6005,7 @@ export function deserializeIntoStaffUserListCounts(staffUserListCounts: Partial<
         "connectedToday": n => { staffUserListCounts.connectedToday = n.getNumberValue(); },
         "fullAccess": n => { staffUserListCounts.fullAccess = n.getNumberValue(); },
         "openSessions": n => { staffUserListCounts.openSessions = n.getNumberValue(); },
+        "roleCounts": n => { staffUserListCounts.roleCounts = n.getCollectionOfObjectValues<StaffRoleCountItem>(createStaffRoleCountItemFromDiscriminatorValue); },
         "suspended": n => { staffUserListCounts.suspended = n.getNumberValue(); },
         "total": n => { staffUserListCounts.total = n.getNumberValue(); },
     }
@@ -6881,6 +7025,10 @@ export interface FindStaffRolePermissionsResult extends AdditionalDataHolder, Pa
     permissionKeys?: string[] | null;
 }
 export interface FindStaffRolesResult extends AdditionalDataHolder, Parsable {
+    /**
+     * The counts property
+     */
+    counts?: StaffRoleListCounts | null;
     /**
      * The data property
      */
@@ -8742,6 +8890,18 @@ export function serializeAuditLogListItem(writer: SerializationWriter, auditLogL
 }
 /**
  * Serializes information the current object
+ * @param BulkAssignStaffRoleUsersBody The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkAssignStaffRoleUsersBody(writer: SerializationWriter, bulkAssignStaffRoleUsersBody: Partial<BulkAssignStaffRoleUsersBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkAssignStaffRoleUsersBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("userIds", bulkAssignStaffRoleUsersBody.userIds);
+    writer.writeAdditionalData(bulkAssignStaffRoleUsersBody.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param BulkCreateStaffInvitationsBody The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -9035,6 +9195,33 @@ export function serializeBulkStaffInvitationsCreated(writer: SerializationWriter
     if (!bulkStaffInvitationsCreated || isSerializingDerivedType) { return; }
     writer.writeNumberValue("created", bulkStaffInvitationsCreated.created);
     writer.writeAdditionalData(bulkStaffInvitationsCreated.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkStaffRoleUserAssignActionFailedItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkStaffRoleUserAssignActionFailedItem(writer: SerializationWriter, bulkStaffRoleUserAssignActionFailedItem: Partial<BulkStaffRoleUserAssignActionFailedItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkStaffRoleUserAssignActionFailedItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("reason", bulkStaffRoleUserAssignActionFailedItem.reason);
+    writer.writeGuidValue("userId", bulkStaffRoleUserAssignActionFailedItem.userId);
+    writer.writeAdditionalData(bulkStaffRoleUserAssignActionFailedItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param BulkStaffRoleUserAssignActionResult The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeBulkStaffRoleUserAssignActionResult(writer: SerializationWriter, bulkStaffRoleUserAssignActionResult: Partial<BulkStaffRoleUserAssignActionResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!bulkStaffRoleUserAssignActionResult || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("failedCount", bulkStaffRoleUserAssignActionResult.failedCount);
+    writer.writeCollectionOfObjectValues<BulkStaffRoleUserAssignActionFailedItem>("failedItems", bulkStaffRoleUserAssignActionResult.failedItems, serializeBulkStaffRoleUserAssignActionFailedItem);
+    writer.writeNumberValue("succeededCount", bulkStaffRoleUserAssignActionResult.succeededCount);
+    writer.writeAdditionalData(bulkStaffRoleUserAssignActionResult.additionalData);
 }
 /**
  * Serializes information the current object
@@ -9683,6 +9870,7 @@ export function serializeFindStaffRolePermissionsResult(writer: SerializationWri
 // @ts-ignore
 export function serializeFindStaffRolesResult(writer: SerializationWriter, findStaffRolesResult: Partial<FindStaffRolesResult> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
     if (!findStaffRolesResult || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<StaffRoleListCounts>("counts", findStaffRolesResult.counts, serializeStaffRoleListCounts);
     writer.writeCollectionOfObjectValues<StaffRoleItem>("data", findStaffRolesResult.data, serializeStaffRoleItem);
     writer.writeStringValue("nextCursor", findStaffRolesResult.nextCursor);
     writer.writeNumberValue("totalAssignments", findStaffRolesResult.totalAssignments);
@@ -11185,6 +11373,7 @@ export function serializeStaffInvitationListCounts(writer: SerializationWriter, 
     writer.writeNumberValue("expiringSoon", staffInvitationListCounts.expiringSoon);
     writer.writeNumberValue("pending", staffInvitationListCounts.pending);
     writer.writeNumberValue("revoked", staffInvitationListCounts.revoked);
+    writer.writeCollectionOfObjectValues<StaffRoleCountItem>("roleCounts", staffInvitationListCounts.roleCounts, serializeStaffRoleCountItem);
     writer.writeNumberValue("total", staffInvitationListCounts.total);
     writer.writeAdditionalData(staffInvitationListCounts.additionalData);
 }
@@ -11213,6 +11402,20 @@ export function serializeStaffInvitationRoleInfo(writer: SerializationWriter, st
     writer.writeGuidValue("id", staffInvitationRoleInfo.id);
     writer.writeStringValue("name", staffInvitationRoleInfo.name);
     writer.writeAdditionalData(staffInvitationRoleInfo.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param StaffRoleCountItem The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeStaffRoleCountItem(writer: SerializationWriter, staffRoleCountItem: Partial<StaffRoleCountItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!staffRoleCountItem || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("count", staffRoleCountItem.count);
+    writer.writeStringValue("name", staffRoleCountItem.name);
+    writer.writeGuidValue("roleId", staffRoleCountItem.roleId);
+    writer.writeAdditionalData(staffRoleCountItem.additionalData);
 }
 /**
  * Serializes information the current object
@@ -11246,8 +11449,23 @@ export function serializeStaffRoleItem(writer: SerializationWriter, staffRoleIte
     writer.writeBooleanValue("isFullAccess", staffRoleItem.isFullAccess);
     writer.writeStringValue("name", staffRoleItem.name);
     writer.writeStringValue("tone", staffRoleItem.tone);
+    writer.writeEnumValue<StaffRoleType>("type", staffRoleItem.type);
     writer.writeNumberValue("userAccountCount", staffRoleItem.userAccountCount);
     writer.writeAdditionalData(staffRoleItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param StaffRoleListCounts The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeStaffRoleListCounts(writer: SerializationWriter, staffRoleListCounts: Partial<StaffRoleListCounts> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!staffRoleListCounts || isSerializingDerivedType) { return; }
+    writer.writeNumberValue("custom", staffRoleListCounts.custom);
+    writer.writeNumberValue("system", staffRoleListCounts.system);
+    writer.writeNumberValue("total", staffRoleListCounts.total);
+    writer.writeAdditionalData(staffRoleListCounts.additionalData);
 }
 /**
  * Serializes information the current object
@@ -11315,8 +11533,11 @@ export function serializeStaffUserItem(writer: SerializationWriter, staffUserIte
     writer.writeStringValue("email", staffUserItem.email);
     writer.writeStringValue("firstName", staffUserItem.firstName);
     writer.writeGuidValue("id", staffUserItem.id);
+    writer.writeStringValue("invitedByName", staffUserItem.invitedByName);
     writer.writeBooleanValue("isFullAccess", staffUserItem.isFullAccess);
     writer.writeStringValue("lastName", staffUserItem.lastName);
+    writer.writeDateValue("lastSignInAt", staffUserItem.lastSignInAt);
+    writer.writeNumberValue("openSessions", staffUserItem.openSessions);
     writer.writeCollectionOfPrimitiveValues<string>("roles", staffUserItem.roles);
     writer.writeEnumValue<UserStatus>("status", staffUserItem.status);
     writer.writeAdditionalData(staffUserItem.additionalData);
@@ -11334,6 +11555,7 @@ export function serializeStaffUserListCounts(writer: SerializationWriter, staffU
     writer.writeNumberValue("connectedToday", staffUserListCounts.connectedToday);
     writer.writeNumberValue("fullAccess", staffUserListCounts.fullAccess);
     writer.writeNumberValue("openSessions", staffUserListCounts.openSessions);
+    writer.writeCollectionOfObjectValues<StaffRoleCountItem>("roleCounts", staffUserListCounts.roleCounts, serializeStaffRoleCountItem);
     writer.writeNumberValue("suspended", staffUserListCounts.suspended);
     writer.writeNumberValue("total", staffUserListCounts.total);
     writer.writeAdditionalData(staffUserListCounts.additionalData);
@@ -12425,6 +12647,10 @@ export interface StaffInvitationListCounts extends AdditionalDataHolder, Parsabl
      */
     revoked?: number | null;
     /**
+     * The roleCounts property
+     */
+    roleCounts?: StaffRoleCountItem[] | null;
+    /**
      * The total property
      */
     total?: number | null;
@@ -12448,6 +12674,20 @@ export interface StaffInvitationRoleInfo extends AdditionalDataHolder, Parsable 
      * The name property
      */
     name?: string | null;
+}
+export interface StaffRoleCountItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The count property
+     */
+    count?: number | null;
+    /**
+     * The name property
+     */
+    name?: string | null;
+    /**
+     * The roleId property
+     */
+    roleId?: Guid | null;
 }
 export interface StaffRoleCreated extends AdditionalDataHolder, Parsable {
     /**
@@ -12501,10 +12741,29 @@ export interface StaffRoleItem extends AdditionalDataHolder, Parsable {
      */
     tone?: string | null;
     /**
+     * The type property
+     */
+    type?: StaffRoleType | null;
+    /**
      * The userAccountCount property
      */
     userAccountCount?: number | null;
 }
+export interface StaffRoleListCounts extends AdditionalDataHolder, Parsable {
+    /**
+     * The custom property
+     */
+    custom?: number | null;
+    /**
+     * The system property
+     */
+    system?: number | null;
+    /**
+     * The total property
+     */
+    total?: number | null;
+}
+export type StaffRoleType = (typeof StaffRoleTypeObject)[keyof typeof StaffRoleTypeObject];
 export interface StaffRoleUserItem extends AdditionalDataHolder, Parsable {
     /**
      * The avatarUrl property
@@ -12609,6 +12868,10 @@ export interface StaffUserItem extends AdditionalDataHolder, Parsable {
      */
     id?: Guid | null;
     /**
+     * The invitedByName property
+     */
+    invitedByName?: string | null;
+    /**
      * The isFullAccess property
      */
     isFullAccess?: boolean | null;
@@ -12616,6 +12879,14 @@ export interface StaffUserItem extends AdditionalDataHolder, Parsable {
      * The lastName property
      */
     lastName?: string | null;
+    /**
+     * The lastSignInAt property
+     */
+    lastSignInAt?: Date | null;
+    /**
+     * The openSessions property
+     */
+    openSessions?: number | null;
     /**
      * The roles property
      */
@@ -12642,6 +12913,10 @@ export interface StaffUserListCounts extends AdditionalDataHolder, Parsable {
      * The openSessions property
      */
     openSessions?: number | null;
+    /**
+     * The roleCounts property
+     */
+    roleCounts?: StaffRoleCountItem[] | null;
     /**
      * The suspended property
      */
@@ -13873,6 +14148,10 @@ export const InvitationEffectiveStatusObject = {
     Accepted: "Accepted",
     Expired: "Expired",
     Revoked: "Revoked",
+} as const;
+export const StaffRoleTypeObject = {
+    System: "System",
+    Custom: "Custom",
 } as const;
 export const TenantStatusObject = {
     Pending: "Pending",

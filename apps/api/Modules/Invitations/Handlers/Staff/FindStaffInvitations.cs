@@ -9,6 +9,7 @@ using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Services;
+using PublyApp.Api.Modules.Roles.Services;
 
 namespace PublyApp.Api.Modules.Invitations.Handlers.Staff;
 
@@ -19,6 +20,9 @@ public class StaffInvitationListCounts {
 	public int Expired { get; set; }
 	public int Revoked { get; set; }
 	public int ExpiringSoon { get; set; }
+
+	// Invitations per profile over the whole filtered collection (not the page).
+	public List<StaffRoleCountItem> RoleCounts { get; set; } = [];
 }
 
 public class FindStaffInvitationsResult : CursorPaginatedResult<InvitationListItem> {
@@ -169,6 +173,9 @@ public sealed class FindStaffInvitations {
 					Expired = success.Counts.Expired,
 					Revoked = success.Counts.Revoked,
 					ExpiringSoon = success.Counts.ExpiringSoon,
+					RoleCounts = success.Counts.RoleCounts
+						.Select(StaffRoleCountItem.From)
+						.ToList(),
 				},
 			});
 		}

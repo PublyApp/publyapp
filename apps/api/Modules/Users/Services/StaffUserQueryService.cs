@@ -4,6 +4,8 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -16,6 +18,16 @@ public class StaffUserData {
 	// Assigned role names, loaded in one batched query per page (no N+1): the
 	// « Rôles » column reads them as pills.
 	public List<string> Roles { get; set; } = [];
+
+	// Still-valid sessions of this member (loaded in one batched query per page).
+	public int OpenSessions { get; set; }
+
+	// Most recent sign-in (impersonation sessions excluded); null = never signed in.
+	public DateTime? LastSignInAt { get; set; }
+
+	// Who sent the accepted staff invitation for this e-mail; null when the member
+	// was not created through an invitation.
+	public string? InvitedByName { get; set; }
 }
 
 public sealed record StaffUserCounts(
@@ -24,7 +36,8 @@ public sealed record StaffUserCounts(
 	int Suspended,
 	int FullAccess,
 	int ConnectedToday,
-	int OpenSessions
+	int OpenSessions,
+	IReadOnlyList<StaffRoleCount> RoleCounts
 );
 
 public abstract record FindStaffUsersResult {
@@ -295,13 +308,33 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			select session.UserId
 		).Distinct().CountAsync(cancellationToken);
 
+		// Members per role over the same filtered collection (a member holding
+		// several roles counts once in each).
+		var filteredAccountIds = query.Select(ua => ua.Id);
+		var roleCountRows = await (
+			from accountRole in this._DbContext.UserAccountRole.AsNoTracking()
+			join role in this._DbContext.Role.AsNoTracking()
+				on (Guid?)accountRole.RoleId equals role.Id
+			where !role.IsDeleted
+				&& filteredAccountIds.Contains((Guid?)accountRole.UserAccountId)
+			group role by new { role.Id, role.Name } into g
+			select new { g.Key.Id, g.Key.Name, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+		var roleCounts = roleCountRows
+			.Where(row => row.Id is not null)
+			.Select(row => new StaffRoleCount(row.Id ?? Guid.Empty, row.Name, row.Count))
+			.OrderByDescending(row => row.Count)
+			.ThenBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
+			.ToList();
+
 		var counts = new StaffUserCounts(
 			Total: total,
 			Active: active,
 			Suspended: suspended,
 			FullAccess: fullAccess,
 			ConnectedToday: connectedToday,
-			OpenSessions: openSessions
+			OpenSessions: openSessions,
+			RoleCounts: roleCounts
 		);
 
 		if (args.Cursor != Guid.Empty) {
@@ -371,6 +404,62 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			)) {
 				names.Sort(StringComparer.OrdinalIgnoreCase);
 				staffUser.Roles = names;
+			}
+		}
+
+		// One batched session query for the page: open sessions and last sign-in.
+		var sessionRows = await (
+			from session in this._DbContext.Session.AsNoTracking()
+			where pageUserIds.Contains(session.UserId)
+			group session by session.UserId into g
+			select new {
+				UserId = g.Key,
+				Open = g.Count(session => session.ExpiresAt > now),
+				// An impersonation session is a staff member acting as the user,
+				// not a sign-in of the user.
+				LastSignInAt = g.Max(session =>
+					session.IsImpersonation ? (DateTime?)null : session.CreatedAt),
+			}
+		).ToListAsync(cancellationToken);
+		var sessionsByUser = sessionRows.ToDictionary(row => row.UserId);
+
+		// One batched query for the inviter: the latest accepted staff invitation
+		// sent to the member's e-mail (users.email and invitations.email are both
+		// stored lower-cased).
+		var pageEmails = results.Select(staffUser => staffUser.User.Email).ToList();
+		var inviterRows = await (
+			from invitation in this._DbContext.Invitation.AsNoTracking()
+			join inviter in this._DbContext.User.AsNoTracking()
+				on invitation.InvitedByUserId equals inviter.Id
+			where invitation.Scope == InvitationScope.Staff
+				&& invitation.Status == InvitationStatus.Accepted
+				&& pageEmails.Contains(invitation.Email)
+			select new {
+				invitation.Email,
+				invitation.AcceptedAt,
+				invitation.CreatedAt,
+				inviter.FirstName,
+				inviter.LastName,
+			}
+		).ToListAsync(cancellationToken);
+		var inviterByEmail = inviterRows
+			.GroupBy(row => row.Email)
+			.ToDictionary(
+				group => group.Key,
+				group => group
+					.OrderByDescending(row => row.AcceptedAt ?? row.CreatedAt)
+					.First()
+			);
+
+		foreach (var staffUser in results) {
+			if (sessionsByUser.TryGetValue(staffUser.User.GetRequiredId(), out var sessions)) {
+				staffUser.OpenSessions = sessions.Open;
+				staffUser.LastSignInAt = sessions.LastSignInAt;
+			}
+
+			if (inviterByEmail.TryGetValue(staffUser.User.Email, out var inviterRow)) {
+				var name = $"{inviterRow.FirstName} {inviterRow.LastName}".Trim();
+				staffUser.InvitedByName = name.Length > 0 ? name : null;
 			}
 		}
 

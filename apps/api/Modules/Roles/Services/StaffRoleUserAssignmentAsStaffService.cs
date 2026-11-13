@@ -89,6 +89,39 @@ public record BulkStaffRoleUserUnassignActionResult(
 	List<BulkStaffRoleUserUnassignActionFailedItem> FailedItems
 );
 
+public sealed record AssignStaffRoleUsersArgs(
+	Guid RoleId,
+	List<Guid> UserIds
+);
+
+public abstract record AssignStaffRoleUsersServiceResult {
+	// Partial-success payload: per-id skip reasons in requested order, counts
+	// computed from the deduplicated request; Assigned lists who actually changed
+	// (the audit trail covers exactly those).
+	public sealed record Success(
+		BulkStaffRoleUserAssignActionResult Result,
+		List<Guid> AssignedUserIds
+	) : AssignStaffRoleUsersServiceResult;
+	public sealed record RoleNotFound : AssignStaffRoleUsersServiceResult;
+}
+
+public static class BulkStaffRoleUserAssignActionFailureReasons {
+	public const string AlreadyAssigned = "already_assigned";
+	public const string NotFound = "not_found";
+	public const string MaxRolesExceeded = "max_roles_exceeded";
+}
+
+public record BulkStaffRoleUserAssignActionFailedItem(
+	Guid UserId,
+	string Reason
+);
+
+public record BulkStaffRoleUserAssignActionResult(
+	int SucceededCount,
+	int FailedCount,
+	List<BulkStaffRoleUserAssignActionFailedItem> FailedItems
+);
+
 public interface IStaffRoleUserAssignmentAsStaffService {
 	Task<FindStaffRoleUsersServiceResult> FindStaffRoleUsersAsync(
 		FindStaffRoleUsersArgs args,
@@ -102,6 +135,11 @@ public interface IStaffRoleUserAssignmentAsStaffService {
 
 	Task<UnassignStaffRoleUsersServiceResult> UnassignStaffRoleUsersAsync(
 		UnassignStaffRoleUsersArgs args,
+		CancellationToken cancellationToken = default
+	);
+
+	Task<AssignStaffRoleUsersServiceResult> AssignStaffRoleUsersAsync(
+		AssignStaffRoleUsersArgs args,
 		CancellationToken cancellationToken = default
 	);
 }
@@ -415,6 +453,140 @@ public class StaffRoleUserAssignmentAsStaffService : IStaffRoleUserAssignmentAsS
 				FailedCount: failedItems.Count,
 				FailedItems: failedItems
 			)
+		);
+	}
+
+	public async Task<AssignStaffRoleUsersServiceResult> AssignStaffRoleUsersAsync(
+		AssignStaffRoleUsersArgs args,
+		CancellationToken cancellationToken = default
+	) {
+		// Strictly "staff role -> users": tenant/project roles are treated as not found.
+		var roleExists = await (
+			from p in this._DbContext.Role
+			where p.Id == args.RoleId
+				&& p.Scope == RoleScope.Staff
+				&& !p.IsDeleted
+			select p.Id
+		).AnyAsync(cancellationToken);
+
+		if (!roleExists) {
+			return new AssignStaffRoleUsersServiceResult.RoleNotFound();
+		}
+
+		var requestedUserIds = args.UserIds.Distinct().ToList();
+		if (requestedUserIds.Count == 0) {
+			return new AssignStaffRoleUsersServiceResult.Success(
+				new BulkStaffRoleUserAssignActionResult(0, 0, []),
+				[]
+			);
+		}
+
+		// Staff accounts of the requested users. Suspended users/accounts are allowed:
+		// like single role maintenance, admins prepare or clean up non-active members.
+		var userIdsNullable = requestedUserIds.Select(id => (Guid?)id).ToList();
+		var accounts = await (
+			from ua in this._DbContext.UserAccount
+			where userIdsNullable.Contains(ua.UserId)
+				&& ua.Scope == AccountScope.Staff
+				&& !ua.IsDeleted
+				&& !ua.User.IsDeleted
+			select new { ua.UserId, AccountId = ua.Id }
+		).ToListAsync(cancellationToken);
+		var accountIdByUserId = accounts
+			.Where(account => account.AccountId is not null)
+			.ToDictionary(account => account.UserId, account => account.AccountId ?? Guid.Empty);
+
+		// Current links: whether the role is already held, and how many profiles each
+		// member holds (the per-member cap applies to the resulting set).
+		var accountIds = accountIdByUserId.Values.ToList();
+		var existingLinks = await (
+			from uap in this._DbContext.UserAccountRole
+			join role in this._DbContext.Role on uap.RoleId equals role.Id
+			where accountIds.Contains(uap.UserAccountId) && !role.IsDeleted
+			select new { uap.UserAccountId, uap.RoleId }
+		).ToListAsync(cancellationToken);
+		var rolesByAccount = existingLinks
+			.GroupBy(link => link.UserAccountId)
+			.ToDictionary(group => group.Key, group => group.Select(link => link.RoleId).ToHashSet());
+
+		var maxRoles = AppEnvironment.Instance.MAX_ROLES_PER_USER;
+		var failedItems = new List<BulkStaffRoleUserAssignActionFailedItem>();
+		var linksToAdd = new List<UserAccountRole>();
+		var assignedUserIds = new List<Guid>();
+		foreach (var userId in requestedUserIds) {
+			if (!accountIdByUserId.TryGetValue(userId, out var accountId)) {
+				failedItems.Add(new BulkStaffRoleUserAssignActionFailedItem(
+					userId,
+					BulkStaffRoleUserAssignActionFailureReasons.NotFound
+				));
+				continue;
+			}
+
+			var held = rolesByAccount.GetValueOrDefault(accountId);
+			if (held is not null && held.Contains(args.RoleId)) {
+				failedItems.Add(new BulkStaffRoleUserAssignActionFailedItem(
+					userId,
+					BulkStaffRoleUserAssignActionFailureReasons.AlreadyAssigned
+				));
+				continue;
+			}
+
+			if ((held?.Count ?? 0) + 1 > maxRoles) {
+				failedItems.Add(new BulkStaffRoleUserAssignActionFailedItem(
+					userId,
+					BulkStaffRoleUserAssignActionFailureReasons.MaxRolesExceeded
+				));
+				continue;
+			}
+
+			linksToAdd.Add(new UserAccountRole {
+				UserAccountId = accountId,
+				RoleId = args.RoleId,
+			});
+			assignedUserIds.Add(userId);
+		}
+
+		if (linksToAdd.Count > 0) {
+			await this._DbContext.UserAccountRole.AddRangeAsync(linksToAdd, cancellationToken);
+			try {
+				await this._DbContext.SaveChangesAsync(cancellationToken);
+			} catch (DbUpdateException) {
+				// A concurrent request inserted one of these (account, role) pairs after
+				// our read: the batch is rolled back, so retry link by link and report
+				// the ones that lost the race as already assigned.
+				foreach (var link in linksToAdd) {
+					this._DbContext.Entry(link).State = EntityState.Detached;
+				}
+
+				assignedUserIds.Clear();
+				foreach (var link in linksToAdd) {
+					var userId = accountIdByUserId.First(pair => pair.Value == link.UserAccountId).Key;
+					var retry = new UserAccountRole {
+						UserAccountId = link.UserAccountId,
+						RoleId = link.RoleId,
+					};
+					await this._DbContext.UserAccountRole.AddAsync(retry, cancellationToken);
+					try {
+						await this._DbContext.SaveChangesAsync(cancellationToken);
+						assignedUserIds.Add(userId);
+					} catch (DbUpdateException) {
+						this._DbContext.Entry(retry).State = EntityState.Detached;
+						failedItems.Add(new BulkStaffRoleUserAssignActionFailedItem(
+							userId,
+							BulkStaffRoleUserAssignActionFailureReasons.AlreadyAssigned
+						));
+					}
+				}
+			}
+		}
+
+		return new AssignStaffRoleUsersServiceResult.Success(
+			new BulkStaffRoleUserAssignActionResult(
+				SucceededCount: assignedUserIds.Count,
+				FailedCount: failedItems.Count,
+				FailedItems: failedItems
+			),
+			assignedUserIds
 		);
 	}
 }

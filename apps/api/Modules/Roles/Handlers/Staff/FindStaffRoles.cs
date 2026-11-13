@@ -14,6 +14,13 @@ namespace PublyApp.Api.Modules.Roles.Handlers.Staff;
 public class FindStaffRolesResult : CursorPaginatedResult<StaffRoleItem> {
 	public int TotalCount { get; set; }
 	public int TotalAssignments { get; set; }
+	public StaffRoleListCounts Counts { get; set; } = new();
+}
+
+public class StaffRoleListCounts {
+	public int Total { get; set; }
+	public int System { get; set; }
+	public int Custom { get; set; }
 }
 
 public class FindStaffRolesQuery : CursorPaginatedQuery {
@@ -90,6 +97,11 @@ public sealed class FindStaffRoles {
 				NextCursor = success.Data.NextCursor,
 				TotalCount = success.TotalCount,
 				TotalAssignments = success.TotalAssignments,
+				Counts = new StaffRoleListCounts {
+					Total = success.Counts.Total,
+					System = success.Counts.System,
+					Custom = success.Counts.Custom,
+				},
 			});
 		}
 

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
@@ -9,6 +11,18 @@ using PublyApp.Api.Modules.Roles.Entities;
 
 namespace PublyApp.Api.Modules.Roles.Services;
 
+// A staff role is either a protected system role (the seeded full-access
+// role: it cannot be edited or deleted) or a custom one managed by staff.
+[JsonConverter(typeof(JsonStringEnumConverter<StaffRoleType>))]
+public enum StaffRoleType {
+	System,
+	Custom,
+}
+
+// Role counters over the whole filtered collection (search applied, cursor
+// and page size ignored).
+public sealed record StaffRoleCounts(int Total, int System, int Custom);
+
 public class StaffRoleItem {
 	public Guid Id { get; set; }
 	public string Name { get; set; } = string.Empty;
@@ -18,6 +32,9 @@ public class StaffRoleItem {
 	// The seeded full-access system role is protected: the front hides its
 	// edit/delete affordances and shows "Accès complet" instead of a count.
 	public bool IsFullAccess { get; set; }
+	public StaffRoleType Type {
+		get { return this.IsFullAccess ? StaffRoleType.System : StaffRoleType.Custom; }
+	}
 	public int UserAccountCount { get; set; }
 }
 
@@ -28,7 +45,8 @@ public abstract record FindStaffRolesResult {
 	public sealed record Success(
 		CursorPaginatedResult<StaffRoleItem> Data,
 		int TotalCount,
-		int TotalAssignments
+		int TotalAssignments,
+		StaffRoleCounts Counts
 	) : FindStaffRolesResult;
 
 	/// <summary>
@@ -207,6 +225,12 @@ public sealed class StaffRoleQueryAsStaffService : IStaffRoleQueryAsStaffService
 
 		// The header badge/panel counter describes the whole filtered collection.
 		var totalCount = await query.CountAsync(cancellationToken);
+		var systemCount = await query.CountAsync(role => role.IsFullAccess, cancellationToken);
+		var counts = new StaffRoleCounts(
+			Total: totalCount,
+			System: systemCount,
+			Custom: totalCount - systemCount
+		);
 		var totalAssignments = await query.SumAsync(
 			role => role.UserAccountRoles.Count,
 			cancellationToken
@@ -277,7 +301,8 @@ public sealed class StaffRoleQueryAsStaffService : IStaffRoleQueryAsStaffService
 				NextCursor = nextCursor,  // null = last page, otherwise = Id to continue from
 			},
 			totalCount,
-			totalAssignments
+			totalAssignments,
+			counts
 		);
 	}
 

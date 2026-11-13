@@ -13,6 +13,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Entities;
+using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -1100,6 +1101,197 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		after.ConnectedToday.Should().Be(before.ConnectedToday + 1);
 	}
 
+	[Fact]
+	public async Task ItShouldReturnOpenSessionsAndLastSignInOnEachRow() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"signin-{Guid.NewGuid():N}";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}@example.com",
+			firstName: marker
+		);
+		var neverSignedInId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-never@example.com",
+			firstName: marker
+		);
+		var olderSignIn = DateTime.UtcNow.AddDays(-5);
+		var latestSignIn = DateTime.UtcNow.AddDays(-2);
+		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(1), olderSignIn);
+		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(2), latestSignIn);
+		// Expired: not open, but still a sign-in.
+		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(-1), DateTime.UtcNow.AddDays(-9));
+
+		var result = await this._FindAsync(token, marker);
+
+		var row = result.Data.Should().ContainSingle(user => user.Id == userId).Subject;
+		row.OpenSessions.Should().Be(2);
+		row.LastSignInAt.Should().BeCloseTo(latestSignIn, TimeSpan.FromSeconds(2));
+
+		var never = result.Data.Should().ContainSingle(user => user.Id == neverSignedInId).Subject;
+		never.OpenSessions.Should().Be(0);
+		never.LastSignInAt.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldNotTreatAnImpersonationSessionAsASignIn() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"impers-{Guid.NewGuid():N}";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}@example.com",
+			firstName: marker
+		);
+		await this._AddStaffSessionAsync(
+			userId,
+			DateTime.UtcNow.AddDays(1),
+			DateTime.UtcNow.AddHours(-1),
+			isImpersonation: true
+		);
+
+		var result = await this._FindAsync(token, marker);
+
+		var row = result.Data.Should().ContainSingle(user => user.Id == userId).Subject;
+		row.LastSignInAt.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldReturnWhoInvitedTheMemberFromTheAcceptedInvitation() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"invitedby-{Guid.NewGuid():N}";
+		var invitedEmail = $"{marker}@example.com";
+		var directEmail = $"{marker}-direct@example.com";
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, invitedEmail, firstName: marker
+		);
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, directEmail, firstName: marker
+		);
+		var inviterId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-inviter@example.com",
+			firstName: "Ines",
+			lastName: "Inviter"
+		);
+		// A revoked invitation by someone else must not be reported.
+		var revokerId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-revoker@example.com",
+			firstName: "Rex",
+			lastName: "Revoker"
+		);
+		await this._SeedStaffInvitationAsync(invitedEmail, revokerId, InvitationStatus.Revoked);
+		await this._SeedStaffInvitationAsync(invitedEmail, inviterId, InvitationStatus.Accepted);
+
+		var result = await this._FindAsync(token, marker);
+
+		result.Data.Should().ContainSingle(user => user.Email == invitedEmail)
+			.Which.InvitedByName.Should().Be("Ines Inviter");
+		result.Data.Should().ContainSingle(user => user.Email == directEmail)
+			.Which.InvitedByName.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldReturnRoleCountsOverTheWholeFilteredCollection() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"profiles-{Guid.NewGuid():N}";
+		var firstUserId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, $"{marker}-1@example.com", firstName: marker
+		);
+		var secondUserId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, $"{marker}-2@example.com", firstName: marker
+		);
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, $"{marker}-3@example.com", firstName: marker
+		);
+		var sharedRoleName = $"Shared-{marker}";
+		var soloRoleName = $"Solo-{marker}";
+		var sharedRoleId = await this._CreateStaffRoleAsync(sharedRoleName);
+		var soloRoleId = await this._CreateStaffRoleAsync(soloRoleName);
+		await this._AssignRoleAsync(firstUserId, sharedRoleId);
+		await this._AssignRoleAsync(secondUserId, sharedRoleId);
+		await this._AssignRoleAsync(secondUserId, soloRoleId);
+
+		// limit=1: the breakdown is not the page.
+		var result = await this._FindAsync(token, marker, limit: 1);
+
+		result.Data.Should().HaveCount(1);
+		result.Counts.RoleCounts.Should().Contain(profile =>
+			profile.RoleId == sharedRoleId && profile.Name == sharedRoleName && profile.Count == 2
+		);
+		result.Counts.RoleCounts.Should().Contain(profile =>
+			profile.RoleId == soloRoleId && profile.Count == 1
+		);
+		result.Counts.RoleCounts.Should().HaveCount(2);
+	}
+
+	private async Task<FindResponse> _FindAsync(string token, string marker, int limit = 50) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(limit: limit, q: marker)
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		return result;
+	}
+
+	private async Task<Guid> _CreateStaffRoleAsync(string roleName) {
+		using var scope = this._Fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var role = Role.CreateStaffRole(roleName);
+		_ = await dbContext.Role.AddAsync(role);
+		await dbContext.SaveChangesAsync();
+		return role.GetRequiredId();
+	}
+
+	private async Task _AssignRoleAsync(Guid userId, Guid roleId) {
+		using var scope = this._Fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var account = await dbContext.UserAccount.FirstAsync(account =>
+			account.UserId == userId && account.Scope == AccountScope.Staff
+		);
+		_ = await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
+			UserAccountId = account.GetRequiredId(),
+			RoleId = roleId,
+		});
+		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task _SeedStaffInvitationAsync(
+		string email,
+		Guid invitedByUserId,
+		InvitationStatus status
+	) {
+		using var scope = this._Fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var roleId = await dbContext.Role
+			.Where(role => role.Scope == RoleScope.Staff && !role.IsDeleted)
+			.Select(role => role.Id ?? Guid.Empty)
+			.FirstAsync();
+		var invitation = Invitation.CreateStaffInvitationWithRoles(
+			email,
+			[roleId],
+			invitedByUserId,
+			DateTime.UtcNow.AddDays(7),
+			Guid.NewGuid().ToString("N")
+		);
+		invitation.Status = status;
+		if (status == InvitationStatus.Accepted) {
+			invitation.AcceptedAt = DateTime.UtcNow;
+		}
+
+		_ = await dbContext.Invitation.AddAsync(invitation);
+		await dbContext.SaveChangesAsync();
+	}
+
 	private static string _GetFindUrl(
 		string? cursor = null,
 		int? limit = null,
@@ -1173,16 +1365,33 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task _AddStaffSessionAsync(Guid userId, DateTime expiresAt) {
+	private async Task _AddStaffSessionAsync(
+		Guid userId,
+		DateTime expiresAt,
+		DateTime? createdAt = null,
+		bool isImpersonation = false
+	) {
 		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+		var token = Guid.NewGuid().ToString("N");
 		_ = await dbContext.Session.AddAsync(new Session {
 			UserId = userId,
-			Token = Guid.NewGuid().ToString("N"),
+			Token = token,
 			ExpiresAt = expiresAt,
+			IsImpersonation = isImpersonation,
 		});
 		await dbContext.SaveChangesAsync();
+
+		// SaveChanges stamps CreatedAt on insert; backdate it afterwards.
+		if (createdAt is not null) {
+			_ = await dbContext.Session
+				.Where(session => session.Token == token)
+				.ExecuteUpdateAsync(setters => setters.SetProperty(
+					session => session.CreatedAt,
+					createdAt.Value
+				));
+		}
 	}
 
 	private async Task<StaffUserCountsDto> _ReadCountsAsync(string token) {
@@ -1306,6 +1515,13 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		public int FullAccess { get; init; }
 		public int ConnectedToday { get; init; }
 		public int OpenSessions { get; init; }
+		public List<ProfileCountDto> RoleCounts { get; init; } = [];
+	}
+
+	private record ProfileCountDto {
+		public Guid RoleId { get; init; }
+		public string Name { get; init; } = string.Empty;
+		public int Count { get; init; }
 	}
 
 	private record StaffUserItemDto {
@@ -1317,6 +1533,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		public string Status { get; init; } = string.Empty;
 		public bool IsFullAccess { get; init; }
 		public List<string> Roles { get; init; } = [];
+		public int OpenSessions { get; init; }
+		public DateTime? LastSignInAt { get; init; }
+		public string? InvitedByName { get; init; }
 	}
 
 	private static async Task<AppProblemDetails?> _ReadProblemAsync(

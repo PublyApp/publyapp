@@ -7,6 +7,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Validation;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Users.Entities;
 using PublyApp.Api.Modules.Users.Services;
 
@@ -24,7 +25,17 @@ public class StaffUserItem {
 
 	// Assigned role names, loaded in one batched query per page (no N+1).
 	public List<string> Roles { get; set; } = [];
+
+	// Still-valid sessions of this member.
+	public int OpenSessions { get; set; }
+
+	// Most recent sign-in; null when the member never signed in.
+	public DateTime? LastSignInAt { get; set; }
+
+	// Who invited this member (accepted invitation); null when not invited.
+	public string? InvitedByName { get; set; }
 }
+
 
 public class StaffUserListCounts {
 	public int Total { get; set; }
@@ -33,6 +44,9 @@ public class StaffUserListCounts {
 	public int FullAccess { get; set; }
 	public int ConnectedToday { get; set; }
 	public int OpenSessions { get; set; }
+
+	// Members per role over the whole filtered collection (not the page).
+	public List<StaffRoleCountItem> RoleCounts { get; set; } = [];
 }
 
 public class FindStaffUsersResponse : CursorPaginatedResult<StaffUserItem> {
@@ -181,6 +195,9 @@ public sealed class FindStaffUsers {
 							Status = staffUser.User.Status,
 							IsFullAccess = staffUser.IsFullAccess,
 							Roles = staffUser.Roles,
+							OpenSessions = staffUser.OpenSessions,
+							LastSignInAt = staffUser.LastSignInAt,
+							InvitedByName = staffUser.InvitedByName,
 						})
 						.ToList(),
 					NextCursor = success.Data.NextCursor,
@@ -192,6 +209,9 @@ public sealed class FindStaffUsers {
 						FullAccess = success.Counts.FullAccess,
 						ConnectedToday = success.Counts.ConnectedToday,
 						OpenSessions = success.Counts.OpenSessions,
+						RoleCounts = success.Counts.RoleCounts
+							.Select(StaffRoleCountItem.From)
+							.ToList(),
 					},
 				}
 			);

@@ -9,6 +9,8 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Roles.Entities;
+using PublyApp.Api.Modules.Roles.Services;
+
 namespace PublyApp.Api.Modules.Invitations.Services;
 
 public record FindTenantInvitationsFilters {
@@ -164,7 +166,8 @@ public sealed record StaffInvitationCounts(
 	int Accepted,
 	int Expired,
 	int Revoked,
-	int ExpiringSoon
+	int ExpiringSoon,
+	IReadOnlyList<StaffRoleCount> RoleCounts
 );
 
 public abstract record FindStaffInvitationsResult {
