@@ -182,7 +182,10 @@ export const PostImagePicker = ({
 		setFailureMessage('');
 		const room = maxImages - count;
 		setLimitNotice(picked.length > room);
-		const fitting = checkOversize(picked, setFailureMessage);
+		const { fitting, tooLarge } = checkOversize(picked);
+		if (tooLarge) {
+			setFailureMessage(tooLarge);
+		}
 		const accepted = fitting.slice(0, Math.max(room, 0));
 		if (accepted.length === 0) {
 			return;

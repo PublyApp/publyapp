@@ -19,16 +19,17 @@ export const useOversizeImageCheck = (limits: ImageLimits | null) => {
 	const language = i18n.language;
 
 	return useCallback(
-		(files: File[], onTooLarge?: (message: string) => void) => {
+		(files: File[]) => {
 			const fitting = files.filter((file) => file.size <= maxBytes);
-			if (fitting.length < files.length) {
-				onTooLarge?.(
-					t('image-too-large', {
-						size: formatBytes(maxBytes, language, 'limit'),
-					}),
-				);
-			}
-			return fitting;
+			return {
+				fitting,
+				tooLarge:
+					fitting.length < files.length
+						? t('image-too-large', {
+								size: formatBytes(maxBytes, language, 'limit'),
+							})
+						: '',
+			};
 		},
 		[maxBytes, language, t],
 	);

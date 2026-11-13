@@ -44,18 +44,13 @@ export const useImageHandoff = (
 	// with a notice saying why. Nothing is deleted: a looser cap brings them back.
 	const checkOversize = useOversizeImageCheck(limits);
 	const { deferredImages, oversizeNotice } = useMemo(() => {
-		let notice = '';
-		const kept = new Set(
-			checkOversize(
-				queuedImages.map((image) => image.file),
-				(message) => {
-					notice = message;
-				},
-			),
+		const { fitting, tooLarge } = checkOversize(
+			queuedImages.map((image) => image.file),
 		);
+		const kept = new Set(fitting);
 		return {
 			deferredImages: queuedImages.filter((image) => kept.has(image.file)),
-			oversizeNotice: notice,
+			oversizeNotice: tooLarge,
 		};
 	}, [checkOversize, queuedImages]);
 	const [postId, setPostId] = useState<string | null>(null);
