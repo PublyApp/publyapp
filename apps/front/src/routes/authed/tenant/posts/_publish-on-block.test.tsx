@@ -595,8 +595,13 @@ describe('PublishOnBlock', () => {
 		const user = userEvent.setup();
 		renderBlock();
 
-		const input = screen.getByTestId('tenant-posts-schedule-at');
-		fireEvent.change(input, { target: { value: '2099-01-01T10:00' } });
+		// The localized fields commit on blur; validation runs on the click.
+		const date = screen.getByTestId('tenant-posts-schedule-date');
+		fireEvent.change(date, { target: { value: '01/01/2099' } });
+		fireEvent.blur(date);
+		const time = screen.getByTestId('tenant-posts-schedule-time');
+		fireEvent.change(time, { target: { value: '10:00' } });
+		fireEvent.blur(time);
 		await user.click(screen.getByTestId('tenant-posts-schedule-submit'));
 
 		await screen.findByTestId('logout-redirect');
