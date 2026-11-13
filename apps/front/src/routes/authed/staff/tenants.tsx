@@ -202,9 +202,9 @@ const StaffTenantsPage = () => {
 			filters={buildTenantFilters(t)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
-			// The Filters popover facets within the other filters (status-filtered
-			// `counts`); the side panel keeps whole-collection `panelCounts`.
-			counts={buildTenantFacetCounts(counts)}
+			// The Filters popover facets within the other filters (status from
+			// `panelCounts`, the rest status-filtered `counts`); the side panel keeps whole-collection `panelCounts`.
+			counts={buildTenantFacetCounts(counts, panel)}
 			panelCounts={buildTenantPanelFacetCounts(panel)}
 			countsKnown={countsKnown}
 			emptyText={t('list-empty')}

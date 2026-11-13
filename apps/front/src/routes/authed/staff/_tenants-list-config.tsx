@@ -299,17 +299,20 @@ const localeCount = (
 	locale: string,
 ): number | null => rows?.find((row) => row.locale === locale)?.count ?? null;
 
-/** Filters-popover counts: they follow the status filter (faceted). */
+/** Filters-popover counts: each facet excludes its own filter, so status comes
+ * from the search-only panel counts; occupancy and language follow the status
+ * filter. */
 export const buildTenantFacetCounts = (
 	counts: TenantListCountsResponse | null | undefined,
+	panel: TenantPanelCountsResponse | null | undefined,
 ): FilterCounts => {
 	const total = counts?.total ?? 0;
 	const almostFull = counts?.almostFull ?? 0;
 	return {
 		status: {
-			active: counts?.active ?? null,
-			pending: counts?.pending ?? null,
-			suspended: counts?.suspended ?? null,
+			active: panel?.status?.active ?? null,
+			pending: panel?.status?.pending ?? null,
+			suspended: panel?.status?.suspended ?? null,
 		},
 		occupancy: {
 			full: counts?.full ?? null,

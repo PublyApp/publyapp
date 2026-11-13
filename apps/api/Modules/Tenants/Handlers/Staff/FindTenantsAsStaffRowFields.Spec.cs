@@ -158,6 +158,21 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 		panel.Locales.Should().Contain(l => l.Locale == string.Empty && l.Count == 1);
 	}
 
+	[Fact]
+	public async Task ItShouldBucketSeatsWithoutOverflowForAVeryLargeMaxUsers() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"huge-{Guid.NewGuid():N}";
+		var hugeId = await this._SeedTenantAsync(
+			$"{marker}-a", TenantStatus.Active, maxUsers: int.MaxValue, locale: "fr");
+		_ = await this._AddMemberAsync(hugeId, isOwner: false);
+
+		var result = await this._FindAsync(token, marker);
+
+		result.PanelCounts.Seats.Available.Should().Be(1);
+		result.PanelCounts.Seats.Full.Should().Be(0);
+		result.PanelCounts.Seats.High.Should().Be(0);
+	}
+
 	private async Task<FindResponse> _FindAsync(
 		string token,
 		string q,

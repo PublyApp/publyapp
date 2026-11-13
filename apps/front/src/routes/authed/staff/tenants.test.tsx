@@ -392,7 +392,7 @@ describe('staff tenants route (organisations list)', () => {
 		).toBe('/staff/tenants/new');
 	});
 
-	test('the Filters popover keeps status-filtered counts while the panel counts the whole search', () => {
+	test('the Filters popover counts its own status facet over the whole search', () => {
 		mocks.search = { status: 'pending' };
 		mocks.useStaffTenantsQuery.mockReturnValue(
 			queryResult({
@@ -417,8 +417,8 @@ describe('staff tenants route (organisations list)', () => {
 		const activeChoice = within(popover as HTMLElement)
 			.getByText('Active')
 			.closest('label');
-		// Active organisations inside the pending filter: 0 (panel says 1).
-		expect(activeChoice?.textContent).toContain('0');
+		// A facet excludes its own filter: Active stays 1 under ?status=pending.
+		expect(activeChoice?.textContent).toContain('1');
 		const panel = document.getElementById('app-shell-page-panel');
 		const panelActive = within(panel as HTMLElement)
 			.getByText('Active')

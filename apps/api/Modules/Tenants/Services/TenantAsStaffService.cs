@@ -679,7 +679,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		List<TenantLocaleCount> Locales
 	);
 
-	// Occupancy band in SQL, integer math only: percent = round(members * 100 / max)
+	// Occupancy band in SQL, 64-bit integer math only (MaxUsers is unbounded): percent = round(members * 100 / max)
 	// (half away from zero), so >= 80 % is members * 200 >= 159 * max and 100 % is
 	// members * 200 >= 199 * max. 0 = no seats defined, 1 = available, 2 = high, 3 = full.
 	private async Task<TenantFacets> _FindTenantFacetsAsync(
@@ -707,9 +707,9 @@ public class TenantAsStaffService : ITenantAsStaffService {
 			)
 			let band = tenant.MaxUsers <= 0
 				? 0
-				: tenantMembers * 200 >= 199 * tenant.MaxUsers
+				: (long)tenantMembers * 200 >= 199L * tenant.MaxUsers
 					? 3
-					: tenantMembers * 200 >= 159 * tenant.MaxUsers
+					: (long)tenantMembers * 200 >= 159L * tenant.MaxUsers
 						? 2
 						: 1
 			group tenant by band into g
