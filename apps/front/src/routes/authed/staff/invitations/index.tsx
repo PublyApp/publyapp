@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
+import type { FilterCounts } from '~/components/list/filter-menu';
 import { ListPage } from '~/components/list/list-page';
 import type { ListFiltersValue } from '~/components/list/list-types';
 import { DataTableCursorFooter } from '~/components/table/data-table';
@@ -49,7 +50,6 @@ import {
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
 	type KnownInvitationStatus,
-	type StaffInvitationRow,
 } from './list-helpers';
 import { InvitationRowActions } from './table-columns';
 
@@ -71,17 +71,6 @@ const staffInvitationsQueries = ({
 		},
 	},
 });
-
-const countInvitationRoles = (rows: StaffInvitationRow[]) => {
-	const counts: Record<string, number> = {};
-	for (const row of rows) {
-		if (row.roleName.length === 0) {
-			continue;
-		}
-		counts[row.roleName] = (counts[row.roleName] ?? 0) + 1;
-	}
-	return counts;
-};
 
 const StaffInvitationsPage = () => {
 	const { t, i18n } = useTranslation('common');
@@ -134,12 +123,30 @@ const StaffInvitationsPage = () => {
 
 	// `totalCount`/`counts` cover the whole filtered collection (issue #2301).
 	const countsKnown = query.data !== undefined;
-	// A role facet exists nowhere in the API: its counts are exact only when
-	// the loaded page is the whole collection.
+	// The role facet is the API's whole-filtered-collection `counts.roleCounts`
+	// (an invitation holding several roles counts once in each), not the page.
 	const roleCounts: Record<string, number> | null =
-		query.data !== undefined && rows.length === query.data.totalCount
-			? countInvitationRoles(rows)
-			: null;
+		query.data?.counts?.roleCounts === undefined ||
+		query.data.counts.roleCounts === null
+			? null
+			: Object.fromEntries(
+					query.data.counts.roleCounts.map((role) => [
+						role.name ?? '',
+						role.count ?? 0,
+					]),
+				);
+
+	const listCounts: FilterCounts = {
+		status: {
+			pending: team.invitationCounts?.pending ?? null,
+			accepted: team.invitationCounts?.accepted ?? null,
+			expired: team.invitationCounts?.expired ?? null,
+			revoked: team.invitationCounts?.revoked ?? null,
+		},
+	};
+	if (roleCounts !== null) {
+		listCounts.role = roleCounts;
+	}
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
@@ -211,17 +218,10 @@ const StaffInvitationsPage = () => {
 				}
 				onSearchChange({ ...search, q: next, cursor: undefined });
 			}}
-			filters={buildInvitationFilters(t, rows, selectedRoles, roleCounts)}
+			filters={buildInvitationFilters(t, selectedRoles, roleCounts)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
-			counts={{
-				status: {
-					pending: team.invitationCounts?.pending ?? null,
-					accepted: team.invitationCounts?.accepted ?? null,
-					expired: team.invitationCounts?.expired ?? null,
-					revoked: team.invitationCounts?.revoked ?? null,
-				},
-			}}
+			counts={listCounts}
 			countsKnown={countsKnown}
 			emptyText={tInvitations('no-invitations-found')}
 			locale={i18n.language}

@@ -31,6 +31,8 @@ const displayName = (row: StaffRoleUserRow, t: Translate): string =>
 
 type StaffRoleUsersListProps = {
 	roleId: string;
+	/** Holds both `roles.update_for_staff` and `users.list_for_staff`. */
+	canAssign: boolean;
 	rows: StaffRoleUserRow[];
 	columns: ListColumn<StaffRoleUserRow>[];
 	totalCount: number | null;
@@ -70,6 +72,7 @@ type StaffRoleUsersListProps = {
  * data/error orchestration under the giant-component bound. */
 export const StaffRoleUsersList = ({
 	roleId,
+	canAssign,
 	rows,
 	columns,
 	totalCount,
@@ -129,12 +132,16 @@ export const StaffRoleUsersList = ({
 					counts,
 					onTeamSelect,
 				)}
-				newAction={{
-					label: t('assign-staff-members'),
-					icon: IconUserPlus,
-					onSelect: () => setIsAssignOpen(true),
-					variant: 'outline',
-				}}
+				newAction={
+					canAssign
+						? {
+								label: t('assign-staff-members'),
+								icon: IconUserPlus,
+								onSelect: () => setIsAssignOpen(true),
+								variant: 'outline',
+							}
+						: undefined
+				}
 				onOpen={onOpen}
 				openLabel={(row) => t('list-open-row', { name: displayName(row, t) })}
 				rowLabel={(row) => displayName(row, t)}
@@ -182,12 +189,14 @@ export const StaffRoleUsersList = ({
 					</FloatingSelectionBar>
 				}
 			/>
-			<AssignMembersDrawer
-				roleId={roleId}
-				isOpen={isAssignOpen}
-				onOpenChange={setIsAssignOpen}
-				onSessionExpired={onSessionExpired}
-			/>
+			{canAssign ? (
+				<AssignMembersDrawer
+					roleId={roleId}
+					isOpen={isAssignOpen}
+					onOpenChange={setIsAssignOpen}
+					onSessionExpired={onSessionExpired}
+				/>
+			) : null}
 		</div>
 	);
 };

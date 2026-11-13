@@ -34,6 +34,8 @@ export type StaffRolesQueryVariables = {
 	sortOrder?: SortOrder;
 	cursor?: string;
 	limit?: number;
+	/** `system` or `custom`; omitted = both. */
+	type?: string;
 };
 
 export type CreateStaffRoleInput = {
@@ -442,6 +444,7 @@ export const staffRolesQueryOptions = buildStaffQueryOptions<
 					sortOrder: vars.sortOrder,
 					cursor: vars.cursor,
 					limit: vars.limit === undefined ? undefined : String(vars.limit),
+					type: vars.type,
 				},
 			});
 

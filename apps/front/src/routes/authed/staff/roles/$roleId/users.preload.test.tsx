@@ -79,6 +79,7 @@ vi.mock('react-i18next', async (importOriginal) => {
 const ENDPOINTS: readonly (readonly [readonly string[], number])[] = [
 	[['staff', 'roles', 'byRoleId', 'get'], 1],
 	[['staff', 'roles', 'byRoleId', 'users', 'get'], 1],
+	[['auth', 'scopeAuthData', 'get'], 1],
 ];
 /** Payloads the page needs to mount its queries; every other call gets `{}`. */
 const RESPONSES: readonly (readonly [readonly string[], FakeResponse])[] = [
@@ -96,7 +97,7 @@ const COUNTER_ENDPOINTS: readonly (readonly string[])[] = [
 ];
 const countersCalled = () =>
 	COUNTER_ENDPOINTS.map((suffix) => countCallsByPath(mocks.respond, ...suffix));
-const WARMED_COUNT = 2;
+const WARMED_COUNT = 3;
 const LINK_LABEL = 'open role users';
 
 const buildDestination = (linkSearch?: Record<string, string>) =>

@@ -146,4 +146,36 @@ describe('#2340 staff roles route preload', () => {
 			pageTestId: 'staff-roles-table',
 		});
 	});
+
+	test('one chosen type filters on the server, both types do not', async () => {
+		const typeSent = async (type: string) => {
+			mocks.respond.mockClear();
+			const { queryClient } = renderPreloadScenario({
+				destination: widenOptions<PreloadDestination>({
+					...destination,
+					linkSearch: { type },
+				}),
+				linkLabel: LINK_LABEL,
+			});
+			fireEvent.mouseEnter(
+				await screen.findByRole('link', { name: LINK_LABEL }),
+			);
+			await waitFor(() => {
+				expect(countCallsByPath(mocks.respond, ...ROLES_PATH)).toBe(1);
+			});
+			await waitFor(() => {
+				expect(queryClient.isFetching()).toBe(0);
+			});
+			const call = mocks.respond.mock.calls
+				.map(([fake]) => fake)
+				.find((fake) => fake.path.join('.').endsWith(ROLES_PATH.join('.')));
+			cleanup();
+			return (
+				call?.args[0] as { queryParameters?: { type?: string } } | undefined
+			)?.queryParameters?.type;
+		};
+
+		expect(await typeSent('system')).toBe('system');
+		expect(await typeSent('system,custom')).toBeUndefined();
+	});
 });

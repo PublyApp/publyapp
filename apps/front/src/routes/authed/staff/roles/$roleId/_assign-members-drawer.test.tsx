@@ -54,8 +54,8 @@ const item = (id: string, firstName: string) => ({
 	roles: [],
 });
 
-const queryResult = (data: unknown[]) => ({
-	data: { data },
+const queryResult = (data: unknown[], nextCursor: string | null = null) => ({
+	data: { data, nextCursor },
 	isPending: false,
 	isLoading: false,
 	isFetching: false,
@@ -97,8 +97,8 @@ describe('staff role assign members drawer', () => {
 
 	test('asks the API for the members not yet in the role (by id) and lists them, with the submit disabled until one is picked', () => {
 		renderDrawer();
-		expect(screen.getByLabelText('Alice Staff')).toBeTruthy();
-		expect(screen.getByLabelText('Bob Staff')).toBeTruthy();
+		expect(screen.getByLabelText('select-row-named:Alice Staff')).toBeTruthy();
+		expect(screen.getByLabelText('select-row-named:Bob Staff')).toBeTruthy();
 		// Members already in the role are excluded by the server, by id.
 		expect(mocks.useUsersQuery).toHaveBeenCalledWith(
 			expect.objectContaining({ excludeRoleId: ROLE_ID }),
@@ -111,8 +111,8 @@ describe('staff role assign members drawer', () => {
 
 	test('submits the selected members, toasts the success and closes', async () => {
 		const onOpenChange = renderDrawer();
-		fireEvent.click(screen.getByLabelText('Alice Staff'));
-		fireEvent.click(screen.getByLabelText('Bob Staff'));
+		fireEvent.click(screen.getByLabelText('select-row-named:Alice Staff'));
+		fireEvent.click(screen.getByLabelText('select-row-named:Bob Staff'));
 		fireEvent.click(
 			screen.getByRole('button', { name: 'assign-selected-members:2' }),
 		);
@@ -136,8 +136,8 @@ describe('staff role assign members drawer', () => {
 			failedItems: [{ userId: 'u2', reason: 'already_assigned' }],
 		});
 		const onOpenChange = renderDrawer();
-		fireEvent.click(screen.getByLabelText('Alice Staff'));
-		fireEvent.click(screen.getByLabelText('Bob Staff'));
+		fireEvent.click(screen.getByLabelText('select-row-named:Alice Staff'));
+		fireEvent.click(screen.getByLabelText('select-row-named:Bob Staff'));
 		fireEvent.click(
 			screen.getByRole('button', { name: 'assign-selected-members:2' }),
 		);
@@ -157,12 +157,73 @@ describe('staff role assign members drawer', () => {
 	test('keeps the drawer open when the request fails', async () => {
 		mocks.mutateAsync.mockRejectedValue(new Error('boom'));
 		const onOpenChange = renderDrawer();
-		fireEvent.click(screen.getByLabelText('Alice Staff'));
+		fireEvent.click(screen.getByLabelText('select-row-named:Alice Staff'));
 		fireEvent.click(
 			screen.getByRole('button', { name: 'assign-selected-members:1' }),
 		);
 
 		await waitFor(() => expect(mocks.toastError).toHaveBeenCalled());
 		expect(onOpenChange).not.toHaveBeenCalled();
+	});
+
+	test('pages through the candidates with the cursor the API returned', async () => {
+		mocks.useUsersQuery.mockReturnValue(
+			queryResult([item('u1', 'Alice')], 'cursor-2'),
+		);
+		renderDrawer();
+		expect(mocks.useUsersQuery.mock.calls.at(-1)?.[0].cursor).toBeUndefined();
+
+		fireEvent.click(screen.getByRole('button', { name: 'next-page' }));
+
+		await waitFor(() =>
+			expect(mocks.useUsersQuery.mock.calls.at(-1)?.[0]).toEqual(
+				expect.objectContaining({ cursor: 'cursor-2', excludeRoleId: ROLE_ID }),
+			),
+		);
+	});
+
+	test('sends the search as a committed query, not on every keystroke', async () => {
+		renderDrawer();
+		const input = screen.getByLabelText('search');
+
+		fireEvent.change(input, { target: { value: 'a' } });
+		fireEvent.change(input, { target: { value: 'al' } });
+		fireEvent.change(input, { target: { value: 'ali' } });
+		// Still the draft: no query carried a partial term yet.
+		expect(
+			mocks.useUsersQuery.mock.calls.some(
+				([variables]) => variables.q === 'a' || variables.q === 'al',
+			),
+		).toBe(false);
+
+		await waitFor(() =>
+			expect(mocks.useUsersQuery.mock.calls.at(-1)?.[0].q).toBe('ali'),
+		);
+	});
+
+	test('names a skipped member from the selection, even once the rows are gone', async () => {
+		mocks.mutateAsync.mockImplementation(() => {
+			// The list refetches (and Bob leaves it) while the request is in flight.
+			mocks.useUsersQuery.mockReturnValue(queryResult([]));
+			return Promise.resolve({
+				succeededCount: 0,
+				failedCount: 1,
+				failedItems: [{ userId: 'u2', reason: 'already_assigned' }],
+			});
+		});
+		renderDrawer();
+		fireEvent.click(screen.getByLabelText('select-row-named:Bob Staff'));
+		fireEvent.click(
+			screen.getByRole('button', { name: 'assign-selected-members:1' }),
+		);
+
+		await waitFor(() => expect(mocks.toastError).toHaveBeenCalled());
+		const [, options] = mocks.toastError.mock.calls[0] as [
+			string,
+			{ description?: string },
+		];
+		expect(options.description).toBe(
+			'Bob Staff: bulk-assign-failed-item-already-assigned',
+		);
 	});
 });

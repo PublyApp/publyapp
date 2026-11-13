@@ -418,7 +418,7 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			}
 		}
 
-		// One batched session query for the page: open sessions and last sign-in.
+		// One batched session query for the page: open sessions.
 		var sessionRows = await (
 			from session in this._DbContext.Session.AsNoTracking()
 			where pageUserIds.Contains(session.UserId)
@@ -426,10 +426,6 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			select new {
 				UserId = g.Key,
 				Open = g.Count(session => session.ExpiresAt > now),
-				// An impersonation session is a staff member acting as the user,
-				// not a sign-in of the user.
-				LastSignInAt = g.Max(session =>
-					session.IsImpersonation ? (DateTime?)null : session.CreatedAt),
 			}
 		).ToListAsync(cancellationToken);
 		var sessionsByUser = sessionRows.ToDictionary(row => row.UserId);
@@ -463,9 +459,10 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			);
 
 		foreach (var staffUser in results) {
+			// Durable column, stamped at sign-in: survives logout and session cleanup.
+			staffUser.LastSignInAt = staffUser.User.LastSignInAt;
 			if (sessionsByUser.TryGetValue(staffUser.User.GetRequiredId(), out var sessions)) {
 				staffUser.OpenSessions = sessions.Open;
-				staffUser.LastSignInAt = sessions.LastSignInAt;
 			}
 
 			if (inviterByEmail.TryGetValue(staffUser.User.Email, out var inviterRow)) {

@@ -481,23 +481,76 @@ public class StaffRoleUserAssignmentAsStaffService : IStaffRoleUserAssignmentAsS
 			);
 		}
 
-		// Staff accounts of the requested users. Suspended users/accounts are allowed:
-		// like single role maintenance, admins prepare or clean up non-active members.
-		var userIdsNullable = requestedUserIds.Select(id => (Guid?)id).ToList();
-		var accounts = await (
-			from ua in this._DbContext.UserAccount
-			where userIdsNullable.Contains(ua.UserId)
-				&& ua.Scope == AccountScope.Staff
-				&& !ua.IsDeleted
-				&& !ua.User.IsDeleted
-			select new { ua.UserId, AccountId = ua.Id }
-		).ToListAsync(cancellationToken);
-		var accountIdByUserId = accounts
-			.Where(account => account.AccountId is not null)
-			.ToDictionary(account => account.UserId, account => account.AccountId ?? Guid.Empty);
+		// Two attempts: the account lock below serializes every writer that takes it,
+		// but a writer that does not (single-member role edits) can still insert the
+		// same pair first; the second attempt then reads it and reports it as already
+		// assigned. Any other database failure is not ours to hide.
+		for (var attempt = 0; ; attempt++) {
+			await using var transaction = await this._DbContext.Database
+				.BeginTransactionAsync(cancellationToken);
+			List<UserAccountRole> pending = [];
+			try {
+				var result = await this._AssignLockedAsync(
+					args.RoleId,
+					requestedUserIds,
+					pending,
+					cancellationToken
+				);
+				await transaction.CommitAsync(cancellationToken);
+				return result;
+			} catch (DbUpdateException ex)
+				when (attempt == 0 && StaffRoleUserAssignmentAsStaffService._IsUserAccountRoleDuplicateViolation(ex)) {
+				await transaction.RollbackAsync(cancellationToken);
+				foreach (var link in pending) {
+					this._DbContext.Entry(link).State = EntityState.Detached;
+				}
+			} catch {
+				await transaction.RollbackAsync(cancellationToken);
+				throw;
+			}
+		}
+	}
 
-		// Current links: whether the role is already held, and how many profiles each
-		// member holds (the per-member cap applies to the resulting set).
+	private async Task<AssignStaffRoleUsersServiceResult> _AssignLockedAsync(
+		Guid roleId,
+		List<Guid> requestedUserIds,
+		List<UserAccountRole> linksToAdd,
+		CancellationToken cancellationToken
+	) {
+		// Lock the staff account rows (in id order, so two bulk assigns cannot
+		// deadlock) before counting: MAX_ROLES_PER_USER is a COUNT invariant no table
+		// constraint can express, and without the lock two concurrent assigns of
+		// DIFFERENT roles could both see a below-cap count and both insert.
+		var userIdArray = requestedUserIds.ToArray();
+		var lockedAccounts = await this._DbContext.UserAccount
+			.FromSql($"""
+				SELECT * FROM user_accounts
+				WHERE user_id = ANY({userIdArray})
+					AND scope = {(int)AccountScope.Staff}
+					AND is_deleted = FALSE
+				ORDER BY id
+				FOR UPDATE
+				""")
+			.ToListAsync(cancellationToken);
+
+		// Suspended users/accounts are allowed: like single role maintenance, admins
+		// prepare or clean up non-active members. Soft-deleted users are not members.
+		var userIdsNullable = requestedUserIds.Select(id => (Guid?)id).ToList();
+		var liveUserIds = await this._DbContext.User
+			.Where(u => userIdsNullable.Contains(u.Id) && !u.IsDeleted)
+			.Select(u => u.Id ?? Guid.Empty)
+			.ToListAsync(cancellationToken);
+		var liveUserIdSet = liveUserIds.ToHashSet();
+		var accountIdByUserId = lockedAccounts
+			.Where(account => liveUserIdSet.Contains(account.UserId))
+			.ToDictionary(
+				account => account.UserId,
+				account => account.Id ?? Guid.Empty
+			);
+
+		// Current links: whether the role is already held, and how many roles each
+		// member holds (the per-member cap applies to the resulting set). Only live
+		// roles consume quota.
 		var accountIds = accountIdByUserId.Values.ToList();
 		var existingLinks = await (
 			from uap in this._DbContext.UserAccountRole
@@ -511,7 +564,6 @@ public class StaffRoleUserAssignmentAsStaffService : IStaffRoleUserAssignmentAsS
 
 		var maxRoles = AppEnvironment.Instance.MAX_ROLES_PER_USER;
 		var failedItems = new List<BulkStaffRoleUserAssignActionFailedItem>();
-		var linksToAdd = new List<UserAccountRole>();
 		var assignedUserIds = new List<Guid>();
 		foreach (var userId in requestedUserIds) {
 			if (!accountIdByUserId.TryGetValue(userId, out var accountId)) {
@@ -523,7 +575,7 @@ public class StaffRoleUserAssignmentAsStaffService : IStaffRoleUserAssignmentAsS
 			}
 
 			var held = rolesByAccount.GetValueOrDefault(accountId);
-			if (held is not null && held.Contains(args.RoleId)) {
+			if (held is not null && held.Contains(roleId)) {
 				failedItems.Add(new BulkStaffRoleUserAssignActionFailedItem(
 					userId,
 					BulkStaffRoleUserAssignActionFailureReasons.AlreadyAssigned
@@ -541,43 +593,14 @@ public class StaffRoleUserAssignmentAsStaffService : IStaffRoleUserAssignmentAsS
 
 			linksToAdd.Add(new UserAccountRole {
 				UserAccountId = accountId,
-				RoleId = args.RoleId,
+				RoleId = roleId,
 			});
 			assignedUserIds.Add(userId);
 		}
 
 		if (linksToAdd.Count > 0) {
 			await this._DbContext.UserAccountRole.AddRangeAsync(linksToAdd, cancellationToken);
-			try {
-				await this._DbContext.SaveChangesAsync(cancellationToken);
-			} catch (DbUpdateException) {
-				// A concurrent request inserted one of these (account, role) pairs after
-				// our read: the batch is rolled back, so retry link by link and report
-				// the ones that lost the race as already assigned.
-				foreach (var link in linksToAdd) {
-					this._DbContext.Entry(link).State = EntityState.Detached;
-				}
-
-				assignedUserIds.Clear();
-				foreach (var link in linksToAdd) {
-					var userId = accountIdByUserId.First(pair => pair.Value == link.UserAccountId).Key;
-					var retry = new UserAccountRole {
-						UserAccountId = link.UserAccountId,
-						RoleId = link.RoleId,
-					};
-					await this._DbContext.UserAccountRole.AddAsync(retry, cancellationToken);
-					try {
-						await this._DbContext.SaveChangesAsync(cancellationToken);
-						assignedUserIds.Add(userId);
-					} catch (DbUpdateException) {
-						this._DbContext.Entry(retry).State = EntityState.Detached;
-						failedItems.Add(new BulkStaffRoleUserAssignActionFailedItem(
-							userId,
-							BulkStaffRoleUserAssignActionFailureReasons.AlreadyAssigned
-						));
-					}
-				}
-			}
+			await this._DbContext.SaveChangesAsync(cancellationToken);
 		}
 
 		return new AssignStaffRoleUsersServiceResult.Success(
@@ -588,5 +611,15 @@ public class StaffRoleUserAssignmentAsStaffService : IStaffRoleUserAssignmentAsS
 			),
 			assignedUserIds
 		);
+	}
+
+	/// <summary>
+	/// A duplicate user_account_roles row (composite primary key violation):
+	/// PostgreSQL 23505 on that table only.
+	/// </summary>
+	private static bool _IsUserAccountRoleDuplicateViolation(DbUpdateException ex) {
+		return ex.InnerException is Npgsql.PostgresException pgEx
+			&& pgEx.SqlState == "23505"
+			&& string.Equals(pgEx.TableName, "user_account_roles", StringComparison.OrdinalIgnoreCase);
 	}
 }

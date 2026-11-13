@@ -837,12 +837,32 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		Assert.NotNull(result);
 		_ = result.Data.Should().HaveCount(1);
 		_ = result.Counts.RoleCounts.Should().HaveCount(2);
-		_ = result.Counts.RoleCounts.Should().Contain(profile =>
-			profile.RoleId == sharedRoleId && profile.Name == sharedRoleName && profile.Count == 3
+		_ = result.Counts.RoleCounts.Should().Contain(role =>
+			role.RoleId == sharedRoleId && role.Name == sharedRoleName && role.Count == 3
 		);
-		_ = result.Counts.RoleCounts.Should().Contain(profile =>
-			profile.RoleId == soloRoleId && profile.Count == 1
+		_ = result.Counts.RoleCounts.Should().Contain(role =>
+			role.RoleId == soloRoleId && role.Count == 1
 		);
+	}
+
+	[Fact]
+	public async Task ItShouldListEachRoleNameSeparatelyEvenWhenANameHoldsAComma() {
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"rolenames-{Guid.NewGuid():N}";
+		var commaRoleName = $"Ops, Night-{marker}";
+		var plainRoleName = $"Plain-{marker}";
+		var (commaRoleId, plainRoleId) = await this._CreateTwoStaffRolesAsync(commaRoleName, plainRoleName);
+		await this._SeedStaffInvitationWithRolesAsync($"{marker}@example.com", [commaRoleId, plainRoleId]);
+
+		using var response = await this._Http.SendAsync(
+			FindStaffInvitationsSpec._CreateFindRequest(staffToken, limit: 5, q: marker)
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		Assert.NotNull(result);
+		_ = result.Data.Should().ContainSingle()
+			.Which.RoleNames.Should().BeEquivalentTo([commaRoleName, plainRoleName]);
 	}
 
 	private async Task<(Guid First, Guid Second)> _CreateTwoStaffRolesAsync(string first, string second) {
@@ -1195,6 +1215,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		public string Email { get; init; } = string.Empty;
 		public string Scope { get; init; } = string.Empty;
 		public string RoleName { get; init; } = string.Empty;
+		public List<string> RoleNames { get; init; } = [];
 		public string Status { get; init; } = string.Empty;
 		public DateTime ExpiresAt { get; init; }
 		public DateTime? AcceptedAt { get; init; }

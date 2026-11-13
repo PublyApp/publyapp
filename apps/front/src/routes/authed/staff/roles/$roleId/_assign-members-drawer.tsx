@@ -1,8 +1,11 @@
+import { IconUsers } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import QueryDisplay from '~/components/query-display';
+import type { ColumnDef } from '~/components/table/column-type';
+import { DataTable } from '~/components/table/data-table';
+import { useRowSelection } from '~/components/table/use-row-selection';
+import { useTableController } from '~/components/table/use-table-controller';
 import { Button } from '~/components/ui/button';
-import { Checkbox } from '~/components/ui/checkbox';
 import {
 	Drawer,
 	DrawerBody,
@@ -12,18 +15,25 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from '~/components/ui/drawer';
-import { SearchInput } from '~/components/ui/search-input';
+import { PersonAvatar } from '~/components/ui/person-avatar';
 import {
 	displayLocalMutationFailure,
 	toastLocalMutationResult,
 } from '~/lib/mutation-feedback/mutation-toast';
 import { useBulkAssignStaffRoleUsersMutation } from '~/lib/query/staff-role-users';
-import { toStaffUserRows, useStaffUsersQuery } from '~/lib/query/staff-users';
+import {
+	type StaffUserRow,
+	toStaffUserRows,
+	useStaffUsersQuery,
+} from '~/lib/query/staff-users';
+import type { TableSearchParams } from '~/lib/url-state/table-search-params';
 
 import type { BulkStaffRoleUserAssignActionResult } from '@org/client-ts/models/index';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-const PAGE_SIZE = 50;
+const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
+const DEFAULT_SIZE = 20;
+const EMPTY_SEARCH: TableSearchParams = {};
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
@@ -47,6 +57,36 @@ export const buildAssignFailureLines = (
 	});
 };
 
+const makeColumns = (t: Translate): ColumnDef<StaffUserRow>[] => [
+	{
+		id: 'name',
+		header: t('members'),
+		enableSorting: false,
+		cell: ({ row }) => (
+			<span className="flex min-w-0 items-center gap-2.5">
+				<PersonAvatar
+					name={row.original.displayName}
+					avatarUrl={row.original.avatarUrl}
+				/>
+				<span className="min-w-0 space-y-0.5">
+					<span
+						className="block truncate text-[13px] font-medium"
+						title={row.original.displayName}
+					>
+						{row.original.displayName}
+					</span>
+					<span
+						className="block truncate text-xs text-muted-foreground"
+						title={row.original.email}
+					>
+						{row.original.email}
+					</span>
+				</span>
+			</span>
+		),
+	},
+];
+
 const AssignMembersBody = ({
 	roleId,
 	onClose,
@@ -57,34 +97,39 @@ const AssignMembersBody = ({
 	onSessionExpired: () => void;
 }) => {
 	const { t } = useTranslation('common');
-	const [q, setQ] = useState('');
-	const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+	const [search, setSearch] = useState<TableSearchParams>(EMPTY_SEARCH);
 	const assignMutation = useBulkAssignStaffRoleUsersMutation();
+	// Debounced/committed search and cursor pagination, as the tenant drawer.
+	const controller = useTableController({
+		search,
+		onSearchChange: setSearch,
+		defaultSort: DEFAULT_SORT,
+		defaultSize: DEFAULT_SIZE,
+		cursorResetKey: roleId,
+	});
 	// preload-exempt: opened on demand from the page's action, nothing to warm
 	const usersQuery = useStaffUsersQuery({
-		q: q.trim(),
-		size: PAGE_SIZE,
+		...controller.apiVariables,
+		// Members NOT in the role, by id, server-side: composes with search/paging.
 		excludeRoleId: roleId,
 	});
 	const rows = toStaffUserRows(usersQuery.data?.data);
-
-	const toggle = (id: string, checked: boolean): void => {
-		setSelected((current) => {
-			const next = new Set(current);
-			if (checked) {
-				next.add(id);
-			} else {
-				next.delete(id);
-			}
-			return next;
-		});
-	};
+	const selection = useRowSelection(rows.map((row) => row.id));
+	const columns = makeColumns(t);
 
 	const submit = async () => {
-		const userIds = [...selected];
+		// Names are captured at submit time: the toast must not depend on rows
+		// that a refetch is about to replace.
+		const selectedRows = rows.filter((row) => selection.rowSelection[row.id]);
+		const nameById = new Map(
+			selectedRows.map((row) => [row.id, row.displayName]),
+		);
 		let result;
 		try {
-			result = await assignMutation.mutateAsync({ roleId, userIds });
+			result = await assignMutation.mutateAsync({
+				roleId,
+				userIds: selectedRows.map((row) => row.id),
+			});
 		} catch (error) {
 			if (shouldLogoutForFailure(error)) {
 				onSessionExpired();
@@ -102,8 +147,7 @@ const AssignMembersBody = ({
 		if (failed > 0) {
 			const lines = buildAssignFailureLines(
 				result,
-				(userId) =>
-					rows.find((row) => row.id === userId)?.displayName ?? userId,
+				(userId) => nameById.get(userId) ?? userId,
 				t,
 			);
 			toastLocalMutationResult.error(
@@ -121,51 +165,37 @@ const AssignMembersBody = ({
 	return (
 		<>
 			<DrawerBody className="flex min-h-0 flex-1 flex-col gap-3">
-				<SearchInput
-					value={q}
-					onValueChange={setQ}
-					placeholder={t('search-assignable-staff-members')}
-					aria-label={t('search-assignable-staff-members')}
-					clearLabel={t('clear-search')}
-				/>
-				<QueryDisplay
+				<DataTable<StaffUserRow>
+					testId="assign-staff-members-table"
+					ariaLabel={t('assign-staff-members')}
+					columns={columns}
+					rows={rows}
 					query={usersQuery}
-					isEmpty={() => rows.length === 0}
-					EmptySlot={
-						<p className="text-sm text-muted-foreground">
-							{t('no-assignable-staff-members')}
-						</p>
-					}
-				>
-					{() => (
-						<ul
-							className="flex min-h-0 flex-col divide-y overflow-y-auto"
-							data-testid="assign-members-list"
-						>
-							{rows.map((row) => (
-								<li key={row.id}>
-									<label className="flex cursor-pointer items-center gap-3 py-2">
-										<Checkbox
-											checked={selected.has(row.id)}
-											onCheckedChange={(checked) =>
-												toggle(row.id, checked === true)
-											}
-											aria-label={row.displayName}
-										/>
-										<span className="min-w-0">
-											<span className="block truncate text-sm font-medium">
-												{row.displayName}
-											</span>
-											<span className="block truncate text-xs text-muted-foreground">
-												{row.email}
-											</span>
-										</span>
-									</label>
-								</li>
-							))}
-						</ul>
-					)}
-				</QueryDisplay>
+					hasActiveSearch={Boolean(controller.search.committed)}
+					pagination={{
+						pageIndex: controller.cursor.pageIndex,
+						hasPreviousPage: controller.cursor.hasPreviousPage,
+						hasNextPage: usersQuery.data?.nextCursor != null,
+						isPaginationPending: usersQuery.isFetching,
+						onNextPage: () =>
+							controller.cursor.onNextPage(
+								usersQuery.data?.nextCursor ?? undefined,
+							),
+						onPreviousPage: controller.cursor.onPreviousPage,
+					}}
+					getRowLabel={(row) => row.displayName}
+					emptyIcon={IconUsers}
+					emptyTitle={t('no-assignable-staff-members')}
+					noMatchTitle={t('no-users-found')}
+					sort={controller.sort}
+					onSortChange={controller.onSortChange}
+					size={controller.size}
+					onSizeChange={controller.onSizeChange}
+					searchDraft={controller.search.draft}
+					onSearchDraftChange={controller.search.onDraftChange}
+					searchPlaceholder={t('search-assignable-staff-members')}
+					selection={selection}
+				/>
 			</DrawerBody>
 			<DrawerFooter>
 				<Button type="button" variant="outline" onClick={onClose}>
@@ -173,10 +203,10 @@ const AssignMembersBody = ({
 				</Button>
 				<Button
 					type="button"
-					disabled={selected.size === 0 || assignMutation.isPending}
+					disabled={selection.selectedCount === 0 || assignMutation.isPending}
 					onClick={() => void submit()}
 				>
-					{t('assign-selected-members', { count: selected.size })}
+					{t('assign-selected-members', { count: selection.selectedCount })}
 				</Button>
 			</DrawerFooter>
 		</>

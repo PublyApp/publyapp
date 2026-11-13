@@ -140,6 +140,8 @@ public record InvitationListItem {
 	public required string Email { get; init; }
 	public required string Scope { get; init; }
 	public required string RoleName { get; init; }
+	// The same roles as RoleName, one entry each (a role name may itself hold a comma).
+	public List<string> RoleNames { get; init; } = [];
 	public required InvitationEffectiveStatus Status { get; init; }
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }

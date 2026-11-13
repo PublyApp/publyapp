@@ -13,6 +13,7 @@ import {
 } from '~/components/table/use-table-controller';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
 import { preloadRouteQueries } from '~/lib/query/route-preload';
+import { staffJobPermissionsQueryOptions } from '~/lib/query/staff-jobs';
 import {
 	staffRoleUsersQueryOptions,
 	toStaffRoleUserRows,
@@ -43,6 +44,7 @@ import {
 	selectedListIds,
 } from '../../_staff-list-selection';
 import { useStaffTeamOverview } from '../../_staff-list-team';
+import { useCanAssignStaffRoleMembers } from './_assign-permission';
 import { buildColumns } from './_users-columns';
 import { StaffRoleUsersList } from './_users-list';
 import { RoleDetailsError, RoleDetailsLoading } from './_users-page-states';
@@ -71,6 +73,11 @@ const staffRoleUsersQueries = ({
 		roleDetails: {
 			options: staffRoleDetailsQueryOptions,
 			variables: { roleId },
+		},
+		// The caller's effective grants: the assign action needs two of them.
+		permissions: {
+			options: staffJobPermissionsQueryOptions,
+			variables: {},
 		},
 		users: {
 			options: staffRoleUsersQueryOptions,
@@ -111,6 +118,7 @@ const StaffRoleUsersPage = () => {
 		},
 		{ enabled: roleId.length > 0 },
 	);
+	const canAssign = useCanAssignStaffRoleMembers();
 	const team = useStaffTeamOverview();
 	const rows = toStaffRoleUserRows(usersQuery.data?.users);
 	const columns = useMemo(() => buildColumns(t), [t]);
@@ -257,6 +265,7 @@ const StaffRoleUsersPage = () => {
 							>
 								<StaffRoleUsersList
 									roleId={roleId}
+									canAssign={canAssign}
 									rows={rows}
 									columns={columns}
 									totalCount={totalCount}

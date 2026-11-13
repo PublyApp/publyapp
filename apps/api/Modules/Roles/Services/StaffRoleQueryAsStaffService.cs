@@ -66,7 +66,8 @@ public sealed record FindStaffRolesArgs(
 	int? Limit,
 	string? SortId,
 	SortOrder? SortOrder,
-	string? Search
+	string? Search,
+	StaffRoleType? Type = null
 );
 
 public abstract record GetStaffRoleByIdServiceResult {
@@ -223,13 +224,23 @@ public sealed class StaffRoleQueryAsStaffService : IStaffRoleQueryAsStaffService
 			);
 		}
 
+		// The system/custom facets describe the search-filtered collection WITHOUT the
+		// type filter, so choosing a type does not zero the other choice's counter.
+		var systemFacet = await query.CountAsync(role => role.IsFullAccess, cancellationToken);
+		var typeFacetTotal = await query.CountAsync(cancellationToken);
+
+		if (args.Type is { } typeFilter) {
+			query = typeFilter == StaffRoleType.System
+				? query.Where(role => role.IsFullAccess)
+				: query.Where(role => !role.IsFullAccess);
+		}
+
 		// The header badge/panel counter describes the whole filtered collection.
 		var totalCount = await query.CountAsync(cancellationToken);
-		var systemCount = await query.CountAsync(role => role.IsFullAccess, cancellationToken);
 		var counts = new StaffRoleCounts(
 			Total: totalCount,
-			System: systemCount,
-			Custom: totalCount - systemCount
+			System: systemFacet,
+			Custom: typeFacetTotal - systemFacet
 		);
 		var totalAssignments = await query.SumAsync(
 			role => role.UserAccountRoles.Count,

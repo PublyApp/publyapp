@@ -281,6 +281,37 @@ public sealed class BulkAssignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldNeverExceedTheMaxRolesWhenDifferentRolesRaceAtTheCap() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var userId = await this._SeedStaffUserAsync();
+		var max = AppEnvironment.Instance.MAX_ROLES_PER_USER;
+		// One slot left: four concurrent assigns of four DIFFERENT roles compete for it.
+		for (var i = 0; i < max - 1; i++) {
+			await this._AttachAsync(userId, await this._SeedStaffRoleAsync());
+		}
+		var contenders = new List<Guid>();
+		for (var i = 0; i < 4; i++) {
+			contenders.Add(await this._SeedStaffRoleAsync());
+		}
+
+		var responses = await Task.WhenAll(
+			contenders.Select(roleId => this._AssignAsync(token, roleId.ToString(), userId))
+		);
+
+		foreach (var response in responses) {
+			using (response) {
+				response.StatusCode.Should().Be(HttpStatusCode.OK);
+			}
+		}
+
+		var held = 0;
+		foreach (var roleId in contenders) {
+			held += await this._CountLinksAsync(userId, roleId);
+		}
+		held.Should().Be(1);
+	}
+
+	[Fact]
 	public async Task ItShouldRefuseAUserWhoWouldExceedTheMaxRolesPerMember() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var roleId = await this._SeedStaffRoleAsync();

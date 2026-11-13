@@ -4909,6 +4909,7 @@ export function deserializeIntoInvitationListItem(invitationListItem: Partial<In
         "id": n => { invitationListItem.id = n.getGuidValue(); },
         "invitedByName": n => { invitationListItem.invitedByName = n.getStringValue(); },
         "roleName": n => { invitationListItem.roleName = n.getStringValue(); },
+        "roleNames": n => { invitationListItem.roleNames = n.getCollectionOfPrimitiveValues<string>("string"); },
         "scope": n => { invitationListItem.scope = n.getStringValue(); },
         "status": n => { invitationListItem.status = n.getEnumValue<InvitationEffectiveStatus>(InvitationEffectiveStatusObject); },
     }
@@ -7623,6 +7624,10 @@ export interface InvitationListItem extends AdditionalDataHolder, Parsable {
      * The roleName property
      */
     roleName?: string | null;
+    /**
+     * The roleNames property
+     */
+    roleNames?: string[] | null;
     /**
      * The scope property
      */
@@ -10386,6 +10391,7 @@ export function serializeInvitationListItem(writer: SerializationWriter, invitat
     writer.writeGuidValue("id", invitationListItem.id);
     writer.writeStringValue("invitedByName", invitationListItem.invitedByName);
     writer.writeStringValue("roleName", invitationListItem.roleName);
+    writer.writeCollectionOfPrimitiveValues<string>("roleNames", invitationListItem.roleNames);
     writer.writeStringValue("scope", invitationListItem.scope);
     writer.writeEnumValue<InvitationEffectiveStatus>("status", invitationListItem.status);
     writer.writeAdditionalData(invitationListItem.additionalData);

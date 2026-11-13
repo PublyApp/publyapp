@@ -186,6 +186,47 @@ public sealed class FindStaffRolesSpec : IClassFixture<ApiFixture> {
 		all.Data.Single(role => role.Id == fullAccessId).Type.Should().Be("System");
 	}
 
+	[Fact]
+	public async Task ItShouldFilterByTypeOnTheServerAndKeepBothTypeCounters() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"typefilter-{Guid.NewGuid():N}";
+		var customId = await this._SeedStaffRoleAsync($"{marker}-custom");
+		_ = await this._SeedStaffRoleAsync($"{marker}-custom-2");
+		var fullAccessId = await this._SeedStaffRoleAsync($"{marker}-full", isFullAccess: true);
+
+		async Task<FindStaffRolesResponse> Find(string type) {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				FindStaffRolesSpec._GetUrl($"limit=50&q={marker}&type={type}")
+			).WithSessionToken(token);
+			using var response = await this._Http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+			var page = await response.Content.ReadFromJsonAsync<FindStaffRolesResponse>();
+			Assert.NotNull(page);
+			return page;
+		}
+
+		var system = await Find("system");
+		system.Data.Select(role => role.Id).Should().BeEquivalentTo([fullAccessId]);
+		system.TotalCount.Should().Be(1);
+		// The facets ignore the type filter itself.
+		system.Counts.System.Should().Be(1);
+		system.Counts.Custom.Should().Be(2);
+
+		var custom = await Find("custom");
+		custom.Data.Should().HaveCount(2).And.NotContain(role => role.Id == fullAccessId);
+		custom.Data.Should().Contain(role => role.Id == customId);
+		custom.TotalCount.Should().Be(2);
+		custom.Counts.System.Should().Be(1);
+
+		using var bad = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffRolesSpec._GetUrl("type=bogus")
+		).WithSessionToken(token);
+		using var badResponse = await this._Http.SendAsync(bad);
+		badResponse.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
 	private async Task<string> _CreateUnprivilegedStaffTokenAsync() {
 		var email = $"no-perms-roles-{Guid.NewGuid():N}@example.com";
 

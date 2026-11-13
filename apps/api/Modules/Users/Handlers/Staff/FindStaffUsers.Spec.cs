@@ -1105,9 +1105,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnOpenSessionsAndLastSignInOnEachRow() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = $"signin-{Guid.NewGuid():N}";
+		var email = $"{marker}@example.com";
 		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
 			this._Fixture,
-			$"{marker}@example.com",
+			email,
 			firstName: marker
 		);
 		var neverSignedInId = await StaffUserTestHelper.SeedStaffUserAsync(
@@ -1115,22 +1116,49 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			$"{marker}-never@example.com",
 			firstName: marker
 		);
-		var olderSignIn = DateTime.UtcNow.AddDays(-5);
-		var latestSignIn = DateTime.UtcNow.AddDays(-2);
-		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(1), olderSignIn);
-		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(2), latestSignIn);
-		// Expired: not open, but still a sign-in.
-		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(-1), DateTime.UtcNow.AddDays(-9));
+		var before = DateTime.UtcNow.AddSeconds(-2);
+		_ = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		// One more open session and an expired one.
+		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(2));
+		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(-1));
 
 		var result = await this._FindAsync(token, marker);
 
 		var row = result.Data.Should().ContainSingle(user => user.Id == userId).Subject;
 		row.OpenSessions.Should().Be(2);
-		row.LastSignInAt.Should().BeCloseTo(latestSignIn, TimeSpan.FromSeconds(2));
+		row.LastSignInAt.Should().BeAfter(before);
 
 		var never = result.Data.Should().ContainSingle(user => user.Id == neverSignedInId).Subject;
 		never.OpenSessions.Should().Be(0);
 		never.LastSignInAt.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldKeepTheLastSignInAfterLogoutAndSessionCleanup() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"durable-{Guid.NewGuid():N}";
+		var email = $"{marker}@example.com";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			email,
+			firstName: marker
+		);
+		var before = DateTime.UtcNow.AddSeconds(-2);
+		_ = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+
+		// Logout and the expiry cleanup both hard-delete session rows.
+		using (var scope = this._Fixture.Factory.Services.CreateScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			_ = await dbContext.Session
+				.Where(session => session.UserId == userId)
+				.ExecuteDeleteAsync();
+		}
+
+		var result = await this._FindAsync(token, marker);
+
+		var row = result.Data.Should().ContainSingle(user => user.Id == userId).Subject;
+		row.OpenSessions.Should().Be(0);
+		row.LastSignInAt.Should().BeAfter(before);
 	}
 
 	[Fact]

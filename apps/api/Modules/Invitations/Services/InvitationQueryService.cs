@@ -417,6 +417,9 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				Email = r.Invitation.Email,
 				Scope = "Staff",
 				RoleName = roleName,
+				RoleNames = rolesByInvitation.TryGetValue(invitationId, out var staffRoles)
+					? staffRoles.Select(role => role.Name).ToList()
+					: [],
 				Status = Invitation.GetEffectiveStatus(
 					r.Invitation.Status,
 					r.Invitation.ExpiresAt,

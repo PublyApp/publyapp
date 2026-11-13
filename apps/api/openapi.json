@@ -5800,6 +5800,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -19377,6 +19384,12 @@
           },
           "roleName": {
             "type": "string"
+          },
+          "roleNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "status": {
             "$ref": "#/components/schemas/InvitationEffectiveStatus"

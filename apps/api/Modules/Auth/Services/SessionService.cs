@@ -63,6 +63,16 @@ public class SessionService : ISessionService {
 		var result = await this._DbContext.Session.AddAsync(session, cancellationToken);
 		await this._DbContext.SaveChangesAsync(cancellationToken);
 
+		// Impersonation sessions never come through here, so this is a real sign-in.
+		var signedInAt = DateTime.UtcNow;
+		_ = await this._DbContext.User
+			.Where(u => u.Id == user.Id)
+			.ExecuteUpdateAsync(
+				setters => setters.SetProperty(u => u.LastSignInAt, signedInAt),
+				cancellationToken
+			);
+		user.LastSignInAt = signedInAt;
+
 		return result.Entity;
 	}
 

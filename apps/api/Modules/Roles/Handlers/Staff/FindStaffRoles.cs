@@ -27,6 +27,21 @@ public class FindStaffRolesQuery : CursorPaginatedQuery {
 	[FromQuery(Name = "q")]
 	public string? Search { get; set; }
 
+	// "system" (the protected full-access role) or "custom"; omitted = both.
+	[FromQuery(Name = "type")]
+	public string? Type { get; set; }
+
+	public StaffRoleType? GetTypeOrNull() {
+		var raw = this.Type?.Trim();
+		if (string.Equals(raw, "system", StringComparison.OrdinalIgnoreCase)) {
+			return StaffRoleType.System;
+		}
+
+		return string.Equals(raw, "custom", StringComparison.OrdinalIgnoreCase)
+			? StaffRoleType.Custom
+			: null;
+	}
+
 	public string? GetSearchNormalized() {
 		if (this.Search is null) {
 			return null;
@@ -40,6 +55,11 @@ public class FindStaffRolesQuery : CursorPaginatedQuery {
 public class FindStaffRolesQueryValidator : CursorPaginatedQueryValidator<FindStaffRolesQuery> {
 	public FindStaffRolesQueryValidator() {
 		this.RuleFor(x => x.Search).MaximumLength(200);
+		this.RuleFor(x => x.Type)
+			.Must(raw => string.IsNullOrEmpty(raw)
+				|| string.Equals(raw.Trim(), "system", StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(raw.Trim(), "custom", StringComparison.OrdinalIgnoreCase))
+			.WithMessage("Invalid type. Must be one of: system,custom");
 	}
 }
 
@@ -68,7 +88,8 @@ public sealed class FindStaffRoles {
 			Limit: limit,
 			SortId: sortId,
 			SortOrder: sortOrder,
-			Search: findStaffRolesQuery.GetSearchNormalized()
+			Search: findStaffRolesQuery.GetSearchNormalized(),
+			Type: findStaffRolesQuery.GetTypeOrNull()
 		);
 
 		var serviceResult = await roleQueryAsStaffService.FindStaffRolesAsync(

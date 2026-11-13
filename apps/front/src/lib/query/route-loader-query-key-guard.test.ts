@@ -28,7 +28,7 @@ const fixtureRoutesDir = path.resolve(
 );
 const FIXTURE_PREFIX = '../tests/fixtures/route-loader-guard/routes/';
 
-// The 15 sites of plan measurement C, as marker files with how many markers
+// The sites of plan measurement C (plus later conscious additions), as marker files with how many markers
 // each carries. A new exemption must be a conscious edit of this table.
 const EXPECTED_EXEMPTION_FILES = {
 	'components/app-shell/_needs-reconnect-banner.tsx': 3,
@@ -38,6 +38,7 @@ const EXPECTED_EXEMPTION_FILES = {
 	'routes/__root.tsx': 1,
 	'routes/authed/staff/_staff-list-team.tsx': 2,
 	'routes/authed/staff/jobs/dead-letter.tsx': 1,
+	'routes/authed/staff/roles/$roleId/_assign-members-drawer.tsx': 1,
 	'routes/authed/staff/tenant-users/$userId-organizations-drawer.tsx': 1,
 	'routes/authed/staff/tenants/$tenantId/roles/$roleId/_assign-members-state-hook.ts': 1,
 	'routes/authed/tenant/posts/_scheduled-rendition-editor.tsx': 1,
@@ -76,7 +77,7 @@ describe('route-loader <-> page query guard', () => {
 			'the guard must have resolved at least one route loader key — a blind finder must never read as conformant',
 		).toBeGreaterThanOrEqual(1);
 		expect(violations, 'route loader <-> page violations').toEqual([]);
-		expect(exemptions).toHaveLength(16);
+		expect(exemptions).toHaveLength(17);
 		expect(countByFile(exemptions)).toEqual(EXPECTED_EXEMPTION_FILES);
 		// The route-keyed closed-drawer skips are a second exemption surface:
 		// pinned here too, so adding one is a conscious edit of this list.

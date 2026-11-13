@@ -58,22 +58,17 @@ export const DEFAULT_INVITATION_COLUMNS = [
 
 export const buildInvitationFilters = (
 	t: Translate,
-	rows: StaffInvitationRow[],
 	selectedRoles: readonly string[] = [],
 	roleCounts: Record<string, number> | null = null,
 ): ListFilter<StaffInvitationRow>[] => {
+	// Choices come from the API's whole-collection role counts, so a role absent
+	// from the loaded page still appears; a role picked in the URL always stays.
 	const roleNames: string[] = [];
 	const seen = new Set<string>();
-	for (const name of selectedRoles) {
+	for (const name of [...selectedRoles, ...Object.keys(roleCounts ?? {})]) {
 		if (name.length > 0 && !seen.has(name)) {
 			seen.add(name);
 			roleNames.push(name);
-		}
-	}
-	for (const row of rows) {
-		if (row.roleName.length > 0 && !seen.has(row.roleName)) {
-			seen.add(row.roleName);
-			roleNames.push(row.roleName);
 		}
 	}
 
@@ -102,7 +97,7 @@ export const buildInvitationFilters = (
 							label: name,
 							count: roleCounts?.[name] ?? null,
 						})),
-						valueOf: (row: StaffInvitationRow) => row.roleName,
+						valueOf: (row: StaffInvitationRow) => row.roleNames,
 					} satisfies ListFilter<StaffInvitationRow>,
 				]
 			: []),

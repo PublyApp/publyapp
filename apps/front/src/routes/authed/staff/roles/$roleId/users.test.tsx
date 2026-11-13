@@ -162,6 +162,12 @@ vi.mock('~/components/list/list-page', () => ({
 	},
 }));
 
+const assignPermission = vi.hoisted(() => ({ canAssign: true }));
+
+vi.mock('./_assign-permission', () => ({
+	useCanAssignStaffRoleMembers: () => assignPermission.canAssign,
+}));
+
 vi.mock('../../_staff-list-team', () => ({
 	useStaffTeamOverview: mocks.useStaffTeamOverview,
 	buildStaffTeamPanelGroups: () => [],
@@ -293,6 +299,18 @@ describe('staff role users page', () => {
 		expect(
 			screen.getByRole('link', { name: /assign-staff-members/ }),
 		).toBeTruthy();
+	});
+
+	test('hides the assign action unless the caller holds both permissions', () => {
+		assignPermission.canAssign = false;
+		try {
+			renderPage();
+			expect(
+				screen.queryByRole('link', { name: /assign-staff-members/ }),
+			).toBeNull();
+		} finally {
+			assignPermission.canAssign = true;
+		}
 	});
 
 	test('keeps the bounded detail-tab chain', () => {
