@@ -1,6 +1,6 @@
 import { IconPlus } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import type { FilterCounts } from '~/components/list/filter-menu';
@@ -89,7 +89,14 @@ const StaffInvitationsPage = () => {
 	const search = Route.useSearch() as InvitationListSearchParams;
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
-	const selectedRoles = parseInvitationRoleFilter(search.role);
+	const selectedRoleValues = parseInvitationRoleFilter(search.role);
+	// Ids are the filter; a name is a legacy `?role=Writer` link, resolved below.
+	const selectedRoles = selectedRoleValues.filter((value) =>
+		ROLE_ID_PATTERN.test(value),
+	);
+	const legacyRoleNames = selectedRoleValues.filter(
+		(value) => !ROLE_ID_PATTERN.test(value),
+	);
 
 	const onSearchChange = (next: InvitationListSearchParams): void => {
 		void navigate({
@@ -108,7 +115,9 @@ const StaffInvitationsPage = () => {
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
-		cursorResetKey: search.status ?? '',
+		// Every server-side filter resets the cursor: a page-2 cursor sent with a
+		// new filter would skip into the middle of the filtered collection.
+		cursorResetKey: `${search.status ?? ''}:${search.role ?? ''}`,
 	});
 	const queries = staffInvitationsQueries({ search });
 	const listVariables = {
@@ -148,6 +157,41 @@ const StaffInvitationsPage = () => {
 		roleChoices === null
 			? null
 			: Object.fromEntries(roleChoices.map((role) => [role.id, role.count]));
+
+	// A selected id keeps its name while its request loads and when another
+	// filter drops it from the facet: facet first, then the staff roles list.
+	const roleNames = new Map<string, string>(
+		team.roles.map((role) => [role.id, role.name]),
+	);
+	for (const role of roleChoices ?? []) {
+		roleNames.set(role.id, role.name);
+	}
+
+	// Legacy name links: resolve against the facet, swap the URL to the id, and
+	// drop a name no role matches (the list is unfiltered by it anyway).
+	const legacyKey = legacyRoleNames.join(',');
+	useEffect(() => {
+		if (legacyKey.length === 0 || apiRoleCounts == null) {
+			return;
+		}
+		const resolved = legacyKey.split(',').flatMap((name) => {
+			const match = apiRoleCounts.find(
+				(role) => role.name?.trim().toLowerCase() === name.toLowerCase(),
+			);
+			return match?.roleId ? [match.roleId] : [];
+		});
+		void navigate({
+			search: serializeInvitationListSearchParams({
+				...search,
+				role: serializeInvitationRoleFilter([...selectedRoles, ...resolved]),
+				cursor: undefined,
+			}) as InvitationListSearchParams,
+			replace: true,
+		});
+		// `search`/`selectedRoles` are read at fire time; the legacy names and
+		// the facet are the triggers.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [legacyKey, apiRoleCounts]);
 
 	const listCounts: FilterCounts = {
 		status: {
@@ -231,7 +275,7 @@ const StaffInvitationsPage = () => {
 				}
 				onSearchChange({ ...search, q: next, cursor: undefined });
 			}}
-			filters={buildInvitationFilters(t, selectedRoles, roleChoices)}
+			filters={buildInvitationFilters(t, selectedRoles, roleChoices, roleNames)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
 			counts={listCounts}

@@ -40,21 +40,29 @@ describe('invitations role facet', () => {
 		);
 	});
 
-	test('keeps a role picked in the URL even when the counts no longer list it', () => {
-		const filter = roleFilter(
+	test('keeps a picked id labelled by its known name when the facet no longer lists it', () => {
+		const filter = buildInvitationFilters(
+			t,
 			['id-legacy'],
 			[{ id: 'id-writer', name: 'Writer', count: 1 }],
-		);
+			new Map([['id-legacy', 'Legacy role']]),
+		).find((candidate) => candidate.key === 'role');
 
-		expect(filter.choices.map((choice) => choice.value)).toEqual([
+		expect(filter?.choices.map((choice) => choice.value)).toEqual([
 			'id-legacy',
 			'id-writer',
 		]);
-		expect(filter.choices[0]).toEqual({
+		expect(filter?.choices[0]).toEqual({
 			value: 'id-legacy',
-			label: 'unknown-role',
+			label: 'Legacy role',
 			count: null,
 		});
+	});
+
+	test('a picked id with no name yet reads « loading », never « unknown »', () => {
+		const filter = roleFilter(['id-pending'], []);
+
+		expect(filter.choices[0]?.label).toBe('loading');
 	});
 
 	test('shows no role filter while neither counts nor a picked role exist', () => {

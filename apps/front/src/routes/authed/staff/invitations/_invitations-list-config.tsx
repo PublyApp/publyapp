@@ -62,6 +62,7 @@ export const buildInvitationFilters = (
 	t: Translate,
 	selectedRoles: readonly string[] = [],
 	roles: readonly InvitationRoleChoice[] | null = null,
+	knownNames: ReadonlyMap<string, string> = new Map(),
 ): ListFilter<StaffInvitationRow>[] => {
 	// Choices come from the API's whole-collection role counts (values are role
 	// ids, labels the names), so a role absent from the loaded page still
@@ -71,7 +72,12 @@ export const buildInvitationFilters = (
 	).map((role) => ({ value: role.id, label: role.name, count: role.count }));
 	for (const id of selectedRoles) {
 		if (id.length > 0 && !choices.some((choice) => choice.value === id)) {
-			choices.unshift({ value: id, label: t('unknown-role'), count: null });
+			// Never « unknown » for a valid id: its name, or a loading label.
+			choices.unshift({
+				value: id,
+				label: knownNames.get(id) ?? t('loading'),
+				count: null,
+			});
 		}
 	}
 
