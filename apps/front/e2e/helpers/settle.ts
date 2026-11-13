@@ -17,7 +17,7 @@ const boxesMatch = (a: Box, b: Box): boolean =>
  * signal (awaited response, visible element) when late async content exists.
  */
 export const waitForValueToSettle = async <T>(
-	read: () => Promise<T | null>,
+	read: (remainingMs: number) => Promise<T | null>,
 	equals: (a: T, b: T) => boolean,
 	options: {
 		requiredStableSamples?: number;
@@ -36,8 +36,20 @@ export const waitForValueToSettle = async <T>(
 	let stableCount = 0;
 
 	while (Date.now() < deadline) {
+		// The deadline also bounds the read itself: a read that hangs (e.g. a
+		// detached element) must not outlive `timeoutMs`.
+		const remainingMs = Math.max(1, deadline - Date.now());
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		const expired = new Promise<never>((_, reject) => {
+			timer = setTimeout(
+				() => reject(new Error(`value did not settle within ${timeoutMs}ms`)),
+				remainingMs,
+			);
+		});
 		// eslint-disable-next-line no-await-in-loop -- intentional sequential poll
-		const value = await read();
+		const value = await Promise.race([read(remainingMs), expired]).finally(() =>
+			clearTimeout(timer),
+		);
 		if (value !== null && previous !== null && equals(value, previous)) {
 			stableCount += 1;
 			if (stableCount >= requiredStableSamples) {
@@ -66,4 +78,8 @@ export const waitForBoundingBoxToSettle = (
 	locator: Locator,
 	options: Parameters<typeof waitForValueToSettle>[2] = {},
 ): Promise<Box> =>
-	waitForValueToSettle(() => locator.boundingBox(), boxesMatch, options);
+	waitForValueToSettle(
+		(remainingMs) => locator.boundingBox({ timeout: remainingMs }),
+		boxesMatch,
+		options,
+	);

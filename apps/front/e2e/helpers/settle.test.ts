@@ -11,7 +11,8 @@ const sequence = <T>(values: T[]) => {
 	};
 };
 
-const FAST = { pollIntervalMs: 1, timeoutMs: 1_000 };
+// Generous budget: a descheduled vitest worker must not trip the deadline.
+const FAST = { pollIntervalMs: 1, timeoutMs: 30_000 };
 
 describe('waitForValueToSettle', () => {
 	test('skips a value that changes mid-way and returns the final one', async () => {
@@ -33,5 +34,15 @@ describe('waitForValueToSettle', () => {
 				{ pollIntervalMs: 1, timeoutMs: 30 },
 			),
 		).rejects.toThrow('did not settle within 30ms');
+	});
+
+	test('bounds a read that never resolves by the timeout', async () => {
+		await expect(
+			waitForValueToSettle(
+				() => new Promise<number>(() => {}),
+				(a, b) => a === b,
+				{ pollIntervalMs: 1, timeoutMs: 50 },
+			),
+		).rejects.toThrow('did not settle within 50ms');
 	});
 });
