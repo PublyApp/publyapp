@@ -919,7 +919,8 @@ public sealed class PublicationService : IPublicationService {
 	private async Task<List<ScheduledPublicationItem>> _ToItemsAsync(
 		Guid tenantId,
 		List<(Publication Publication, string AccountHandle)> rows,
-		CancellationToken cancellationToken
+		CancellationToken cancellationToken,
+		bool knownNotSuperseded = false
 	) {
 		var postIds = rows
 			.Select(row => row.Publication.PostId)
@@ -955,9 +956,12 @@ public sealed class PublicationService : IPublicationService {
 		var summaries = await PostStatusSummaryQuery.SummarizeAsync(
 			this._DbContext, tenantId, postIds, cancellationToken
 		);
-		var supersededIds = await PostStatusSummaryQuery.SupersededIdsAsync(
-			this._DbContext, tenantId, pagePublicationIds, cancellationToken
-		);
+		// The post's own list already left replaced rows out: nothing to look up.
+		var supersededIds = knownNotSuperseded
+			? []
+			: await PostStatusSummaryQuery.SupersededIdsAsync(
+				this._DbContext, tenantId, pagePublicationIds, cancellationToken
+			);
 
 		var items = new List<ScheduledPublicationItem>(rows.Count);
 		foreach (var (publication, accountHandle) in rows) {
@@ -1019,15 +1023,10 @@ public sealed class PublicationService : IPublicationService {
 		// every status, no window: a failed or far-out row is what the edit page needs.
 		var rows = await (
 			from publication in this._DbContext.Publication.AsNoTracking()
+				.Where(PublicationSupersession.IsNotSupersededIn(this._DbContext.Publication))
 			where publication.TenantId == tenantId
 				&& publication.PostId == postId
 				&& !publication.IsDeleted
-				&& !this._DbContext.Publication.Any(other =>
-					other.TenantId == publication.TenantId
-					&& other.PostId == publication.PostId
-					&& other.SocialAccountId == publication.SocialAccountId
-					&& other.Id != publication.Id
-					&& other.CreatedAt > publication.CreatedAt)
 			orderby publication.ScheduledAtUtc, publication.Id
 			select new {
 				Publication = publication,
@@ -1041,7 +1040,8 @@ public sealed class PublicationService : IPublicationService {
 		return await this._ToItemsAsync(
 			tenantId,
 			rows.Select(row => (row.Publication, row.AccountHandle)).ToList(),
-			cancellationToken
+			cancellationToken,
+			knownNotSuperseded: true
 		);
 	}
 

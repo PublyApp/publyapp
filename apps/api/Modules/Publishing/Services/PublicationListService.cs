@@ -139,14 +139,6 @@ public sealed class PublicationListService : IPublicationListService {
 				AccountUsable =
 					publication.SocialAccount.Status == SocialAccountStatus.Active
 					&& !publication.SocialAccount.IsDeleted,
-				// Correlated form of PublicationSupersession.Supersedes (an EF subquery over
-				// the range variable cannot call it); keep the two in step.
-				Superseded = this._Db.Publication.Any(other =>
-					other.TenantId == publication.TenantId
-					&& other.PostId == publication.PostId
-					&& other.SocialAccountId == publication.SocialAccountId
-					&& other.Id != publication.Id
-					&& other.CreatedAt > publication.CreatedAt),
 				SegmentsPublished = this._Db.PublicationSegmentResult.Count(result =>
 					result.PublicationId == publication.Id && !result.IsDeleted),
 				FollowUpCount = this._Db.PostSegment.Count(segment =>
@@ -164,6 +156,12 @@ public sealed class PublicationListService : IPublicationListService {
 		}
 
 		// SQL aggregate, same derivation as the queue (PostStatusSummaryQuery).
+		var supersededIds = await PostStatusSummaryQuery.SupersededIdsAsync(
+			this._Db,
+			args.TenantId,
+			rows.Select(row => row.Publication.GetRequiredId()).ToList(),
+			cancellationToken
+		);
 		var summaries = await PostStatusSummaryQuery.SummarizeAsync(
 			this._Db,
 			args.TenantId,
@@ -175,7 +173,9 @@ public sealed class PublicationListService : IPublicationListService {
 			new CursorPaginatedResult<PublicationListItem> {
 				Data = rows
 					.Select(row => PublicationListService.ToListItem(
-						row, summaries.GetValueOrDefault(row.Publication.PostId, PostStatusSummaryQuery.Empty)))
+						row,
+						supersededIds.Contains(row.Publication.GetRequiredId()),
+						summaries.GetValueOrDefault(row.Publication.PostId, PostStatusSummaryQuery.Empty)))
 					.ToList(),
 				NextCursor = nextCursor,
 			}
@@ -210,7 +210,7 @@ public sealed class PublicationListService : IPublicationListService {
 			: publication.LastError;
 	}
 
-	internal static PublicationListItem ToListItem(PublicationRow row, PostStatusSummary summary) {
+	internal static PublicationListItem ToListItem(PublicationRow row, bool superseded, PostStatusSummary summary) {
 		// The excerpt shows what this destination publishes: post + its rendition.
 		var postBody = RenditionResolver.EffectiveRootText(row.PostBody, row.RenditionTexts);
 		return new PublicationListItem {
@@ -227,7 +227,7 @@ public sealed class PublicationListService : IPublicationListService {
 			FailureCategory = PublicationListService._CategoryFor(row.Publication),
 			Attempts = row.Publication.Attempts,
 			AccountUsable = row.AccountUsable,
-			Superseded = row.Superseded,
+			Superseded = superseded,
 			UpdatedAt = row.Publication.UpdatedAt,
 			SegmentsPublished = row.SegmentsPublished,
 			// A published publication is the thread AS IT WENT OUT: segments added to the post
@@ -245,7 +245,6 @@ public sealed class PublicationListService : IPublicationListService {
 
 internal sealed class PublicationRow {
 	public bool AccountUsable { get; init; }
-	public bool Superseded { get; init; }
 	public required Publication Publication { get; init; }
 	public required string PostBody { get; init; }
 	public string? RenditionTexts { get; init; }

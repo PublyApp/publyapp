@@ -260,6 +260,19 @@ describe('ScheduledRenditionsBlock gating and load states', () => {
 		expect(mocks.walk.restart).toHaveBeenCalledTimes(1);
 	});
 
+	test('a post that vanished (404) shows the failure card, not a logout and not an empty block', () => {
+		mocks.rows = [];
+		mocks.walk.error = Object.assign(new Error('Post not found'), {
+			status: 404,
+		});
+		renderBlock();
+
+		expect(
+			screen.getByTestId('tenant-posts-scheduled-destinations-error'),
+		).toBeTruthy();
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
 	test('an expired session logs out instead of rendering', () => {
 		mocks.walk.error = Object.assign(new Error('unauthorized'), {
 			status: 401,

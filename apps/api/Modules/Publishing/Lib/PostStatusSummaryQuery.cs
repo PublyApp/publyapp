@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
@@ -18,18 +20,26 @@ internal static class PostStatusSummaryQuery {
 		List<Guid> postIds,
 		CancellationToken cancellationToken
 	) {
+		// Destinations: live rows, minus Failed ones a newer row replaced.
+		var notReplaced = PublicationSupersession.IsNotSupersededIn(db.Publication);
+		var failed = Expression.Constant(PublicationStatus.Failed);
+		var destination = Expression.Lambda<Func<Publication, bool>>(
+			Expression.OrElse(
+				Expression.NotEqual(
+					Expression.Property(notReplaced.Parameters[0], nameof(Publication.Status)),
+					failed
+				),
+				notReplaced.Body
+			),
+			notReplaced.Parameters
+		);
+
 		var groups = await db.Publication
 			.AsNoTracking()
 			.Where(publication => publication.TenantId == tenantId
 				&& postIds.Contains(publication.PostId)
-				&& !publication.IsDeleted
-				&& (publication.Status != PublicationStatus.Failed
-					|| !db.Publication.Any(other =>
-						other.TenantId == publication.TenantId
-						&& other.PostId == publication.PostId
-						&& other.SocialAccountId == publication.SocialAccountId
-						&& other.Id != publication.Id
-						&& other.CreatedAt > publication.CreatedAt)))
+				&& !publication.IsDeleted)
+			.Where(destination)
 			.GroupBy(publication => publication.PostId)
 			.Select(group => new {
 				PostId = group.Key,
@@ -63,13 +73,8 @@ internal static class PostStatusSummaryQuery {
 			.AsNoTracking()
 			.Where(publication => publication.TenantId == tenantId
 				&& publication.Id.HasValue
-				&& publicationIds.Contains(publication.Id.Value)
-				&& db.Publication.Any(other =>
-					other.TenantId == publication.TenantId
-					&& other.PostId == publication.PostId
-					&& other.SocialAccountId == publication.SocialAccountId
-					&& other.Id != publication.Id
-					&& other.CreatedAt > publication.CreatedAt))
+				&& publicationIds.Contains(publication.Id.Value))
+			.Where(PublicationSupersession.IsSupersededIn(db.Publication))
 			.Select(publication => publication.Id)
 			.ToListAsync(cancellationToken);
 		return ids.OfType<Guid>().ToHashSet();
