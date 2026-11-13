@@ -87,7 +87,7 @@ export const ScheduledRenditionsBlock = ({
 			EmptySlot={null}
 		>
 			<section
-				className="mt-6 space-y-3"
+				className="@container mt-6 space-y-3"
 				data-testid="tenant-posts-scheduled-destinations"
 			>
 				<div>
@@ -107,22 +107,30 @@ export const ScheduledRenditionsBlock = ({
 								className="space-y-3"
 								data-testid="tenant-posts-scheduled-destination"
 							>
-								<div className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(0,1fr)_11rem_13rem_auto] sm:items-center sm:gap-4">
-									<span className="min-w-0 truncate text-sm font-medium">
+								{/* Narrow (the edit column is ~35rem even on a wide screen): handle and
+										 action on one line, status and date under them. Wide container:
+										 one aligned line per destination. */}
+								<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 @2xl:grid-cols-[minmax(0,1fr)_8rem_12rem_auto] @2xl:gap-x-4">
+									<span
+										className="col-start-1 row-start-1 min-w-0 truncate text-sm font-medium"
+										title={row.accountDisplayHandle ?? undefined}
+									>
 										{row.accountDisplayHandle ?? ''}
 									</span>
-									<div className="flex flex-wrap items-center gap-2">
-										<ScheduledPublicationStatus row={row} />
-										<ScheduledPublicationCustomized
-											customized={row.customized}
-										/>
+									<div className="col-span-2 row-start-2 flex flex-wrap items-center gap-x-4 gap-y-1 @2xl:contents">
+										<div className="flex flex-wrap items-center gap-2">
+											<ScheduledPublicationStatus row={row} />
+											<ScheduledPublicationCustomized
+												customized={row.customized}
+											/>
+										</div>
+										<ScheduledPublicationTime row={row} />
 									</div>
-									<ScheduledPublicationTime row={row} />
 									<Button
 										type="button"
 										variant="outline"
 										size="sm"
-										className="shrink-0 justify-self-start whitespace-nowrap sm:justify-self-end"
+										className="col-start-2 row-start-1 whitespace-nowrap @2xl:col-start-4"
 										aria-expanded={isOpen}
 										aria-label={t('posts:destination-customize-aria', {
 											destination: row.accountDisplayHandle ?? '',
