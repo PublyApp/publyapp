@@ -1,10 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import type { StaffInvitationsQueryVariables } from '~/lib/query/staff-invitations';
-import {
-	staffRolesQueryOptions,
-	useStaffRolesQuery,
-} from '~/lib/query/staff-roles';
+import { useStaffRolesQuery } from '~/lib/query/staff-roles';
 
 /** Every staff role, by name: the lookup that resolves a role filter (a legacy
  * `?role=<name>` link, or an id whose role may be gone). Deliberately not the
@@ -15,8 +12,6 @@ export const ROLES_LOOKUP_VARIABLES = {
 	sortId: 'name',
 	sortOrder: 'asc',
 } as const;
-
-export { staffRolesQueryOptions };
 
 export type RolesLookup = {
 	roles: readonly { id?: string | null; name?: string | null }[];
@@ -38,19 +33,101 @@ export const useRolesLookup = (): RolesLookup => {
 	};
 };
 
-/** The invitations list. While a legacy role name is unresolved the request is
- * not made and the list stays in its loading state — even when the unfiltered
- * first page is already cached by the loader — so it never flashes unfiltered. */
+export const ROLE_ID_PATTERN =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type RoleSource = { id?: string | null; name?: string | null };
+
+/** A role filter value against a list of roles: a legacy name becomes its id; a
+ * name no role carries resolves to nothing. An id is kept as is unless `mustExist`
+ * (the list is authoritative) and no role carries it (the role is gone). */
+const resolveRoleValue = (
+	value: string,
+	sources: readonly RoleSource[],
+	mustExist: boolean,
+): string | undefined => {
+	if (ROLE_ID_PATTERN.test(value)) {
+		return !mustExist || sources.some((role) => role.id === value)
+			? value
+			: undefined;
+	}
+	const wanted = value.toLowerCase();
+	return (
+		sources.find((role) => role.name?.trim().toLowerCase() === wanted)?.id ??
+		undefined
+	);
+};
+
+const resolveAll = (
+	values: readonly string[],
+	sources: readonly RoleSource[],
+	mustExist: boolean,
+): string[] => {
+	const ids: string[] = [];
+	for (const value of values) {
+		const id = resolveRoleValue(value, sources, mustExist);
+		if (id !== undefined && !ids.includes(id)) {
+			ids.push(id);
+		}
+	}
+	return ids;
+};
+
+/** Resolves the URL role values synchronously. Roles lookup loaded: it is
+ * authoritative (names resolve, gone ids drop). Otherwise ids are kept and names
+ * resolve against the list's role facet (roles ∪ facet) once it is known. */
+export const resolveEffectiveRoleIds = (
+	values: readonly string[],
+	lookup: RolesLookup,
+	facet: readonly RoleSource[] | null,
+): string[] =>
+	lookup.loaded
+		? resolveAll(values, lookup.roles, true)
+		: resolveAll(values, [...lookup.roles, ...(facet ?? [])], false);
+
+/** Cosmetic URL rewrite to the effective ids, once the lookup settled (and, when
+ * it failed, once the facet arrived so names can still resolve). */
+export const useRoleFilterUrlRewrite = ({
+	values,
+	ids,
+	canRewrite,
+	rewrite,
+}: {
+	values: readonly string[];
+	ids: readonly string[];
+	canRewrite: boolean;
+	rewrite: (ids: string[]) => void;
+}): void => {
+	const valuesKey = values.join(',');
+	const idsKey = ids.join(',');
+	useEffect(() => {
+		if (canRewrite && valuesKey.length > 0 && valuesKey !== idsKey) {
+			rewrite(idsKey.length === 0 ? [] : idsKey.split(','));
+		}
+		// `rewrite` reads the current search at fire time.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [canRewrite, valuesKey, idsKey]);
+};
+
+/** The invitations list. While a legacy role name cannot be resolved yet the
+ * request is not made (`isFetchHeld`), and the list stays in its loading state
+ * (`isDisplayHeld`) even when the unfiltered first page is already cached by the
+ * loader, so it never paints unfiltered. A held display is released by a failed
+ * request: an error beats an endless skeleton. */
 export const useInvitationsListQuery = (
 	variables: StaffInvitationsQueryVariables,
-	isHeld: boolean,
+	hold: { isFetchHeld: boolean; isDisplayHeld: boolean },
 ) => {
-	const listQuery = useStaffInvitationsQuery(variables, { enabled: !isHeld });
-	if (!isHeld) {
-		return listQuery;
+	const listQuery = useStaffInvitationsQuery(variables, {
+		enabled: !hold.isFetchHeld,
+	});
+	const facetRoles = listQuery.data?.counts?.roleCounts ?? null;
+	if (!hold.isDisplayHeld || listQuery.error !== null) {
+		return { ...listQuery, facetRoles };
 	}
 	return {
 		...listQuery,
+		facetRoles,
 		data: undefined,
 		isPending: true,
 		isLoading: true,

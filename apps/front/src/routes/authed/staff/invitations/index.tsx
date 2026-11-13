@@ -1,6 +1,6 @@
 import { IconPlus } from '@tabler/icons-react';
 import { createFileRoute } from '@tanstack/react-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import type { FilterCounts } from '~/components/list/filter-menu';
@@ -15,6 +15,7 @@ import {
 } from '~/components/table/use-table-controller';
 import { preloadRouteQueries } from '~/lib/query/route-preload';
 import { staffInvitationsQueryOptions } from '~/lib/query/staff-invitations';
+import { staffRolesQueryOptions } from '~/lib/query/staff-roles';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 import { formatDateTime } from '~/utils/format-time';
 
@@ -26,9 +27,11 @@ import {
 	useStaffTeamOverview,
 } from '../_staff-list-team';
 import {
+	ROLE_ID_PATTERN,
 	ROLES_LOOKUP_VARIABLES,
-	staffRolesQueryOptions,
+	resolveEffectiveRoleIds,
 	useInvitationsListQuery,
+	useRoleFilterUrlRewrite,
 	useRolesLookup,
 } from './_invitations-data';
 import { invitationColumns } from './_invitations-list-columns';
@@ -59,8 +62,6 @@ import { InvitationRowActions } from './table-columns';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
-const ROLE_ID_PATTERN =
-	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The page's list query, declared once: the loader warms it and the page reads
  * the same variables. The loader takes the first page (no cursor, decision 4). */
@@ -89,27 +90,6 @@ const staffInvitationsQueries = ({
 	},
 });
 
-/** A role filter value against the full roles list: a legacy name becomes its
- * id, an id whose role is gone (or a name no role carries) resolves to nothing.
- * Until the list has loaded (a failed lookup) ids are kept as they are. */
-const resolveRoleValue = (
-	value: string,
-	roles: readonly { id?: string | null; name?: string | null }[],
-	rolesLoaded: boolean,
-): string | undefined => {
-	if (ROLE_ID_PATTERN.test(value)) {
-		if (!rolesLoaded || roles.some((role) => role.id === value)) {
-			return value;
-		}
-		return undefined;
-	}
-	const wanted = value.toLowerCase();
-	return (
-		roles.find((role) => role.name?.trim().toLowerCase() === wanted)?.id ??
-		undefined
-	);
-};
-
 const StaffInvitationsPage = () => {
 	const { t, i18n } = useTranslation('common');
 	const { t: tInvitations } = useTranslation('staff-invitations');
@@ -118,16 +98,25 @@ const StaffInvitationsPage = () => {
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
 	const selectedRoleValues = parseInvitationRoleFilter(search.role);
-	// Ids are the filter; a name is a legacy `?role=Writer` link, resolved below.
-	const selectedRoles = selectedRoleValues.filter((value) =>
-		ROLE_ID_PATTERN.test(value),
+	const hasLegacyRoleName = selectedRoleValues.some(
+		(value) => !ROLE_ID_PATTERN.test(value),
 	);
-	const hasLegacyRoleName = selectedRoleValues.length > selectedRoles.length;
 	// Every staff role (not the q/status-narrowed facet): the source of truth for
 	// names and for whether an id still exists. Warmed by the route loader.
 	const rolesLookup = useRolesLookup();
-	// While a name is unresolved the list would be the unfiltered one: hold it.
-	const isResolvingRole = hasLegacyRoleName && !rolesLookup.settled;
+	// Facet latch: a failed lookup resolves names from the list's own facet; the
+	// latch keeps that resolution stable while the filtered request loads.
+	const [latchedFacet, setLatchedFacet] = useState<
+		{ id?: string | null; name?: string | null }[] | null
+	>(null);
+	const effectiveRoleIds = resolveEffectiveRoleIds(
+		selectedRoleValues,
+		rolesLookup,
+		// Only a settled-but-failed lookup falls back to the facet.
+		rolesLookup.settled ? latchedFacet : null,
+	);
+	const selectedRoles = effectiveRoleIds;
+	const roleIdsCsv = effectiveRoleIds.join(',');
 
 	const onSearchChange = (next: InvitationListSearchParams): void => {
 		void navigate({
@@ -148,16 +137,32 @@ const StaffInvitationsPage = () => {
 		defaultSize: DEFAULT_SIZE,
 		// Every server-side filter resets the cursor: a page-2 cursor sent with a
 		// new filter would skip into the middle of the filtered collection.
-		cursorResetKey: `${search.status ?? ''}:${search.role ?? ''}`,
+		cursorResetKey: `${search.status ?? ''}:${roleIdsCsv}`,
 	});
 	const queries = staffInvitationsQueries({ search });
 	const listVariables = {
 		...queries.invitations.variables,
+		// Resolved in render from the URL values and the roles lookup, so the
+		// request never goes out unfiltered while the URL is rewritten.
+		roleId: roleIdsCsv || undefined,
 		// The cursor lives in React state, never in URL search (decision 4): the
 		// loader warms the first page, the page adds its own cursor.
 		cursor: controller.apiVariables.cursor,
 	};
-	const query = useInvitationsListQuery(listVariables, isResolvingRole);
+	// Fetch is held only while a name cannot resolve yet (lookup pending). The
+	// display also stays held after a failed lookup until the facet resolves it.
+	const unresolvedName =
+		hasLegacyRoleName &&
+		roleIdsCsv.split(',').filter(Boolean).length < selectedRoleValues.length;
+	const query = useInvitationsListQuery(listVariables, {
+		isFetchHeld: hasLegacyRoleName && !rolesLookup.settled,
+		isDisplayHeld: unresolvedName && !rolesLookup.loaded,
+	});
+	if (latchedFacet === null && query.facetRoles !== null) {
+		setLatchedFacet(
+			query.facetRoles.map((role) => ({ id: role.roleId, name: role.name })),
+		);
+	}
 	// The overview publishes these variables as the counter only while they
 	// carry no filter/search; it owns that guard (see `_staff-list-team.tsx`).
 	const team = useStaffTeamOverview({ invitations: listVariables });
@@ -192,47 +197,29 @@ const StaffInvitationsPage = () => {
 	// A selected id's name comes from the full roles list, so it stays put while
 	// its request loads and when another filter drops it from the facet.
 	const roleNames = new Map<string, string>(
-		rolesLookup.roles.flatMap((role) =>
+		[...(latchedFacet ?? []), ...rolesLookup.roles].flatMap((role) =>
 			role.id ? [[role.id, role.name ?? ''] as const] : [],
 		),
 	);
 
-	// Normalise the role filter against the full roles list once it has loaded:
-	// a legacy name becomes its id, a name no role carries is dropped, and an id
-	// whose role is gone is dropped too (a failed lookup keeps the ids as is).
-	const roleValuesKey = selectedRoleValues.join(',');
-	useEffect(() => {
-		if (!rolesLookup.settled || roleValuesKey.length === 0) {
-			return;
-		}
-		const values = roleValuesKey.split(',');
-		const next: string[] = [];
-		for (const value of values) {
-			const id = resolveRoleValue(value, rolesLookup.roles, rolesLookup.loaded);
-			if (id !== undefined && !next.includes(id)) {
-				next.push(id);
-			}
-		}
-		if (next.join(',') === roleValuesKey) {
-			return;
-		}
-		void navigate({
-			search: serializeInvitationListSearchParams({
-				...search,
-				role: serializeInvitationRoleFilter(next),
-				cursor: undefined,
-			}) as InvitationListSearchParams,
-			replace: true,
-		});
-		// `search` is read at fire time; the role values and the lookup are the
-		// triggers.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [
-		roleValuesKey,
-		rolesLookup.settled,
-		rolesLookup.loaded,
-		rolesLookup.roles,
-	]);
+	useRoleFilterUrlRewrite({
+		values: selectedRoleValues,
+		ids: effectiveRoleIds,
+		canRewrite:
+			rolesLookup.loaded ||
+			(rolesLookup.settled && latchedFacet !== null) ||
+			(rolesLookup.settled && !hasLegacyRoleName),
+		rewrite: (ids) => {
+			void navigate({
+				search: serializeInvitationListSearchParams({
+					...search,
+					role: serializeInvitationRoleFilter(ids),
+					cursor: undefined,
+				}) as InvitationListSearchParams,
+				replace: true,
+			});
+		},
+	});
 
 	const listCounts: FilterCounts = {
 		status: {

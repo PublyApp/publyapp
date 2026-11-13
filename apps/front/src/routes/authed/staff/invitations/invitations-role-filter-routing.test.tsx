@@ -298,18 +298,66 @@ describe('invitations role filter (real route)', () => {
 		);
 	});
 
-	test('when the roles lookup fails the ids are kept and labelled unknown, not loading', async () => {
+	test('when the roles lookup fails the ids are kept and labelled from the facet', async () => {
+		mocks.useStaffRolesQuery.mockReturnValue(rolesFailed);
+		mocks.useStaffInvitationsQuery.mockReturnValue(settled(payload(null)));
+		const { history } = await mount(`${LIST_ROUTE_PATH}?role=${ROLE_READER}`);
+
+		await waitFor(() =>
+			expect(screen.getAllByText('roles: Reader').length).toBeGreaterThan(0),
+		);
+		expect(history.location.search).toContain(ROLE_READER);
+	});
+
+	test('when the roles lookup fails an id absent from the facet is labelled unknown, not loading', async () => {
 		mocks.useStaffRolesQuery.mockReturnValue(rolesFailed);
 		const noFacet = payload(null);
 		noFacet.counts.roleCounts = [];
 		mocks.useStaffInvitationsQuery.mockReturnValue(settled(noFacet));
-		const { history } = await mount(`${LIST_ROUTE_PATH}?role=${ROLE_READER}`);
+		await mount(`${LIST_ROUTE_PATH}?role=${ROLE_READER}`);
 
 		await waitFor(() =>
 			expect(screen.getAllByText('roles: unknown-role').length).toBeGreaterThan(
 				0,
 			),
 		);
-		expect(history.location.search).toContain(ROLE_READER);
+	});
+
+	test('when the roles lookup fails a legacy name resolves from the facet', async () => {
+		mocks.useStaffRolesQuery.mockReturnValue(rolesFailed);
+		mocks.useStaffInvitationsQuery.mockReturnValue(settled(payload(null)));
+		const { history } = await mount(`${LIST_ROUTE_PATH}?role=Writer`);
+
+		await waitFor(() => expect(lastVariables().roleId).toBe(ROLE_WRITER));
+		await waitFor(() => expect(history.location.search).toContain(ROLE_WRITER));
+	});
+
+	test('settle to rewrite window: the first render after the lookup settles already queries by id', async () => {
+		mocks.useStaffRolesQuery.mockReturnValue(rolesPending);
+		mocks.useStaffInvitationsQuery.mockReturnValue(settled(payload(null)));
+		const { history } = await mount(`${LIST_ROUTE_PATH}?role=writer`);
+		expect(lastVariables().roleId).toBeUndefined();
+
+		mocks.useStaffInvitationsQuery.mockClear();
+		mocks.useStaffRolesQuery.mockReturnValue(rolesLoaded());
+		// Re-render with the settled lookup (the URL still holds the name).
+		await history.replace(`${LIST_ROUTE_PATH}?role=writer&q=x`);
+
+		// Every request made after the lookup settled carries the id, even
+		// before the URL has been rewritten: no unfiltered request in between.
+		const getCalls = () =>
+			mocks.useStaffInvitationsQuery.mock.calls as [
+				{ roleId?: string },
+				{ enabled?: boolean },
+			][];
+		await waitFor(() =>
+			expect(mocks.useStaffInvitationsQuery).toHaveBeenCalled(),
+		);
+		for (const [variables, options] of getCalls()) {
+			if (options.enabled !== false) {
+				expect(variables.roleId).toBe(ROLE_WRITER);
+			}
+		}
+		await waitFor(() => expect(history.location.search).toContain(ROLE_WRITER));
 	});
 });
