@@ -67,7 +67,7 @@ vi.mock('react-i18next', () => ({
 				'uploading-logo': 'Uploading…',
 				'logo-upload-hint': 'PNG, JPEG, WEBP, or GIF — up to 2 MB',
 				'logo-upload-invalid-type': 'Image must be PNG, JPEG, WEBP, or GIF',
-				'logo-upload-too-large': `Image must be ${options?.size} or smaller`,
+				'image-too-large': `The image exceeds the ${options?.size} limit.`,
 				'common:image-too-large': `The image exceeds the ${options?.size} limit.`,
 				'logo-upload-failed': "Couldn't upload the image. Please try again.",
 				'image-uploaded-success': 'Image uploaded successfully.',
@@ -222,7 +222,7 @@ describe('Field.ImageUpload', () => {
 		});
 
 		expect(mutate).not.toHaveBeenCalled();
-		expect(screen.getByText('Image must be 2 MB or smaller')).toBeTruthy();
+		expect(screen.getByText('The image exceeds the 2 MB limit.')).toBeTruthy();
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 

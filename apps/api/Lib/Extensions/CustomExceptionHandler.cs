@@ -189,7 +189,56 @@ public static partial class CustomExceptionHandler {
 			: null;
 	}
 
+	private static async Task _WriteProblemAsync(HttpContext context, ExceptionMapping mapped) {
+		context.Response.StatusCode = mapped.StatusCode;
+
+		AppProblemDetails response = mapped.Errors is not null
+			? ValidationProblemDetails.Create(mapped.Detail, mapped.Key, mapped.Errors)
+			: AppProblemDetails.Create(mapped.StatusCode, mapped.Title, mapped.Detail, mapped.Key);
+		response.Instance = context.Request.Path.Value;
+		response.Extensions["traceId"] = context.TraceIdentifier;
+		if (mapped.Extensions is not null) {
+			foreach (var (name, value) in mapped.Extensions) {
+				response.Extensions[name] = value;
+			}
+		}
+
+		// Serialize the RUNTIME type: WriteAsJsonAsync<T> would use the
+		// AppProblemDetails static type and drop ValidationProblemDetails'
+		// `errors` object, leaving a 422 with no field errors on the wire.
+		await context.Response.WriteAsJsonAsync(
+			(object)response,
+			options: null,
+			contentType: "application/problem+json",
+			cancellationToken: context.RequestAborted
+		);
+	}
+
+	/// <summary>
+	/// The route handler's form binding catches the <c>BadHttpRequestException</c> Kestrel
+	/// throws when an upload body exceeds the endpoint's size limit (it derives from
+	/// <c>IOException</c>) and only sets a bare 413, so the exception handler never runs
+	/// and the client gets no body and no content type. Answer that bodyless 413 with the
+	/// same problem the handler's own size check returns (#2421).
+	/// </summary>
+	private static async Task _WriteBodylessPayloadTooLargeAsync(StatusCodeContext statusCodeContext) {
+		var context = statusCodeContext.HttpContext;
+		if (context.Response.StatusCode != StatusCodes.Status413PayloadTooLarge) {
+			return;
+		}
+
+		var mapped = CustomExceptionHandler.MapException(
+			new BadHttpRequestException("Request body too large.", StatusCodes.Status413PayloadTooLarge),
+			CustomExceptionHandler.ResolveUploadFileLimit(
+				context.GetEndpoint(),
+				AppEnvironment.Instance.UPLOAD_MAX_BYTES
+			)
+		);
+		await CustomExceptionHandler._WriteProblemAsync(context, mapped);
+	}
+
 	public static void UseCustomExceptionHandler(this IApplicationBuilder app) {
+		app.UseStatusCodePages(CustomExceptionHandler._WriteBodylessPayloadTooLargeAsync);
 		app.UseExceptionHandler(exceptionHandlerApp => {
 			exceptionHandlerApp.Run(async context => {
 				var logger = context.RequestServices
@@ -221,28 +270,7 @@ public static partial class CustomExceptionHandler {
 					}
 				}
 
-				context.Response.StatusCode = mapped.StatusCode;
-
-				AppProblemDetails response = mapped.Errors is not null
-					? ValidationProblemDetails.Create(mapped.Detail, mapped.Key, mapped.Errors)
-					: AppProblemDetails.Create(mapped.StatusCode, mapped.Title, mapped.Detail, mapped.Key);
-				response.Instance = context.Request.Path.Value;
-				response.Extensions["traceId"] = context.TraceIdentifier;
-				if (mapped.Extensions is not null) {
-					foreach (var (name, value) in mapped.Extensions) {
-						response.Extensions[name] = value;
-					}
-				}
-
-				// Serialize the RUNTIME type: WriteAsJsonAsync<T> would use the
-				// AppProblemDetails static type and drop ValidationProblemDetails'
-				// `errors` object, leaving a 422 with no field errors on the wire.
-				await context.Response.WriteAsJsonAsync(
-					(object)response,
-					options: null,
-					contentType: "application/problem+json",
-					cancellationToken: context.RequestAborted
-				);
+				await CustomExceptionHandler._WriteProblemAsync(context, mapped);
 			});
 		});
 	}

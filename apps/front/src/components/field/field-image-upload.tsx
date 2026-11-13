@@ -97,7 +97,7 @@ export const FieldImageUpload = ({
 					}
 
 					if (file.size > MAX_UPLOAD_BYTES) {
-						setLocalError(t('logo-upload-too-large', { size: maxSize }));
+						setLocalError(t('image-too-large', { size: maxSize }));
 						return;
 					}
 
