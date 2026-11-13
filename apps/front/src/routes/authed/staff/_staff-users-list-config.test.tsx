@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import type { StaffUserRow } from '~/lib/query/staff-users';
+import { formatDateTime } from '~/utils/format-time';
 
 import {
 	buildStaffUserFilters,
@@ -80,7 +81,10 @@ describe('staff users list API-backed columns', () => {
 				)}
 			</>,
 		);
-		expect(screen.queryByText('—')).toBeNull();
+		// Same formatter as the tenant-users « Membre depuis » column.
+		expect(
+			screen.getByText(formatDateTime(new Date('2026-01-15T09:30:00Z'), 'en')),
+		).toBeTruthy();
 		cleanup();
 		render(<>{cell('createdAt', row())}</>);
 		expect(screen.getByText('—')).toBeTruthy();

@@ -20,7 +20,7 @@ import { statusPillTone } from '~/components/ui/status-tone';
 import type { StaffUserRow } from '~/lib/query/staff-users';
 import { buildCsv } from '~/utils/csv';
 import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
-import { formatDateTime, formatShortDate } from '~/utils/format-time';
+import { formatDateTime } from '~/utils/format-time';
 
 import type { StaffUserListCounts } from '@org/client-ts/models/index';
 
@@ -174,12 +174,14 @@ export const staffUserColumns = (
 		icon: IconCalendar,
 		width: 180,
 		value: (row) =>
-			row.createdAt === null ? '' : formatShortDate(row.createdAt, locale),
+			row.createdAt === null ? '' : formatDateTime(row.createdAt, locale),
 		cell: (row) =>
 			row.createdAt === null ? (
 				<Dash />
 			) : (
-				<span>{formatShortDate(row.createdAt, locale)}</span>
+				<span className="text-sm text-muted-foreground">
+					{formatDateTime(row.createdAt, locale)}
+				</span>
 			),
 		sortable: false,
 	},
