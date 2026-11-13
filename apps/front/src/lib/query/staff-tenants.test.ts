@@ -656,8 +656,47 @@ describe('toStaffTenantRows', () => {
 				projectsCount: 4,
 				maxUsers: 50,
 				lastActivityAt: null,
+				createdAt: null,
+				timezone: null,
+				websiteUrl: null,
+				billingEmail: null,
+				ownersCount: 0,
+				rolesCount: 0,
+				connectedAccountsCount: 0,
+				postsThisMonthCount: 0,
+				pendingInvitationsCount: 0,
 			},
 		]);
+	});
+
+	test('maps the list row fields added by #2275', () => {
+		const [row] = toStaffTenantRows([
+			{
+				id: 'tenant-1',
+				name: 'Acme',
+				createdAt: new Date('2026-01-15T00:00:00Z'),
+				timezone: ' Indian/Antananarivo ',
+				websiteUrl: 'https://acme.example',
+				billingEmail: 'billing@acme.example',
+				ownersCount: 2,
+				rolesCount: 3,
+				connectedAccountsCount: 5,
+				postsThisMonthCount: 12,
+				pendingInvitationsCount: 1,
+			},
+		]);
+
+		expect(row).toMatchObject({
+			createdAt: new Date('2026-01-15T00:00:00Z'),
+			timezone: 'Indian/Antananarivo',
+			websiteUrl: 'https://acme.example',
+			billingEmail: 'billing@acme.example',
+			ownersCount: 2,
+			rolesCount: 3,
+			connectedAccountsCount: 5,
+			postsThisMonthCount: 12,
+			pendingInvitationsCount: 1,
+		});
 	});
 
 	// shell-r5-F3: a row missing its required `name` used to be kept with a

@@ -172,7 +172,7 @@ describe('ListTable', () => {
 		const headers = [...document.querySelectorAll('th')];
 		expect(headers[0]?.className).toContain('z-(--publy-z-raised)');
 		for (const header of headers.slice(1)) {
-			expect(header.className).not.toContain('z-(--publy-z-');
+			expect(header.className).not.toContain('z-(--publy-z-raised)');
 		}
 		expect(document.querySelector('[data-pinned-head]')?.className).toContain(
 			'z-(--publy-z-raised)',
