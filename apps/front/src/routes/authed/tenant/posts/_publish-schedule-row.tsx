@@ -62,6 +62,10 @@ export const PublishScheduleRow = ({
 	// one), or the entry is incomplete. Pinned to the locale: a language change
 	// remounts the fields, which drop their own error, so these go with it.
 	const [entry, setEntry] = useState<Entry>({ ...NO_FLAGS, locale });
+	if (entry.locale !== locale) {
+		// Really reset (not just mask): switching back must not resurrect them.
+		setEntry({ ...NO_FLAGS, locale });
+	}
 	const flags = entry.locale === locale ? entry : { ...NO_FLAGS, locale };
 	const { isDateInvalid, isTimeInvalid, isIncomplete } = flags;
 	const patch = (change: Partial<Flags>) =>

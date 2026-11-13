@@ -342,4 +342,23 @@ describe('PublishScheduleRow (#2410)', () => {
 		expect(time.getAttribute('aria-invalid')).toBeNull();
 		expect(screen.queryByRole('alert')).toBeNull();
 	});
+
+	test('a refusal does not come back on an empty field after fr → en → fr', () => {
+		const ui = () => (
+			<PublishScheduleRow disabled={false} onSchedule={vi.fn()} />
+		);
+		const { rerender } = render(ui());
+		fill('tenant-posts-schedule-time', '25:99');
+		expect(screen.getByRole('alert')).toBeTruthy();
+
+		lang.current = 'en';
+		rerender(ui());
+		lang.current = 'fr';
+		rerender(ui());
+
+		expect(screen.queryByRole('alert')).toBeNull();
+		const time = screen.getByTestId('tenant-posts-schedule-time');
+		expect(time.getAttribute('aria-invalid')).toBeNull();
+		expect((time as HTMLInputElement).value).toBe('');
+	});
 });
