@@ -178,7 +178,7 @@ const StaffUsersPage = () => {
 			title={tStaff('staff-users-page-title')}
 			searchPlaceholder={t('search-staff-users')}
 			rows={rows}
-			columns={staffUserColumns(t)}
+			columns={staffUserColumns(t, i18n.language)}
 			defaultColumns={[...DEFAULT_STAFF_USER_COLUMNS]}
 			lockedColumn="name"
 			sorting={[
@@ -247,7 +247,7 @@ const StaffUsersPage = () => {
 					</DropdownMenuItem>
 				</DataTableRowActions>
 			)}
-			onExport={() => exportStaffUserRows(rows, t)}
+			onExport={() => exportStaffUserRows(rows, t, i18n.language)}
 			newAction={{
 				label: t('invite-member'),
 				icon: IconPlus,

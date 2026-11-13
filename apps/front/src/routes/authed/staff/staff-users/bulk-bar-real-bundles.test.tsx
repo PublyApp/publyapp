@@ -116,6 +116,9 @@ const staffUserRow = {
 	status: UserStatusObject.Active,
 	displayName: 'Alex User',
 	roleNames: [],
+	openSessions: 0,
+	lastSignInAt: null,
+	invitedByName: null,
 };
 
 const staffSelection = {

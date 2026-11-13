@@ -128,8 +128,9 @@ export const StaffRoleUsersList = ({
 					onTeamSelect,
 				)}
 				newAction={{
-					// ponytail: no bulk-assign endpoint exists yet — the role
-					// overview is the only place membership is editable today.
+					// ponytail: the bulk-assign endpoint exists (#2282); its drawer is a
+					// follow-up, so
+					// for now the role overview is where membership is edited.
 					label: t('assign-staff-members'),
 					icon: IconUserPlus,
 					to: '/staff/roles/$roleId',

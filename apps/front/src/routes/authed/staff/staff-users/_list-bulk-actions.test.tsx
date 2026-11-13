@@ -150,6 +150,9 @@ const row = (
 	roles: [],
 	status,
 	displayName,
+	openSessions: 0,
+	lastSignInAt: null,
+	invitedByName: null,
 });
 
 const buildSelection = (selectedIds: string[]): UseRowSelectionResult => ({

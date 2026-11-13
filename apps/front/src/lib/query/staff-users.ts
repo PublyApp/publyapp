@@ -57,6 +57,12 @@ export type StaffUserRow = {
 	roles: string[];
 	status: UserStatus | null;
 	displayName: string;
+	/** Still-valid sessions of this member (list API, #2282). */
+	openSessions: number;
+	/** Most recent sign-in; null = never signed in. */
+	lastSignInAt: Date | null;
+	/** Who sent the accepted invitation; null = not invited. */
+	invitedByName: string | null;
 };
 
 export type AssignedStaffRole = {
@@ -219,6 +225,9 @@ export const toStaffUserRows = (
 			),
 			status: item.status ?? null,
 			displayName: getDisplayName({ firstName, lastName, email }),
+			openSessions: item.openSessions ?? 0,
+			lastSignInAt: item.lastSignInAt ?? null,
+			invitedByName: normalizeNullableString(item.invitedByName),
 		});
 	}
 

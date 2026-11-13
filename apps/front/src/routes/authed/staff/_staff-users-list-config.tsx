@@ -20,6 +20,7 @@ import { statusPillTone } from '~/components/ui/status-tone';
 import type { StaffUserRow } from '~/lib/query/staff-users';
 import { buildCsv } from '~/utils/csv';
 import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
+import { formatDateTime } from '~/utils/format-time';
 
 import type { StaffUserListCounts } from '@org/client-ts/models/index';
 
@@ -31,6 +32,8 @@ import {
 import { formatStaffStatusLabel } from './staff-users/status-labels';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+const FALLBACK_LOCALE = 'en';
 
 const DASH = '—';
 const Dash = () => <span className="text-muted-foreground">{DASH}</span>;
@@ -48,10 +51,14 @@ export const DEFAULT_STAFF_USER_COLUMNS = [
 	'createdAt',
 ] as const;
 
-/** The eleven columns of §4.6. The ones with no list-API field (2FA, sessions,
- * locale, last login, invited by, member since) render the missing-value dash
- * and are not sortable, never a fabricated value. */
-export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
+/** The eleven columns of §4.6. Sessions, last sign-in and invited-by come from
+ * the list API. 2FA and language have no source yet (follow-ups #2284 and the
+ * future MFA feature), so they keep the missing-value dash and are not
+ * sortable, never a fabricated value. */
+export const staffUserColumns = (
+	t: Translate,
+	locale: string = FALLBACK_LOCALE,
+): ListColumn<StaffUserRow>[] => [
 	{
 		id: 'name',
 		header: t('list-column-member'),
@@ -124,7 +131,8 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 		header: t('list-column-open-sessions'),
 		icon: IconDeviceDesktop,
 		width: 180,
-		cell: Dash,
+		value: (row) => row.openSessions,
+		cell: (row) => <span>{row.openSessions}</span>,
 		sortable: false,
 	},
 	{
@@ -140,7 +148,14 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 		header: t('list-column-last-login'),
 		icon: IconActivity,
 		width: 190,
-		cell: Dash,
+		value: (row) =>
+			row.lastSignInAt === null ? '' : formatDateTime(row.lastSignInAt, locale),
+		cell: (row) =>
+			row.lastSignInAt === null ? (
+				<Dash />
+			) : (
+				<span>{formatDateTime(row.lastSignInAt, locale)}</span>
+			),
 		sortable: false,
 	},
 	{
@@ -148,7 +163,9 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 		header: t('invited-by'),
 		icon: IconUserPlus,
 		width: 170,
-		cell: Dash,
+		value: (row) => row.invitedByName ?? '',
+		cell: (row) =>
+			row.invitedByName === null ? <Dash /> : <span>{row.invitedByName}</span>,
 		sortable: false,
 	},
 	{
@@ -242,9 +259,9 @@ export const buildStaffUserTotals = (
 	totals.set('email', DASH);
 	totals.set('roles', t('list-total-staff-roles', { fullAccess, standard }));
 	totals.set('status', t('list-total-staff-statuses', { active, suspended }));
+	totals.set('sessions', String(counts?.openSessions ?? 0));
 	for (const id of [
 		'twoFactor',
-		'sessions',
 		'locale',
 		'lastLogin',
 		'invitedBy',
@@ -271,8 +288,9 @@ export const buildStaffUserMobileCard =
 export const exportStaffUserRows = (
 	rows: StaffUserRow[],
 	t: Translate,
+	locale: string = FALLBACK_LOCALE,
 ): void => {
-	const columns = staffUserColumns(t);
+	const columns = staffUserColumns(t, locale);
 	const csv = buildCsv([
 		columns.map((column) => column.header),
 		...rows.map((row) =>

@@ -69,6 +69,9 @@ describe('toStaffUserRows', () => {
 				isFullAccess: true,
 				roles: ['Staff Owner'],
 				status: UserStatusObject.Active,
+				openSessions: 2,
+				lastSignInAt: new Date('2026-11-10T09:30:00Z'),
+				invitedByName: ' Jean Admin ',
 			},
 			{
 				id: '',
@@ -99,6 +102,9 @@ describe('toStaffUserRows', () => {
 				roles: ['Staff Owner'],
 				status: UserStatusObject.Active,
 				displayName: 'Alpha Admin',
+				openSessions: 2,
+				lastSignInAt: new Date('2026-11-10T09:30:00Z'),
+				invitedByName: 'Jean Admin',
 			},
 			{
 				id: 'user-2',
@@ -110,6 +116,9 @@ describe('toStaffUserRows', () => {
 				roles: [],
 				status: null,
 				displayName: 'beta@example.com',
+				openSessions: 0,
+				lastSignInAt: null,
+				invitedByName: null,
 			},
 		]);
 	});

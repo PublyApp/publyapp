@@ -17,6 +17,9 @@ const rowWithRoles = (roles: string[]): StaffUserRow => ({
 	roles,
 	status: null,
 	displayName: 'Sarah Rakoto',
+	openSessions: 0,
+	lastSignInAt: null,
+	invitedByName: null,
 });
 
 const rolesCell = (roles: string[]) => {
