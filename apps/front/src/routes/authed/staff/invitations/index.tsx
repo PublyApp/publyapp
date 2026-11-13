@@ -3,7 +3,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import type { FilterCounts } from '~/components/list/filter-menu';
 import { ListPage } from '~/components/list/list-page';
 import type { ListFiltersValue } from '~/components/list/list-types';
 import { DataTableCursorFooter } from '~/components/table/data-table';
@@ -29,18 +28,19 @@ import {
 import {
 	ROLE_ID_PATTERN,
 	ROLES_LOOKUP_VARIABLES,
-	resolveEffectiveRoleIds,
 	useInvitationsListQuery,
+	useInvitationRoleFilter,
 	useRoleFilterUrlRewrite,
-	useRolesLookup,
 } from './_invitations-data';
 import { invitationColumns } from './_invitations-list-columns';
 import {
 	buildInvitationFilters,
+	buildInvitationListCounts,
+	buildRoleNames,
+	toInvitationRoleChoices,
 	buildInvitationMobileCard,
 	buildInvitationTotals,
 	DEFAULT_INVITATION_COLUMNS,
-	type InvitationRoleChoice,
 	exportInvitationRows,
 } from './_invitations-list-config';
 import { InvitationsStatCards } from './_invitations-list-stat-cards';
@@ -98,25 +98,9 @@ const StaffInvitationsPage = () => {
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
 	const selectedRoleValues = parseInvitationRoleFilter(search.role);
-	const hasLegacyRoleName = selectedRoleValues.some(
-		(value) => !ROLE_ID_PATTERN.test(value),
-	);
-	// Every staff role (not the q/status-narrowed facet): the source of truth for
-	// names and for whether an id still exists. Warmed by the route loader.
-	const rolesLookup = useRolesLookup();
-	// Facet latch: a failed lookup resolves names from the list's own facet; the
-	// latch keeps that resolution stable while the filtered request loads.
-	const [latchedFacet, setLatchedFacet] = useState<
-		{ id?: string | null; name?: string | null }[] | null
-	>(null);
-	const effectiveRoleIds = resolveEffectiveRoleIds(
-		selectedRoleValues,
-		rolesLookup,
-		// Only a settled-but-failed lookup falls back to the facet.
-		rolesLookup.settled ? latchedFacet : null,
-	);
-	const selectedRoles = effectiveRoleIds;
-	const roleIdsCsv = effectiveRoleIds.join(',');
+	const roleFilter = useInvitationRoleFilter(selectedRoleValues);
+	const { rolesLookup, latchedFacet, idsCsv: roleIdsCsv } = roleFilter;
+	const selectedRoles = roleFilter.ids;
 
 	const onSearchChange = (next: InvitationListSearchParams): void => {
 		void navigate({
@@ -151,15 +135,12 @@ const StaffInvitationsPage = () => {
 	};
 	// Fetch is held only while a name cannot resolve yet (lookup pending). The
 	// display also stays held after a failed lookup until the facet resolves it.
-	const unresolvedName =
-		hasLegacyRoleName &&
-		roleIdsCsv.split(',').filter(Boolean).length < selectedRoleValues.length;
 	const query = useInvitationsListQuery(listVariables, {
-		isFetchHeld: hasLegacyRoleName && !rolesLookup.settled,
-		isDisplayHeld: unresolvedName && !rolesLookup.loaded,
+		isFetchHeld: roleFilter.hasLegacyRoleName && !rolesLookup.settled,
+		isDisplayHeld: roleFilter.unresolvedName && !rolesLookup.loaded,
 	});
 	if (latchedFacet === null && query.facetRoles !== null) {
-		setLatchedFacet(
+		roleFilter.setLatchedFacet(
 			query.facetRoles.map((role) => ({ id: role.roleId, name: role.name })),
 		);
 	}
@@ -180,58 +161,23 @@ const StaffInvitationsPage = () => {
 	const countsKnown = query.data !== undefined;
 	// The role facet is the API's whole-collection `counts.roleCounts` (an
 	// invitation holding several roles counts once in each), not the page.
-	const apiRoleCounts = query.data?.counts?.roleCounts;
-	const roleChoices: InvitationRoleChoice[] | null =
-		apiRoleCounts === undefined || apiRoleCounts === null
-			? null
-			: apiRoleCounts.map((role) => ({
-					id: role.roleId ?? '',
-					name: role.name ?? '',
-					count: role.count ?? 0,
-				}));
-	const roleCounts: Record<string, number> | null =
-		roleChoices === null
-			? null
-			: Object.fromEntries(roleChoices.map((role) => [role.id, role.count]));
-
+	const roleChoices = toInvitationRoleChoices(query.data?.counts?.roleCounts);
 	// A selected id's name comes from the full roles list, so it stays put while
 	// its request loads and when another filter drops it from the facet.
-	const roleNames = new Map<string, string>(
-		[...(latchedFacet ?? []), ...rolesLookup.roles].flatMap((role) =>
-			role.id ? [[role.id, role.name ?? ''] as const] : [],
-		),
-	);
+	const roleNames = buildRoleNames(latchedFacet, rolesLookup.roles);
 
 	useRoleFilterUrlRewrite({
 		values: selectedRoleValues,
-		ids: effectiveRoleIds,
-		canRewrite:
-			rolesLookup.loaded ||
-			(rolesLookup.settled && latchedFacet !== null) ||
-			(rolesLookup.settled && !hasLegacyRoleName),
-		rewrite: (ids) => {
-			void navigate({
-				search: serializeInvitationListSearchParams({
-					...search,
-					role: serializeInvitationRoleFilter(ids),
-					cursor: undefined,
-				}) as InvitationListSearchParams,
-				replace: true,
-			});
-		},
+		ids: roleFilter.ids,
+		canRewrite: roleFilter.canRewrite,
+		search,
+		navigate,
 	});
 
-	const listCounts: FilterCounts = {
-		status: {
-			pending: team.invitationCounts?.pending ?? null,
-			accepted: team.invitationCounts?.accepted ?? null,
-			expired: team.invitationCounts?.expired ?? null,
-			revoked: team.invitationCounts?.revoked ?? null,
-		},
-	};
-	if (roleCounts !== null) {
-		listCounts.role = roleCounts;
-	}
+	const listCounts = buildInvitationListCounts(
+		team.invitationCounts,
+		roleChoices,
+	);
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(

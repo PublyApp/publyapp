@@ -39,7 +39,7 @@ type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 /** Per-member outcome lines for the skipped ids, reasons translated here
  * (an unknown future reason falls back to its raw value). */
-export const buildAssignFailureLines = (
+const buildAssignFailureLines = (
 	result: BulkStaffRoleUserAssignActionResult | undefined,
 	nameOf: (userId: string) => string,
 	t: Translate,

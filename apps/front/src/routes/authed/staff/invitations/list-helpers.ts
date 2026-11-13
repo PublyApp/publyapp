@@ -76,9 +76,10 @@ export const toStaffInvitationRows = (
 			id: item.id,
 			email: item.email ?? '',
 			roleName: item.roleName?.trim() ?? '',
-			roleNames: (item.roleNames ?? [])
-				.map((name) => name.trim())
-				.filter(Boolean),
+			roleNames: (item.roleNames ?? []).flatMap((name) => {
+				const trimmed = name.trim();
+				return trimmed.length > 0 ? [trimmed] : [];
+			}),
 			invitedByName: item.invitedByName?.trim() ?? '',
 			status: normalizeInvitationStatus(item.status),
 			acceptedAt: item.acceptedAt ?? null,

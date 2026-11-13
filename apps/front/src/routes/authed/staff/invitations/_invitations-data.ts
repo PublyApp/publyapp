@@ -1,7 +1,13 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStaffInvitationsQuery } from '~/lib/query/staff-invitations';
 import type { StaffInvitationsQueryVariables } from '~/lib/query/staff-invitations';
 import { useStaffRolesQuery } from '~/lib/query/staff-roles';
+
+import {
+	serializeInvitationListSearchParams,
+	serializeInvitationRoleFilter,
+	type InvitationListSearchParams,
+} from './list-helpers';
 
 /** Every staff role, by name: the lookup that resolves a role filter (a legacy
  * `?role=<name>` link, or an id whose role may be gone). Deliberately not the
@@ -47,9 +53,10 @@ const resolveRoleValue = (
 	mustExist: boolean,
 ): string | undefined => {
 	if (ROLE_ID_PATTERN.test(value)) {
-		return !mustExist || sources.some((role) => role.id === value)
-			? value
-			: undefined;
+		if (!mustExist || sources.some((role) => role.id === value)) {
+			return value;
+		}
+		return undefined;
 	}
 	const wanted = value.toLowerCase();
 	return (
@@ -63,14 +70,14 @@ const resolveAll = (
 	sources: readonly RoleSource[],
 	mustExist: boolean,
 ): string[] => {
-	const ids: string[] = [];
+	const ids = new Set<string>();
 	for (const value of values) {
 		const id = resolveRoleValue(value, sources, mustExist);
-		if (id !== undefined && !ids.includes(id)) {
-			ids.push(id);
+		if (id !== undefined) {
+			ids.add(id);
 		}
 	}
-	return ids;
+	return [...ids];
 };
 
 /** Resolves the URL role values synchronously. Roles lookup loaded: it is
@@ -85,26 +92,71 @@ export const resolveEffectiveRoleIds = (
 		? resolveAll(values, lookup.roles, true)
 		: resolveAll(values, [...lookup.roles, ...(facet ?? [])], false);
 
+/** Role-filter state shared by the page: the roles lookup, the latched facet
+ * and the ids the list is filtered by (derived in render, no effect gap). */
+export const useInvitationRoleFilter = (values: readonly string[]) => {
+	const hasLegacyRoleName = values.some(
+		(value) => !ROLE_ID_PATTERN.test(value),
+	);
+	const rolesLookup = useRolesLookup();
+	// Facet latch: a failed lookup resolves names from the list's own facet; the
+	// latch keeps that resolution stable while the filtered request loads.
+	const [latchedFacet, setLatchedFacet] = useState<RoleSource[] | null>(null);
+	const ids = resolveEffectiveRoleIds(
+		values,
+		rolesLookup,
+		// Only a settled-but-failed lookup falls back to the facet.
+		rolesLookup.settled ? latchedFacet : null,
+	);
+	return {
+		hasLegacyRoleName,
+		rolesLookup,
+		latchedFacet,
+		setLatchedFacet,
+		ids,
+		idsCsv: ids.join(','),
+		unresolvedName: hasLegacyRoleName && ids.length < values.length,
+		canRewrite:
+			rolesLookup.loaded ||
+			(rolesLookup.settled && latchedFacet !== null) ||
+			(rolesLookup.settled && !hasLegacyRoleName),
+	};
+};
+
 /** Cosmetic URL rewrite to the effective ids, once the lookup settled (and, when
  * it failed, once the facet arrived so names can still resolve). */
 export const useRoleFilterUrlRewrite = ({
 	values,
 	ids,
 	canRewrite,
-	rewrite,
+	search,
+	navigate,
 }: {
 	values: readonly string[];
 	ids: readonly string[];
 	canRewrite: boolean;
-	rewrite: (ids: string[]) => void;
+	search: InvitationListSearchParams;
+	navigate: (options: {
+		search: InvitationListSearchParams;
+		replace: boolean;
+	}) => Promise<void> | void;
 }): void => {
 	const valuesKey = values.join(',');
 	const idsKey = ids.join(',');
 	useEffect(() => {
 		if (canRewrite && valuesKey.length > 0 && valuesKey !== idsKey) {
-			rewrite(idsKey.length === 0 ? [] : idsKey.split(','));
+			void navigate({
+				search: serializeInvitationListSearchParams({
+					...search,
+					role: serializeInvitationRoleFilter(
+						idsKey.split(',').filter(Boolean),
+					),
+					cursor: undefined,
+				}) as InvitationListSearchParams,
+				replace: true,
+			});
 		}
-		// `rewrite` reads the current search at fire time.
+		// `search`/`navigate` are read at fire time; the keys are the triggers.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [canRewrite, valuesKey, idsKey]);
 };

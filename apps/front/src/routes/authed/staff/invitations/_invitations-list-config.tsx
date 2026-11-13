@@ -6,6 +6,7 @@ import {
 	IconShieldLock,
 } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
+import type { FilterCounts } from '~/components/list/filter-menu';
 import type { ListFilter } from '~/components/list/list-types';
 import { StatusPill } from '~/components/ui/product-page';
 import { buildCsv } from '~/utils/csv';
@@ -57,6 +58,58 @@ export const DEFAULT_INVITATION_COLUMNS = [
 ] as const;
 
 export type InvitationRoleChoice = { id: string; name: string; count: number };
+
+/** The API's whole-collection role facet as filter choices (null = not known). */
+export const toInvitationRoleChoices = (
+	roleCounts:
+		| readonly {
+				roleId?: string | null;
+				name?: string | null;
+				count?: number | null;
+		  }[]
+		| null
+		| undefined,
+): InvitationRoleChoice[] | null =>
+	roleCounts === undefined || roleCounts === null
+		? null
+		: roleCounts.map((role) => ({
+				id: role.roleId ?? '',
+				name: role.name ?? '',
+				count: role.count ?? 0,
+			}));
+
+/** id -> name from the latched facet and the full roles list. */
+export const buildRoleNames = (
+	...sources: (readonly { id?: string | null; name?: string | null }[] | null)[]
+): Map<string, string> =>
+	new Map<string, string>(
+		sources.flatMap((source) =>
+			(source ?? []).flatMap((role) =>
+				role.id ? [[role.id, role.name ?? ''] as const] : [],
+			),
+		),
+	);
+
+/** Filter-menu counts: statuses from the team counter, roles from the facet. */
+export const buildInvitationListCounts = (
+	statusCounts: StaffInvitationListCounts | null | undefined,
+	roleChoices: readonly InvitationRoleChoice[] | null,
+): FilterCounts => {
+	const counts: FilterCounts = {
+		status: {
+			pending: statusCounts?.pending ?? null,
+			accepted: statusCounts?.accepted ?? null,
+			expired: statusCounts?.expired ?? null,
+			revoked: statusCounts?.revoked ?? null,
+		},
+	};
+	if (roleChoices !== null) {
+		counts.role = Object.fromEntries(
+			roleChoices.map((role) => [role.id, role.count]),
+		);
+	}
+	return counts;
+};
 
 export const buildInvitationFilters = (
 	t: Translate,
