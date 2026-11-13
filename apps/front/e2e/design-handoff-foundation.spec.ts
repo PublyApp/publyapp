@@ -246,7 +246,7 @@ test.describe('design handoff foundation', { tag: ['@design', '@806'] }, () => {
 		await expect(confirmDialog).toHaveCSS('width', '480px');
 		await expect(confirmDialog).toHaveCSS(
 			'background-color',
-			'rgba(255, 255, 255, 0.97)',
+			'rgb(255, 255, 255)',
 		);
 
 		const modalTitle = confirmDialog.locator(

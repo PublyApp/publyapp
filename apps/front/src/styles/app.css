@@ -285,7 +285,7 @@
 	--publy-radius-input: 10px;
 	--publy-modal-radius: 28px;
 	--publy-backdrop: rgba(24, 24, 27, 0.32);
-	--publy-overlay-surface: rgba(255, 255, 255, 0.97);
+	--publy-overlay-surface: var(--radan-ui-popover-surface);
 	--publy-drawer-width: 460px;
 	--publy-danger-zone-ring: rgba(254, 205, 211, 0.9);
 	--publy-danger-zone-border: #ffe4e6;
@@ -461,12 +461,12 @@ html.dark {
 		var(--radan-ui-destructive) 30%,
 		transparent
 	);
-	/* Raised (not base) surface, so a translucent overlay panel (drawer,
+	/* Raised (not base) surface, so an opaque overlay panel (drawer,
 	   confirm dialog, select/dropdown popup) reads as tonally elevated above
 	   the page instead of matching it 1:1 (--publy-background is also
 	   #18181b in dark, so an overlay-surface pinned to --publy-surface would
 	   be visually indistinguishable from the page it floats over). */
-	--publy-overlay-surface: rgba(31, 31, 35, 0.97);
+	--publy-overlay-surface: var(--radan-ui-popover-surface);
 	/* Elevation shadows re-based on black: the light-mode values (rgba tinted
 	   toward --publy-foreground, #18181b) composite to zero visible
 	   separation once the page itself is #18181b (see --publy-backdrop
@@ -2192,7 +2192,7 @@ html.dark {
 	   clamp entirely: the bar's static position IS the true bottom edge, so
 	   there's nothing to correct for while scrolling or at rest. Fully
 	   opaque (toned like .app-shell-topbar/.publy-table-card, not the
-	   translucent --publy-overlay-surface used by modals/drawers) — as the
+	   --publy-overlay-surface (also opaque now) used by modals/drawers) — as the
 	   last flow child, the tail of the form scrolls *underneath* the pinned
 	   bar before reaching its natural resting position, so any translucency
 	   lets that content show through while it passes. */
