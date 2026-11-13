@@ -106,11 +106,40 @@ import { expect, test } from 'vitest';
 const ROOT = join(process.cwd(), '..');
 const HOOKS = ['pre-commit', 'pre-push'] as const;
 
+// Identity for the proof's own commit, passed through the child-process env.
+// NEVER `git config user.*` here: in a linked worktree that writes the
+// clone's SHARED .git/config and impersonates the proof on every later
+// commit (issue #2411).
+const PROOF_IDENTITY_ENV = {
+	...process.env,
+	GIT_AUTHOR_EMAIL: 'proof-1852@publyapp.invalid',
+	GIT_AUTHOR_NAME: 'proof-1852',
+	GIT_COMMITTER_EMAIL: 'proof-1852@publyapp.invalid',
+	GIT_COMMITTER_NAME: 'proof-1852',
+};
+
+const readSharedIdentity = (): string => {
+	try {
+		return execFileSync(
+			'git',
+			['-C', ROOT, 'config', '--local', '--get-regexp', '^user\\.'],
+			{ encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] },
+		);
+	} catch (error) {
+		// Exit status 1 = no user.* key at all; anything else is a broken read.
+		if ((error as { status?: number }).status === 1) {
+			return '';
+		}
+		throw error;
+	}
+};
+
 const UNFORMATTED_PROBE =
 	'export const   probe = (  ) => {\n      return    42\n}\n';
 
 test('a fresh worktree lets an unformatted commit through unchanged (issue #1852)', () => {
 	const worktree = join(tmpdir(), `proof-1852-${process.pid}-${Date.now()}`);
+	const identityBefore = readSharedIdentity();
 
 	try {
 		execFileSync(
@@ -121,17 +150,6 @@ test('a fresh worktree lets an unformatted commit through unchanged (issue #1852
 				encoding: 'utf-8',
 			},
 		);
-
-		execFileSync(
-			'git',
-			['-C', worktree, 'config', 'user.email', 'proof-1852@publyapp.invalid'],
-			{
-				stdio: 'pipe',
-			},
-		);
-		execFileSync('git', ['-C', worktree, 'config', 'user.name', 'proof-1852'], {
-			stdio: 'pipe',
-		});
 
 		// The fresh worktree must have the versioned hooks checked out AND
 		// executable — git 2.53 ignores a non-executable hook outright (with
@@ -168,6 +186,7 @@ test('a fresh worktree lets an unformatted commit through unchanged (issue #1852
 		execFileSync('git', ['-C', worktree, 'commit', '-m', 'probe-1852'], {
 			stdio: ['ignore', 'pipe', 'pipe'],
 			encoding: 'utf-8',
+			env: PROOF_IDENTITY_ENV,
 		});
 
 		const committed = execFileSync(
@@ -177,6 +196,18 @@ test('a fresh worktree lets an unformatted commit through unchanged (issue #1852
 				encoding: 'utf-8',
 			},
 		);
+
+		// Issue #2411: the proof must not leak an identity into the clone's
+		// shared config (compared with before: the developer may have one).
+		// Asserted BEFORE the bug assertion, which fails by design once fixed.
+		// A plain Error (not expect): the kept-red classifier counts an
+		// AssertionError as "failed as expected" and would hide a regression;
+		// MESURE IMPOSSIBLE makes it return CORRUPT PROOF (red CI).
+		if (readSharedIdentity() !== identityBefore) {
+			throw new Error(
+				'MESURE IMPOSSIBLE: the proof changed the clone shared git config (user.*) — issue #2411.',
+			);
+		}
 
 		expect(committed).toBe(UNFORMATTED_PROBE);
 	} finally {
