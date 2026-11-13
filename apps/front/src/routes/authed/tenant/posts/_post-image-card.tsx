@@ -12,7 +12,7 @@ import { Label } from '~/components/ui/label';
 
 /** Blob preview for a not-yet-uploaded file. One effect owns create/revoke so
  * every object URL dies with the card (or is replaced), never leaking. */
-const useFilePreview = (file: File | null): string | null => {
+export const useFilePreview = (file: File | null): string | null => {
 	const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
 	useEffect(() => {
@@ -35,6 +35,8 @@ const useFilePreview = (file: File | null): string | null => {
 export type PostImageCardProps = {
 	/** 0-based position; shown 1-based. */
 	index: number;
+	/** Keeps the alt field id unique when several pickers share the page. */
+	idPrefix?: string;
 	count: number;
 	/** Server url of an attached image (online mode). */
 	url: string | null;
@@ -42,6 +44,11 @@ export type PostImageCardProps = {
 	file: File | null;
 	altText: string;
 	disabled: boolean;
+	/** Position of the first card that can move earlier (cards before it are
+	 * read-only ones); default 0. */
+	firstMovableIndex?: number;
+	/** A read-only card: no alt-text nudge it cannot act on. */
+	isLocked?: boolean;
 	onAltChange: (value: string) => void;
 	onAltCommit: () => void;
 	onMoveEarlier: () => void;
@@ -53,11 +60,14 @@ export type PostImageCardProps = {
  * block), reorder and remove. */
 export const PostImageCard = ({
 	index,
+	idPrefix = 'post-image',
 	count,
 	url,
 	file,
 	altText,
 	disabled,
+	firstMovableIndex = 0,
+	isLocked = false,
 	onAltChange,
 	onAltCommit,
 	onMoveEarlier,
@@ -68,7 +78,7 @@ export const PostImageCard = ({
 	const localPreview = useFilePreview(file);
 	const previewSrc = localPreview ?? url;
 	const number = index + 1;
-	const altId = `post-image-alt-${index}`;
+	const altId = `${idPrefix}-alt-${index}`;
 
 	return (
 		<li
@@ -93,7 +103,7 @@ export const PostImageCard = ({
 						type="button"
 						variant="ghost"
 						size="icon-sm"
-						disabled={disabled || index === 0}
+						disabled={disabled || index <= firstMovableIndex}
 						aria-label={t('posts:image-move-earlier', { index: number })}
 						data-testid="tenant-posts-create-image-move-earlier"
 						onClick={onMoveEarlier}
@@ -136,8 +146,16 @@ export const PostImageCard = ({
 					data-testid="tenant-posts-create-image-alt"
 					onChange={(event) => onAltChange(event.target.value)}
 					onBlur={onAltCommit}
+					onKeyDown={(event) => {
+						// Inside a form, Enter would save the whole post: it commits
+						// the alt text instead.
+						if (event.key === 'Enter') {
+							event.preventDefault();
+							onAltCommit();
+						}
+					}}
 				/>
-				{altText.trim() === '' ? (
+				{altText.trim() === '' && !isLocked ? (
 					<p
 						className="publy-type-helper text-muted-foreground"
 						data-testid="tenant-posts-create-image-alt-nudge"
@@ -149,3 +167,42 @@ export const PostImageCard = ({
 		</li>
 	);
 };
+
+const noop = () => undefined;
+
+/** Images already stored that this list cannot change: the same cards, with
+ * every control off. */
+export const LockedImageCards = ({
+	images,
+	idPrefix,
+	total,
+}: {
+	images: readonly {
+		id?: string | null;
+		url: string;
+		altText: string | null;
+	}[];
+	idPrefix: string;
+	total: number;
+}) => (
+	<>
+		{images.map((image, index) => (
+			<PostImageCard
+				key={image.id ?? image.url}
+				index={index}
+				idPrefix={idPrefix}
+				count={total}
+				url={image.url}
+				file={null}
+				altText={image.altText ?? ''}
+				disabled
+				isLocked
+				onAltChange={noop}
+				onAltCommit={noop}
+				onMoveEarlier={noop}
+				onMoveLater={noop}
+				onRemove={noop}
+			/>
+		))}
+	</>
+);

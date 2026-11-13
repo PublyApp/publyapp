@@ -8,6 +8,8 @@ import { Textarea } from './textarea';
 
 afterEach(cleanup);
 
+const textClasses = () => screen.getByRole('textbox').className.split(/\s+/);
+
 describe('Textarea', () => {
 	test('preserves textarea semantics and uses the shared form-control state matrix', () => {
 		render(<Textarea />);
@@ -58,6 +60,34 @@ describe('Textarea', () => {
 			'md:text-[13px]',
 		]) {
 			expect(classes).toContain(token);
+		}
+	});
+
+	test('read-only looks locked on an enabled control, without dimming its text', () => {
+		render(<Textarea readOnly />);
+
+		const classes = textClasses();
+		expect(classes).toContain('read-only:enabled:bg-(--publy-surface-muted)');
+		expect(classes).toContain('read-only:enabled:text-muted-foreground');
+		expect(classes).toContain('read-only:enabled:cursor-not-allowed');
+		expect(classes.some((token) => token.startsWith('read-only:opacity'))).toBe(
+			false,
+		);
+	});
+
+	test('disabled keeps its own look and is not muted twice by the read-only one', () => {
+		render(<Textarea disabled />);
+
+		const classes = textClasses();
+		expect(classes).toContain('disabled:opacity-50');
+		// A disabled control also matches :read-only, so every read-only style is
+		// scoped to enabled controls: nothing bare applies to it.
+		const readOnlyTokens = classes.filter((token) =>
+			token.startsWith('read-only:'),
+		);
+		expect(readOnlyTokens.length).toBeGreaterThan(0);
+		for (const token of readOnlyTokens) {
+			expect(token.startsWith('read-only:enabled:')).toBe(true);
 		}
 	});
 });

@@ -203,3 +203,88 @@ describe('findPublishProblems', () => {
 		expect(isPublishBlocked(problems)).toBe(false);
 	});
 });
+
+describe('per-segment image counts (#2181)', () => {
+	const FOLLOW_UPS: SegmentDraft[] = [
+		{ id: 'seg-a', text: 'two' },
+		{ id: 'seg-b', text: 'three' },
+	];
+	const TWO_AT_MOST: SelectedDestination = {
+		id: 'acc-two',
+		label: 'Two',
+		limits: limits(300, { maxImages: 2 }),
+	};
+
+	test('a follow-up within every selected destination cap is fine', () => {
+		const problems = problemsOf({
+			destinations: [ROOMY, TWO_AT_MOST],
+			segments: FOLLOW_UPS,
+			segmentImageCounts: { 'seg-a': 2, 'seg-b': 0 },
+		});
+
+		expect(problems.segmentImageProblem).toBeNull();
+		expect(isPublishBlocked(problems)).toBe(false);
+	});
+
+	test('names the destination, the segment number and both counts when a follow-up has too many', () => {
+		const problems = problemsOf({
+			destinations: [ROOMY, TWO_AT_MOST],
+			segments: FOLLOW_UPS,
+			segmentImageCounts: { 'seg-a': 1, 'seg-b': 3 },
+		});
+
+		expect(problems.segmentImageProblem).toEqual({
+			destination: 'Two',
+			segmentNumber: 3,
+			count: 3,
+			max: 2,
+		});
+		expect(isPublishBlocked(problems)).toBe(true);
+	});
+
+	test('only SELECTED destinations count: the strict one deselected, the same thread passes', () => {
+		const counts = { 'seg-a': 3 };
+
+		expect(
+			problemsOf({
+				destinations: [ROOMY],
+				segments: FOLLOW_UPS,
+				segmentImageCounts: counts,
+			}).segmentImageProblem,
+		).toBeNull();
+		expect(
+			problemsOf({
+				destinations: [ROOMY, TWO_AT_MOST],
+				segments: FOLLOW_UPS,
+				segmentImageCounts: counts,
+			}).segmentImageProblem?.destination,
+		).toBe('Two');
+	});
+
+	test('a follow-up never takes more than 4 images, whatever the destination advertises', () => {
+		const roomyImages: SelectedDestination = {
+			id: 'acc-ten',
+			label: 'Ten',
+			limits: limits(300, { maxImages: 10 }),
+		};
+
+		const problems = problemsOf({
+			destinations: [roomyImages],
+			segments: FOLLOW_UPS,
+			segmentImageCounts: { 'seg-b': 5 },
+		});
+
+		expect(problems.segmentImageProblem?.max).toBe(4);
+		expect(isPublishBlocked(problems)).toBe(true);
+	});
+
+	test('the post own images are judged separately: segment counts do not touch them', () => {
+		const problems = problemsOf({
+			destinations: [PHOTOS],
+			imageKeys: ['one'],
+			segmentImageCounts: {},
+		});
+
+		expect(problems.segmentImageProblem).toBeNull();
+	});
+});

@@ -74,7 +74,19 @@ export type AttachPostImageInput = {
 	/** Scopes the tenant API client (X-Tenant-Id); required by the factory. */
 	tenantId: string;
 	file: File;
+	/** A follow-up segment's stored id: the image belongs to that segment, not
+	 * to the post's own list (#2181). */
+	segmentId?: string;
 };
+
+/** Which image list a call addresses: the post's own, or a follow-up
+ * segment's. Both expose the same routes. */
+type ImageScope = { postId: string; segmentId?: string };
+
+const imagesOf = (client: ApiClient, { postId, segmentId }: ImageScope) =>
+	segmentId === undefined
+		? client.posts.byPostId(postId).images
+		: client.posts.byPostId(postId).segments.bySegmentId(segmentId).images;
 
 /** Multipart builders touch only the file bytes; postId/tenantId are
  * transport concerns owned by the mutation factories. */
@@ -105,16 +117,21 @@ export const buildAttachPostImageBody = async (
 const attachPostImageMutationOptions = buildTenantMutationOptions<
 	ApiClient,
 	PostImageAttached | undefined,
-	{ postId: string; tenantId: string; file: File }
+	AttachPostImageInput
 >(
 	{
 		mutationKeyFn: () => [...TENANT_POST_IMAGE_MUTATION_KEY, 'attach'],
 		mutationFn: async (client, variables) =>
-			client.posts.byPostId(variables.postId).image.post(
-				await buildMultipart({
-					file: variables.file,
-				}),
-			),
+			variables.segmentId === undefined
+				? client.posts.byPostId(variables.postId).image.post(
+						await buildMultipart({
+							file: variables.file,
+						}),
+					)
+				: client.posts
+						.byPostId(variables.postId)
+						.segments.bySegmentId(variables.segmentId)
+						.images.post(await buildMultipart({ file: variables.file })),
 		// The picker owns attach/remove/alt errors inline next to the input.
 		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
@@ -129,15 +146,12 @@ export const useAttachPostImageMutation = () =>
 const removePostImageMutationOptions = buildTenantMutationOptions<
 	ApiClient,
 	unknown,
-	{ postId: string; tenantId: string; assetId: string }
+	{ postId: string; tenantId: string; assetId: string; segmentId?: string }
 >(
 	{
 		mutationKeyFn: () => [...TENANT_POST_IMAGE_MUTATION_KEY, 'remove'],
 		mutationFn: async (client, variables) =>
-			client.posts
-				.byPostId(variables.postId)
-				.images.byAssetId(variables.assetId)
-				.delete(),
+			imagesOf(client, variables).byAssetId(variables.assetId).delete(),
 		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },
@@ -151,14 +165,19 @@ export const useRemovePostImageMutation = () =>
 const updatePostImageAltMutationOptions = buildTenantMutationOptions<
 	ApiClient,
 	unknown,
-	{ postId: string; tenantId: string; assetId: string; altText: string }
+	{
+		postId: string;
+		tenantId: string;
+		assetId: string;
+		altText: string;
+		segmentId?: string;
+	}
 >(
 	{
 		mutationKeyFn: () => [...TENANT_POST_IMAGE_MUTATION_KEY, 'alt'],
 		mutationFn: async (client, variables) =>
-			client.posts
-				.byPostId(variables.postId)
-				.images.byAssetId(variables.assetId)
+			imagesOf(client, variables)
+				.byAssetId(variables.assetId)
 				.patch({ altText: createUntypedString(variables.altText) }),
 		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
@@ -178,14 +197,19 @@ export const buildReorderPostImagesBody = (assetIds: string[]) => ({
 const reorderPostImagesMutationOptions = buildTenantMutationOptions<
 	ApiClient,
 	unknown,
-	{ postId: string; tenantId: string; assetIds: string[] }
+	{
+		postId: string;
+		tenantId: string;
+		assetIds: string[];
+		segmentId?: string;
+	}
 >(
 	{
 		mutationKeyFn: () => [...TENANT_POST_IMAGE_MUTATION_KEY, 'reorder'],
 		mutationFn: async (client, variables) =>
-			client.posts
-				.byPostId(variables.postId)
-				.images.order.patch(buildReorderPostImagesBody(variables.assetIds)),
+			imagesOf(client, variables).order.patch(
+				buildReorderPostImagesBody(variables.assetIds),
+			),
 		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
 	},
 	{ clientAccessor: getClientManager() },

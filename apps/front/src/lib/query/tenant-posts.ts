@@ -26,6 +26,7 @@ import {
 	buildTenantQueryOptions,
 	scopedKey,
 } from '@org/shared-ts/lib/query/create-hooks';
+import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 export const TENANT_POSTS_QUERY_KEY = ['tenant-posts'] as const;
 const TENANT_POST_DETAILS_QUERY_KEY = ['tenant-posts', 'detail'] as const;
@@ -59,6 +60,10 @@ export type TenantPostDetails = {
 	segments: TenantPostSegment[];
 	/** Leading segments already published: read-only in the editor. */
 	publishedSegmentCount: number;
+	/** A just-created thread only: why its follow-up ids could not be read
+	 * back (an ended session). The post exists, so the caller records it
+	 * before it reports this. */
+	segmentsReadError?: Error;
 };
 
 type TenantPostSegment = {
@@ -267,6 +272,30 @@ export const useTenantPostDetailsQuery = (
 
 // ── Single savePost writer (drawer + edit page) ────────────────────
 
+/** The stored follow-ups of a just-created post: the create answer carries no
+ * segment ids, and a follow-up's images attach to its id. A failed read never
+ * fails the save (the post exists: a retry would create a second one), the
+ * caller finds no id for the segment and reports it. */
+export const readCreatedSegments = async (
+	tenantId: string,
+	postId: string,
+): Promise<TenantPostDetails['segments']> => {
+	const client = getClientManager().getOrCreateClient(tenantId);
+	try {
+		return (
+			toTenantPostDetails(await client.posts.byPostId(postId).get())
+				?.segments ?? []
+		);
+	} catch (error) {
+		// A session that ended is not "no segments": the centralized logout
+		// must see it.
+		if (shouldLogoutForFailure(error)) {
+			throw error;
+		}
+		return [];
+	}
+};
+
 export const savePost = async (
 	input: SavePostInput & { tenantId: string },
 ): Promise<TenantPostDetails> => {
@@ -338,8 +367,9 @@ export const savePost = async (
 	}
 
 	const created = result as PostDetail;
+	const createdId = created.id?.toString() ?? '';
 	const details: TenantPostDetails = {
-		id: created.id?.toString() ?? '',
+		id: createdId,
 		body,
 		projectId: normalizeNullableString(created.projectId?.toString()),
 		status: 'draft',
@@ -351,6 +381,14 @@ export const savePost = async (
 		createdAt: new Date(),
 		updatedAt: new Date(),
 	};
+	if (followUps.length > 0) {
+		try {
+			details.segments = await readCreatedSegments(input.tenantId, createdId);
+		} catch (error) {
+			details.segmentsReadError =
+				error instanceof Error ? error : new Error('segment read failed');
+		}
+	}
 
 	return details;
 };

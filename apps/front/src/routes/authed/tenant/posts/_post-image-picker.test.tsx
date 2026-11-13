@@ -46,6 +46,7 @@ const EN_LABELS: TestLabelMap = {
 	'posts:image-help': 'Help',
 	'posts:image-no-common-type': 'No common image type.',
 	'posts:image-limit-reached': 'You can attach up to 4 images.',
+	'posts:image-full': 'Limit reached: up to 4 images.',
 	'posts:image-alt-nudge': 'Add alt text so everyone can follow your post.',
 	'posts:image-alt-placeholder': 'Describe the image',
 };
@@ -116,7 +117,9 @@ describe('PostImagePicker (advertised limits)', () => {
 				.getByTestId('tenant-posts-create-image-input')
 				.getAttribute('accept'),
 		).toBe('image/png');
-		expect(screen.getByTestId('tenant-posts-create-image-limit')).toBeTruthy();
+		expect(screen.getByTestId('tenant-posts-create-image-full')).toBeTruthy();
+		// Merely full is not an overflow: no "files ignored" sentence.
+		expect(screen.queryByTestId('tenant-posts-create-image-limit')).toBeNull();
 	});
 });
 
@@ -385,8 +388,9 @@ describe('PostImagePicker (online mode)', () => {
 			).disabled,
 		).toBe(true);
 		expect(
-			screen.getByTestId('tenant-posts-create-image-limit').textContent,
-		).toBe('You can attach up to 4 images.');
+			screen.getByTestId('tenant-posts-create-image-full').textContent,
+		).toBe('Limit reached: up to 4 images.');
+		expect(screen.queryByTestId('tenant-posts-create-image-limit')).toBeNull();
 	});
 
 	test('picking more files than room left attaches only what fits and says so', async () => {

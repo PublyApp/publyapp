@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Label } from '~/components/ui/label';
 import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
@@ -17,12 +18,18 @@ import {
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import { PostImageAddRow } from './_post-image-add-row';
-import { PostImageCard } from './_post-image-card';
+import { LockedImageCards, PostImageCard } from './_post-image-card';
 import type { ImageLimits } from './_use-publish-selection';
+
+const NO_LOCKED_IMAGES: readonly TenantPostImage[] = [];
 
 export type DeferredImageSelection = {
 	/** Stable key for the card; assigned by the picker. */
 	id: string;
+	/** The follow-up segment (its composer key) the image belongs to; absent
+	 * for the post's own images. The parent stamps it (see
+	 * `_deferred-images.ts`); the picker never reads it. */
+	segmentKey?: string;
 	file: File;
 	altText: string;
 	/** Set by the parent once the file is attached, so a retry after a failed
@@ -61,6 +68,11 @@ const moveItem = <T,>(items: T[], from: number, to: number): T[] => {
  *   the list of picked files and alt drafts and attaches them right after the
  *   post exists, so the composer can offer images before there is a post.
  *
+ * With `segmentId` (online) the same picker manages one follow-up segment's
+ * images (0-4, #2181): same upload flow, alt text, retry and limits, only the
+ * list addressed and the label differ. Deferred follow-up pickers get their
+ * own `selections` slice from the parent.
+ *
  * Every server failure is surfaced inline through `getFailureMessage` (never
  * hand-translated at the call site). A missing alt text is a gentle nudge,
  * never a block.
@@ -73,6 +85,12 @@ export const PostImagePicker = ({
 	onSelect,
 	disabled,
 	limits = null,
+	segmentId,
+	label,
+	idKey,
+	hardMax,
+	header,
+	lockedImages = NO_LOCKED_IMAGES,
 }: {
 	postId?: string;
 	/** Required for the online mode's tenant-scoped API client. */
@@ -84,10 +102,27 @@ export const PostImagePicker = ({
 	disabled?: boolean;
 	/** Caps shared by the selected destinations; null = no cap known yet. */
 	limits?: ImageLimits | null;
+	/** Online only: the stored follow-up segment whose images these are. */
+	segmentId?: string;
+	/** Heading of the list; defaults to the post's "Images". */
+	label?: string;
+	/** Distinguishes the field ids of several pickers on one page. */
+	idKey?: string;
+	/** A cap that holds even while the destinations' limits are unknown
+	 * (a follow-up never takes more than 4). */
+	hardMax?: number;
+	/** Shown right under the label (a follow-up's "2/4 images" count). */
+	header?: ReactNode;
+	/** Images already stored that this list cannot change (a partial attach):
+	 * shown first as read-only cards and counted against the cap. */
+	lockedImages?: readonly TenantPostImage[];
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
 	const translateResponseMessage = useResponseMessageTranslator();
-	const maxImages = limits?.maxImages ?? Number.POSITIVE_INFINITY;
+	const maxImages = Math.min(
+		limits?.maxImages ?? Number.POSITIVE_INFINITY,
+		hardMax ?? Number.POSITIVE_INFINITY,
+	);
 	const isOnline = Boolean(postId);
 	const attachImage = useAttachPostImageMutation();
 	const removeImage = useRemovePostImageMutation();
@@ -117,7 +152,8 @@ export const PostImagePicker = ({
 		updateAlt.isPending;
 	const isControlDisabled = Boolean(disabled) || isBusy;
 
-	const count = isOnline ? existingImages.length : selections.length;
+	const locked = lockedImages.length;
+	const count = (isOnline ? existingImages.length : selections.length) + locked;
 	const isFull = count >= maxImages;
 
 	// Sequential on purpose (each append takes the next position), so it
@@ -132,6 +168,7 @@ export const PostImagePicker = ({
 			postId: postId as string,
 			tenantId: tenantId ?? '',
 			file,
+			segmentId,
 		});
 		await attachInOrder(rest);
 	};
@@ -197,11 +234,18 @@ export const PostImagePicker = ({
 				postId: postId as string,
 				tenantId: tenantId ?? '',
 				assetId,
+				segmentId,
 			});
 		});
 	};
 
 	const handleMove = async (from: number, to: number) => {
+		if (
+			to < 0 ||
+			to >= (isOnline ? existingImages.length : selections.length)
+		) {
+			return;
+		}
 		if (!isOnline) {
 			onSelect?.(moveItem(selections, from, to));
 			return;
@@ -216,6 +260,7 @@ export const PostImagePicker = ({
 				postId: postId as string,
 				tenantId: tenantId ?? '',
 				assetIds: moveItem(ids, from, to),
+				segmentId,
 			});
 		});
 	};
@@ -257,6 +302,7 @@ export const PostImagePicker = ({
 				tenantId: tenantId ?? '',
 				assetId,
 				altText: draft.trim(),
+				segmentId,
 			});
 		});
 	};
@@ -276,7 +322,7 @@ export const PostImagePicker = ({
 				altText: selection.altText,
 			}));
 
-	const inputId = `post-image-input-${postId ?? 'new'}`;
+	const inputId = `post-image-input-${idKey ?? segmentId ?? postId ?? 'new'}`;
 	// No image type is shared by every selected destination (#2174): an empty
 	// accept list would let the browser offer ALL files, so adding is off instead.
 	const hasNoCommonType =
@@ -285,14 +331,22 @@ export const PostImagePicker = ({
 
 	return (
 		<div className="space-y-2">
-			<Label>{t('posts:images-label')}</Label>
-			{cards.length > 0 ? (
+			<Label>{label ?? t('posts:images-label')}</Label>
+			{header}
+			{cards.length + locked > 0 ? (
 				<ul className="space-y-2">
+					<LockedImageCards
+						images={lockedImages}
+						idPrefix={`${inputId}-stored`}
+						total={cards.length + locked}
+					/>
 					{cards.map((card, index) => (
 						<PostImageCard
 							key={card.key}
-							index={index}
-							count={cards.length}
+							index={index + locked}
+							firstMovableIndex={locked}
+							idPrefix={inputId}
+							count={cards.length + locked}
 							url={card.url}
 							file={card.file}
 							altText={card.altText}
@@ -308,11 +362,13 @@ export const PostImagePicker = ({
 			) : null}
 			<PostImageAddRow
 				inputId={inputId}
+				label={label}
 				limits={limits}
+				maxImages={Number.isFinite(maxImages) ? maxImages : null}
 				addDisabled={addDisabled}
 				isFull={isFull}
 				hasNoCommonType={hasNoCommonType}
-				showLimitNotice={limitNotice}
+				showLimitNotice={limitNotice && count > 0}
 				failureMessage={failureMessage}
 				onPick={(files) => void handleFiles(files)}
 			/>

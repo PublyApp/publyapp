@@ -229,4 +229,94 @@ describe('PostSegmentsEditor', () => {
 				.disabled,
 		).toBe(true);
 	});
+
+	test('renders the caller images slot under each follow-up, numbered 2..N (#2181)', () => {
+		render(
+			<PostSegmentsEditor
+				segments={[newSegmentDraft('two', 'a'), newSegmentDraft('three', 'b')]}
+				publishedSegmentCount={0}
+				destinations={DESTINATIONS}
+				onChange={() => undefined}
+				renderImages={(segment, number) => (
+					<span data-testid="slot">{`${segment.id}:${number}`}</span>
+				)}
+			/>,
+		);
+
+		const blocks = screen.getAllByTestId('tenant-posts-segment');
+		expect(
+			blocks.map(
+				(block) => block.querySelector('[data-testid="slot"]')?.textContent,
+			),
+		).toEqual(['a:2', 'b:3']);
+	});
+
+	test('without a slot a follow-up shows no image area (text-only thread)', () => {
+		render(
+			<PostSegmentsEditor
+				segments={[newSegmentDraft('two', 'a')]}
+				publishedSegmentCount={0}
+				destinations={DESTINATIONS}
+				onChange={() => undefined}
+			/>,
+		);
+
+		expect(screen.queryByTestId('slot')).toBeNull();
+	});
+
+	test('while disabled (a save is in flight) every follow-up is read-only and nothing can be added (M6)', () => {
+		render(
+			<PostSegmentsEditor
+				segments={[newSegmentDraft('two', 'a')]}
+				publishedSegmentCount={0}
+				destinations={DESTINATIONS}
+				onChange={() => undefined}
+				isDisabled
+			/>,
+		);
+
+		expect(
+			(screen.getByTestId('tenant-posts-segment-body') as HTMLTextAreaElement)
+				.readOnly,
+		).toBe(true);
+		expect(
+			(screen.getByTestId('tenant-posts-segment-add') as HTMLButtonElement)
+				.disabled,
+		).toBe(true);
+	});
+
+	test('read-only for now is not "published": no badge while disabled (N7)', () => {
+		render(
+			<PostSegmentsEditor
+				segments={[newSegmentDraft('two', 'a')]}
+				publishedSegmentCount={0}
+				destinations={DESTINATIONS}
+				onChange={() => undefined}
+				isDisabled
+			/>,
+		);
+
+		expect(screen.queryByTestId('tenant-posts-segment-published')).toBeNull();
+	});
+
+	test('a follow-up refused by the form shows its own error on its block (NEW-3)', () => {
+		render(
+			<PostSegmentsEditor
+				segments={[newSegmentDraft('two', 'a'), newSegmentDraft('three', 'b')]}
+				publishedSegmentCount={0}
+				destinations={DESTINATIONS}
+				onChange={() => undefined}
+				errors={[undefined, 'Too long']}
+			/>,
+		);
+
+		const blocks = screen.getAllByTestId('tenant-posts-segment');
+		expect(
+			blocks[0]?.querySelector('[data-testid="tenant-posts-segment-error"]'),
+		).toBeNull();
+		expect(
+			blocks[1]?.querySelector('[data-testid="tenant-posts-segment-error"]')
+				?.textContent,
+		).toBe('Too long');
+	});
 });

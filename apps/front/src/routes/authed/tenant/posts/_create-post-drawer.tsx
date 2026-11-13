@@ -14,7 +14,7 @@ import {
 } from '~/components/ui/drawer';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
-import { savePost, invalidateTenantPosts } from '~/lib/query/tenant-posts';
+import { invalidateTenantPosts } from '~/lib/query/tenant-posts';
 import { useTenantProjectsQuery } from '~/lib/query/tenant-projects';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
@@ -23,12 +23,22 @@ import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure
 import { AttemptCancelledError, AttemptTimedOutError } from './_attempt';
 import { CreatePostFields } from './_create-post-drawer-body';
 import { CreatePostActions } from './_create-post-drawer-parts';
+import {
+	countBySegment,
+	imagesOfLiveSegments,
+	postImages,
+} from './_deferred-images';
 import { PublishOnBlock } from './_publish-on-block';
-import { NO_SEGMENTS } from './_segment-draft';
+import {
+	NO_SEGMENTS,
+	segmentNumberOf,
+	segmentsShifted,
+} from './_segment-draft';
 import { useDestinationOverrides } from './_use-destination-overrides';
 import { useImageHandoff } from './_use-image-handoff';
 import { usePreparePublish } from './_use-prepare-publish';
 import { usePublishSelection } from './_use-publish-selection';
+import { useRaiseSessionEnd } from './_use-raise-session-end';
 
 const getSchema = (t: (k: string) => string) =>
 	z.object({
@@ -40,7 +50,12 @@ const getSchema = (t: (k: string) => string) =>
 		projectId: z.string().nullable().optional(),
 		// Thread follow-ups (segments 2..N); at most 24 after the first body.
 		segments: z
-			.array(z.object({ id: z.string(), text: z.string().max(20000) }))
+			.array(
+				z.object({
+					id: z.string(),
+					text: z.string().max(20000, { message: t('posts:segment-too-long') }),
+				}),
+			)
 			.max(24),
 	});
 
@@ -58,6 +73,7 @@ export const CreatePostDrawer = ({
 	const { t } = useTranslation(['posts', 'common']);
 	const translateResponseMessage = useResponseMessageTranslator();
 	const qc = useQueryClient();
+	const raiseSessionEnd = useRaiseSessionEnd();
 	const projectsQuery = useTenantProjectsQuery({ tenantId });
 	// Language-keyed resolver: schema + resolver built once per language, not
 	// once per render.
@@ -123,6 +139,10 @@ export const CreatePostDrawer = ({
 			if (error instanceof AttemptTimedOutError) {
 				methods.setError('root', { message: t('posts:attempt-timed-out') });
 			} else if (!(error instanceof AttemptCancelledError)) {
+				// An ended session goes to the central logout, not to a message.
+				if (raiseSessionEnd(error)) {
+					return null;
+				}
 				throw error;
 			}
 			return null;
@@ -150,15 +170,7 @@ export const CreatePostDrawer = ({
 			// the intent an earlier click left behind.
 			const attempt = handoff.beginAttempt();
 			// A publish that failed earlier already created the post: save onto it.
-			const created = await attempt.run(
-				savePost({
-					postId: publishPrep.createdPostId ?? undefined,
-					body: values.body,
-					projectId: values.projectId ?? null,
-					segments: values.segments.map((segment) => segment.text),
-					tenantId,
-				}),
-			);
+			const created = await attempt.run(publishPrep.saveDraft(values));
 			if (!attempt.isCurrent()) {
 				return;
 			}
@@ -184,6 +196,9 @@ export const CreatePostDrawer = ({
 			}
 			if (error instanceof AttemptTimedOutError) {
 				methods.setError('root', { message: t('posts:attempt-timed-out') });
+				return;
+			}
+			if (raiseSessionEnd(error)) {
 				return;
 			}
 			const failure = toApiFailure(error);
@@ -247,22 +262,38 @@ export const CreatePostDrawer = ({
 						<CreatePostFields
 							body={body}
 							segments={segments}
-							onSegmentsChange={(next) =>
-								methods.setValue('segments', next, { shouldDirty: true })
-							}
+							segmentErrors={segments.map(
+								(_, index) =>
+									methods.formState.errors.segments?.[index]?.text?.message,
+							)}
+							onSegmentsChange={(next) => {
+								if (segmentsShifted(segments, next)) {
+									methods.clearErrors('segments');
+								}
+								methods.setValue('segments', next, { shouldDirty: true });
+							}}
 							rootError={methods.formState.errors.root?.message}
 							projectsQuery={projectsQuery}
 							selection={selection}
 							destinationOverrides={destinationOverrides}
 							deferredImages={deferredImages}
 							onSelectImages={publishPrep.selectImages}
+							isBusy={busy}
 							handoff={
 								handoff.postId === null
 									? null
 									: {
 											cause: handoff.cause,
+											segmentNumber: segmentNumberOf(
+												handoff.failedSegmentKey,
+												segments,
+											),
 											busy,
-											onRetry: () => void handoff.retryAttach(completeAndClose),
+											onRetry: () =>
+												void handoff.retryAttach(
+													completeAndClose,
+													publishPrep.refreshSegmentIds,
+												),
 											onDiscard: handleDiscardImage,
 										}
 							}
@@ -275,7 +306,13 @@ export const CreatePostDrawer = ({
 								destinationOverrides={destinationOverrides}
 								body={body}
 								segments={segments}
-								imageKeys={deferredImages.map((image) => image.id)}
+								imageKeys={postImages(deferredImages).map((image) => image.id)}
+								segmentImageCounts={countBySegment(
+									imagesOfLiveSegments(
+										deferredImages,
+										segments.map((segment) => segment.id),
+									),
+								)}
 								onBeforePublish={prepareForPublish}
 								disabled={busy}
 								onPublishInterrupted={handoff.keepIntent}
