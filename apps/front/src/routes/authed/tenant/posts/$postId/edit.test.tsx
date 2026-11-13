@@ -168,7 +168,7 @@ vi.mock('@tanstack/react-router', () => ({
 		);
 	},
 	useCanGoBack: () => mocks.canGoBack,
-	useRouter: () => ({ invalidate: vi.fn() }),
+	useRouter: () => ({ invalidate: vi.fn(), navigate: mocks.navigate }),
 	useBlocker: ({
 		shouldBlockFn,
 		enableBeforeUnload,

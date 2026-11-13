@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from '@tanstack/react-router';
 import { useState } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -44,20 +45,16 @@ export const useEditPostActions = ({
 	tenantId,
 	hasStoredSegments,
 	canGoBack,
-	navigate,
 }: {
 	methods: UseFormReturn<PostFormValues>;
 	postId: string;
 	tenantId: string | null;
 	hasStoredSegments: boolean;
 	canGoBack: boolean;
-	navigate: (options: {
-		to: '/tenant/posts/drafts';
-		replace?: boolean;
-	}) => void | Promise<void>;
 }) => {
 	const { t } = useTranslation(['common']);
 	const translateResponseMessage = useResponseMessageTranslator();
+	const router = useRouter();
 	const qc = useQueryClient();
 	const raiseSessionEnd = useRaiseSessionEnd();
 	const [pendingBinId, setPendingBinId] = useState<string | null>(null);
@@ -82,7 +79,7 @@ export const useEditPostActions = ({
 			if (canGoBack) {
 				window.history.back();
 			} else {
-				void navigate({ to: '/tenant/posts/drafts', replace: true });
+				void router.navigate({ to: '/tenant/posts/drafts', replace: true });
 			}
 		} catch (error) {
 			// An ended session goes to the central logout, not to a message.
@@ -109,7 +106,7 @@ export const useEditPostActions = ({
 			await deleteMutation.mutateAsync({ postId: pendingBinId, tenantId });
 			await invalidateTenantPosts(qc, tenantId);
 			setPendingBinId(null);
-			void navigate({ to: '/tenant/posts/drafts' });
+			void router.navigate({ to: '/tenant/posts/drafts' });
 		} catch {
 			// global MutationCache will toast
 		}

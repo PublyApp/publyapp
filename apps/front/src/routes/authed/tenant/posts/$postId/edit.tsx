@@ -227,7 +227,6 @@ const TenantPostEditPage = () => {
 		tenantId,
 		hasStoredSegments,
 		canGoBack,
-		navigate,
 	});
 
 	// Hoisted so the fatal-error gate reads a plain local, not a query flag —
