@@ -533,6 +533,55 @@ const openStaffRoleEditDrawer = async (page: Page): Promise<void> => {
 	});
 };
 
+const openStaffAssignMembersDrawer = async (page: Page): Promise<void> => {
+	await loginAsStaffAdmin(page);
+	await page.route('**/staff/roles/**', async (route) => {
+		const request = route.request();
+		const url = new URL(request.url());
+		const rest = url.pathname.slice('/staff/roles/'.length);
+
+		if (
+			request.method() !== 'GET' ||
+			url.origin !== API_BASE_URL ||
+			!url.pathname.startsWith('/staff/roles/')
+		) {
+			await route.fallback();
+			return;
+		}
+
+		let body: object | null = null;
+		if (rest === `${STAFF_ROLE_ID}/users`) {
+			body = { count: 0, users: [] };
+		} else if (rest === STAFF_ROLE_ID) {
+			body = {
+				role: {
+					id: STAFF_ROLE_ID,
+					name: 'Staff Admin',
+					description: 'Platform administrator',
+					userAccountCount: 0,
+					icon: null,
+					tone: null,
+				},
+			};
+		}
+		if (body === null) {
+			await route.fallback();
+			return;
+		}
+
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify(body),
+		});
+	});
+	await page.goto(`/staff/roles/${STAFF_ROLE_ID}/users`);
+	await page.getByRole('button', { name: 'Assign members' }).first().click();
+	await expect(page.getByTestId('staff-assign-members-drawer')).toBeVisible({
+		timeout: 10_000,
+	});
+};
+
 const openChangeEmailDrawer = async (page: Page): Promise<void> => {
 	await loginAsStaffAdmin(page);
 	await mockDrawerDependencies(page);
@@ -1056,6 +1105,10 @@ const DRAWER_OPENERS = {
 	'assign-members-drawer': {
 		name: 'assign members',
 		open: openAssignMembersDrawer,
+	},
+	'staff-assign-members-drawer': {
+		name: 'assign staff members',
+		open: openStaffAssignMembersDrawer,
 	},
 	'role-form-drawer': {
 		name: 'create role',

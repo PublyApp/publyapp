@@ -257,6 +257,7 @@ const StaffRoleUsersPage = () => {
 							>
 								<StaffRoleUsersList
 									roleId={roleId}
+									roleName={details.name}
 									rows={rows}
 									columns={columns}
 									totalCount={totalCount}

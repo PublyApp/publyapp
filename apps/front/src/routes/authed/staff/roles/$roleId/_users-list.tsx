@@ -1,6 +1,6 @@
 import { IconUserPlus } from '@tabler/icons-react';
 import type { SortingState } from '@tanstack/react-table';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListPage } from '~/components/list/list-page';
 import type {
@@ -18,6 +18,7 @@ import type {
 
 import type { StaffTeamOverview } from '../../_staff-list-team';
 import { buildStaffTeamPanelGroups } from '../../_staff-list-team';
+import { AssignMembersDrawer } from './_assign-members-drawer';
 import { RoleUsersListBulkActions } from './_users-bulk-actions';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -30,6 +31,7 @@ const displayName = (row: StaffRoleUserRow, t: Translate): string =>
 
 type StaffRoleUsersListProps = {
 	roleId: string;
+	roleName: string;
 	rows: StaffRoleUserRow[];
 	columns: ListColumn<StaffRoleUserRow>[];
 	totalCount: number | null;
@@ -69,6 +71,7 @@ type StaffRoleUsersListProps = {
  * data/error orchestration under the giant-component bound. */
 export const StaffRoleUsersList = ({
 	roleId,
+	roleName,
 	rows,
 	columns,
 	totalCount,
@@ -97,6 +100,7 @@ export const StaffRoleUsersList = ({
 }: StaffRoleUsersListProps) => {
 	const { t } = useTranslation('common');
 	const { isFetching } = query;
+	const [isAssignOpen, setIsAssignOpen] = useState(false);
 
 	return (
 		<div className="publy-page-fill">
@@ -128,13 +132,9 @@ export const StaffRoleUsersList = ({
 					onTeamSelect,
 				)}
 				newAction={{
-					// ponytail: the bulk-assign endpoint exists (#2282); its drawer is a
-					// follow-up, so
-					// for now the role overview is where membership is edited.
 					label: t('assign-staff-members'),
 					icon: IconUserPlus,
-					to: '/staff/roles/$roleId',
-					params: { roleId },
+					onSelect: () => setIsAssignOpen(true),
 					variant: 'outline',
 				}}
 				onOpen={onOpen}
@@ -183,6 +183,13 @@ export const StaffRoleUsersList = ({
 						/>
 					</FloatingSelectionBar>
 				}
+			/>
+			<AssignMembersDrawer
+				roleId={roleId}
+				roleName={roleName}
+				isOpen={isAssignOpen}
+				onOpenChange={setIsAssignOpen}
+				onSessionExpired={onSessionExpired}
 			/>
 		</div>
 	);
