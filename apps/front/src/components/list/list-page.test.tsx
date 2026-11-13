@@ -103,6 +103,7 @@ const renderPage = (
 		error?: unknown;
 		errorContent?: ReactNode;
 		headerActions?: boolean;
+		filters?: ListFilter<Row>[];
 	} = {},
 ) =>
 	render(
@@ -121,7 +122,7 @@ const renderPage = (
 				onSortingChange={vi.fn()}
 				q={options.q ?? ''}
 				onSearch={vi.fn()}
-				filters={filters}
+				filters={options.filters ?? filters}
 				filtersValue={active}
 				onFiltersChange={vi.fn()}
 				countsKnown={options.countsKnown ?? true}
@@ -215,6 +216,25 @@ describe('ListPage', () => {
 		expect(within(panel).getAllByText('1')).toHaveLength(1);
 		const summary = screen.getByRole('table', { name: 'list-summary' });
 		expect(within(summary).getByText('2 organisations')).toBeTruthy();
+	});
+
+	// A filter the API applies (by a value the rows do not carry, e.g. a role id)
+	// must never be re-applied in memory: the page is already the filtered slice.
+	test('a serverSide filter keeps every row the API returned', () => {
+		const roleFilter: ListFilter<Row> = {
+			key: 'role',
+			label: 'Rôle',
+			icon: IconBuilding,
+			choices: [{ value: 'role-id-1', label: 'Writer' }],
+			// The rows hold no role id: an in-memory match would drop them all.
+			valueOf: () => [],
+			serverSide: true,
+		};
+		renderPage({ role: ['role-id-1'] }, { filters: [roleFilter] });
+
+		expect(screen.getAllByText('Acme').length).toBeGreaterThan(0);
+		expect(screen.getAllByText('Globex').length).toBeGreaterThan(0);
+		expect(screen.getAllByText('Initech').length).toBeGreaterThan(0);
 	});
 
 	// A filter does not make the totals unknown: the displayed page is the whole

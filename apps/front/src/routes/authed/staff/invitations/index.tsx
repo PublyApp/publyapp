@@ -34,6 +34,7 @@ import {
 	buildInvitationMobileCard,
 	buildInvitationTotals,
 	DEFAULT_INVITATION_COLUMNS,
+	type InvitationRoleChoice,
 	exportInvitationRows,
 } from './_invitations-list-config';
 import { InvitationsStatCards } from './_invitations-list-stat-cards';
@@ -55,6 +56,8 @@ import { InvitationRowActions } from './table-columns';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;
+const ROLE_ID_PATTERN =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** The page's list query, declared once: the loader warms it and the page reads
  * the same variables. The loader takes the first page (no cursor, decision 4). */
@@ -68,6 +71,13 @@ const staffInvitationsQueries = ({
 		variables: {
 			...buildTableApiVariables(search, DEFAULT_SORT, DEFAULT_SIZE),
 			status: search.status,
+			// Role ids (CSV), filtered by the API so it spans every page.
+			// Only well-formed ids: an old bookmark holding a role name must not
+			// turn the whole list into a 422.
+			roleId:
+				parseInvitationRoleFilter(search.role)
+					.filter((value) => ROLE_ID_PATTERN.test(value))
+					.join(',') || undefined,
 		},
 	},
 });
@@ -123,18 +133,21 @@ const StaffInvitationsPage = () => {
 
 	// `totalCount`/`counts` cover the whole filtered collection (issue #2301).
 	const countsKnown = query.data !== undefined;
-	// The role facet is the API's whole-filtered-collection `counts.roleCounts`
-	// (an invitation holding several roles counts once in each), not the page.
-	const roleCounts: Record<string, number> | null =
-		query.data?.counts?.roleCounts === undefined ||
-		query.data.counts.roleCounts === null
+	// The role facet is the API's whole-collection `counts.roleCounts` (an
+	// invitation holding several roles counts once in each), not the page.
+	const apiRoleCounts = query.data?.counts?.roleCounts;
+	const roleChoices: InvitationRoleChoice[] | null =
+		apiRoleCounts === undefined || apiRoleCounts === null
 			? null
-			: Object.fromEntries(
-					query.data.counts.roleCounts.map((role) => [
-						role.name ?? '',
-						role.count ?? 0,
-					]),
-				);
+			: apiRoleCounts.map((role) => ({
+					id: role.roleId ?? '',
+					name: role.name ?? '',
+					count: role.count ?? 0,
+				}));
+	const roleCounts: Record<string, number> | null =
+		roleChoices === null
+			? null
+			: Object.fromEntries(roleChoices.map((role) => [role.id, role.count]));
 
 	const listCounts: FilterCounts = {
 		status: {
@@ -218,7 +231,7 @@ const StaffInvitationsPage = () => {
 				}
 				onSearchChange({ ...search, q: next, cursor: undefined });
 			}}
-			filters={buildInvitationFilters(t, selectedRoles, roleCounts)}
+			filters={buildInvitationFilters(t, selectedRoles, roleChoices)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
 			counts={listCounts}

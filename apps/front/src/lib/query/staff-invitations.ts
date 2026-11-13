@@ -55,6 +55,8 @@ export type StaffInvitationsQueryVariables = {
 	cursor?: string;
 	size?: number;
 	status?: string;
+	/** CSV of role ids: invitations holding ANY of them. */
+	roleId?: string;
 };
 
 export type StaffInvitationDetailsVariables = {
@@ -85,6 +87,7 @@ export const buildFindStaffInvitationsQueryParameters = (
 	const sortOrder = variables.sortOrder;
 	const status = normalizeString(variables.status);
 	const q = normalizeString(variables.q);
+	const roleId = normalizeString(variables.roleId);
 	const limit =
 		typeof variables.size === 'number' ? String(variables.size) : undefined;
 
@@ -95,6 +98,7 @@ export const buildFindStaffInvitationsQueryParameters = (
 		sortId,
 		sortOrder,
 		status,
+		roleId,
 	};
 };
 

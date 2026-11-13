@@ -146,4 +146,43 @@ describe('#2340 staff invitations route preload', () => {
 			pageTestId: 'staff-invitations-table',
 		});
 	});
+
+	// The role filter is the API's (by id, CSV): it must reach the request so it
+	// spans every page; a role name left in an old bookmark is never sent.
+	test('sends the picked role ids to the API, and drops anything that is not an id', async () => {
+		const ROLE_A = '11111111-1111-4111-8111-111111111111';
+		const ROLE_B = '22222222-2222-4222-8222-222222222222';
+		const roleIdSent = async (role: string) => {
+			mocks.respond.mockClear();
+			const { queryClient } = renderPreloadScenario({
+				destination: widenOptions<PreloadDestination>({
+					...destination,
+					linkSearch: { role },
+				}),
+				linkLabel: LINK_LABEL,
+			});
+			fireEvent.mouseEnter(
+				await screen.findByRole('link', { name: LINK_LABEL }),
+			);
+			await waitFor(() => {
+				expect(countCallsByPath(mocks.respond, ...INVITATIONS_PATH)).toBe(1);
+			});
+			await waitFor(() => {
+				expect(queryClient.isFetching()).toBe(0);
+			});
+			const call = mocks.respond.mock.calls
+				.map(([fake]) => fake)
+				.find((fake) =>
+					fake.path.join('.').endsWith(INVITATIONS_PATH.join('.')),
+				);
+			cleanup();
+			return (
+				call?.args[0] as { queryParameters?: { roleId?: string } } | undefined
+			)?.queryParameters?.roleId;
+		};
+
+		expect(await roleIdSent(`${ROLE_A},${ROLE_B}`)).toBe(`${ROLE_A},${ROLE_B}`);
+		expect(await roleIdSent(`Writer,${ROLE_A}`)).toBe(ROLE_A);
+		expect(await roleIdSent('Writer')).toBeUndefined();
+	});
 });

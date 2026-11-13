@@ -1074,13 +1074,58 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			this._Fixture,
 			$"{marker}@example.com"
 		);
+		_ = await this._AuthClient.LoginAsync($"{marker}@example.com", TestConstants.SeedPassword);
 		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(1));
 
 		var after = await this._ReadCountsAsync(token);
 
-		// The seeded session is the only change: both figures move by exactly one.
+		// One member signed in today (connected +1) holding two open sessions.
 		after.ConnectedToday.Should().Be(before.ConnectedToday + 1);
-		after.OpenSessions.Should().Be(before.OpenSessions + 1);
+		after.OpenSessions.Should().Be(before.OpenSessions + 2);
+	}
+
+	[Fact]
+	public async Task ItShouldKeepCountingAMemberConnectedTodayAfterTheyLoggedOut() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var before = await this._ReadCountsAsync(token);
+
+		var marker = $"loggedout-{Guid.NewGuid():N}";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}@example.com"
+		);
+		_ = await this._AuthClient.LoginAsync($"{marker}@example.com", TestConstants.SeedPassword);
+		using (var scope = this._Fixture.Factory.Services.CreateScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			_ = await dbContext.Session
+				.Where(session => session.UserId == userId)
+				.ExecuteDeleteAsync();
+		}
+
+		var after = await this._ReadCountsAsync(token);
+
+		after.ConnectedToday.Should().Be(before.ConnectedToday + 1);
+		after.OpenSessions.Should().Be(before.OpenSessions);
+	}
+
+	[Fact]
+	public async Task ItShouldNotCountAnImpersonationSessionAsConnectedToday() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var before = await this._ReadCountsAsync(token);
+
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"imp-{Guid.NewGuid():N}@example.com"
+		);
+		await this._AddStaffSessionAsync(
+			userId,
+			DateTime.UtcNow.AddDays(1),
+			isImpersonation: true
+		);
+
+		var after = await this._ReadCountsAsync(token);
+
+		after.ConnectedToday.Should().Be(before.ConnectedToday);
 	}
 
 	[Fact]
@@ -1098,7 +1143,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var after = await this._ReadCountsAsync(token);
 
 		after.OpenSessions.Should().Be(before.OpenSessions);
-		after.ConnectedToday.Should().Be(before.ConnectedToday + 1);
+		// No sign-in happened: a lone expired session row is not « connected today ».
+		after.ConnectedToday.Should().Be(before.ConnectedToday);
 	}
 
 	[Fact]

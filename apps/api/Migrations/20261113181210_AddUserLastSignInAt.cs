@@ -17,14 +17,23 @@ namespace PublyApp.Api.Migrations
                 type: "timestamp with time zone",
                 nullable: true);
 
-            // Backfill from the sessions still stored: the best history there is.
+            // Backfill: the newest of the durable login audit rows (survive logout and
+            // the session sweep) and the sessions still stored (sign-ins that predate
+            // the audit action). Impersonation sessions are not sign-ins.
             migrationBuilder.Sql(@"
 UPDATE users u
-SET last_sign_in_at = s.last_created_at
+SET last_sign_in_at = s.last_at
 FROM (
-    SELECT user_id, MAX(created_at) AS last_created_at
-    FROM sessions
-    WHERE is_impersonation = false
+    SELECT user_id, MAX(at) AS last_at
+    FROM (
+        SELECT user_id, created_at AS at
+        FROM sessions
+        WHERE is_impersonation = false
+        UNION ALL
+        SELECT user_id, created_at AS at
+        FROM audit_logs
+        WHERE action = 'auth.login.succeeded' AND is_deleted = false
+    ) events
     GROUP BY user_id
 ) s
 WHERE s.user_id = u.id;");

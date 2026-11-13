@@ -287,6 +287,15 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			);
 		}
 
+		// The role facet ignores the role filter itself (picking a role must not hide
+		// the other choices), so keep the collection as it is before that filter.
+		var roleFacetIds = query.Select(inv => inv.Id);
+
+		if (args.RoleIds is { Count: > 0 } roleIds) {
+			query = query.Where(inv => this._DbContext.InvitationRole.Any(link =>
+				(Guid?)link.InvitationId == inv.Id && roleIds.Contains(link.RoleId)));
+		}
+
 		// Facets over the whole filtered collection (cursor and limit excluded).
 		var facetNow = DateTime.UtcNow;
 		var expiringSoonLimit = facetNow.AddDays(3);
@@ -319,9 +328,9 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			}
 		}
 
-		// Invitations per role over the same filtered collection (an invitation
-		// carrying several roles counts once in each).
-		var filteredInvitationIds = query.Select(inv => inv.Id);
+		// Invitations per role over the collection without the role filter (an
+		// invitation carrying several roles counts once in each).
+		var filteredInvitationIds = roleFacetIds;
 		var roleCountRows = await (
 			from invitationRole in this._DbContext.InvitationRole.AsNoTracking()
 			join role in this._DbContext.Role.AsNoTracking()

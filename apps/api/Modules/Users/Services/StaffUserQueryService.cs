@@ -299,10 +299,10 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			cancellationToken
 		);
 
-		// Sessions are the only activity the database records (created_at /
-		// expires_at); there is no last-activity or MFA column. « Connectés
-		// aujourd'hui » is therefore the users with a session opened since
-		// midnight UTC, and the open-session figure the still-valid ones.
+		// « Connectés aujourd'hui » is the members whose durable last sign-in
+		// (users.last_sign_in_at, stamped at login, impersonation excluded) falls
+		// since midnight UTC: a member who signed in and logged out still counts.
+		// The open-session figure is the still-valid session rows.
 		var now = DateTime.UtcNow;
 		var todayStart = now.Date;
 		var filteredUserIds = query.Select(ua => ua.UserId);
@@ -312,12 +312,10 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				&& filteredUserIds.Contains(session.UserId)
 			select session
 		).CountAsync(cancellationToken);
-		var connectedToday = await (
-			from session in this._DbContext.Session.AsNoTracking()
-			where session.CreatedAt >= todayStart
-				&& filteredUserIds.Contains(session.UserId)
-			select session.UserId
-		).Distinct().CountAsync(cancellationToken);
+		var connectedToday = await query.CountAsync(
+			ua => ua.User.LastSignInAt != null && ua.User.LastSignInAt >= todayStart,
+			cancellationToken
+		);
 
 		// Members per role over the same filtered collection (a member holding
 		// several roles counts once in each).

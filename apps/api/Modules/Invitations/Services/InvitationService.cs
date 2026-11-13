@@ -32,6 +32,8 @@ public record FindStaffInvitationsArgs {
 	public SortOrder? SortOrder { get; init; }
 	public IReadOnlySet<InvitationEffectiveStatus>? Statuses { get; init; }
 	public string? Search { get; init; }
+	// Invitations holding ANY of these roles (by id); null = no role filter.
+	public IReadOnlySet<Guid>? RoleIds { get; init; }
 }
 
 public record CreateStaffInvitationArgs(

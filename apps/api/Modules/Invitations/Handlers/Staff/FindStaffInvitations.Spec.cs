@@ -865,6 +865,61 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			.Which.RoleNames.Should().BeEquivalentTo([commaRoleName, plainRoleName]);
 	}
 
+	[Fact]
+	public async Task ItShouldFilterByRoleIdOnTheServerAcrossPagesAndKeepTheRoleFacet() {
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"rolefilter-{Guid.NewGuid():N}";
+		var (wantedId, otherId) = await this._CreateTwoStaffRolesAsync($"Wanted, {marker}", $"Other-{marker}");
+		// 3 matching (one also holds the other role) and 2 that do not.
+		for (var i = 0; i < 3; i++) {
+			await this._SeedStaffInvitationWithRolesAsync(
+				$"{marker}-w{i}@example.com",
+				i == 0 ? [wantedId, otherId] : [wantedId]
+			);
+		}
+		await this._SeedStaffInvitationWithRolesAsync($"{marker}-o1@example.com", [otherId]);
+		await this._SeedStaffInvitationWithRolesAsync($"{marker}-o2@example.com", [otherId]);
+
+		var emails = new List<string>();
+		string? cursor = null;
+		FindResponse? last = null;
+		for (var page = 0; page < 10; page++) {
+			using var response = await this._Http.SendAsync(
+				FindStaffInvitationsSpec._CreateFindRequest(
+					staffToken, limit: 1, q: marker, roleId: wantedId.ToString(), cursor: cursor
+				)
+			);
+			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
+			last = await response.Content.ReadFromJsonAsync<FindResponse>();
+			Assert.NotNull(last);
+			emails.AddRange(last.Data.Select(item => item.Email));
+			if (last.NextCursor is null) {
+				break;
+			}
+			cursor = last.NextCursor;
+		}
+
+		_ = emails.Should().BeEquivalentTo([
+			$"{marker}-w0@example.com", $"{marker}-w1@example.com", $"{marker}-w2@example.com",
+		]);
+		Assert.NotNull(last);
+		_ = last.TotalCount.Should().Be(3);
+		// The role facet ignores the role filter: the other role is still offered.
+		_ = last.Counts.RoleCounts.Should().Contain(role => role.RoleId == otherId && role.Count == 3);
+		_ = last.Counts.RoleCounts.Should().Contain(role => role.RoleId == wantedId && role.Count == 3);
+	}
+
+	[Fact]
+	public async Task ItShouldRejectAMalformedRoleIdFilter() {
+		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
+
+		using var response = await this._Http.SendAsync(
+			FindStaffInvitationsSpec._CreateFindRequest(staffToken, roleId: "not-a-guid")
+		);
+
+		_ = response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
 	private async Task<(Guid First, Guid Second)> _CreateTwoStaffRolesAsync(string first, string second) {
 		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
 		AppDbContext dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -940,9 +995,10 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		string? sortId = null,
 		string? sortOrder = null,
 		string? cursor = null,
-		string? q = null
+		string? q = null,
+		string? roleId = null
 	) {
-		string url = FindStaffInvitationsSpec._GetFindUrl(status, limit, sortId, sortOrder, cursor, q);
+		string url = FindStaffInvitationsSpec._GetFindUrl(status, limit, sortId, sortOrder, cursor, q, roleId);
 		return new HttpRequestMessage(HttpMethod.Get, url)
 			.WithSessionToken(staffToken);
 	}
@@ -953,9 +1009,14 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		string? sortId = null,
 		string? sortOrder = null,
 		string? cursor = null,
-		string? q = null
+		string? q = null,
+		string? roleId = null
 	) {
 		var queryParams = new List<string>();
+
+		if (roleId is not null) {
+			queryParams.Add($"role_id={Uri.EscapeDataString(roleId)}");
+		}
 
 		if (status is not null) {
 			queryParams.Add($"status={Uri.EscapeDataString(status)}");

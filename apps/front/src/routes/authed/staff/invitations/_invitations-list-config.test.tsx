@@ -7,9 +7,9 @@ const t = (key: string): string => key;
 
 const roleFilter = (
 	selected: string[],
-	roleCounts: Record<string, number> | null,
+	roles: { id: string; name: string; count: number }[] | null,
 ) => {
-	const filter = buildInvitationFilters(t, selected, roleCounts).find(
+	const filter = buildInvitationFilters(t, selected, roles).find(
 		(candidate) => candidate.key === 'role',
 	);
 	if (!filter) {
@@ -19,25 +19,40 @@ const roleFilter = (
 };
 
 describe('invitations role facet', () => {
-	test('builds the choices from the API whole-collection counts, not the page', () => {
-		const filter = roleFilter([], { Writer: 12, Reader: 3 });
+	test('builds id-valued choices from the API whole-collection counts, not the page', () => {
+		const filter = roleFilter(
+			[],
+			[
+				{ id: 'id-writer', name: 'Writer', count: 12 },
+				{ id: 'id-reader', name: 'Reader', count: 3 },
+			],
+		);
 
 		expect(filter.choices).toEqual([
-			{ value: 'Writer', label: 'Writer', count: 12 },
-			{ value: 'Reader', label: 'Reader', count: 3 },
+			{ value: 'id-writer', label: 'Writer', count: 12 },
+			{ value: 'id-reader', label: 'Reader', count: 3 },
 		]);
 	});
 
+	test('is a server-side filter: the API narrows by id across every page', () => {
+		expect(roleFilter([], [{ id: 'a', name: 'A', count: 1 }]).serverSide).toBe(
+			true,
+		);
+	});
+
 	test('keeps a role picked in the URL even when the counts no longer list it', () => {
-		const filter = roleFilter(['Legacy'], { Writer: 1 });
+		const filter = roleFilter(
+			['id-legacy'],
+			[{ id: 'id-writer', name: 'Writer', count: 1 }],
+		);
 
 		expect(filter.choices.map((choice) => choice.value)).toEqual([
-			'Legacy',
-			'Writer',
+			'id-legacy',
+			'id-writer',
 		]);
 		expect(filter.choices[0]).toEqual({
-			value: 'Legacy',
-			label: 'Legacy',
+			value: 'id-legacy',
+			label: 'unknown-role',
 			count: null,
 		});
 	});
@@ -50,7 +65,7 @@ describe('invitations role facet', () => {
 		).toBe(false);
 	});
 
-	test('matches a multi-role invitation on each role, a comma in a name included', () => {
+	test('rows carry each role name separately, a comma in a name included', () => {
 		const [row] = toStaffInvitationRows([
 			{
 				id: 'inv-1',
@@ -59,11 +74,7 @@ describe('invitations role facet', () => {
 				roleNames: ['Ops, Night', 'Writer'],
 			},
 		]);
-		if (!row) {
-			throw new Error('row missing');
-		}
 
-		const filter = roleFilter([], { 'Ops, Night': 1, Writer: 1 });
-		expect(filter.valueOf(row)).toEqual(['Ops, Night', 'Writer']);
+		expect(row?.roleNames).toEqual(['Ops, Night', 'Writer']);
 	});
 });

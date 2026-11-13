@@ -56,19 +56,22 @@ export const DEFAULT_INVITATION_COLUMNS = [
 	'expiresAt',
 ] as const;
 
+export type InvitationRoleChoice = { id: string; name: string; count: number };
+
 export const buildInvitationFilters = (
 	t: Translate,
 	selectedRoles: readonly string[] = [],
-	roleCounts: Record<string, number> | null = null,
+	roles: readonly InvitationRoleChoice[] | null = null,
 ): ListFilter<StaffInvitationRow>[] => {
-	// Choices come from the API's whole-collection role counts, so a role absent
-	// from the loaded page still appears; a role picked in the URL always stays.
-	const roleNames: string[] = [];
-	const seen = new Set<string>();
-	for (const name of [...selectedRoles, ...Object.keys(roleCounts ?? {})]) {
-		if (name.length > 0 && !seen.has(name)) {
-			seen.add(name);
-			roleNames.push(name);
+	// Choices come from the API's whole-collection role counts (values are role
+	// ids, labels the names), so a role absent from the loaded page still
+	// appears; a role picked in the URL always stays.
+	const choices: { value: string; label: string; count: number | null }[] = (
+		roles ?? []
+	).map((role) => ({ value: role.id, label: role.name, count: role.count }));
+	for (const id of selectedRoles) {
+		if (id.length > 0 && !choices.some((choice) => choice.value === id)) {
+			choices.unshift({ value: id, label: t('unknown-role'), count: null });
 		}
 	}
 
@@ -85,19 +88,18 @@ export const buildInvitationFilters = (
 			})),
 			valueOf: (row) => row.status,
 		},
-		...(roleNames.length > 0
+		...(choices.length > 0
 			? [
 					{
 						key: 'role',
 						label: t('roles'),
 						icon: IconShieldLock,
 						panel: true,
-						choices: roleNames.map((name) => ({
-							value: name,
-							label: name,
-							count: roleCounts?.[name] ?? null,
-						})),
+						choices,
 						valueOf: (row: StaffInvitationRow) => row.roleNames,
+						// The API filters by role id across every page; rows carry
+						// names, so the page must not re-filter them.
+						serverSide: true,
 					} satisfies ListFilter<StaffInvitationRow>,
 				]
 			: []),

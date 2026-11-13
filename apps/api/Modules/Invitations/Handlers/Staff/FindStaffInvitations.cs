@@ -35,6 +35,25 @@ public class FindStaffInvitationsQuery : CursorPaginatedQuery {
 
 	[FromQuery(Name = "q")] public string? Search { get; set; }
 
+	// CSV of role ids: invitations holding ANY of them (ids, not names: a role
+	// name may itself contain a comma).
+	[FromQuery(Name = "role_id")] public string? RoleId { get; set; }
+
+	public IReadOnlySet<Guid>? GetRoleIdsOrNull() {
+		if (string.IsNullOrWhiteSpace(this.RoleId)) {
+			return null;
+		}
+
+		var ids = new HashSet<Guid>();
+		foreach (var part in this.RoleId.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) {
+			if (Guid.TryParse(part, out var id)) {
+				ids.Add(id);
+			}
+		}
+
+		return ids.Count > 0 ? ids : null;
+	}
+
 	public string? GetSearchNormalized() {
 		if (this.Search is null) {
 			return null;
@@ -94,6 +113,17 @@ public class FindStaffInvitationsQueryValidator : CursorPaginatedQueryValidator<
 
 	public FindStaffInvitationsQueryValidator() {
 		this.RuleFor(x => x.Search).MaximumLength(200);
+		this.RuleFor(x => x.RoleId)
+			.Must(raw => {
+				if (string.IsNullOrWhiteSpace(raw)) {
+					return true;
+				}
+
+				// Empty tokens are rejected, as for status.
+				var parts = raw.Split(',', StringSplitOptions.TrimEntries);
+				return parts.Length <= 50 && parts.All(part => Guid.TryParse(part, out _));
+			})
+			.WithMessage("role_id must be a comma-separated list of up to 50 role ids");
 		this.RuleFor(x => x.Status)
 			.Must(raw => {
 				if (string.IsNullOrWhiteSpace(raw)) {
@@ -138,6 +168,7 @@ public sealed class FindStaffInvitations {
 			SortId = sortId,
 			SortOrder = sortOrder,
 			Statuses = statuses,
+			RoleIds = findStaffInvitationsQuery.GetRoleIdsOrNull(),
 			Search = findStaffInvitationsQuery.GetSearchNormalized(),
 		};
 
