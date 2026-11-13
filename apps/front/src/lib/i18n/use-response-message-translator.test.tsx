@@ -142,6 +142,15 @@ describe('useResponseMessageTranslator in French', () => {
 		expect(translate('post-segment-image-limit-reached', {})).toBeUndefined();
 	});
 
+	test('names the image size limit in Mo from maxBytes, never a raw byte count', () => {
+		const translate = translatorFor('fr');
+
+		const message = translate('post-image-too-large', { maxBytes: 16_777_216 });
+		expect(message).toMatch(/16,7\sMo/);
+		expect(message).not.toContain('16777216');
+		expect(translate('post-image-too-large', {})).toBeUndefined();
+	});
+
 	test('a translation that still has placeholders is treated as untranslated', () => {
 		const translate = translatorFor('fr', {
 			'post-segments-locked': 'Le segment {{index}} est verrouillé',
@@ -156,6 +165,7 @@ describe('useResponseMessageTranslator in English', () => {
 		['post-segment-blank', { segmentNumber: 3 }],
 		['publication-rendition-locked', {}],
 		['post-segments-locked', {}],
+		['post-image-too-large', { maxBytes: 16_777_216 }],
 		[
 			RENDITION_INVALID,
 			{

@@ -133,17 +133,26 @@ public static class TypedProblems {
 	/// <param name="detail">Detailed explanation of the error</param>
 	/// <param name="translationKey">Translation key for frontend i18n</param>
 	/// <param name="title">Short summary (defaults to "Payload Too Large")</param>
+	/// <param name="extensions">Structured members the client builds its own message from (optional)</param>
 	public static AppPayloadTooLargeHttpResult PayloadTooLarge(
 		string detail,
 		TranslationKey translationKey,
-		string title = "Payload Too Large"
+		string title = "Payload Too Large",
+		IReadOnlyDictionary<string, object?>? extensions = null
 	) {
-		return new(AppProblemDetails.Create(
-		StatusCodes.Status413PayloadTooLarge,
-		title,
-		detail,
-		translationKey
-	));
+		var details = AppProblemDetails.Create(
+			StatusCodes.Status413PayloadTooLarge,
+			title,
+			detail,
+			translationKey
+		);
+		if (extensions is not null) {
+			foreach (var (name, value) in extensions) {
+				details.Extensions[name] = value;
+			}
+		}
+
+		return new(details);
 	}
 
 	/// <summary>

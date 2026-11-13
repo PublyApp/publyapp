@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 using FluentAssertions;
 
@@ -230,6 +231,13 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			await response.Content.ReadFromJsonAsync<AppProblemDetails>();
 		Assert.NotNull(problem);
 		problem.TranslationKey.Should().Be("post-image-too-large");
+		// The limit travels as data so the client formats it in the user's language;
+		// the English detail never carries the raw byte count (#2421).
+		problem.Extensions["maxBytes"].Should().BeOfType<JsonElement>()
+			.Which.GetInt64().Should().Be(AppEnvironment.Instance.UPLOAD_MAX_BYTES);
+		problem.Detail.Should().NotContain(
+			AppEnvironment.Instance.UPLOAD_MAX_BYTES.ToString(System.Globalization.CultureInfo.InvariantCulture)
+		);
 	}
 
 	[Fact]

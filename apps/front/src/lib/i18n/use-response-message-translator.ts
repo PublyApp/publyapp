@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { formatBytes } from '~/lib/format-bytes';
 
 const RESPONSE_MESSAGE_NAMESPACE = 'response-message';
 
@@ -23,6 +24,7 @@ const AS_INFORMATIVE_AS_DETAIL: ReadonlySet<string> = new Set([
 const RENDITION_INVALID_PROBLEM = 'publish-rendition-invalid';
 const PUBLISH_PROVIDER_DISABLED_PROBLEM = 'publish-provider-disabled';
 const SEGMENT_BLANK_PROBLEM = 'post-segment-blank';
+const IMAGE_TOO_LARGE_PROBLEM = 'post-image-too-large';
 const SEGMENT_IMAGE_LIMIT_PROBLEM = 'post-segment-image-limit-reached';
 
 const asText = (value: unknown): string | undefined =>
@@ -111,6 +113,18 @@ export const useResponseMessageTranslator = () => {
 				return undefined;
 			}
 			return t('posts:segment-image-limit', { limit });
+		}
+
+		// Names the size limit from the problem's `maxBytes` (decimal units, in the
+		// user's language) instead of a raw byte count (#2421).
+		if (translationKey === IMAGE_TOO_LARGE_PROBLEM) {
+			const maxBytes = asPositiveInteger(extensions.maxBytes);
+			if (maxBytes === undefined) {
+				return undefined;
+			}
+			return t('posts:image-too-large', {
+				size: formatBytes(maxBytes, i18n.language, 'limit'),
+			});
 		}
 
 		if (!AS_INFORMATIVE_AS_DETAIL.has(translationKey)) {

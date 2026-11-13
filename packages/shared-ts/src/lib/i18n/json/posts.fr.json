@@ -159,6 +159,7 @@
 	"segment-images-fix-form": "Corrigez les champs signalés, puis réessayez.",
 	"segment-too-long": "Un segment doit faire 20000 caractères au plus.",
 	"segment-image-limit": "Un segment de suite peut avoir au plus {{limit}} images.",
+	"image-too-large": "L’image dépasse la taille maximale de {{size}}.",
 	"segment-blank": "Le segment {{index}} est vide. Rédigez-le, ou supprimez-le.",
 	"override-blank": "{{destination}} : le texte personnalisé du segment {{index}} est vide. Rédigez-le, ou désactivez la personnalisation.",
 	"override-segment-missing": "{{destination}} : le segment {{index}} n’existe plus dans le post. Rechargez la page puis réessayez.",

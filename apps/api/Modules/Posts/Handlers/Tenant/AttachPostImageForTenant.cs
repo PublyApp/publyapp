@@ -143,8 +143,11 @@ public sealed class AttachPostImageForTenant {
 		var maxBytes = AppEnvironment.Instance.UPLOAD_MAX_BYTES;
 		if (file.Length > maxBytes) {
 			return TypedProblems.PayloadTooLarge(
-				$"Image exceeds the maximum size of {maxBytes} bytes",
-				ResponseKeys.PostImageTooLarge
+				$"Image exceeds the maximum size of {AttachPostImageForTenant._FormatBytes(maxBytes)}",
+				ResponseKeys.PostImageTooLarge,
+				extensions: new Dictionary<string, object?> {
+					["maxBytes"] = (long)maxBytes,
+				}
 			);
 		}
 
