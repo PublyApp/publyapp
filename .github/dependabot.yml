@@ -1,9 +1,12 @@
-# Dependabot version updates.
+# Dependabot: security updates only (#2412).
+# Version updates are off: every ecosystem has open-pull-requests-limit: 0, so
+# Dependabot opens no routine bump PRs. Security updates ignore that limit and
+# still open a PR when an advisory affects a dependency. The ignore rules below
+# are kept unchanged for the day version updates are turned back on.
 # npm at "/" covers the pnpm workspace (pnpm-lock.yaml at root) — GitHub maps
 # pnpm to the npm ecosystem (docs: package-ecosystem npm supports pnpm v7-10).
 # Evidence: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file#package-ecosystem
 # gh api has no validator for this file — verified by inspection (no endpoint validates it).
-# Security updates remain enabled by default (no open-pull-requests-limit: 0).
 
 version: 2
 updates:
@@ -11,6 +14,7 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
     groups:
       minor-and-patch:
         patterns:
@@ -36,6 +40,7 @@ updates:
     directory: "/apps/api"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
     labels:
       - "technical-debt"
     commit-message:
@@ -46,6 +51,7 @@ updates:
     directory: "/packages/scripts-cs"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
     labels:
       - "technical-debt"
     commit-message:
@@ -56,6 +62,7 @@ updates:
     directory: "/packages/lint-cs"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
     labels:
       - "technical-debt"
     commit-message:
@@ -66,6 +73,7 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
     labels:
       - "technical-debt"
     commit-message:
