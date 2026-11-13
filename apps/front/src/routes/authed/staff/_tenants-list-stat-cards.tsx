@@ -114,7 +114,7 @@ export const TenantStatCards = ({
 				footer={
 					<>
 						<span className="text-[var(--publy-chip-pending-text)]">
-							{t('list-stat-over-80', { count: almostFull })}
+							{t('list-stat-between-80-99', { count: almostFull })}
 						</span>{' '}
 						· {t('list-stat-full', { count: full })}
 					</>
