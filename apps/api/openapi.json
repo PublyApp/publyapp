@@ -15953,6 +15953,88 @@
         }
       }
     },
+    "/posts/{postId}/publications": {
+      "get": {
+        "tags": [
+          "Publishing"
+        ],
+        "summary": "Find one post's publications (every live status, no window)",
+        "operationId": "FindPostPublicationsForTenant",
+        "parameters": [
+          {
+            "name": "postId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindPostPublicationsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/posts/publications/{publicationId}/retry": {
       "post": {
         "tags": [
@@ -18200,6 +18282,21 @@
           }
         }
       },
+      "FindPostPublicationsResponse": {
+        "required": [
+          "data"
+        ],
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "description": "One wire row of the scheduled-publications list (D3 Task 4): the publication\nplus its account/post context and the DST-aware zone-local ISO string.",
+              "$ref": "#/components/schemas/ScheduledPublicationItem"
+            }
+          }
+        }
+      },
       "FindPostsForTenantResponse": {
         "type": "object",
         "properties": {
@@ -20076,6 +20173,22 @@
           "customized": {
             "type": "boolean",
             "description": "True when this destination overrides part of the post's content (#2172)."
+          },
+          "publishedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "description": "Destinations of the post that are published; same derivation as the queue\n(PostStatusSummary PostStatusDerivation.Summarize(IReadOnlyCollection&lt;Publication&gt; publications)): superseded Failed rows excluded,\na cancelled newest row counts zero.",
+            "format": "int32"
+          },
+          "destinationCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "description": "Destinations of the post (see int PublicationListItem.PublishedCount).",
+            "format": "int32"
+          },
+          "postStatus": {
+            "type": "string",
+            "description": "The post's derived status wire value, as on the queue rows: History needs it to show\nthe same \"Failed · 1/2 published\" label (the label applies to a `failed` post)."
           }
         },
         "description": "History row: one publication with the context History renders."

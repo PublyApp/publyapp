@@ -4,6 +4,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Publishing.Entities;
+using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 
 namespace PublyApp.Api.Modules.Publishing.Services;
@@ -40,6 +41,19 @@ public record PublicationListItem {
 	public int SegmentsTotal { get; init; } = 1;
 	/// <summary>True when this destination overrides part of the post's content (#2172).</summary>
 	public bool Customized { get; init; }
+	/// <summary>
+	/// Destinations of the post that are published; same derivation as the queue
+	/// (<see cref="PostStatusDerivation.Summarize"/>): superseded Failed rows excluded,
+	/// a cancelled newest row counts zero.
+	/// </summary>
+	public int PublishedCount { get; init; }
+	/// <summary>Destinations of the post (see <see cref="PublishedCount"/>).</summary>
+	public int DestinationCount { get; init; }
+	/// <summary>
+	/// The post's derived status wire value, as on the queue rows: History needs it to show
+	/// the same "Failed · 1/2 published" label (the label applies to a <c>failed</c> post).
+	/// </summary>
+	public string PostStatus { get; init; } = "draft";
 }
 
 public abstract record FindPublicationsResult {
@@ -150,9 +164,26 @@ public sealed class PublicationListService : IPublicationListService {
 				.ToString();
 		}
 
+		// EVERY row of the page's posts, soft-deleted included (as the queue does): a
+		// cancelled newer row still supersedes an older failure.
+		var postIds = rows.Select(row => row.Publication.PostId).Distinct().ToList();
+		var summaries = (await this._Db.Publication
+			.AsNoTracking()
+			.Where(publication => publication.TenantId == args.TenantId
+				&& postIds.Contains(publication.PostId))
+			.ToListAsync(cancellationToken))
+			.GroupBy(publication => publication.PostId)
+			.ToDictionary(
+				group => group.Key,
+				group => PostStatusDerivation.Summarize(group.ToList())
+			);
+
 		return new FindPublicationsResult.Success(
 			new CursorPaginatedResult<PublicationListItem> {
-				Data = rows.Select(PublicationListService.ToListItem).ToList(),
+				Data = rows
+					.Select(row => PublicationListService.ToListItem(
+						row, summaries[row.Publication.PostId]))
+					.ToList(),
 				NextCursor = nextCursor,
 			}
 		);
@@ -186,7 +217,7 @@ public sealed class PublicationListService : IPublicationListService {
 			: publication.LastError;
 	}
 
-	internal static PublicationListItem ToListItem(PublicationRow row) {
+	internal static PublicationListItem ToListItem(PublicationRow row, PostStatusSummary summary) {
 		// The excerpt shows what this destination publishes: post + its rendition.
 		var postBody = RenditionResolver.EffectiveRootText(row.PostBody, row.RenditionTexts);
 		return new PublicationListItem {
@@ -212,6 +243,9 @@ public sealed class PublicationListService : IPublicationListService {
 				? Math.Max(1, row.SegmentsPublished)
 				: row.FollowUpCount + 1,
 			Customized = row.Customized,
+			PublishedCount = summary.PublishedCount,
+			DestinationCount = summary.DestinationCount,
+			PostStatus = PostStatusDerivation.FormatPostStatus(summary.Status),
 		};
 	}
 }

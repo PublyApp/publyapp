@@ -1050,4 +1050,132 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
+
+	// ── #2208: a post's own publications + History destination counts ─────────
+
+	private async Task<List<JsonElement>> _FindPostRowsAsync(Guid tenantId, string token, Guid postId) {
+		using var request = new HttpRequestMessage(HttpMethod.Get, $"/posts/{postId}/publications")
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var doc = await FindScheduledPublicationsForTenantSpec._GetJsonAsync(response);
+		return doc.GetProperty("data").EnumerateArray().ToList();
+	}
+
+	[Fact]
+	public async Task ItShouldFindAPostsFailedAndFarOutRowsWithoutAWindow() {
+		var tenantId = await this._GetAcmeIdAsync();
+		var token = await this._AuthClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
+		// Failed long ago (outside the queue's 24 h carryover), and scheduled far past 31 days.
+		var failed = await this._CreateScheduledRowAsync(
+			tenantId, "post scoped probe", new DateTime(2020, 1, 5, 9, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Failed
+		);
+		var farOut = await this._AddDestinationRowAsync(
+			tenantId, failed.PostId, PublicationStatus.Scheduled,
+			new DateTime(2099, 3, 1, 9, 0, 0, DateTimeKind.Utc), new DateTime(2098, 1, 1, 9, 0, 0, DateTimeKind.Utc)
+		);
+		var cancelled = await this._AddDestinationRowAsync(
+			tenantId, failed.PostId, PublicationStatus.Scheduled,
+			new DateTime(2099, 3, 2, 9, 0, 0, DateTimeKind.Utc), new DateTime(2098, 1, 1, 9, 0, 0, DateTimeKind.Utc)
+		);
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
+			var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			_ = await db.Publication
+				.Where(p => p.Id == cancelled.PublicationId)
+				.ExecuteUpdateAsync(setters => setters
+					.SetProperty(p => p.IsDeleted, true)
+					.SetProperty(p => p.DeletedAt, DateTime.UtcNow));
+		}
+
+		var rows = await this._FindPostRowsAsync(tenantId, token, failed.PostId);
+
+		rows.Select(row => row.GetProperty("publicationId").GetString())
+			.Should().Equal(failed.PublicationId.ToString(), farOut.PublicationId.ToString());
+		rows.Select(row => row.GetProperty("status").GetString()).Should().Equal("failed", "scheduled");
+		foreach (var row in rows) {
+			row.TryGetProperty("customized", out _).Should().BeTrue();
+			row.TryGetProperty("superseded", out _).Should().BeTrue();
+			row.GetProperty("destinationCount").GetInt32().Should().Be(2);
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldReturnNothingForAnotherTenantsPost() {
+		var acmeId = await this._GetAcmeIdAsync();
+		var techStartId = await this._GetTechStartIdAsync();
+		var token = await this._AuthClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
+		var foreign = await this._CreateScheduledRowAsync(
+			techStartId, "foreign post probe", new DateTime(2099, 4, 1, 9, 0, 0, DateTimeKind.Utc)
+		);
+
+		(await this._FindPostRowsAsync(acmeId, token, foreign.PostId)).Should().BeEmpty();
+	}
+
+	[Fact]
+	public async Task ItShouldReturn403ForAPostsPublicationsWithoutViewPermission() {
+		var tenantId = await this._GetAcmeIdAsync();
+		var userToken = await this._AuthClient.LoginAsync(TestConstants.AcmeUserEmail, TestConstants.SeedPassword);
+
+		using var request = new HttpRequestMessage(HttpMethod.Get, $"/posts/{Guid.NewGuid()}/publications")
+			.WithSessionToken(userToken)
+			.WithTenantId(tenantId);
+		using var response = await this._Http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
+	[Fact]
+	public async Task ItShouldCarryTheQueuesDestinationCountsInHistory() {
+		var tenantId = await this._GetAcmeIdAsync();
+		var token = await this._AuthClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
+		// A published destination, a Failed one replaced by a newer CANCELLED row of the same
+		// account (the pair counts zero), and a plain Failed one: 1 published of 2.
+		var published = await this._CreateScheduledRowAsync(
+			tenantId, "history counts probe", new DateTime(2098, 5, 3, 9, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Published
+		);
+		var replaced = await this._AddDestinationRowAsync(
+			tenantId, published.PostId, PublicationStatus.Failed,
+			new DateTime(2098, 5, 3, 9, 5, 0, DateTimeKind.Utc), new DateTime(2098, 5, 1, 9, 0, 0, DateTimeKind.Utc)
+		);
+		var cancelledNewest = await this._AddDestinationRowAsync(
+			tenantId, published.PostId, PublicationStatus.Scheduled,
+			new DateTime(2098, 5, 4, 9, 0, 0, DateTimeKind.Utc), new DateTime(2098, 5, 2, 9, 0, 0, DateTimeKind.Utc),
+			replaced.AccountId
+		);
+		var failed = await this._AddDestinationRowAsync(
+			tenantId, published.PostId, PublicationStatus.Failed,
+			new DateTime(2098, 5, 3, 9, 10, 0, DateTimeKind.Utc), new DateTime(2098, 5, 1, 9, 0, 0, DateTimeKind.Utc)
+		);
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
+			var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			_ = await db.Publication
+				.Where(p => p.Id == cancelledNewest.PublicationId)
+				.ExecuteUpdateAsync(setters => setters
+					.SetProperty(p => p.IsDeleted, true)
+					.SetProperty(p => p.DeletedAt, DateTime.UtcNow));
+		}
+
+		using var request = new HttpRequestMessage(HttpMethod.Get, "/publishing/publications?limit=100")
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var doc = await FindScheduledPublicationsForTenantSpec._GetJsonAsync(response);
+		var rows = doc.GetProperty("data").EnumerateArray()
+			.Where(row => row.GetProperty("postId").GetString() == published.PostId.ToString())
+			.ToList();
+
+		rows.Select(row => row.GetProperty("id").GetString())
+			.Should().BeEquivalentTo(
+				[published.PublicationId.ToString(), replaced.PublicationId.ToString(), failed.PublicationId.ToString()]
+			);
+		foreach (var row in rows) {
+			row.GetProperty("publishedCount").GetInt32().Should().Be(1);
+			row.GetProperty("destinationCount").GetInt32().Should().Be(2);
+			row.GetProperty("postStatus").GetString().Should().Be("failed");
+		}
+	}
 }

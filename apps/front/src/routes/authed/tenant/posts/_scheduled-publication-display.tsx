@@ -7,7 +7,7 @@ import { publicationStatusPresentation } from '~/lib/publishing/publication-stat
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
 import { formatInZone } from '~/utils/format-time';
 
-type StatusRow = Pick<
+export type StatusRow = Pick<
 	ScheduledPublicationRow,
 	'status' | 'postStatus' | 'publishedCount' | 'destinationCount' | 'superseded'
 >;
@@ -20,6 +20,39 @@ const isMixedOutcome = (row: StatusRow): boolean =>
 	row.publishedCount > 0 &&
 	row.publishedCount < row.destinationCount;
 
+/** "1/2 published" for a post whose destinations only partly published, else
+ * null. Shared by the queue, the calendar and History so they read alike. */
+export const useMixedOutcomeLabel = (row: StatusRow): string | null => {
+	const { t } = useTranslation('posts');
+
+	if (!isMixedOutcome(row)) {
+		return null;
+	}
+
+	return t('posts:publish-status-failed-partial', {
+		published: row.publishedCount,
+		total: row.destinationCount,
+	});
+};
+
+/** The mixed-outcome line under a non-failed destination's own pill. */
+export const MixedOutcomeNote = ({ row }: { row: StatusRow }) => {
+	const mixedLabel = useMixedOutcomeLabel(row);
+
+	if (mixedLabel === null || row.status === 'failed') {
+		return null;
+	}
+
+	return (
+		<span
+			className="text-xs text-muted-foreground"
+			data-testid="tenant-posts-mixed-status"
+		>
+			{mixedLabel}
+		</span>
+	);
+};
+
 /** A row's status pill. A replaced row (a newer publication took over its
  * post and account) reads "Replaced", never as a live status; a failed
  * destination of a post that partly published reads "Failed · 1/2
@@ -27,6 +60,7 @@ const isMixedOutcome = (row: StatusRow): boolean =>
 export const ScheduledPublicationStatus = ({ row }: { row: StatusRow }) => {
 	const { t } = useTranslation('posts');
 	const presentation = publicationStatusPresentation(row.status);
+	const mixedLabel = useMixedOutcomeLabel(row);
 
 	if (row.superseded && row.status !== 'published') {
 		return (
@@ -36,12 +70,6 @@ export const ScheduledPublicationStatus = ({ row }: { row: StatusRow }) => {
 		);
 	}
 
-	const mixedLabel = isMixedOutcome(row)
-		? t('posts:publish-status-failed-partial', {
-				published: row.publishedCount,
-				total: row.destinationCount,
-			})
-		: null;
 	const pillLabel =
 		mixedLabel !== null && row.status === 'failed'
 			? mixedLabel
@@ -55,14 +83,7 @@ export const ScheduledPublicationStatus = ({ row }: { row: StatusRow }) => {
 			>
 				{pillLabel ?? '—'}
 			</StatusPill>
-			{mixedLabel !== null && row.status !== 'failed' ? (
-				<span
-					className="text-xs text-muted-foreground"
-					data-testid="tenant-posts-mixed-status"
-				>
-					{mixedLabel}
-				</span>
-			) : null}
+			<MixedOutcomeNote row={row} />
 		</div>
 	);
 };

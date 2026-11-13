@@ -18,8 +18,6 @@ export const QUEUE_PAGE_SIZE = 20;
  * paused and failed rows (a failed one is fixed by customizing, then retrying). */
 export const CUSTOMIZABLE_STATUSES = ['scheduled', 'paused', 'failed'];
 
-export const SCHEDULED_PAGE_SIZE = 100;
-
 /** The calendar walks every page of the month, 100 rows at a time. */
 export const CALENDAR_PAGE_SIZE = 100;
 

@@ -60,6 +60,10 @@ export type TenantPublicationRow = {
 	/** Thread progress: segments published so far / total segments (1 = plain post). */
 	segmentsPublished: number;
 	segmentsTotal: number;
+	/** The post's derived status and its destination counts, as on queue rows. */
+	postStatus: string | null;
+	publishedCount: number;
+	destinationCount: number;
 };
 
 // ── Status vocabulary guard ────────────────────────────────────────
@@ -188,6 +192,9 @@ const toTenantPublicationRow = (
 		updatedAt: normalizeDate(item.updatedAt),
 		segmentsPublished: item.segmentsPublished ?? 0,
 		segmentsTotal: item.segmentsTotal ?? 1,
+		postStatus: normalizeNullableString(item.postStatus),
+		publishedCount: item.publishedCount ?? 0,
+		destinationCount: item.destinationCount ?? 0,
 	};
 };
 

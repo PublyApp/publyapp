@@ -28,7 +28,7 @@ import {
 	toTenantProjectItems,
 } from '~/lib/query/tenant-projects';
 import { tenantPublishTargetsQueryOptions } from '~/lib/query/tenant-publish-targets';
-import { scheduledPublicationsInfiniteQueryOptions } from '~/lib/query/tenant-scheduled-publications';
+import { postPublicationsQueryOptions } from '~/lib/query/tenant-scheduled-publications';
 import {
 	resolveWorkspaceTenantIdFromCache,
 	tenantsForPickerQueryOptions,
@@ -45,8 +45,6 @@ import { PostEditDestinations } from '../_post-edit-destinations';
 import { PostEditDialogs } from '../_post-edit-dialogs';
 import { PostEditSegments } from '../_post-edit-segments';
 import { PostEditSideColumn } from '../_post-edit-side-column';
-import { CUSTOMIZABLE_STATUSES, SCHEDULED_PAGE_SIZE } from '../_queries';
-import { buildUpcomingPublicationWindow } from '../_scheduled-publication-helpers';
 import { NO_SEGMENTS, reconcileSegmentDrafts } from '../_segment-draft';
 import { segmentFormBindings } from '../_segment-form-bindings';
 import { storedImageCounts } from '../_stored-segments';
@@ -121,8 +119,6 @@ const postEditQueries = ({
 	tenantId: string;
 	postId: string;
 }) => {
-	const scheduleWindow = buildUpcomingPublicationWindow(new Date());
-
 	return {
 		postDetails: {
 			options: tenantPostDetailsQueryOptions,
@@ -133,16 +129,9 @@ const postEditQueries = ({
 			options: tenantPublishTargetsQueryOptions,
 			variables: { tenantId, projectId: null },
 		},
-		scheduledPublications: {
-			options: scheduledPublicationsInfiniteQueryOptions,
-			variables: {
-				tenantId,
-				from: scheduleWindow.from,
-				to: scheduleWindow.to,
-				statuses: CUSTOMIZABLE_STATUSES,
-				limit: SCHEDULED_PAGE_SIZE,
-				restartKey: 0,
-			},
+		postPublications: {
+			options: postPublicationsQueryOptions,
+			variables: { tenantId, postId },
 		},
 		permissions: {
 			options: tenantPermissionsQueryOptions,

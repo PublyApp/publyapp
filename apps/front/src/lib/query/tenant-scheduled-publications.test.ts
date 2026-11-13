@@ -201,6 +201,32 @@ describe('scheduledPublicationsQueryOptions', () => {
 	});
 });
 
+describe('postPublicationsQueryOptions', () => {
+	test('asks for one post, with no window, under the tenant scheduled-publications key', async () => {
+		const {
+			postPublicationsQueryOptions,
+			invalidateTenantScheduledPublications,
+		} = await requireScheduledPublicationsModule();
+		const get = vi.fn().mockResolvedValue({ data: [] });
+		const byPostId = vi.fn().mockReturnValue({ publications: { get } });
+		mocks.getOrCreateClient.mockReturnValue({ posts: { byPostId } });
+		const variables = { tenantId: 'tenant-1', postId: 'post-1' };
+
+		const key = postPublicationsQueryOptions.queryKey(variables);
+		const result = await postPublicationsQueryOptions.fetcher(variables);
+
+		expect(byPostId).toHaveBeenCalledWith('post-1');
+		expect(get).toHaveBeenCalledWith();
+		expect(result).toEqual({ data: [] });
+
+		// The queue's tenant-wide invalidation reaches it.
+		const qc = new QueryClient();
+		qc.setQueryData(key, result);
+		await invalidateTenantScheduledPublications(qc, 'tenant-1');
+		expect(qc.getQueryState(key)?.isInvalidated).toBe(true);
+	});
+});
+
 describe('scheduledPublicationsInfiniteQueryOptions', () => {
 	const variables = {
 		tenantId: 'tenant-1',

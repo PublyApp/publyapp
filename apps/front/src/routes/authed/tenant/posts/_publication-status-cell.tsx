@@ -5,6 +5,10 @@ import type { TenantPublicationRow } from '~/lib/query/tenant-publications';
 
 import { PublicationFailureDetails } from './_publication-failure-details';
 import { PublicationSegmentProgress } from './_publication-segment-progress';
+import {
+	MixedOutcomeNote,
+	useMixedOutcomeLabel,
+} from './_scheduled-publication-display';
 
 export const PublicationStatusCell = ({
 	publication,
@@ -18,6 +22,7 @@ export const PublicationStatusCell = ({
 	const { t } = useTranslation(['posts', 'common']);
 
 	const presentation = publicationStatusPresentation(publication.status);
+	const mixedLabel = useMixedOutcomeLabel(publication);
 	if (presentation === null) {
 		return <span className="text-muted-foreground">{'—'}</span>;
 	}
@@ -51,16 +56,21 @@ export const PublicationStatusCell = ({
 			tone={presentation.tone}
 			testId="tenant-posts-history-status-pill"
 		>
-			{t(presentation.labelKey)}
+			{mixedLabel !== null && publication.status === 'failed'
+				? mixedLabel
+				: t(presentation.labelKey)}
 		</StatusPill>
 	);
 
 	const progress = (
-		<PublicationSegmentProgress
-			status={publication.status}
-			published={publication.segmentsPublished}
-			total={publication.segmentsTotal}
-		/>
+		<>
+			<PublicationSegmentProgress
+				status={publication.status}
+				published={publication.segmentsPublished}
+				total={publication.segmentsTotal}
+			/>
+			<MixedOutcomeNote row={publication} />
+		</>
 	);
 
 	if (publication.status === 'published' && publication.externalUrl) {
@@ -97,7 +107,7 @@ export const PublicationStatusCell = ({
 		);
 	}
 
-	if (publication.segmentsTotal > 1) {
+	if (publication.segmentsTotal > 1 || mixedLabel !== null) {
 		return (
 			<div className="flex flex-col items-start gap-1">
 				{pill}

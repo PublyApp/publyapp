@@ -244,6 +244,17 @@ public interface IPublicationService {
 	);
 
 	/// <summary>
+	/// The post's live (not cancelled) publications in every status, oldest schedule
+	/// first, with the same fields as the queue rows. Not windowed or paginated: a post
+	/// has a handful of destinations.
+	/// </summary>
+	Task<IReadOnlyList<ScheduledPublicationItem>> FindForPostAsync(
+		Guid tenantId,
+		Guid postId,
+		CancellationToken cancellationToken = default
+	);
+
+	/// <summary>
 	/// Validates and stages a post's text/schedule edit, returning the result
 	/// union for the calling handler to apply. Lives on the interface (not just the
 	/// concrete service) so handlers depend on <see cref="IPublicationService"/>
@@ -878,6 +889,38 @@ public sealed class PublicationService : IPublicationService {
 			rows.RemoveAt(rows.Count - 1);
 		}
 
+		var items = await this._ToItemsAsync(
+			args.TenantId,
+			rows.Select(row => (row.Publication, row.AccountHandle)).ToList(),
+			cancellationToken
+		);
+
+		var page = new CursorPaginatedResult<ScheduledPublicationItem> {
+			Data = items,
+			NextCursor = null,
+		};
+		if (hasNextPage) {
+			// rows.Count > args.Limit implies at least one row: the tail index is
+			// only safe to read when a next page actually exists (round-2 finding:
+			// an empty window used to 500 on an unconditional rows[^1]).
+			var last = rows[^1].Publication;
+			page.NextCursor = PublicationService._EncodeCursor(
+				last.ScheduledAtUtc,
+				last.GetRequiredId()
+			);
+		}
+		return new FindScheduledResult.Success(page);
+	}
+
+	/// <summary>
+	/// Wire rows for the given publications, with the post-level counts and flags every
+	/// list surface shares (queue, calendar, a post's own list).
+	/// </summary>
+	private async Task<List<ScheduledPublicationItem>> _ToItemsAsync(
+		Guid tenantId,
+		List<(Publication Publication, string AccountHandle)> rows,
+		CancellationToken cancellationToken
+	) {
 		var postIds = rows
 			.Select(row => row.Publication.PostId)
 			.Distinct()
@@ -900,7 +943,7 @@ public sealed class PublicationService : IPublicationService {
 		var pagePublicationIds = rows.Select(row => row.Publication.GetRequiredId()).ToList();
 		var renditionTexts = await this._DbContext.Rendition
 			.AsNoTracking()
-			.Where(rendition => rendition.TenantId == args.TenantId
+			.Where(rendition => rendition.TenantId == tenantId
 				&& pagePublicationIds.Contains(rendition.PublicationId))
 			.ToDictionaryAsync(
 				rendition => rendition.PublicationId,
@@ -912,15 +955,14 @@ public sealed class PublicationService : IPublicationService {
 		// supersedes an older failure (PublicationSupersession).
 		var publicationsByPost = (await (
 			from p in this._DbContext.Publication.AsNoTracking()
-			where p.TenantId == args.TenantId && postIds.Contains(p.PostId)
+			where p.TenantId == tenantId && postIds.Contains(p.PostId)
 			select p
 		).ToListAsync(cancellationToken))
 			.ToLookup(p => p.PostId);
 
 		var items = new List<ScheduledPublicationItem>(rows.Count);
 		var summaries = new Dictionary<Guid, PostStatusSummary>();
-		foreach (var row in rows) {
-			var publication = row.Publication;
+		foreach (var (publication, accountHandle) in rows) {
 			var postId = publication.PostId;
 			var sourceBody = postInfos.TryGetValue(postId, out var value)
 				? value ?? string.Empty
@@ -945,7 +987,7 @@ public sealed class PublicationService : IPublicationService {
 				Superseded = PublicationSupersession.IsSuperseded(publication, postRowsAll),
 				Customized = hasRendition,
 				SocialAccountId = publication.SocialAccountId,
-				AccountDisplayHandle = row.AccountHandle ?? string.Empty,
+				AccountDisplayHandle = accountHandle ?? string.Empty,
 				ScheduledAtUtc = publication.ScheduledAtUtc,
 				ScheduledAtLocal = PublicationZoneFormatter.ToLocalIso(
 					publication.ScheduledAtUtc,
@@ -964,21 +1006,36 @@ public sealed class PublicationService : IPublicationService {
 			});
 		}
 
-		var page = new CursorPaginatedResult<ScheduledPublicationItem> {
-			Data = items,
-			NextCursor = null,
-		};
-		if (hasNextPage) {
-			// rows.Count > args.Limit implies at least one row: the tail index is
-			// only safe to read when a next page actually exists (round-2 finding:
-			// an empty window used to 500 on an unconditional rows[^1]).
-			var last = rows[^1].Publication;
-			page.NextCursor = PublicationService._EncodeCursor(
-				last.ScheduledAtUtc,
-				last.GetRequiredId()
-			);
-		}
-		return new FindScheduledResult.Success(page);
+		return items;
+	}
+
+	public async Task<IReadOnlyList<ScheduledPublicationItem>> FindForPostAsync(
+		Guid tenantId,
+		Guid postId,
+		CancellationToken cancellationToken = default
+	) {
+		// Live rows only: a cancelled (soft-deleted) publication is not listed. No window,
+		// no status filter: a failed or far-out row is exactly what the edit page needs.
+		var rows = await (
+			from publication in this._DbContext.Publication.AsNoTracking()
+			where publication.TenantId == tenantId
+				&& publication.PostId == postId
+				&& !publication.IsDeleted
+			orderby publication.ScheduledAtUtc, publication.Id
+			select new {
+				Publication = publication,
+				AccountHandle = this._DbContext.SocialAccount
+					.Where(a => a.Id == publication.SocialAccountId)
+					.Select(a => a.DisplayHandle)
+					.FirstOrDefault(),
+			}
+		).ToListAsync(cancellationToken);
+
+		return await this._ToItemsAsync(
+			tenantId,
+			rows.Select(row => (row.Publication, row.AccountHandle)).ToList(),
+			cancellationToken
+		);
 	}
 
 	private async Task<Post?> _LoadPostAsync(
