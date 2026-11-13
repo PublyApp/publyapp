@@ -9,6 +9,7 @@ import { renderFieldHelper } from '~/components/field/field-helper-text';
 import { BrandTile } from '~/components/ui/initials-avatar';
 import { Label } from '~/components/ui/label';
 import { resolveApiFileUrl } from '~/lib/api-client/resolve-api-file-url';
+import { formatBytes } from '~/lib/format-bytes';
 import { toastLocalMutationResult } from '~/lib/mutation-feedback/mutation-toast';
 import { useUploadStaffImageMutation } from '~/lib/query/staff-uploads';
 
@@ -59,7 +60,7 @@ export const FieldImageUpload = ({
 	hideLabel = false,
 	optional = false,
 }: FieldImageUploadProps) => {
-	const { t } = useTranslation('common');
+	const { t, i18n } = useTranslation('common');
 	const { control } = useFormContext();
 	const uploadImage = useUploadStaffImageMutation();
 	const [localError, setLocalError] = useState('');
@@ -82,7 +83,7 @@ export const FieldImageUpload = ({
 					setLocalError('');
 					setPicked({
 						name: file.name,
-						meta: `${Math.max(1, Math.round(file.size / 1024))} Ko`,
+						meta: formatBytes(file.size, i18n.language),
 					});
 
 					if (!ACCEPTED_MIME_TYPES.includes(file.type)) {

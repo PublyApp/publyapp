@@ -28,6 +28,7 @@
 	"attempt-timed-out": "Cela prend trop de temps. Vérifiez vos publications avant de réessayer, au cas où cela aurait abouti.",
 	"image-timed-out": "L’envoi des images prend trop de temps. Certaines sont peut-être déjà jointes : réessayez et seules les manquantes seront envoyées.",
 	"image-retry": "Réessayer",
+	"image-retrying": "Envoi des images…",
 	"image-add": "Ajouter des images",
 	"image-alt-label-numbered": "Texte alternatif de l’image {{index}}",
 	"image-alt-nudge": "Ajoutez un texte alternatif pour que tout le monde puisse suivre votre publication.",

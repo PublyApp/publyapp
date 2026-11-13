@@ -80,6 +80,7 @@ vi.mock('react-i18next', () => ({
 
 			return labels[key] ?? key;
 		},
+		i18n: { language: 'en', resolvedLanguage: 'en' },
 	}),
 }));
 
@@ -222,6 +223,27 @@ describe('Field.ImageUpload', () => {
 		expect(mutate).not.toHaveBeenCalled();
 		expect(screen.getByText('Image must be 2 MB or smaller')).toBeTruthy();
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	test('shows the picked file size through the shared formatter, in the UI language (#2408)', () => {
+		mocks.useUploadStaffImageMutation.mockReturnValue({
+			mutate: (
+				_input: unknown,
+				opts: { onSuccess: (result: { url: string }) => void },
+			) => {
+				opts.onSuccess({ url: '/files/uploads/2026/07/logo.png' });
+			},
+			isPending: false,
+		});
+
+		render(<ImageUploadHarness />);
+
+		fireEvent.change(screen.getByLabelText('Logo'), {
+			target: { files: [buildFile('logo.png', 1_540_000)] },
+		});
+
+		expect(screen.getByText('1.5 MB')).toBeTruthy();
+		expect(screen.queryByText(/Ko/)).toBeNull();
 	});
 
 	test('a successful upload sets the field value and marks the form dirty', async () => {

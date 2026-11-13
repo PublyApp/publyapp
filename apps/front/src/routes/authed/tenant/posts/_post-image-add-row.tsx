@@ -1,5 +1,6 @@
 import { IconPhotoPlus } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
+import { formatBytes } from '~/lib/format-bytes';
 import { cn } from '~/lib/utils';
 
 import type { ImageLimits } from './_use-publish-selection';
@@ -9,11 +10,6 @@ import type { ImageLimits } from './_use-publish-selection';
  * re-validates by magic-byte sniffing and a typed 422 on the excess image.
  * With no destination selected there is nothing to cap against yet. */
 const FALLBACK_ACCEPT_ATTR = 'image/*';
-
-const formatBytes = (bytes: number): string =>
-	bytes >= 1_000_000
-		? `${Number((bytes / 1_000_000).toFixed(1))} MB`
-		: `${Math.ceil(bytes / 1000)} KB`;
 
 const formatTypes = (types: string[]): string =>
 	types.map((type) => type.replace('image/', '').toUpperCase()).join(', ');
@@ -41,7 +37,7 @@ export const PostImageAddRow = ({
 	failureMessage,
 	onPick,
 }: AddRowProps) => {
-	const { t } = useTranslation(['posts']);
+	const { t, i18n } = useTranslation(['posts']);
 
 	return (
 		<div className="flex items-center gap-3 rounded-[var(--publy-radius-medium-control)] border-[1.5px] border-dashed border-(--publy-border-strong) bg-(--publy-surface-muted) px-4 py-3">
@@ -71,7 +67,7 @@ export const PostImageAddRow = ({
 					<p className="publy-type-helper text-muted-foreground">
 						{t('posts:image-help', {
 							types: formatTypes(limits.acceptedImageContentTypes),
-							size: formatBytes(limits.maxImageBytes),
+							size: formatBytes(limits.maxImageBytes, i18n.language, 'limit'),
 							max: limits.maxImages,
 						})}
 					</p>
