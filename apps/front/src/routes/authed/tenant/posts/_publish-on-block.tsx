@@ -41,6 +41,7 @@ export const PublishOnBlock = ({
 	body = '',
 	segments = NO_SEGMENTS,
 	imageKeys = NO_IMAGE_KEYS,
+	segmentImageCounts,
 	isPostDirty = false,
 	onBeforePublish,
 	onPublishInterrupted,
@@ -58,6 +59,9 @@ export const PublishOnBlock = ({
 	segments?: SegmentDraft[];
 	/** Images on the post (attached or picked): a photo network needs one. */
 	imageKeys?: string[];
+	/** How many images each follow-up holds, by segment id: held against the
+	 * SELECTED destinations' caps. */
+	segmentImageCounts?: Readonly<Record<string, number>>;
 	/** Unsaved edits to the shared post (edit page). A customization names
 	 * segments by position and the server applies it to the SAVED post, so
 	 * while the post is dirty a customized publish or schedule is held back. */
@@ -93,8 +97,14 @@ export const PublishOnBlock = ({
 		body,
 		segments,
 		imageKeys,
+		segmentImageCounts,
 	});
-	const { overLimitFollowUp, overrideProblem, destinationBlock } = problems;
+	const {
+		overLimitFollowUp,
+		overrideProblem,
+		segmentImageProblem,
+		destinationBlock,
+	} = problems;
 	const isPending = submit.pending !== null;
 	const mustSaveFirst =
 		isPostDirty &&
@@ -143,6 +153,20 @@ export const PublishOnBlock = ({
 							index: overrideProblem.segmentNumber,
 						},
 					)}
+				</p>
+			) : null}
+			{segmentImageProblem ? (
+				<p
+					className="text-xs text-[var(--publy-danger)]"
+					role="alert"
+					data-testid="tenant-posts-segment-image-problem"
+				>
+					{t('posts:publish-blocked-segment-images', {
+						destination: segmentImageProblem.destination,
+						index: segmentImageProblem.segmentNumber,
+						count: segmentImageProblem.count,
+						max: segmentImageProblem.max,
+					})}
 				</p>
 			) : null}
 			{destinationBlock ? (

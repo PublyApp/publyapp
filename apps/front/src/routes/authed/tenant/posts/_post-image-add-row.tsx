@@ -16,7 +16,11 @@ const formatTypes = (types: string[]): string =>
 
 type AddRowProps = {
 	inputId: string;
+	/** Accessible name of the file input; defaults to the post's "Images". */
+	label?: string;
 	limits: ImageLimits | null;
+	/** The cap in force (the limits', or a hard one); null = none. */
+	maxImages: number | null;
 	addDisabled: boolean;
 	isFull: boolean;
 	hasNoCommonType: boolean;
@@ -29,7 +33,9 @@ type AddRowProps = {
  * adding is off (full, or no image type shared by the destinations). */
 export const PostImageAddRow = ({
 	inputId,
+	label,
 	limits,
+	maxImages,
 	addDisabled,
 	isFull,
 	hasNoCommonType,
@@ -72,12 +78,20 @@ export const PostImageAddRow = ({
 						})}
 					</p>
 				) : null}
-				{limits && (showLimitNotice || isFull) ? (
+				{maxImages !== null && showLimitNotice ? (
 					<p
 						className="publy-type-helper text-muted-foreground"
 						data-testid="tenant-posts-create-image-limit"
 					>
-						{t('posts:image-limit-reached', { max: limits.maxImages })}
+						{t('posts:image-limit-reached', { max: maxImages })}
+					</p>
+				) : null}
+				{maxImages !== null && isFull && !showLimitNotice ? (
+					<p
+						className="publy-type-helper text-muted-foreground"
+						data-testid="tenant-posts-create-image-full"
+					>
+						{t('posts:image-full', { max: maxImages })}
 					</p>
 				) : null}
 				{failureMessage ? (
@@ -99,7 +113,7 @@ export const PostImageAddRow = ({
 				disabled={addDisabled}
 				className="sr-only"
 				data-testid="tenant-posts-create-image-input"
-				aria-label={t('posts:images-label')}
+				aria-label={label ?? t('posts:images-label')}
 				onChange={(event) => {
 					const picked = Array.from(event.target.files ?? []);
 					event.target.value = '';

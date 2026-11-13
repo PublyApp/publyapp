@@ -7,7 +7,10 @@ import { countText, tightestLimit } from '~/lib/text-counter/text-counter';
 import type { TightestLimit } from '~/lib/text-counter/text-counter';
 
 import type { SegmentDraft } from './_segment-draft';
+import { segmentMaxImages } from './_segment-image-limits';
 import type { SelectedDestination } from './_use-publish-selection';
+
+const NO_SEGMENT_IMAGE_COUNTS: Readonly<Record<string, number>> = {};
 
 /** The server refuses a publish-now request above this many destinations. */
 export const PUBLISH_NOW_MAX_DESTINATIONS = 20;
@@ -44,6 +47,34 @@ const findDestinationBlock = (
 				key: 'posts:publish-blocked-threads-unsupported',
 				destination: label,
 			};
+		}
+	}
+	return null;
+};
+
+type SegmentImageProblem = {
+	destination: string;
+	/** 1-based segment number. */
+	segmentNumber: number;
+	count: number;
+	max: number;
+};
+
+/** The first follow-up holding more images than a SELECTED destination takes
+ * on a segment (its own cap, never above 4): the server refuses it at
+ * dispatch, so the Publish button says so first. */
+const findSegmentImageProblem = (
+	destinations: readonly SelectedDestination[],
+	segments: readonly SegmentDraft[],
+	segmentImageCounts: Readonly<Record<string, number>>,
+): SegmentImageProblem | null => {
+	for (const { label, limits } of destinations) {
+		const max = segmentMaxImages(limits.maxImages);
+		for (const [position, segment] of segments.entries()) {
+			const count = segmentImageCounts[segment.id] ?? 0;
+			if (count > max) {
+				return { destination: label, segmentNumber: position + 2, count, max };
+			}
 		}
 	}
 	return null;
@@ -105,6 +136,8 @@ export type PublishProblems = {
 	 * that inherits it, or -1. */
 	overLimitFollowUp: number;
 	overrideProblem: OverrideProblem | null;
+	/** A follow-up with more images than a selected destination takes. */
+	segmentImageProblem: SegmentImageProblem | null;
 	destinationBlock: DestinationBlock | null;
 };
 
@@ -117,6 +150,7 @@ export const findPublishProblems = ({
 	body,
 	segments,
 	imageKeys,
+	segmentImageCounts = NO_SEGMENT_IMAGE_COUNTS,
 }: {
 	destinations: readonly SelectedDestination[];
 	overrides: DestinationOverrides;
@@ -125,6 +159,8 @@ export const findPublishProblems = ({
 	/** The post's images (keys): a destination's image override is judged
 	 * against the images that are still on the post. */
 	imageKeys: readonly string[];
+	/** How many images each follow-up holds, by segment id. */
+	segmentImageCounts?: Readonly<Record<string, number>>;
 }): PublishProblems => {
 	const segmentKeys = [BODY_KEY, ...segments.map((segment) => segment.id)];
 
@@ -141,6 +177,11 @@ export const findPublishProblems = ({
 				)?.state === 'error',
 		),
 		overrideProblem: findOverrideProblem(destinations, overrides, segmentKeys),
+		segmentImageProblem: findSegmentImageProblem(
+			destinations,
+			segments,
+			segmentImageCounts,
+		),
 		destinationBlock: findDestinationBlock(
 			destinations,
 			overrides,
@@ -154,4 +195,5 @@ export const isPublishBlocked = (problems: PublishProblems): boolean =>
 	problems.bodyLimit?.state === 'error' ||
 	problems.overLimitFollowUp >= 0 ||
 	problems.overrideProblem !== null ||
+	problems.segmentImageProblem !== null ||
 	problems.destinationBlock !== null;

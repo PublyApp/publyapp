@@ -1,10 +1,16 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import { act } from '@testing-library/react';
 import type { ComponentType, ReactNode } from 'react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
 	BODY_KEY,
 	NO_OVERRIDE,
@@ -33,7 +39,11 @@ interface CapturedProps {
 	segments?: { id: string; text: string }[];
 	destinationOverrides?: DestinationOverridesState;
 	isPostDirty?: boolean;
+	segmentImageCounts?: Record<string, number>;
+	disabled?: boolean;
 }
+
+type ProjectsQueryStub = { data?: { items: never[] }; isPending: boolean };
 
 const mocks = vi.hoisted(() => ({
 	composerProps: { current: undefined as CapturedProps | undefined },
@@ -52,7 +62,7 @@ const mocks = vi.hoisted(() => ({
 		refetch: vi.fn(),
 		isFetching: false,
 	})),
-	useTenantProjectsQuery: vi.fn(() => ({
+	useTenantProjectsQuery: vi.fn((): ProjectsQueryStub => ({
 		data: undefined,
 		isPending: true,
 	})),
@@ -61,6 +71,9 @@ const mocks = vi.hoisted(() => ({
 		isPending: false,
 	})),
 	savePost: vi.fn().mockResolvedValue({}),
+	readCreatedSegments: vi.fn(),
+	attachMutateAsync: vi.fn(),
+	altMutateAsync: vi.fn(),
 	invalidateTenantPosts: vi.fn().mockResolvedValue(undefined),
 	invalidateTenantScheduledPublications: vi.fn().mockResolvedValue(undefined),
 	invalidateTenantPublications: vi.fn().mockResolvedValue(undefined),
@@ -75,9 +88,56 @@ vi.mock('@tanstack/react-query', () => ({
 // The picker pulls its own mutation hooks; the page tests only assert that
 // its mount point exists, so a static stub keeps this suite focused.
 vi.mock('../_post-image-picker', () => ({
-	PostImagePicker: () => (
-		<div data-testid="tenant-post-edit-image-picker-stub" />
+	PostImagePicker: ({
+		segmentId,
+		existingImages,
+		disabled,
+		selections,
+		onSelect,
+	}: {
+		segmentId?: string;
+		existingImages?: unknown[];
+		disabled?: boolean;
+		selections?: unknown[];
+		onSelect?: (next: unknown[]) => void;
+	}) => (
+		<div
+			data-testid="tenant-post-edit-image-picker-stub"
+			data-disabled={String(Boolean(disabled))}
+			data-segment-id={segmentId ?? ''}
+			data-image-count={existingImages?.length ?? 0}
+		>
+			{onSelect ? (
+				<button
+					type="button"
+					data-testid="stub-pick"
+					onClick={() =>
+						onSelect([
+							...(selections ?? []),
+							{
+								id: `picked-${(selections ?? []).length}`,
+								file: new File(['x'], 'x.png', { type: 'image/png' }),
+								altText: '',
+							},
+						])
+					}
+				/>
+			) : null}
+		</div>
 	),
+}));
+
+// The upload hooks need a query client the page tests do not provide.
+vi.mock('~/lib/query/tenant-post-images', () => ({
+	useAttachPostImageMutation: () => ({
+		mutateAsync: mocks.attachMutateAsync,
+		isPending: false,
+	}),
+	useUpdatePostImageAltMutation: () => ({
+		mutateAsync: mocks.altMutateAsync,
+		isPending: false,
+	}),
+	useInvalidatePostImageCaches: () => vi.fn(),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
@@ -108,6 +168,7 @@ vi.mock('@tanstack/react-router', () => ({
 		);
 	},
 	useCanGoBack: () => mocks.canGoBack,
+	useRouter: () => ({ invalidate: vi.fn() }),
 	useBlocker: ({
 		shouldBlockFn,
 		enableBeforeUnload,
@@ -134,7 +195,12 @@ vi.mock('~/components/error-views/LogoutRedirect', () => ({
 vi.mock('~/components/field', () => ({
 	Field: {
 		Textarea: () => <textarea data-testid="field-textarea-stub" />,
-		Select: () => <div data-testid="field-select-stub" />,
+		Select: ({ isDisabled }: { isDisabled?: boolean }) => (
+			<div
+				data-testid="field-select-stub"
+				data-disabled={String(Boolean(isDisabled))}
+			/>
+		),
 	},
 	Form: ({
 		children,
@@ -164,6 +230,7 @@ vi.mock('~/lib/query/tenant-posts', async (importOriginal) => ({
 	useTenantPostDetailsQuery: mocks.useTenantPostDetailsQuery,
 	useDeleteTenantPostMutation: mocks.useDeleteTenantPostMutation,
 	savePost: mocks.savePost,
+	readCreatedSegments: mocks.readCreatedSegments,
 	invalidateTenantPosts: mocks.invalidateTenantPosts,
 	toTenantPostDetails: vi.fn((data: unknown) => {
 		if (!data) {
@@ -262,7 +329,9 @@ vi.mock('../_scheduled-renditions-block', () => ({
 }));
 
 vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
-	shouldLogoutForFailure: () => false,
+	shouldLogoutForFailure: (error: unknown) =>
+		(error as { responseStatusCode?: number } | null)?.responseStatusCode ===
+		401,
 }));
 
 const EN_LABELS: TestLabelMap = {
@@ -297,6 +366,8 @@ vi.mock('react-i18next', () => ({
 	}),
 }));
 
+// eslint-disable-next-line import/first
+import { AuthedRouteBoundary } from '../_authed-route-boundary.test-helper';
 // eslint-disable-next-line import/first
 import { Route } from './edit';
 
@@ -407,6 +478,15 @@ describe('TenantPostEditPage', () => {
 		render(<TenantPostEditPage />);
 
 		expect(screen.getByTestId('publish-on-block-stub')).toBeTruthy();
+	});
+
+	test('another post remounts the page (no form, queue or request carried over)', () => {
+		const options: { remountDeps?: unknown } = Route.options;
+		const remountDeps = options.remountDeps;
+		if (typeof remountDeps !== 'function') {
+			throw new Error('no remountDeps');
+		}
+		expect(remountDeps({ params: { postId: 'p-1' } })).toBe('p-1');
 	});
 
 	test('hands the destinations the post images (keyed by asset id) and the scheduled destinations its id', () => {
@@ -547,8 +627,8 @@ describe('TenantPostEditPage', () => {
 				body: 'Hello world',
 				projectId: null,
 				segments: [
-					{ id: 'seg-b', number: 2, body: 'B' },
-					{ id: 'seg-c', number: 3, body: 'C' },
+					{ id: 'seg-b', number: 2, body: 'B', images: [] },
+					{ id: 'seg-c', number: 3, body: 'C', images: [] },
 				],
 				images: [],
 			},
@@ -581,7 +661,7 @@ describe('TenantPostEditPage', () => {
 				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
 				body: 'Hello world',
 				projectId: null,
-				segments: [{ id: 'seg-b', number: 2, body: 'B' }],
+				segments: [{ id: 'seg-b', number: 2, body: 'B', images: [] }],
 				images: [],
 			},
 			isPending: false,
@@ -611,7 +691,7 @@ describe('TenantPostEditPage', () => {
 					id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
 					body: 'Hello world',
 					projectId: null,
-					segments: [{ number: 2, body: 'Follow-up' }],
+					segments: [{ number: 2, body: 'Follow-up', images: [] }],
 					images,
 				},
 				isPending: false,
@@ -656,6 +736,45 @@ describe('TenantPostEditPage', () => {
 				overrides: { segments: [{ position: 1, text: 'Follow-up for acc-1' }] },
 			},
 		]);
+	});
+
+	test('a refetch after an image change keeps what the user typed in a follow-up (#2181)', () => {
+		const loadedPost = (images: unknown[]) =>
+			mocks.useTenantPostDetailsQuery.mockReturnValue({
+				data: {
+					id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+					body: 'Hello world',
+					projectId: null,
+					segments: [{ id: 'seg-b', number: 2, body: 'B', images }],
+					images: [],
+				},
+				isPending: false,
+				isSuccess: true,
+				isError: false,
+				error: null,
+				refetch: vi.fn(),
+				isFetching: false,
+			});
+		loadedPost([]);
+		const view = render(<TenantPostEditPage />);
+		const idBefore = mocks.blockProps.current?.segments?.[0]?.id;
+
+		fireEvent.change(screen.getByTestId('tenant-posts-segment-body'), {
+			target: { value: 'B, edited but not saved' },
+		});
+		// An image is attached to the segment: the post details refetch.
+		loadedPost([{ id: 'img-1', url: 'https://files.example/1.png' }]);
+		view.rerender(<TenantPostEditPage />);
+
+		expect(
+			(screen.getByTestId('tenant-posts-segment-body') as HTMLTextAreaElement)
+				.value,
+		).toBe('B, edited but not saved');
+		expect(mocks.blockProps.current?.segments?.[0]?.id).toBe(idBefore);
+		expect(mocks.blockProps.current?.segmentImageCounts).toEqual({
+			[idBefore ?? '']: 1,
+		});
+		expect(mocks.blockProps.current?.isPostDirty).toBe(true);
 	});
 
 	test("hands the publish block the post's unsaved state, and leaving with customizations asks first", () => {
@@ -709,5 +828,570 @@ describe('TenantPostEditPage', () => {
 		expect(mocks.shouldBlock.current?.()).toBe(true);
 		// The browser's unload prompt follows the same switch.
 		expect(mocks.beforeUnload.current?.()).toBe(true);
+	});
+
+	test('every stored follow-up gets its own image picker, and the publish block counts its images (#2181)', () => {
+		mocks.useTenantPostDetailsQuery.mockReturnValue({
+			data: {
+				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+				body: 'Hello world',
+				projectId: null,
+				segments: [
+					{
+						id: 'seg-b',
+						number: 2,
+						body: 'B',
+						images: [{ id: 'i1' }, { id: 'i2' }],
+					},
+					{ id: 'seg-c', number: 3, body: 'C', images: [] },
+				],
+				images: [],
+			},
+			isPending: false,
+			isSuccess: true,
+			isError: false,
+			error: null,
+			refetch: vi.fn(),
+			isFetching: false,
+		});
+
+		render(<TenantPostEditPage />);
+
+		const pickers = screen
+			.getAllByTestId('tenant-post-edit-image-picker-stub')
+			.filter((node) => node.getAttribute('data-segment-id') !== '');
+		expect(
+			pickers.map((node) => [
+				node.getAttribute('data-segment-id'),
+				node.getAttribute('data-image-count'),
+			]),
+		).toEqual([
+			['seg-b', '2'],
+			['seg-c', '0'],
+		]);
+		const draftIds = mocks.blockProps.current?.segments?.map(
+			(segment) => segment.id,
+		);
+		expect(mocks.blockProps.current?.segmentImageCounts).toEqual({
+			[draftIds?.[0] ?? '']: 2,
+			[draftIds?.[1] ?? '']: 0,
+		});
+	});
+
+	test('a published segment keeps its images read-only, an unpublished one stays editable', () => {
+		mocks.useTenantPostDetailsQuery.mockReturnValue({
+			data: {
+				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+				body: 'Hello world',
+				projectId: null,
+				publishedSegmentCount: 2,
+				segments: [
+					{ id: 'seg-b', number: 2, body: 'B', images: [] },
+					{ id: 'seg-c', number: 3, body: 'C', images: [] },
+				],
+				images: [],
+			},
+			isPending: false,
+			isSuccess: true,
+			isError: false,
+			error: null,
+			refetch: vi.fn(),
+			isFetching: false,
+		});
+
+		render(<TenantPostEditPage />);
+
+		expect(
+			screen
+				.getAllByTestId('tenant-post-edit-image-picker-stub')
+				.filter((node) => node.getAttribute('data-segment-id') !== '')
+				.map((node) => node.getAttribute('data-disabled')),
+		).toEqual(['true', 'false']);
+	});
+
+	describe('images picked for a follow-up added in the editor', () => {
+		beforeEach(() => {
+			mocks.useTenantPostDetailsQuery.mockReturnValue({
+				data: {
+					id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+					body: 'Hello world',
+					projectId: null,
+					segments: [],
+					images: [],
+				},
+				isPending: false,
+				isSuccess: true,
+				isError: false,
+				error: null,
+				refetch: vi.fn(),
+				isFetching: false,
+			});
+			mocks.savePost.mockClear();
+			mocks.savePost.mockResolvedValue({});
+			mocks.readCreatedSegments.mockReset();
+			mocks.readCreatedSegments.mockResolvedValue([{ id: 'stored-new' }]);
+			mocks.attachMutateAsync.mockReset();
+			mocks.attachMutateAsync.mockResolvedValue({ id: 'asset-1' });
+		});
+
+		const addFollowUpAndPick = () => {
+			render(<TenantPostEditPage />);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.change(screen.getByTestId('tenant-posts-segment-body'), {
+				target: { value: 'Typed follow-up' },
+			});
+			fireEvent.click(screen.getByTestId('stub-pick'));
+		};
+
+		test('saves the post once, then attaches the image to that new segment: one action', async () => {
+			addFollowUpAndPick();
+
+			await waitFor(() =>
+				expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1),
+			);
+			expect(mocks.savePost).toHaveBeenCalledTimes(1);
+			expect(mocks.savePost.mock.calls[0]?.[0]).toMatchObject({
+				segments: ['Typed follow-up'],
+				segmentIds: [undefined],
+			});
+			expect(mocks.readCreatedSegments).toHaveBeenCalledTimes(1);
+			expect(mocks.attachMutateAsync.mock.calls[0]?.[0]).toMatchObject({
+				segmentId: 'stored-new',
+			});
+			// The segment now has a stored id: its picker is the stored one.
+			await waitFor(() =>
+				expect(
+					screen
+						.getAllByTestId('tenant-post-edit-image-picker-stub')
+						.some(
+							(node) => node.getAttribute('data-segment-id') === 'stored-new',
+						),
+				).toBe(true),
+			);
+		});
+
+		test('a failed auto-save names its cause and keeps the file queued: Try again finishes it', async () => {
+			mocks.savePost.mockRejectedValueOnce({
+				status: 422,
+				body: {
+					status: 422,
+					title: 'Blank follow-up',
+					detail: 'The follow-up is blank.',
+				},
+			});
+			addFollowUpAndPick();
+
+			const failure = await screen.findByTestId(
+				'tenant-posts-segment-images-failure',
+			);
+			expect(failure.textContent).toContain('The follow-up is blank.');
+			// A refusal that is not a 401 never logs out.
+			expect(screen.queryByTestId('logout-redirect')).toBeNull();
+			expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-images-retry'));
+
+			await waitFor(() =>
+				expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1),
+			);
+			expect(mocks.savePost).toHaveBeenCalledTimes(2);
+			expect(mocks.attachMutateAsync.mock.calls[0]?.[0]).toMatchObject({
+				segmentId: 'stored-new',
+			});
+		});
+
+		test('files queued for a follow-up the user then removes are dropped: a later pick still attaches (N1)', async () => {
+			mocks.savePost.mockRejectedValueOnce(new Error('offline'));
+			render(<TenantPostEditPage />);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.click(screen.getByTestId('stub-pick'));
+			await screen.findByTestId('tenant-posts-segment-images-failure');
+
+			// The follow-up (blank, so removed at once) goes away with its file.
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-remove'));
+			expect(
+				screen.queryByTestId('tenant-posts-segment-images-failure'),
+			).toBeNull();
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.change(screen.getByTestId('tenant-posts-segment-body'), {
+				target: { value: 'Second try' },
+			});
+			fireEvent.click(screen.getByTestId('stub-pick'));
+
+			await waitFor(() =>
+				expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1),
+			);
+			expect(mocks.attachMutateAsync.mock.calls[0]?.[0]).toMatchObject({
+				segmentId: 'stored-new',
+			});
+		});
+
+		test('publishing and the post own images wait while the save and upload run (N2, N5, N7)', async () => {
+			let finish: (value: unknown) => void = () => undefined;
+			mocks.savePost.mockImplementation(
+				() =>
+					new Promise((resolve) => {
+						finish = resolve;
+					}),
+			);
+			addFollowUpAndPick();
+
+			await waitFor(() =>
+				expect(mocks.blockProps.current?.disabled).toBe(true),
+			);
+			const postLevelPicker = screen
+				.getAllByTestId('tenant-post-edit-image-picker-stub')
+				.find(
+					(node) =>
+						node.getAttribute('data-segment-id') === '' &&
+						node.querySelector('[data-testid="stub-pick"]') === null,
+				);
+			expect(postLevelPicker?.getAttribute('data-disabled')).toBe('true');
+			// Read-only is not "published".
+			expect(screen.queryByTestId('tenant-posts-segment-published')).toBeNull();
+			await act(async () => {
+				finish({});
+			});
+			await waitFor(() =>
+				expect(mocks.blockProps.current?.disabled).toBe(false),
+			);
+		});
+
+		test('leaving asks first while files are still queued, even though the post itself was saved (N3)', async () => {
+			mocks.attachMutateAsync.mockRejectedValue(new Error('upload failed'));
+			addFollowUpAndPick();
+			await screen.findByTestId('tenant-posts-segment-images-failure');
+
+			expect(mocks.shouldBlock.current?.()).toBe(true);
+		});
+
+		test('the save refreshes the queue and calendar like the Save button (N4)', async () => {
+			addFollowUpAndPick();
+
+			await waitFor(() =>
+				expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1),
+			);
+			expect(mocks.invalidateTenantScheduledPublications).toHaveBeenCalled();
+			expect(mocks.invalidateTenantPublications).toHaveBeenCalled();
+		});
+
+		test('an invalid form shows its field errors, not a request or a raw message (N6)', async () => {
+			render(<TenantPostEditPage />);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.change(screen.getByTestId('tenant-posts-segment-body'), {
+				target: { value: 'x'.repeat(20001) },
+			});
+			fireEvent.click(screen.getByTestId('stub-pick'));
+
+			const failure = await screen.findByTestId(
+				'tenant-posts-segment-images-failure',
+			);
+			expect(failure.textContent).toContain('posts:segment-images-fix-form');
+			expect(mocks.savePost).not.toHaveBeenCalled();
+			expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+		});
+
+		test('an ended session during the image attach also goes to the central logout', async () => {
+			mocks.attachMutateAsync.mockRejectedValueOnce(
+				Object.assign(new Error('Unauthorized'), { responseStatusCode: 401 }),
+			);
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined);
+			render(
+				<AuthedRouteBoundary>
+					<TenantPostEditPage />
+				</AuthedRouteBoundary>,
+			);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.click(screen.getByTestId('stub-pick'));
+
+			await screen.findByTestId('logout-redirect');
+			expect(
+				screen.queryByTestId('tenant-posts-segment-images-failure'),
+			).toBeNull();
+			consoleError.mockRestore();
+		});
+
+		test('leaving the page aborts the save and upload in flight: nothing is read, attached or reset afterwards', async () => {
+			let finishSave: (value: unknown) => void = () => undefined;
+			mocks.savePost.mockImplementation(
+				() =>
+					new Promise((resolve) => {
+						finishSave = resolve;
+					}),
+			);
+			const view = render(<TenantPostEditPage />);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.click(screen.getByTestId('stub-pick'));
+			await waitFor(() => expect(mocks.savePost).toHaveBeenCalledTimes(1));
+
+			// A confirmed leave unmounts the page.
+			view.unmount();
+			await act(async () => {
+				finishSave({});
+			});
+
+			expect(mocks.readCreatedSegments).not.toHaveBeenCalled();
+			expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+		});
+
+		test('after a failed upload the segment shows ONE picker (the queued one), and Publish waits for the retry (NEW-1, NEW-2)', async () => {
+			mocks.attachMutateAsync.mockRejectedValueOnce(new Error('upload failed'));
+			addFollowUpAndPick();
+			await screen.findByTestId('tenant-posts-segment-images-failure');
+
+			const segmentPickers = () =>
+				screen
+					.getAllByTestId('tenant-post-edit-image-picker-stub')
+					.filter((node) => node.getAttribute('data-segment-id') !== '');
+			// The stored twin is hidden while files are queued.
+			expect(segmentPickers()).toEqual([]);
+			expect(screen.getAllByTestId('stub-pick')).toHaveLength(1);
+			// Publishing would drop the queued file: it waits for the retry.
+			expect(mocks.blockProps.current?.disabled).toBe(true);
+
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-images-retry'));
+
+			await waitFor(() =>
+				expect(mocks.blockProps.current?.disabled).toBe(false),
+			);
+			expect(
+				segmentPickers().map((node) => node.getAttribute('data-segment-id')),
+			).toEqual(['stored-new']);
+			expect(screen.queryAllByTestId('stub-pick')).toHaveLength(0);
+		});
+
+		test('the stored picker of a segment is locked while a save runs (NEW-1)', async () => {
+			mocks.useTenantPostDetailsQuery.mockReturnValue({
+				data: {
+					id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+					body: 'Hello world',
+					projectId: null,
+					segments: [{ id: 'seg-b', number: 2, body: 'B', images: [] }],
+					images: [],
+				},
+				isPending: false,
+				isSuccess: true,
+				isError: false,
+				error: null,
+				refetch: vi.fn(),
+				isFetching: false,
+			});
+			let finish: (value: unknown) => void = () => undefined;
+			mocks.savePost.mockImplementation(
+				() =>
+					new Promise((resolve) => {
+						finish = resolve;
+					}),
+			);
+			render(<TenantPostEditPage />);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.click(screen.getAllByTestId('stub-pick')[0] as HTMLElement);
+
+			await waitFor(() =>
+				expect(
+					screen
+						.getAllByTestId('tenant-post-edit-image-picker-stub')
+						.find((node) => node.getAttribute('data-segment-id') === 'seg-b')
+						?.getAttribute('data-disabled'),
+				).toBe('true'),
+			);
+			await act(async () => {
+				finish({});
+			});
+		});
+
+		test('the project select is locked while the auto-save runs (N5)', async () => {
+			mocks.useTenantProjectsQuery.mockReturnValue({
+				data: { items: [] },
+				isPending: false,
+			});
+			let finish: (value: unknown) => void = () => undefined;
+			mocks.savePost.mockImplementation(
+				() =>
+					new Promise((resolve) => {
+						finish = resolve;
+					}),
+			);
+			addFollowUpAndPick();
+
+			await waitFor(() =>
+				expect(
+					screen.getByTestId('field-select-stub').getAttribute('data-disabled'),
+				).toBe('true'),
+			);
+			await act(async () => {
+				finish({});
+			});
+			await waitFor(() =>
+				expect(
+					screen.getByTestId('field-select-stub').getAttribute('data-disabled'),
+				).toBe('false'),
+			);
+			mocks.useTenantProjectsQuery.mockReturnValue({
+				data: undefined,
+				isPending: true,
+			});
+		});
+
+		test('a too-long follow-up shows its own error on its block (NEW-3)', async () => {
+			render(<TenantPostEditPage />);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.change(screen.getByTestId('tenant-posts-segment-body'), {
+				target: { value: 'x'.repeat(20001) },
+			});
+			fireEvent.click(screen.getByTestId('stub-pick'));
+
+			const error = await screen.findByTestId('tenant-posts-segment-error');
+			expect(error.textContent).toBe('posts:segment-too-long');
+		});
+
+		test('Save is locked while picked files wait for a retry (round 4)', async () => {
+			mocks.savePost.mockRejectedValueOnce(new Error('offline'));
+			render(<TenantPostEditPage />);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.click(screen.getByTestId('stub-pick'));
+			await screen.findByTestId('tenant-posts-segment-images-failure');
+
+			expect(
+				(screen.getByTestId('tenant-post-edit-save') as HTMLButtonElement)
+					.disabled,
+			).toBe(true);
+		});
+
+		test('a segment error never lands on another block after a reorder, and the field is marked invalid (round 4)', async () => {
+			render(<TenantPostEditPage />);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			const [first] = screen.getAllByTestId('tenant-posts-segment-body');
+			fireEvent.change(first as HTMLElement, {
+				target: { value: 'x'.repeat(20001) },
+			});
+			fireEvent.click(screen.getAllByTestId('stub-pick')[0] as HTMLElement);
+
+			const error = await screen.findByTestId('tenant-posts-segment-error');
+			const [invalid] = screen.getAllByTestId('tenant-posts-segment-body');
+			expect(invalid?.getAttribute('aria-invalid')).toBe('true');
+			expect(invalid?.getAttribute('aria-describedby')).toBe(error.id);
+
+			fireEvent.click(
+				screen.getAllByTestId(
+					'tenant-posts-segment-move-later',
+				)[0] as HTMLElement,
+			);
+
+			await waitFor(() =>
+				expect(screen.queryByTestId('tenant-posts-segment-error')).toBeNull(),
+			);
+		});
+
+		test('appending a follow-up keeps the other follow-ups errors (round 5)', async () => {
+			render(<TenantPostEditPage />);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.change(screen.getByTestId('tenant-posts-segment-body'), {
+				target: { value: 'x'.repeat(20001) },
+			});
+			fireEvent.click(screen.getByTestId('stub-pick'));
+			await screen.findByTestId('tenant-posts-segment-error');
+
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+
+			expect(screen.getAllByTestId('tenant-posts-segment-error')).toHaveLength(
+				1,
+			);
+		});
+
+		test('the fix-the-fields notice goes away with the highlights on a reorder (round 5)', async () => {
+			render(<TenantPostEditPage />);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.change(screen.getAllByTestId('tenant-posts-segment-body')[0]!, {
+				target: { value: 'x'.repeat(20001) },
+			});
+			fireEvent.click(screen.getAllByTestId('stub-pick')[0]!);
+			const notice = await screen.findByTestId(
+				'tenant-posts-segment-images-failure',
+			);
+			expect(notice.textContent).toContain('posts:segment-images-fix-form');
+
+			fireEvent.click(
+				screen.getAllByTestId('tenant-posts-segment-move-later')[0]!,
+			);
+
+			await waitFor(() =>
+				expect(
+					screen.getByTestId('tenant-posts-segment-images-failure').textContent,
+				).not.toContain('posts:segment-images-fix-form'),
+			);
+			// The queued file keeps its way out: Retry is still there.
+			expect(
+				screen.getByTestId('tenant-posts-segment-images-retry'),
+			).toBeTruthy();
+		});
+
+		test('the explicit Save with an ended session goes to the central logout (residual)', async () => {
+			mocks.savePost.mockRejectedValueOnce(
+				Object.assign(new Error('Unauthorized'), { responseStatusCode: 401 }),
+			);
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined);
+			render(
+				<AuthedRouteBoundary>
+					<TenantPostEditPage />
+				</AuthedRouteBoundary>,
+			);
+
+			fireEvent.submit(screen.getByTestId('form-stub'));
+
+			await screen.findByTestId('logout-redirect');
+			consoleError.mockRestore();
+		});
+
+		test('the page showing another post aborts the first one save: nothing of it is read, attached or reset (residual)', async () => {
+			let finishSave: (value: unknown) => void = () => undefined;
+			mocks.savePost.mockImplementation(
+				() =>
+					new Promise((resolve) => {
+						finishSave = resolve;
+					}),
+			);
+			const view = render(<TenantPostEditPage />);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.click(screen.getByTestId('stub-pick'));
+			await waitFor(() => expect(mocks.savePost).toHaveBeenCalledTimes(1));
+
+			// A param-only navigation: the same component shows the next post.
+			mocks.useParams.mockReturnValue({
+				postId: 'bbbbbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbbb',
+			});
+			view.rerender(<TenantPostEditPage />);
+			await act(async () => {
+				finishSave({});
+			});
+
+			expect(mocks.readCreatedSegments).not.toHaveBeenCalled();
+			expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+		});
+
+		test('an ended session goes to the central logout, not to an inline message (m2)', async () => {
+			mocks.savePost.mockRejectedValueOnce(
+				Object.assign(new Error('Unauthorized'), { responseStatusCode: 401 }),
+			);
+			const consoleError = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => undefined);
+			render(
+				<AuthedRouteBoundary>
+					<TenantPostEditPage />
+				</AuthedRouteBoundary>,
+			);
+			fireEvent.click(screen.getByTestId('tenant-posts-segment-add'));
+			fireEvent.click(screen.getByTestId('stub-pick'));
+
+			await screen.findByTestId('logout-redirect');
+			consoleError.mockRestore();
+		});
 	});
 });

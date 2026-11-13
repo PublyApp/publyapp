@@ -23,6 +23,7 @@ import { getFailureMessage } from '@org/shared-ts/lib/api-failure/to-api-failure
 
 import { AttemptCancelledError, AttemptTimedOutError } from './_attempt';
 import type { Attempt } from './_attempt';
+import { useRaiseSessionEnd } from './_use-raise-session-end';
 
 /** A post that exists and is ready to be published. */
 export type PreparedPost = {
@@ -82,6 +83,7 @@ export const usePublishSubmit = ({
 	const { t } = useTranslation(['common', 'posts']);
 	const translateResponseMessage = useResponseMessageTranslator();
 	const navigate = useNavigate();
+	const raiseSessionEnd = useRaiseSessionEnd();
 	const queryClient = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
 	const [pending, setPending] = useState<PendingKind | null>(null);
@@ -157,6 +159,10 @@ export const usePublishSubmit = ({
 			}
 			if (error instanceof AttemptTimedOutError) {
 				setFailureMessage(t('posts:attempt-timed-out'));
+				return;
+			}
+			// An ended session goes to the central logout, not to a message.
+			if (raiseSessionEnd(error)) {
 				return;
 			}
 			setFailureMessage(

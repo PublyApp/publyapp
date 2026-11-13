@@ -5,6 +5,7 @@ import {
 	IconX,
 } from '@tabler/icons-react';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
@@ -45,13 +46,19 @@ type SegmentBlockProps = {
 	total: number;
 	text: string;
 	destinations: readonly LimitedDestination[];
-	isLocked: boolean;
+	/** 'published' shows the "Published" badge; 'busy' is read-only for now
+	 * (a save is in flight) without being published. */
+	lock: 'none' | 'published' | 'busy';
+	/** Why this follow-up's text is refused (a field error), if it is. */
+	errorMessage?: string;
 	canMoveEarlier: boolean;
 	canMoveLater: boolean;
 	onTextChange: (value: string) => void;
 	onMoveEarlier: () => void;
 	onMoveLater: () => void;
 	onRemove: () => void;
+	/** Under the text: this segment's images (the caller owns where they live). */
+	children?: ReactNode;
 };
 
 const SegmentBlock = ({
@@ -59,30 +66,33 @@ const SegmentBlock = ({
 	total,
 	text,
 	destinations,
-	isLocked,
+	lock,
+	errorMessage,
 	canMoveEarlier,
 	canMoveLater,
 	onTextChange,
 	onMoveEarlier,
 	onMoveLater,
 	onRemove,
+	children,
 }: SegmentBlockProps) => {
 	const { t } = useTranslation(['posts']);
 	const tightest = useTextCounter(text, destinations);
 	const number = index + 2;
 	const fieldId = `post-segment-${index}`;
+	const isFrozen = lock !== 'none';
 
 	return (
 		<li
 			className="space-y-2 rounded-[var(--publy-radius-medium-control)] border-[1.5px] border-(--publy-border-strong) bg-(--publy-surface-muted) p-3"
 			data-testid="tenant-posts-segment"
-			data-locked={isLocked ? 'true' : undefined}
+			data-locked={lock === 'published' ? 'true' : undefined}
 		>
 			<div className="flex items-center gap-2">
 				<Label htmlFor={fieldId} data-testid="tenant-posts-segment-number">
 					{t('posts:segment-number', { index: number, total })}
 				</Label>
-				{isLocked ? (
+				{lock === 'published' ? (
 					<span
 						className="publy-type-helper text-muted-foreground"
 						data-testid="tenant-posts-segment-published"
@@ -95,7 +105,7 @@ const SegmentBlock = ({
 						type="button"
 						variant="ghost"
 						size="icon-sm"
-						disabled={isLocked || !canMoveEarlier}
+						disabled={isFrozen || !canMoveEarlier}
 						aria-label={t('posts:segment-move-earlier', { index: number })}
 						data-testid="tenant-posts-segment-move-earlier"
 						onClick={onMoveEarlier}
@@ -106,7 +116,7 @@ const SegmentBlock = ({
 						type="button"
 						variant="ghost"
 						size="icon-sm"
-						disabled={isLocked || !canMoveLater}
+						disabled={isFrozen || !canMoveLater}
 						aria-label={t('posts:segment-move-later', { index: number })}
 						data-testid="tenant-posts-segment-move-later"
 						onClick={onMoveLater}
@@ -117,7 +127,7 @@ const SegmentBlock = ({
 						type="button"
 						variant="ghost"
 						size="icon-sm"
-						disabled={isLocked}
+						disabled={isFrozen}
 						aria-label={t('posts:segment-remove', { index: number })}
 						data-testid="tenant-posts-segment-remove"
 						onClick={onRemove}
@@ -130,12 +140,25 @@ const SegmentBlock = ({
 				id={fieldId}
 				rows={4}
 				value={text}
-				readOnly={isLocked}
+				readOnly={isFrozen}
+				aria-invalid={errorMessage ? true : undefined}
+				aria-describedby={errorMessage ? `${fieldId}-error` : undefined}
 				placeholder={t('posts:segment-placeholder')}
 				data-testid="tenant-posts-segment-body"
 				onChange={(event) => onTextChange(event.target.value)}
 			/>
+			{errorMessage ? (
+				<p
+					className="text-sm text-destructive"
+					id={`${fieldId}-error`}
+					role="alert"
+					data-testid="tenant-posts-segment-error"
+				>
+					{errorMessage}
+				</p>
+			) : null}
 			<PublishLimitCounter tightest={tightest} />
+			{children}
 		</li>
 	);
 };
@@ -153,6 +176,14 @@ export type PostSegmentsEditorProps = {
 	/** What each destination customizes: a destination with its own text for a
 	 * segment is not counted against the shared one. */
 	overrides?: DestinationOverrides;
+	/** The images of one follow-up, rendered under its text. `number` is the
+	 * segment number (2..N). Omit for a text-only thread. */
+	renderImages?: (segment: SegmentDraft, number: number) => ReactNode;
+	/** Everything is read-only for now (a save is in flight: what is typed
+	 * meanwhile would be overwritten when it ends). */
+	isDisabled?: boolean;
+	/** Field errors by follow-up position (0-based), from the form. */
+	errors?: readonly (string | undefined)[];
 };
 
 type SegmentListProps = PostSegmentsEditorProps & {
@@ -167,10 +198,19 @@ const SegmentList = ({
 	publishedSegmentCount,
 	destinations,
 	overrides = NO_OVERRIDES,
+	renderImages,
+	isDisabled = false,
+	errors,
 	total,
 	onRequestRemove,
 }: SegmentListProps) => {
 	const isLockedAt = (index: number) => index + 2 <= publishedSegmentCount;
+	const lockAt = (index: number) => {
+		if (isLockedAt(index)) {
+			return 'published';
+		}
+		return isDisabled ? 'busy' : 'none';
+	};
 
 	return (
 		<ol className="space-y-3">
@@ -185,7 +225,8 @@ const SegmentList = ({
 						overrides,
 						segment.id,
 					)}
-					isLocked={isLockedAt(index)}
+					lock={lockAt(index)}
+					errorMessage={errors?.[index]}
 					canMoveEarlier={index > 0 && !isLockedAt(index - 1)}
 					canMoveLater={index < segments.length - 1}
 					onTextChange={(value) =>
@@ -198,7 +239,9 @@ const SegmentList = ({
 					onMoveEarlier={() => onChange(moveItem(segments, index, index - 1))}
 					onMoveLater={() => onChange(moveItem(segments, index, index + 1))}
 					onRemove={() => onRequestRemove(index)}
-				/>
+				>
+					{renderImages?.(segment, index + 2)}
+				</SegmentBlock>
 			))}
 		</ol>
 	);
@@ -213,6 +256,9 @@ export const PostSegmentsEditor = ({
 	publishedSegmentCount,
 	destinations,
 	overrides,
+	renderImages,
+	isDisabled = false,
+	errors,
 }: PostSegmentsEditorProps) => {
 	const { t } = useTranslation(['posts', 'common']);
 	const [pendingRemoveIndex, setPendingRemoveIndex] = useState<number | null>(
@@ -256,6 +302,9 @@ export const PostSegmentsEditor = ({
 					publishedSegmentCount={publishedSegmentCount}
 					destinations={destinations}
 					overrides={overrides}
+					renderImages={renderImages}
+					isDisabled={isDisabled}
+					errors={errors}
 					total={total}
 					onRequestRemove={requestRemove}
 				/>
@@ -264,7 +313,7 @@ export const PostSegmentsEditor = ({
 				type="button"
 				variant="outline"
 				size="sm"
-				disabled={isFull}
+				disabled={isFull || isDisabled}
 				data-testid="tenant-posts-segment-add"
 				onClick={() => onChange([...segments, newSegmentDraft()])}
 			>

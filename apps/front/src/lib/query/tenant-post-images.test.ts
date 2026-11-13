@@ -1,12 +1,40 @@
 /**
  * @vitest-environment jsdom
  */
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { renderHook } from '@testing-library/react';
+import { createElement } from 'react';
+import type { ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
 	const state = {
 		imagePost: vi.fn(),
+		/** Which list each call addressed: the post's own or a segment's. */
+		calls: [] as string[],
 	};
+	const list = (scope: string) => ({
+		post: (body: unknown) => {
+			state.calls.push(`${scope}:attach`);
+			return state.imagePost(body);
+		},
+		byAssetId: (assetId: string) => ({
+			delete: () => {
+				state.calls.push(`${scope}:delete:${assetId}`);
+				return Promise.resolve(undefined);
+			},
+			patch: () => {
+				state.calls.push(`${scope}:alt:${assetId}`);
+				return Promise.resolve(undefined);
+			},
+		}),
+		order: {
+			patch: () => {
+				state.calls.push(`${scope}:reorder`);
+				return Promise.resolve(undefined);
+			},
+		},
+	});
 	return {
 		state,
 		client: {
@@ -14,6 +42,12 @@ const mocks = vi.hoisted(() => {
 				byPostId: (postId: string) => ({
 					image: {
 						post: state.imagePost,
+					},
+					images: list(`post ${postId}`),
+					segments: {
+						bySegmentId: (segmentId: string) => ({
+							images: list(`segment ${segmentId}`),
+						}),
 					},
 					__postId: postId,
 				}),
@@ -31,6 +65,10 @@ vi.mock('~/lib/api-client/client-manager', () => ({
 }));
 
 import {
+	useAttachPostImageMutation,
+	useRemovePostImageMutation,
+	useReorderPostImagesMutation,
+	useUpdatePostImageAltMutation,
 	buildAttachPostImageBody,
 	buildReorderPostImagesBody,
 	toTenantPostImage,
@@ -131,5 +169,50 @@ describe('buildReorderPostImagesBody', () => {
 	test('wraps the ordered ids in an untyped array', () => {
 		const body = buildReorderPostImagesBody(['b', 'a']);
 		expect(body.assetIds).toBeDefined();
+	});
+});
+
+describe('segment image routes (#2181)', () => {
+	const wrapper = ({ children }: { children: ReactNode }) =>
+		createElement(QueryClientProvider, { client: new QueryClient() }, children);
+	const file = new File([new Uint8Array([1])], 'a.png', { type: 'image/png' });
+
+	test('every action targets the segment when one is named, the post otherwise', async () => {
+		mocks.state.calls.length = 0;
+		mocks.state.imagePost.mockResolvedValue(undefined);
+		const attach = renderHook(() => useAttachPostImageMutation(), { wrapper });
+		const remove = renderHook(() => useRemovePostImageMutation(), { wrapper });
+		const alt = renderHook(() => useUpdatePostImageAltMutation(), { wrapper });
+		const reorder = renderHook(() => useReorderPostImagesMutation(), {
+			wrapper,
+		});
+		const base = { postId: 'p1', tenantId: 't1' };
+
+		await attach.result.current.mutateAsync({ ...base, file, segmentId: 's2' });
+		await remove.result.current.mutateAsync({
+			...base,
+			assetId: 'a1',
+			segmentId: 's2',
+		});
+		await alt.result.current.mutateAsync({
+			...base,
+			assetId: 'a1',
+			altText: 'x',
+			segmentId: 's2',
+		});
+		await reorder.result.current.mutateAsync({
+			...base,
+			assetIds: ['a2', 'a1'],
+			segmentId: 's2',
+		});
+		await remove.result.current.mutateAsync({ ...base, assetId: 'a9' });
+
+		expect(mocks.state.calls).toEqual([
+			'segment s2:attach',
+			'segment s2:delete:a1',
+			'segment s2:alt:a1',
+			'segment s2:reorder',
+			'post p1:delete:a9',
+		]);
 	});
 });

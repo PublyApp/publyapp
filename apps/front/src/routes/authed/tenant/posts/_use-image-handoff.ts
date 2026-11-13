@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { AttemptTimedOutError, createAttemptRegistry } from './_attempt';
+import {
+	AttemptCancelledError,
+	AttemptTimedOutError,
+	createAttemptRegistry,
+} from './_attempt';
 import type { Attempt } from './_attempt';
 import type { DeferredImageSelection } from './_post-image-picker';
 import { useAttachDeferredImages } from './_use-attach-deferred-images';
 import type { AttachProgress } from './_use-attach-deferred-images';
+import { useRaiseSessionEnd } from './_use-raise-session-end';
 
 /**
  * The create drawer's image handoff: the deferred picker selection, and what
@@ -20,8 +25,9 @@ import type { AttachProgress } from './_use-attach-deferred-images';
  * publishes afterwards. Cancel is never blocked.
  */
 export const useImageHandoff = (tenantId: string) => {
-	const { t } = useTranslation(['posts']);
+	const { t } = useTranslation(['posts', 'common']);
 	const deferredAttach = useAttachDeferredImages(tenantId);
+	const raiseSessionEnd = useRaiseSessionEnd();
 	// The parent OWNS the deferred selection (the picker reports through
 	// `onSelect`), so the attachment survives the picker's re-renders and the
 	// handoff can hold it for a retry.
@@ -30,9 +36,15 @@ export const useImageHandoff = (tenantId: string) => {
 	>([]);
 	const [postId, setPostId] = useState<string | null>(null);
 	const [cause, setCause] = useState('');
+	// The follow-up (composer key) of the image the attach stopped on.
+	const [failedSegmentKey, setFailedSegmentKey] = useState<string>();
+	const [isRetrying, setIsRetrying] = useState(false);
 	const [resumeRequested, setResumeRequested] = useState(0);
 	const stoppedByAttachRef = useRef(false);
 	const resumeRef = useRef<(() => void) | null>(null);
+	// The stored id of each follow-up (by composer key) the last attach ran
+	// with: "Try again" attaches to the same segments.
+	const segmentIdsRef = useRef<ReadonlyMap<string, string>>(new Map());
 	const [attempts] = useState(() => createAttemptRegistry());
 
 	const clearIntent = () => {
@@ -64,7 +76,9 @@ export const useImageHandoff = (tenantId: string) => {
 		forPostId: string,
 		images: DeferredImageSelection[],
 		attempt: Attempt,
+		segmentIds: ReadonlyMap<string, string>,
 	): Promise<ReadonlyMap<string, string> | null> => {
+		segmentIdsRef.current = segmentIds;
 		const progress: AttachProgress = {
 			remaining: images,
 			assetIds: new Map<string, string>(),
@@ -78,6 +92,7 @@ export const useImageHandoff = (tenantId: string) => {
 			images,
 			() => attempt.isCurrent() && !abandoned,
 			progress,
+			segmentIds,
 		);
 		const outcome = await attempt.run(work).catch((error: unknown) => {
 			if (error instanceof AttemptTimedOutError) {
@@ -100,6 +115,7 @@ export const useImageHandoff = (tenantId: string) => {
 					remaining: progress.remaining,
 					assetIds: progress.assetIds,
 					cause: t('posts:image-timed-out'),
+					error,
 				};
 			}
 			return null;
@@ -112,6 +128,10 @@ export const useImageHandoff = (tenantId: string) => {
 			return outcome.assetIds;
 		}
 
+		// An ended session goes to the central logout, not to the panel.
+		if (raiseSessionEnd(outcome.error)) {
+			return null;
+		}
 		stoppedByAttachRef.current = true;
 		setPostId(forPostId);
 		// Every image stays in the list, the attached ones marked: a retry
@@ -125,6 +145,7 @@ export const useImageHandoff = (tenantId: string) => {
 			})),
 		);
 		setCause(outcome.cause);
+		setFailedSegmentKey(outcome.remaining[0]?.segmentKey);
 		return null;
 	};
 
@@ -135,8 +156,9 @@ export const useImageHandoff = (tenantId: string) => {
 		forPostId: string,
 		images: DeferredImageSelection[],
 		attempt: Attempt,
+		segmentIds: ReadonlyMap<string, string>,
 	): Promise<ReadonlyMap<string, string> | null> => {
-		const attached = await attach(forPostId, images, attempt);
+		const attached = await attach(forPostId, images, attempt, segmentIds);
 		if (attached !== null) {
 			setPostId(null);
 			setCause('');
@@ -147,14 +169,69 @@ export const useImageHandoff = (tenantId: string) => {
 
 	/** "Try again": attaches what is left, then resumes the publish that was
 	 * stopped, or calls `finish` when it was a plain save. */
-	const retryAttach = async (finish: () => Promise<void>) => {
+	const retryAttach = async (
+		finish: () => Promise<void>,
+		refreshSegmentIds: (postId: string) => Promise<ReadonlyMap<string, string>>,
+	) => {
 		if (!postId || deferredImages.length === 0) {
 			return;
 		}
+		// The whole retry is ONE attempt, the id look-up included: Cancel,
+		// Discard or a newer click during it supersedes it, so nothing is
+		// attached or finished afterwards (#2179). The button stays busy.
 		const attempt = attempts.begin();
 		const keptResume = resumeRef.current;
 		setCause('');
-		const attached = await attach(postId, deferredImages, attempt);
+		setIsRetrying(true);
+		try {
+			await retryAttempt(
+				attempt,
+				postId,
+				keptResume,
+				finish,
+				refreshSegmentIds,
+			);
+		} catch (error) {
+			if (error instanceof AttemptCancelledError || raiseSessionEnd(error)) {
+				return;
+			}
+			setCause(
+				error instanceof AttemptTimedOutError
+					? t('posts:image-timed-out')
+					: t('common:an-error-occurred'),
+			);
+		} finally {
+			setIsRetrying(false);
+		}
+	};
+
+	const retryAttempt = async (
+		attempt: Attempt,
+		postId: string,
+		keptResume: (() => void) | null,
+		finish: () => Promise<void>,
+		refreshSegmentIds: (postId: string) => Promise<ReadonlyMap<string, string>>,
+	) => {
+		// A follow-up whose stored id was unknown is looked up again, or the
+		// retry would fail the same way.
+		const isIdMissing = deferredImages.some(
+			(image) =>
+				image.segmentKey !== undefined &&
+				!segmentIdsRef.current.has(image.segmentKey),
+		);
+		if (isIdMissing) {
+			const ids = await attempt.run(refreshSegmentIds(postId));
+			if (!attempt.isCurrent()) {
+				return;
+			}
+			segmentIdsRef.current = ids;
+		}
+		const attached = await attach(
+			postId,
+			deferredImages,
+			attempt,
+			segmentIdsRef.current,
+		);
 		if (attached === null || !attempt.isCurrent()) {
 			return;
 		}
@@ -178,10 +255,11 @@ export const useImageHandoff = (tenantId: string) => {
 	return {
 		deferredImages,
 		setDeferredImages,
-		isPending: deferredAttach.isPending,
+		isPending: deferredAttach.isPending || isRetrying,
 		/** The post whose images are still to attach, or null. */
 		postId,
 		cause,
+		failedSegmentKey,
 		tryAttach,
 		retryAttach,
 		/** Starts a Publish / Schedule / Save attempt: it supersedes every
@@ -203,6 +281,7 @@ export const useImageHandoff = (tenantId: string) => {
 		reset: () => {
 			attempts.invalidate();
 			clearIntent();
+			segmentIdsRef.current = new Map();
 			setDeferredImages([]);
 			setPostId(null);
 			setCause('');

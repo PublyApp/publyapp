@@ -4,6 +4,8 @@ import { Button } from '~/components/ui/button';
 type HandoffPanelProps = {
 	/** Plain-words cause from the failed attach attempt ('' while retrying). */
 	cause: string;
+	/** The follow-up (2..N) whose image did not attach; undefined = the post's. */
+	segmentNumber?: number;
 	busy: boolean;
 	onRetry: () => void;
 	onDiscard: () => void;
@@ -13,6 +15,7 @@ type HandoffPanelProps = {
  * cause in plain words and offers the retry/discard way out. */
 export const HandoffPanel = ({
 	cause,
+	segmentNumber,
 	busy,
 	onRetry,
 	onDiscard,
@@ -23,7 +26,11 @@ export const HandoffPanel = ({
 			className="space-y-2 rounded-[var(--publy-radius-medium-control)] border-[1.5px] border-(--publy-border-strong) bg-(--publy-surface-muted) px-4 py-3"
 			data-testid="tenant-posts-create-image-handoff"
 		>
-			<p className="text-sm font-medium">{t('posts:image-handoff-title')}</p>
+			<p className="text-sm font-medium">
+				{segmentNumber === undefined
+					? t('posts:image-handoff-title')
+					: t('posts:image-handoff-title-segment', { number: segmentNumber })}
+			</p>
 			{cause ? (
 				<p
 					className="publy-type-helper text-[var(--publy-danger)]"

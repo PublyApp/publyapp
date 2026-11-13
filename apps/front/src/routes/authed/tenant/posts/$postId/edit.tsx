@@ -11,7 +11,6 @@ import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
 import QueryDisplay from '~/components/query-display';
 import { Button } from '~/components/ui/button';
-import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { useLanguageKeyedZodResolver } from '~/lib/hooks/use-language-keyed-zod-resolver';
 import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
 import { isCustomized } from '~/lib/publishing/destination-overrides';
@@ -49,13 +48,22 @@ import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-fai
 import { PostBodyCounter } from '../_post-body-counter';
 import { PostDangerZone } from '../_post-danger-zone';
 import { PostEditDestinations } from '../_post-edit-destinations';
+import { PostEditDialogs } from '../_post-edit-dialogs';
+import { PostEditSegments } from '../_post-edit-segments';
 import { PostEditSideColumn } from '../_post-edit-side-column';
-import { PostSegmentsEditor } from '../_post-segments-editor';
 import { CUSTOMIZABLE_STATUSES, SCHEDULED_PAGE_SIZE } from '../_queries';
 import { buildUpcomingPublicationWindow } from '../_scheduled-publication-helpers';
-import { NO_SEGMENTS, reconcileSegmentDrafts } from '../_segment-draft';
+import {
+	NO_SEGMENTS,
+	reconcileSegmentDrafts,
+	segmentsPayload,
+} from '../_segment-draft';
+import { segmentFormBindings } from '../_segment-form-bindings';
+import { storedImageCounts } from '../_stored-segments';
 import { useDestinationOverrides } from '../_use-destination-overrides';
+import { useEditSegmentImages } from '../_use-edit-segment-images';
 import { usePublishSelection } from '../_use-publish-selection';
+import { useRaiseSessionEnd } from '../_use-raise-session-end';
 import { useUnsavedWorkGuard } from '../_use-unsaved-work-guard';
 
 const getSchema = (t: (k: string) => string) =>
@@ -71,7 +79,7 @@ const getSchema = (t: (k: string) => string) =>
 			.array(
 				z.object({
 					id: z.string(),
-					text: z.string().max(20000),
+					text: z.string().max(20000, { message: t('posts:segment-too-long') }),
 					serverId: z.string().optional(),
 				}),
 			)
@@ -92,15 +100,25 @@ const resetFormFromDetails = (
 	if (!d) {
 		return;
 	}
-	methods.reset({
-		body: d.body,
-		projectId: d.projectId,
-		segments: reconcileSegmentDrafts(
-			methods.getValues('segments'),
-			d.segments.map((segment) => segment.body),
-			d.segments.map((segment) => segment.id),
-		),
-	});
+	// A refetch (an image added or removed) must not drop what the user typed:
+	// dirty fields keep their value, and an edited thread keeps its drafts (and
+	// their ids) as they are.
+	const current = methods.getValues('segments');
+	const isThreadEdited = methods.formState.dirtyFields.segments !== undefined;
+	methods.reset(
+		{
+			body: d.body,
+			projectId: d.projectId,
+			segments: isThreadEdited
+				? current
+				: reconcileSegmentDrafts(
+						current,
+						d.segments.map((segment) => segment.body),
+						d.segments.map((segment) => segment.id),
+					),
+		},
+		{ keepDirtyValues: true, keepDirty: true },
+	);
 };
 
 /** The page's queries, declared once. The loader cannot know the post's project
@@ -144,20 +162,6 @@ const postEditQueries = ({
 	};
 };
 
-/** Plain posts keep sending exactly what they always did. Each draft names the
- * stored segment it came from, so its images follow its text through a reorder
- * or a removal. */
-const segmentsPayload = (
-	drafts: Values['segments'],
-	hasStoredSegments: boolean,
-) =>
-	drafts.length > 0 || hasStoredSegments
-		? {
-				segments: drafts.map((segment) => segment.text),
-				segmentIds: drafts.map((segment) => segment.serverId),
-			}
-		: {};
-
 /** Field errors land on their fields; the form only renders the root error, so a
  * refusal with no field of its own (a blank follow-up is named by its segment
  * number) goes there too. */
@@ -186,6 +190,7 @@ const TenantPostEditPage = () => {
 	const canGoBack = useCanGoBack();
 	const qc = useQueryClient();
 	const tenantId = useResolvedWorkspaceTenantId();
+	const raiseSessionEnd = useRaiseSessionEnd();
 	const queries = postEditQueries({ tenantId: tenantId ?? '', postId });
 	const detailsQuery = useTenantPostDetailsQuery(
 		queries.postDetails.variables,
@@ -215,6 +220,14 @@ const TenantPostEditPage = () => {
 	const storedDetails = toTenantPostDetails(detailsQuery.data);
 	const hasStoredSegments = (storedDetails?.segments.length ?? 0) > 0;
 	const publishedSegmentCount = storedDetails?.publishedSegmentCount ?? 0;
+	const unsavedImages = useEditSegmentImages({
+		methods,
+		postId,
+		tenantId: tenantId ?? '',
+		hasStoredSegments,
+		segments,
+	});
+	const segmentForm = segmentFormBindings(methods, segments, unsavedImages);
 	const selection = usePublishSelection(storedDetails?.projectId ?? null);
 	// A published thread's published segments, first body included, are read-only.
 	const isBodyLocked = hasStoredSegments && publishedSegmentCount > 0;
@@ -228,6 +241,8 @@ const TenantPostEditPage = () => {
 	const hasUnsavedWork =
 		!methods.formState.isSubmitting &&
 		(methods.formState.isDirty ||
+			unsavedImages.isWorking ||
+			unsavedImages.queued.length > 0 ||
 			Object.values(destinationOverrides.overrides).some(isCustomized));
 
 	const blocker = useUnsavedWorkGuard(hasUnsavedWork);
@@ -254,6 +269,10 @@ const TenantPostEditPage = () => {
 				void navigate({ to: '/tenant/posts/drafts', replace: true });
 			}
 		} catch (error) {
+			// An ended session goes to the central logout, not to a message.
+			if (raiseSessionEnd(error)) {
+				return;
+			}
 			const failure = toApiFailure(error);
 			applySaveFailure(
 				methods,
@@ -352,19 +371,23 @@ const TenantPostEditPage = () => {
 										name="body"
 										label={t('posts:body-label')}
 										rows={10}
-										readOnly={isBodyLocked}
+										readOnly={isBodyLocked || unsavedImages.isWorking}
 										placeholder={t('posts:body-placeholder')}
 										data-testid="tenant-post-edit-body"
 									/>
 									<PostBodyCounter length={body.length} />
-									<PostSegmentsEditor
+									<PostEditSegments
+										postId={postId}
+										tenantId={tenantId ?? ''}
+										stored={details.segments}
+										imageLimits={selection.imageLimits}
+										unsavedImages={unsavedImages}
 										segments={segments}
+										errors={segmentForm.errors}
 										publishedSegmentCount={publishedSegmentCount}
 										destinations={selection.destinations}
 										overrides={destinationOverrides.overrides}
-										onChange={(next) =>
-											methods.setValue('segments', next, { shouldDirty: true })
-										}
+										onChange={segmentForm.onChange}
 									/>
 									<QueryDisplay query={projectsQuery} variant="inline">
 										{({ data }) => (
@@ -372,6 +395,7 @@ const TenantPostEditPage = () => {
 												name="projectId"
 												label={t('posts:project-label')}
 												placeholder={t('posts:project-placeholder')}
+												isDisabled={unsavedImages.isWorking}
 												options={toTenantProjectItems(data).map((p) => ({
 													value: p.id,
 													label: p.name,
@@ -388,7 +412,11 @@ const TenantPostEditPage = () => {
 										<Button
 											type="submit"
 											variant="default"
-											disabled={isSaving}
+											disabled={
+												isSaving ||
+												unsavedImages.isWorking ||
+												unsavedImages.queued.length > 0
+											}
 											data-testid="tenant-post-edit-save"
 										>
 											{isSaving ? t('posts:saving') : t('posts:save')}
@@ -412,6 +440,7 @@ const TenantPostEditPage = () => {
 									body={body}
 									segments={segments}
 									images={details.images}
+									storedSegments={details.segments}
 									isPostDirty={methods.formState.isDirty}
 								/>
 								<PostDangerZone
@@ -426,32 +455,22 @@ const TenantPostEditPage = () => {
 								body={body}
 								segments={segments}
 								images={details.images}
+								isBusy={
+									unsavedImages.isWorking || unsavedImages.queued.length > 0
+								}
+								segmentImageCounts={storedImageCounts(
+									segments,
+									details.segments,
+								)}
 								isPostDirty={methods.formState.isDirty}
 							/>
 						</div>
-						{blocker.status === 'blocked' ? (
-							<ConfirmDialog
-								isOpen
-								title={t('posts:unsaved-changes-title')}
-								description={t('posts:unsaved-changes-description')}
-								confirmLabel={t('common:leave')}
-								cancelLabel={t('common:stay')}
-								onConfirm={() => blocker.proceed?.()}
-								onOpenChange={(o) => {
-									if (!o) {
-										blocker.reset?.();
-									}
-								}}
-							/>
-						) : null}
-						<ConfirmDialog
-							isOpen={pendingBinId !== null}
-							title={t('posts:move-to-bin')}
-							description={t('posts:move-to-bin-confirm')}
-							confirmLabel={t('posts:move-to-bin')}
-							isPending={deleteMutation.isPending}
-							onConfirm={() => void confirmBin()}
-							onOpenChange={(o) => {
+						<PostEditDialogs
+							blocker={blocker}
+							isBinOpen={pendingBinId !== null}
+							isBinPending={deleteMutation.isPending}
+							onConfirmBin={() => void confirmBin()}
+							onBinOpenChange={(o) => {
 								if (!o) {
 									setPendingBinId(null);
 								}
@@ -490,5 +509,8 @@ export const Route = createFileRoute(
 			postEditQueries({ tenantId, postId: params.postId }),
 		);
 	},
+	// Another post's edit page is a fresh page: no form, queue or request of
+	// the old one survives a param-only navigation.
+	remountDeps: ({ params }) => params.postId,
 	component: TenantPostEditPage,
 });

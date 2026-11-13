@@ -8,6 +8,7 @@ import {
 	render,
 	screen,
 	waitFor,
+	within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
@@ -34,6 +35,7 @@ const mocks = vi.hoisted(() => ({
 	altMutateAsync: vi.fn(),
 	invalidatePostImageCaches: vi.fn(),
 	savePost: vi.fn(),
+	readCreatedSegments: vi.fn(),
 	invalidateTenantPosts: vi.fn(),
 	projectsState: 'success' as 'success' | 'pending' | 'error' | 'stale-error',
 }));
@@ -44,7 +46,7 @@ const rhf = vi.hoisted(() => {
 		value: string;
 	};
 	const fields = new Map<string, FieldEntry>();
-	const errors: Record<string, { message?: string }> = {};
+	const errors: Record<string, unknown> = {};
 	const get = (name: string): FieldEntry => {
 		let entry = fields.get(name);
 		if (!entry) {
@@ -56,7 +58,8 @@ const rhf = vi.hoisted(() => {
 	return {
 		fields,
 		errors,
-		noSegments: [] as { id: string; text: string }[],
+		/** The thread follow-ups the form holds (a test sets them before render). */
+		segments: [] as { id: string; text: string }[],
 		get,
 		resetAll: () => {
 			fields.clear();
@@ -137,6 +140,7 @@ vi.mock('~/lib/query/tenant-post-images', () => ({
 vi.mock('~/lib/query/tenant-posts', () => ({
 	savePost: mocks.savePost,
 	invalidateTenantPosts: mocks.invalidateTenantPosts,
+	readCreatedSegments: mocks.readCreatedSegments,
 }));
 
 vi.mock('~/lib/query/tenant-projects', () => ({
@@ -156,9 +160,18 @@ vi.mock('~/lib/query/tenant-projects', () => ({
 		result?.items ?? [],
 }));
 
+// The authed route boundary the thrown 401 ends in.
+vi.mock('~/components/error-views/LogoutRedirect', () => ({
+	LogoutRedirect: () => <div data-testid="logout-redirect" />,
+}));
+vi.mock('@tanstack/react-router', () => ({
+	useRouter: () => ({ invalidate: vi.fn() }),
+}));
+
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => key,
+		t: (key: string, options?: { number?: number }) =>
+			options?.number === undefined ? key : `${key} ${options.number}`,
 		i18n: { resolvedLanguage: 'en', language: 'en' },
 	}),
 }));
@@ -195,19 +208,30 @@ vi.mock('react-hook-form', () => {
 					},
 				};
 			},
-			getValues: () => ({ ...rhf.snapshot(), segments: [] }),
+			getValues: (name?: string) =>
+				name === 'segments'
+					? rhf.segments
+					: { ...rhf.snapshot(), segments: rhf.segments },
 			trigger: async () => true,
 			handleSubmit:
 				(onValid: (values: Record<string, unknown>) => void | Promise<void>) =>
 				(event?: Event) => {
 					event?.preventDefault();
-					void onValid({ ...rhf.snapshot(), segments: [] });
+					void onValid({ ...rhf.snapshot(), segments: rhf.segments });
 				},
 			formState: { errors: rhf.errors, isSubmitting: false, isValid: true },
 			// D2's "Publish on" block receives the selected project through
 			// useForm().watch, so the double must expose it even though this
 			// suite stubs the block component itself.
 			watch: (name: string) => rhf.get(name).value,
+			setValue: (name: string, value: { id: string; text: string }[]) => {
+				if (name === 'segments') {
+					rhf.segments = value;
+				}
+			},
+			clearErrors: (name: string) => {
+				delete rhf.errors[name];
+			},
 			setError: (name: string, error: { message?: string }) => {
 				rhf.errors[name] = error;
 			},
@@ -223,7 +247,7 @@ vi.mock('react-hook-form', () => {
 		useController,
 		// Thread segments are a list in the real form, never a text field.
 		useWatch: ({ name }: { name: string }) =>
-			name === 'segments' ? rhf.noSegments : rhf.get(name).value,
+			name === 'segments' ? rhf.segments : rhf.get(name).value,
 		useFormState: () => ({ isSubmitting: false }),
 	};
 });
@@ -334,6 +358,8 @@ vi.mock('~/components/ui/drawer', async () => {
 
 import { ATTEMPT_TIMEOUT_MS } from './_attempt';
 // eslint-disable-next-line import/first
+import { AuthedRouteBoundary } from './_authed-route-boundary.test-helper';
+// eslint-disable-next-line import/first
 import { CreatePostDrawer } from './_create-post-drawer';
 
 const PNG_FILE = new File(
@@ -374,6 +400,9 @@ const TOO_LARGE_PROBLEM = {
 	},
 };
 
+const ENDED_SESSION = () =>
+	Object.assign(new Error('Unauthorized'), { responseStatusCode: 401 });
+
 const renderDrawer = (onOpenChange: (open: boolean) => void) =>
 	render(
 		<CreatePostDrawer
@@ -401,6 +430,7 @@ const fillBodyAndPickImage = async (body: string) => {
 
 beforeEach(() => {
 	rhf.resetAll();
+	rhf.segments = [];
 	mocks.projectsState = 'success';
 	mocks.savePost.mockResolvedValue({ id: 'post-1' });
 	mocks.attachMutateAsync.mockResolvedValue({ id: 'asset-1' });
@@ -1334,5 +1364,502 @@ describe('CreatePostDrawer deferred image handoff', () => {
 			(call) => (call[0] as { file: File }).file.name,
 		);
 		expect(attachedNames).toEqual(['logo.png', 'second.png', 'second.png']);
+	});
+});
+
+describe('CreatePostDrawer follow-up segment images (#2181)', () => {
+	const FOLLOW_UPS = [
+		{ id: 'draft-a', text: 'second' },
+		{ id: 'draft-b', text: 'third' },
+	];
+	const STORED = [{ id: 'stored-a' }, { id: 'stored-b' }];
+
+	test('a segment error is cleared when a reorder would move it to another block (round 4)', async () => {
+		rhf.errors.segments = [{ text: { message: 'too long' } }];
+		renderDrawer(vi.fn());
+		expect(screen.getAllByTestId('tenant-posts-segment-error')).toHaveLength(1);
+
+		await userEvent.click(
+			screen.getAllByTestId(
+				'tenant-posts-segment-move-later',
+			)[0] as HTMLElement,
+		);
+
+		// The form double does not re-render: the form's error state is the proof.
+		expect(rhf.errors.segments).toBeUndefined();
+	});
+
+	/** The follow-up's own picker input (the post's own picker shares the test id). */
+	const segmentInput = (index: number) =>
+		within(
+			screen.getAllByTestId('tenant-posts-segment')[index] as HTMLElement,
+		).getByTestId('tenant-posts-create-image-input');
+
+	const pickIn = async (index: number, file: File) =>
+		userEvent.upload(segmentInput(index), file);
+
+	const prepare = async () => {
+		let prepared: { postId: string } | null | undefined;
+		await act(async () => {
+			prepared = await mocks.publishBlockProps.current?.onBeforePublish?.();
+		});
+		return prepared;
+	};
+
+	beforeEach(() => {
+		rhf.segments = FOLLOW_UPS;
+		// The real contract: a create answers with the follow-ups it read back,
+		// an update (PATCH) answers without any.
+		mocks.savePost.mockImplementation(async (input: { postId?: string }) =>
+			input.postId === undefined
+				? { id: 'post-1', body: 'publish body', segments: STORED }
+				: { id: 'post-1', body: 'publish body', segments: [] },
+		);
+		mocks.readCreatedSegments.mockResolvedValue(STORED);
+	});
+
+	test('a follow-up gets its own picker with a 0/4 count, apart from the post images', () => {
+		renderDrawer(vi.fn());
+
+		expect(
+			screen.getAllByTestId('tenant-posts-segment-image-count'),
+		).toHaveLength(2);
+		// Two follow-ups plus the post's own picker.
+		expect(
+			screen.getAllByTestId('tenant-posts-create-image-input'),
+		).toHaveLength(3);
+	});
+
+	test('attaches a follow-up image to its stored segment once the post exists, the post image to the post', async () => {
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await userEvent.upload(
+			screen.getAllByTestId('tenant-posts-create-image-input').at(-1)!,
+			PNG_FILE,
+		);
+		await pickIn(1, SECOND_FILE);
+
+		const prepared = await prepare();
+
+		expect(prepared?.postId).toBe('post-1');
+		const sent = mocks.attachMutateAsync.mock.calls.map((call) => ({
+			file: (call[0] as { file: File }).file.name,
+			segmentId: (call[0] as { segmentId?: string }).segmentId,
+		}));
+		expect(sent).toHaveLength(2);
+		expect(sent).toContainEqual({ file: 'logo.png', segmentId: undefined });
+		expect(sent).toContainEqual({ file: 'second.png', segmentId: 'stored-b' });
+	});
+
+	test('a follow-up alt text goes to the segment alt route', async () => {
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(0, PNG_FILE);
+		fireEvent.change(
+			within(
+				screen.getAllByTestId('tenant-posts-segment')[0] as HTMLElement,
+			).getByTestId('tenant-posts-create-image-alt'),
+			{ target: { value: 'A red square' } },
+		);
+
+		await prepare();
+
+		expect(mocks.altMutateAsync).toHaveBeenCalledWith({
+			postId: 'post-1',
+			tenantId: 'tenant-1',
+			assetId: 'asset-1',
+			altText: 'A red square',
+			segmentId: 'stored-a',
+		});
+	});
+
+	test('the first save sends no segment ids; the retry names each stored segment so images follow their text', async () => {
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+
+		await prepare();
+		await prepare();
+
+		expect(mocks.savePost.mock.calls[0]?.[0].segmentIds).toBeUndefined();
+		expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+		expect(mocks.savePost.mock.calls[1]?.[0].segmentIds).toEqual([
+			'stored-a',
+			'stored-b',
+		]);
+	});
+
+	test('a follow-up removed from the composer takes its images with it: nothing is attached for it', async () => {
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(0, PNG_FILE);
+		// Segment A is removed before the publish.
+		rhf.segments = [FOLLOW_UPS[1] as (typeof FOLLOW_UPS)[number]];
+		mocks.savePost.mockResolvedValue({
+			id: 'post-1',
+			body: 'publish body',
+			segments: [STORED[1]],
+		});
+
+		const prepared = await prepare();
+
+		expect(prepared?.postId).toBe('post-1');
+		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('an attached follow-up image the user removed is deleted from that segment on the retry', async () => {
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(0, PNG_FILE);
+		await prepare();
+
+		await userEvent.click(
+			within(
+				screen.getAllByTestId('tenant-posts-segment')[0] as HTMLElement,
+			).getByTestId('tenant-posts-create-image-remove'),
+		);
+		await prepare();
+
+		expect(mocks.removeMutateAsync).toHaveBeenCalledWith({
+			postId: 'post-1',
+			tenantId: 'tenant-1',
+			assetId: 'asset-1',
+			segmentId: 'stored-a',
+		});
+		expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1);
+	});
+
+	test('after an update (PATCH answers no segments) the ids stay known: a second image still reaches its segment (C1)', async () => {
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(0, PNG_FILE);
+		await prepare();
+		await pickIn(1, SECOND_FILE);
+
+		await prepare();
+
+		const second = mocks.attachMutateAsync.mock.calls[1]?.[0] as {
+			file: File;
+			segmentId?: string;
+		};
+		expect(second.file.name).toBe('second.png');
+		expect(second.segmentId).toBe('stored-b');
+		expect(mocks.savePost.mock.calls[1]?.[0].segmentIds).toEqual([
+			'stored-a',
+			'stored-b',
+		]);
+		expect(mocks.reorderMutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('never sends unknown stored ids as nulls: a thread whose ids could not be read is saved positionally (M1)', async () => {
+		mocks.savePost.mockResolvedValue({
+			id: 'post-1',
+			body: 'publish body',
+			segments: [],
+		});
+		mocks.readCreatedSegments.mockResolvedValue([]);
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+
+		await prepare();
+		await prepare();
+
+		expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+		expect(mocks.savePost.mock.calls[1]?.[0].segmentIds).toBeUndefined();
+	});
+
+	test('Try again binds by the order the post was saved in, not the composer order now (M3)', async () => {
+		mocks.savePost.mockResolvedValue({
+			id: 'post-1',
+			body: 'publish body',
+			segments: [],
+		});
+		mocks.readCreatedSegments
+			.mockResolvedValueOnce([])
+			.mockResolvedValue(STORED);
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(0, PNG_FILE);
+		await prepare();
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('tenant-posts-create-image-retry'),
+			).toBeTruthy(),
+		);
+		// The user reorders the follow-ups while the panel is shown.
+		rhf.segments = [FOLLOW_UPS[1]!, FOLLOW_UPS[0]!];
+
+		await userEvent.click(
+			screen.getByTestId('tenant-posts-create-image-retry'),
+		);
+
+		await waitFor(() =>
+			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1),
+		);
+		expect(mocks.attachMutateAsync.mock.calls[0]?.[0]).toMatchObject({
+			segmentId: 'stored-a',
+		});
+	});
+
+	test('Cancel during the id look-up of a retry: nothing is attached afterwards (M2)', async () => {
+		mocks.savePost.mockResolvedValue({
+			id: 'post-1',
+			body: 'publish body',
+			segments: [],
+		});
+		// Every read waits until the test settles it.
+		const reads: ((value: typeof STORED) => void)[] = [];
+		const settleReads = (value: typeof STORED) => {
+			for (const resolve of reads.splice(0)) {
+				resolve(value);
+			}
+		};
+		mocks.readCreatedSegments.mockImplementation(
+			() =>
+				new Promise<typeof STORED>((resolve) => {
+					reads.push(resolve);
+				}),
+		);
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(0, PNG_FILE);
+		void prepare();
+		// The read-back after the create comes back empty.
+		await waitFor(() => {
+			settleReads([]);
+			expect(
+				screen.getByTestId('tenant-posts-create-image-retry'),
+			).toBeTruthy();
+		});
+
+		await userEvent.click(
+			screen.getByTestId('tenant-posts-create-image-retry'),
+		);
+		await userEvent.click(screen.getByText('common:cancel'));
+		await act(async () => {
+			settleReads(STORED);
+		});
+
+		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+	});
+
+	test('while a save is in flight nothing can be picked or typed (M6)', async () => {
+		let finish: (value: unknown) => void = () => undefined;
+		mocks.savePost.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					finish = resolve;
+				}),
+		);
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+
+		let pending: Promise<unknown> | undefined;
+		act(() => {
+			pending = mocks.publishBlockProps.current?.onBeforePublish?.();
+		});
+
+		await waitFor(() =>
+			expect((segmentInput(0) as HTMLInputElement).disabled).toBe(true),
+		);
+		expect(
+			(
+				screen
+					.getAllByTestId('tenant-posts-create-image-input')
+					.at(-1) as HTMLInputElement
+			).disabled,
+		).toBe(true);
+		expect(
+			(screen.getByTestId('tenant-posts-create-body') as HTMLTextAreaElement)
+				.readOnly,
+		).toBe(true);
+		expect(
+			(
+				screen.getAllByTestId(
+					'tenant-posts-segment-body',
+				)[0] as HTMLTextAreaElement
+			).readOnly,
+		).toBe(true);
+		await act(async () => {
+			finish({ id: 'post-1', body: 'publish body', segments: STORED });
+			await pending;
+		});
+	});
+
+	test('a Save that created the post records it: saving again updates that post, no second draft (m1)', async () => {
+		mocks.attachMutateAsync.mockRejectedValue(UNSUPPORTED_TYPE_PROBLEM);
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(0, PNG_FILE);
+
+		await userEvent.click(screen.getByTestId('tenant-posts-create-save'));
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('tenant-posts-create-image-handoff'),
+			).toBeTruthy(),
+		);
+		await userEvent.click(screen.getByTestId('tenant-posts-create-save'));
+
+		await waitFor(() => expect(mocks.savePost).toHaveBeenCalledTimes(2));
+		expect(mocks.savePost.mock.calls[0]?.[0].postId).toBeUndefined();
+		expect(mocks.savePost.mock.calls[1]?.[0].postId).toBe('post-1');
+	});
+
+	test('a follow-up whose stored id could not be read stops the publish with a plain cause, post kept', async () => {
+		mocks.savePost.mockResolvedValue({
+			id: 'post-1',
+			body: 'publish body',
+			segments: [],
+		});
+		mocks.readCreatedSegments.mockResolvedValue([]);
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(0, PNG_FILE);
+
+		const prepared = await prepare();
+
+		expect(prepared).toBeNull();
+		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('tenant-posts-create-image-handoff').textContent,
+			).toContain('posts:segment-image-target-missing'),
+		);
+	});
+
+	test('Try again after a missing follow-up id reads the ids again and attaches to the right segment', async () => {
+		mocks.savePost.mockResolvedValue({
+			id: 'post-1',
+			body: 'publish body',
+			segments: [],
+		});
+		// The read-back after the create fails; the retry's read works.
+		mocks.readCreatedSegments
+			.mockResolvedValueOnce([])
+			.mockResolvedValue(STORED);
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(1, SECOND_FILE);
+		await prepare();
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('tenant-posts-create-image-retry'),
+			).toBeTruthy(),
+		);
+		expect(mocks.attachMutateAsync).not.toHaveBeenCalled();
+
+		await userEvent.click(
+			screen.getByTestId('tenant-posts-create-image-retry'),
+		);
+
+		await waitFor(() =>
+			expect(mocks.attachMutateAsync).toHaveBeenCalledTimes(1),
+		);
+		expect(mocks.readCreatedSegments).toHaveBeenCalledWith(
+			'tenant-1',
+			'post-1',
+		);
+		expect(mocks.attachMutateAsync.mock.calls[0]?.[0]).toMatchObject({
+			postId: 'post-1',
+			segmentId: 'stored-b',
+		});
+	});
+
+	test('an ended session during the image attach goes to the central logout, not to the panel', async () => {
+		mocks.attachMutateAsync.mockRejectedValueOnce(ENDED_SESSION());
+		const consoleError = vi
+			.spyOn(console, 'error')
+			.mockImplementation(() => undefined);
+		render(
+			<AuthedRouteBoundary>
+				<CreatePostDrawer open onOpenChange={vi.fn()} tenantId="tenant-1" />
+			</AuthedRouteBoundary>,
+		);
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(0, PNG_FILE);
+
+		await act(async () => {
+			void mocks.publishBlockProps.current?.onBeforePublish?.();
+		});
+
+		await screen.findByTestId('logout-redirect');
+		consoleError.mockRestore();
+	});
+
+	test('an ended session during a retry of the attach also goes to the central logout', async () => {
+		mocks.attachMutateAsync
+			.mockRejectedValueOnce(UNSUPPORTED_TYPE_PROBLEM)
+			.mockRejectedValueOnce(ENDED_SESSION());
+		const consoleError = vi
+			.spyOn(console, 'error')
+			.mockImplementation(() => undefined);
+		render(
+			<AuthedRouteBoundary>
+				<CreatePostDrawer open onOpenChange={vi.fn()} tenantId="tenant-1" />
+			</AuthedRouteBoundary>,
+		);
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(0, PNG_FILE);
+		await prepare();
+		await waitFor(() =>
+			expect(
+				screen.getByTestId('tenant-posts-create-image-retry'),
+			).toBeTruthy(),
+		);
+
+		await userEvent.click(
+			screen.getByTestId('tenant-posts-create-image-retry'),
+		);
+
+		await screen.findByTestId('logout-redirect');
+		consoleError.mockRestore();
+	});
+
+	test('while the handoff failure is shown, the follow-up pickers are read-only', async () => {
+		mocks.attachMutateAsync.mockRejectedValueOnce(UNSUPPORTED_TYPE_PROBLEM);
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(0, PNG_FILE);
+
+		await prepare();
+
+		await waitFor(() =>
+			expect((segmentInput(0) as HTMLInputElement).disabled).toBe(true),
+		);
+	});
+
+	test('the handoff failure names the follow-up whose image did not attach', async () => {
+		mocks.attachMutateAsync.mockRejectedValueOnce(UNSUPPORTED_TYPE_PROBLEM);
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(1, PNG_FILE);
+
+		await prepare();
+
+		const panel = await screen.findByTestId(
+			'tenant-posts-create-image-handoff',
+		);
+		expect(panel.textContent).toContain('image-handoff-title-segment 3');
+	});
+
+	test('the handoff names the follow-up of the step that failed, an alt-text one included', async () => {
+		mocks.altMutateAsync.mockRejectedValueOnce(UNSUPPORTED_TYPE_PROBLEM);
+		renderDrawer(vi.fn());
+		setFieldValue('tenant-posts-create-body', 'publish body');
+		await pickIn(0, PNG_FILE);
+		fireEvent.change(
+			within(
+				screen.getAllByTestId('tenant-posts-segment')[0] as HTMLElement,
+			).getByTestId('tenant-posts-create-image-alt'),
+			{ target: { value: 'Some alt' } },
+		);
+		await pickIn(1, SECOND_FILE);
+
+		await prepare();
+
+		// Segment 2's image attached but its alt step failed: segment 2, not 3.
+		const panel = await screen.findByTestId(
+			'tenant-posts-create-image-handoff',
+		);
+		expect(panel.textContent).toContain('image-handoff-title-segment 2');
 	});
 });

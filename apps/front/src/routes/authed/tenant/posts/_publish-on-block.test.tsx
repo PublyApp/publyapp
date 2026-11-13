@@ -7,10 +7,18 @@
 // navigates to /tenant/posts/history, failures surface through
 // getFailureMessage(toApiFailure(error)).
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { TestLabelMap } from '~/lib/testing/test-label-map';
+
+import { AuthedRouteBoundary } from './_authed-route-boundary.test-helper';
 
 const TARGET_A = '01890a5d-ac96-774b-bcce-b302099a8057';
 const TARGET_B = '01890a5d-ac96-774b-bcce-b302099a8058';
@@ -55,6 +63,11 @@ vi.mock('~/lib/query/tenants-for-picker', () => ({
 
 vi.mock('@tanstack/react-router', () => ({
 	useNavigate: () => mocks.navigate,
+	useRouter: () => ({ invalidate: vi.fn() }),
+}));
+
+vi.mock('~/components/error-views/LogoutRedirect', () => ({
+	LogoutRedirect: () => <div data-testid="logout-redirect" />,
 }));
 
 const EN_LABELS: TestLabelMap = {
@@ -202,9 +215,17 @@ type BlockProps = {
 	body?: string;
 	followUps?: string[];
 	imageCount?: number;
+	/** Images held by each follow-up, in order. */
+	followUpImages?: number[];
 };
 
-const BlockHarness = ({ postId, body, followUps, imageCount }: BlockProps) => {
+const BlockHarness = ({
+	postId,
+	body,
+	followUps,
+	imageCount,
+	followUpImages,
+}: BlockProps) => {
 	const selection = usePublishSelection(null);
 	const destinationOverrides = useDestinationOverrides();
 	return (
@@ -218,7 +239,12 @@ const BlockHarness = ({ postId, body, followUps, imageCount }: BlockProps) => {
 				destinationOverrides={destinationOverrides}
 				postId={postId ?? POST_ID}
 				body={body}
-				segments={followUps?.map((text) => newSegmentDraft(text))}
+				segments={followUps?.map((text, index) =>
+					newSegmentDraft(text, `seg-${index}`),
+				)}
+				segmentImageCounts={Object.fromEntries(
+					(followUpImages ?? []).map((count, index) => [`seg-${index}`, count]),
+				)}
 				imageKeys={Array.from(
 					{ length: imageCount ?? 0 },
 					(_, index) => `image-${index}`,
@@ -232,9 +258,11 @@ const renderBlock = (props?: BlockProps) => {
 	const client = new QueryClient();
 
 	return render(
-		<QueryClientProvider client={client}>
-			<BlockHarness {...props} />
-		</QueryClientProvider>,
+		<AuthedRouteBoundary>
+			<QueryClientProvider client={client}>
+				<BlockHarness {...props} />
+			</QueryClientProvider>
+		</AuthedRouteBoundary>,
 	);
 };
 
@@ -495,5 +523,83 @@ describe('PublishOnBlock', () => {
 			(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
 				.disabled,
 		).toBe(true);
+	});
+
+	test('blocks Publish when a follow-up holds more images than a selected destination takes (#2181)', () => {
+		allowPermission(true);
+		stubFediverseTargets();
+
+		renderBlock({
+			body: 'one',
+			imageCount: 1,
+			followUps: ['two'],
+			followUpImages: [5],
+		});
+
+		expect(
+			screen.getByTestId('tenant-posts-segment-image-problem').textContent,
+		).toContain('posts:publish-blocked-segment-images');
+		expect(
+			(screen.getByTestId('tenant-posts-publish-now') as HTMLButtonElement)
+				.disabled,
+		).toBe(true);
+		cleanup();
+
+		renderBlock({
+			body: 'one',
+			imageCount: 1,
+			followUps: ['two'],
+			followUpImages: [4],
+		});
+		expect(
+			screen.queryByTestId('tenant-posts-segment-image-problem'),
+		).toBeNull();
+	});
+
+	test('an ended session on Publish now goes to the central logout; any other failure stays inline (residual)', async () => {
+		allowPermission(true);
+		stubTargets();
+		const consoleError = vi
+			.spyOn(console, 'error')
+			.mockImplementation(() => undefined);
+		mocks.mutationFn.mockRejectedValueOnce(
+			Object.assign(new Error('Unauthorized'), { responseStatusCode: 401 }),
+		);
+		const user = userEvent.setup();
+		renderBlock();
+
+		await user.click(screen.getByTestId('tenant-posts-publish-now'));
+
+		await screen.findByTestId('logout-redirect');
+		consoleError.mockRestore();
+		cleanup();
+
+		mocks.mutationFn.mockRejectedValueOnce(
+			Object.assign(new Error('Server broke'), { responseStatusCode: 500 }),
+		);
+		renderBlock();
+		await user.click(screen.getByTestId('tenant-posts-publish-now'));
+		await screen.findByRole('alert');
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
+	test('an ended session on Schedule goes to the central logout', async () => {
+		allowPermission(true);
+		stubTargets();
+		const consoleError = vi
+			.spyOn(console, 'error')
+			.mockImplementation(() => undefined);
+		mocks.scheduleFn.mockRejectedValueOnce(
+			Object.assign(new Error('Unauthorized'), { responseStatusCode: 401 }),
+		);
+		const user = userEvent.setup();
+		renderBlock();
+
+		const input = screen.getByTestId('tenant-posts-schedule-at');
+		fireEvent.change(input, { target: { value: '2099-01-01T10:00' } });
+		await user.click(screen.getByTestId('tenant-posts-schedule-submit'));
+
+		await screen.findByTestId('logout-redirect');
+		consoleError.mockRestore();
 	});
 });

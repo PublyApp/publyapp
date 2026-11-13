@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { reconcileSegmentDrafts } from './_segment-draft';
+import { reconcileSegmentDrafts, segmentNumberOf } from './_segment-draft';
 
 const drafts = (...entries: [string, string][]) =>
 	entries.map(([id, text]) => ({ id, text }));
@@ -66,5 +66,21 @@ describe('reconcileSegmentDrafts', () => {
 		const [added] = reconcileSegmentDrafts([], ['A']);
 
 		expect(added).not.toHaveProperty('serverId');
+	});
+});
+
+describe('segmentNumberOf', () => {
+	const drafts = [
+		{ id: 'a', text: '' },
+		{ id: 'b', text: '' },
+	];
+
+	test('numbers a follow-up from 2', () => {
+		expect(segmentNumberOf('b', drafts)).toBe(3);
+	});
+
+	test('is undefined for the post itself or a follow-up that is gone', () => {
+		expect(segmentNumberOf(undefined, drafts)).toBeUndefined();
+		expect(segmentNumberOf('zzz', drafts)).toBeUndefined();
 	});
 });

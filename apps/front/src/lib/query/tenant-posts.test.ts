@@ -47,6 +47,7 @@ import {
 	toTenantPostRows,
 	toTenantPostDetails,
 	savePost,
+	readCreatedSegments,
 	useSavePostMutation,
 	useDeleteTenantPostMutation,
 	tenantPostCrumbQuery,
@@ -237,6 +238,87 @@ describe('thread segments', () => {
 			.getValue()
 			.map((node: { getValue: () => string | null }) => node.getValue());
 		expect(ids).toEqual(['seg-4', null]);
+	});
+
+	test('a created thread answers with the stored id of each follow-up (images attach to it)', async () => {
+		mocks.patch.mockResolvedValue({ id: POST_ID });
+		mocks.get.mockResolvedValue({
+			id: POST_ID,
+			body: 'one',
+			segments: [
+				{ id: 'seg-2', number: 2, body: 'two' },
+				{ id: 'seg-3', number: 3, body: 'three' },
+			],
+		});
+
+		const created = await savePost({
+			body: 'one',
+			projectId: null,
+			segments: ['two', 'three'],
+			tenantId: TENANT_ID,
+		});
+
+		expect(created.segments.map((segment) => segment.id)).toEqual([
+			'seg-2',
+			'seg-3',
+		]);
+	});
+
+	test('a plain post is created without a second read', async () => {
+		mocks.patch.mockResolvedValue({ id: POST_ID });
+
+		const created = await savePost({
+			body: 'one',
+			projectId: null,
+			tenantId: TENANT_ID,
+		});
+
+		expect(mocks.get).not.toHaveBeenCalled();
+		expect(created.segments).toEqual([]);
+	});
+
+	test('a failed read of the created follow-ups never fails the save (a retry would create a second post)', async () => {
+		mocks.patch.mockResolvedValue({ id: POST_ID });
+		mocks.get.mockRejectedValue(new Error('offline'));
+
+		const created = await savePost({
+			body: 'one',
+			projectId: null,
+			segments: ['two'],
+			tenantId: TENANT_ID,
+		});
+
+		expect(created.id).toBe(POST_ID);
+		expect(created.segments).toEqual([]);
+	});
+
+	test('a create whose follow-up read-back hits a 401 still answers with the created id (m2)', async () => {
+		mocks.patch.mockResolvedValue({ id: POST_ID });
+		const ended = Object.assign(new Error('unauthorized'), {
+			responseStatusCode: 401,
+		});
+		mocks.get.mockRejectedValue(ended);
+
+		const created = await savePost({
+			body: 'one',
+			projectId: null,
+			segments: ['two'],
+			tenantId: TENANT_ID,
+		});
+
+		expect(created.id).toBe(POST_ID);
+		expect(created.segmentsReadError).toBe(ended);
+	});
+
+	test('an ended session is not "no segments": the 401 reaches the caller (m2)', async () => {
+		mocks.patch.mockResolvedValue({ id: POST_ID });
+		mocks.get.mockRejectedValue(
+			Object.assign(new Error('unauthorized'), { responseStatusCode: 401 }),
+		);
+
+		await expect(readCreatedSegments(TENANT_ID, POST_ID)).rejects.toThrow(
+			'unauthorized',
+		);
 	});
 
 	test('savePost leaves segments out of the patch when none are given', async () => {

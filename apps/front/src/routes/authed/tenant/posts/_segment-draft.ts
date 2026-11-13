@@ -12,6 +12,23 @@ export const newSegmentDraft = (
 	serverId === undefined ? { id, text } : { id, text, serverId };
 
 /** Shared empty list: a stable default for watched form values. */
+/** True when a follow-up that was at some position is no longer there: it
+ * moved or was removed. Appending one shifts nothing. */
+export const segmentsShifted = (
+	before: readonly SegmentDraft[],
+	after: readonly SegmentDraft[],
+): boolean => before.some((draft, index) => draft.id !== after[index]?.id);
+
+/** The number (2..N) of the follow-up with this composer key; undefined for
+ * the post itself (no key) or a follow-up that is gone. */
+export const segmentNumberOf = (
+	key: string | undefined,
+	segments: readonly SegmentDraft[],
+): number | undefined => {
+	const index = segments.findIndex((segment) => segment.id === key);
+	return key === undefined || index === -1 ? undefined : index + 2;
+};
+
 export const NO_SEGMENTS: SegmentDraft[] = [];
 
 /**
@@ -44,3 +61,17 @@ export const reconcileSegmentDrafts = (
 	}
 	return drafts;
 };
+
+/** Plain posts keep sending exactly what they always did. Each draft names the
+ * stored segment it came from, so its images follow its text through a reorder
+ * or a removal. */
+export const segmentsPayload = (
+	drafts: readonly SegmentDraft[],
+	hasStoredSegments: boolean,
+) =>
+	drafts.length > 0 || hasStoredSegments
+		? {
+				segments: drafts.map((segment) => segment.text),
+				segmentIds: drafts.map((segment) => segment.serverId),
+			}
+		: {};

@@ -17,6 +17,8 @@ export const PostEditSideColumn = ({
 	body,
 	segments,
 	images,
+	segmentImageCounts,
+	isBusy,
 	isPostDirty,
 }: {
 	postId: string;
@@ -26,6 +28,11 @@ export const PostEditSideColumn = ({
 	body: string;
 	segments: SegmentDraft[];
 	images: TenantPostImage[];
+	/** How many images each follow-up holds, by segment id. */
+	segmentImageCounts: Readonly<Record<string, number>>;
+	/** A save or upload of this page is in flight, or a picked file is still
+	 * to attach: publishing, scheduling and the post's own images wait. */
+	isBusy: boolean;
 	/** Unsaved edits to the shared post. */
 	isPostDirty: boolean;
 }) => (
@@ -38,6 +45,7 @@ export const PostEditSideColumn = ({
 			tenantId={tenantId}
 			existingImages={images}
 			limits={selection.imageLimits}
+			disabled={isBusy}
 		/>
 		<PublishOnBlock
 			selection={selection}
@@ -46,7 +54,9 @@ export const PostEditSideColumn = ({
 			body={body}
 			segments={segments}
 			imageKeys={toComposerImages(images).map((image) => image.key)}
+			segmentImageCounts={segmentImageCounts}
 			isPostDirty={isPostDirty}
+			disabled={isBusy}
 		/>
 	</div>
 );
