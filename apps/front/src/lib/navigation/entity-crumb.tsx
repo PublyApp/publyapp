@@ -2,6 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import QueryDisplay from '~/components/query-display';
 import { Skeleton } from '~/components/ui/skeleton';
 import type { CrumbSpec } from '~/lib/navigation/breadcrumbs';
+import {
+	resolveWorkspaceTenant,
+	useTenantsForPickerQuery,
+} from '~/lib/query/tenants-for-picker';
+import { readSelectedTenantId } from '~/lib/session/selected-tenant-storage';
 
 type EntityCrumbSpec = Extract<CrumbSpec, { kind: 'entity' }>;
 
@@ -34,13 +39,29 @@ export const EntityCrumb = ({
 	spec: EntityCrumbSpec;
 	params: Record<string, string>;
 }) => {
-	const { queryKey, queryFn } = spec.query(params);
+	// The picker is read through its own query, the one the page and its loader
+	// share, so a cold cache (direct link, reload) fetches it once. Only a
+	// workspace-tenant entity reads it: staff surfaces must not.
+	const needsTenant = spec.workspaceTenant === true;
+	// preload-exempt: the picker is the authed shell's own query, warmed before any tenant page renders
+	const picker = useTenantsForPickerQuery({ enabled: needsTenant });
+	const tenantId =
+		needsTenant && picker.isSuccess
+			? (resolveWorkspaceTenant(picker.data, readSelectedTenantId())?.id ??
+				null)
+			: null;
+	const { queryKey, queryFn } = spec.query(params, { tenantId });
 	// preload-exempt: the key is the page's own *DetailsQueryOptions key, warmed by that page's loader
 	const query = useQuery({
 		queryKey: [...queryKey],
 		queryFn,
 		staleTime: 30_000,
+		enabled: !needsTenant || tenantId !== null,
 	});
+
+	if (needsTenant && (picker.isError || (picker.isSuccess && !tenantId))) {
+		return <EntityCrumbFallback />;
+	}
 
 	return (
 		<QueryDisplay

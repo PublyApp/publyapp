@@ -58,7 +58,15 @@ export type CrumbSpec =
 	| {
 			kind: 'entity';
 			to?: string;
-			query: (params: Record<string, string>) => EntityCrumbQuery;
+			/** `workspaceTenant`: the entity lives in the workspace tenant, which the
+			 * crumb resolves through the picker query (shared with the page) and
+			 * hands to `query`; the crumb waits for it, so its key is never
+			 * tenant-less. */
+			workspaceTenant?: boolean;
+			query: (
+				params: Record<string, string>,
+				context: { tenantId: string | null },
+			) => EntityCrumbQuery;
 			select: (data: unknown) => string | undefined;
 	  };
 

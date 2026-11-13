@@ -8,16 +8,22 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
 	patch: vi.fn(),
+	get: vi.fn(),
+	clientFor: vi.fn(),
 	delete: vi.fn(),
 	invalidateTenantPublications: vi.fn(),
 }));
 
 vi.mock('~/lib/api-client/client-manager', () => ({
 	getClientManager: () => ({
-		getOrCreateClient: () => ({
+		getOrCreateClient: (tenantId: string) => ({
 			posts: {
 				byPostId: () => ({
 					patch: mocks.patch,
+					get: () => {
+						mocks.clientFor(tenantId);
+						return mocks.get();
+					},
 					delete: mocks.delete,
 				}),
 				post: mocks.patch,
@@ -43,6 +49,9 @@ import {
 	savePost,
 	useSavePostMutation,
 	useDeleteTenantPostMutation,
+	tenantPostCrumbQuery,
+	tenantPostDetailsQueryOptions,
+	selectTenantPostCrumbName,
 } from './tenant-posts';
 import { TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY } from './tenant-scheduled-publications';
 
@@ -412,5 +421,38 @@ describe('useSavePostMutation invalidation coherence', () => {
 			});
 			expect(scheduledCall).toBeDefined();
 		});
+	});
+});
+
+describe('post breadcrumb (#2410)', () => {
+	afterEach(() => {
+		mocks.clientFor.mockClear();
+	});
+
+	test('uses the page query key and fetches for the given tenant', async () => {
+		mocks.get.mockResolvedValue({ id: 'post-1', body: 'x' });
+
+		const { queryKey, queryFn } = tenantPostCrumbQuery(
+			{ postId: 'post-1' },
+			{ tenantId: 'tenant-1' },
+		);
+		await queryFn();
+
+		expect(queryKey).toEqual(
+			tenantPostDetailsQueryOptions.queryKey({
+				postId: 'post-1',
+				tenantId: 'tenant-1',
+			}),
+		);
+		expect(mocks.clientFor).toHaveBeenCalledWith('tenant-1');
+	});
+
+	test('names the post by the first line of its body, shortened', () => {
+		expect(
+			selectTenantPostCrumbName({ id: 'p', body: `${'a'.repeat(200)}\nnext` }),
+		).toBe(`${'a'.repeat(59)}…`);
+		expect(selectTenantPostCrumbName({ id: 'p', body: 'one\ntwo' })).toBe(
+			'one',
+		);
 	});
 });

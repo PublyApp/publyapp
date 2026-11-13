@@ -437,22 +437,45 @@ export const useDeleteTenantPostMutation = () => {
 
 // ── Breadcrumb helpers ─────────────────────────────────────────────
 
-export const tenantPostCrumbQuery = (params: Record<string, string>) => ({
-	queryKey: [
-		...scopedKey('tenant', TENANT_POST_DETAILS_QUERY_KEY),
-		{ postId: params.postId },
-	],
-	queryFn: () =>
-		tenantPostDetailsQueryOptions.fetcher({
-			postId: params.postId,
-			tenantId: params.tenantId ?? '',
-		}),
-});
+/** A breadcrumb has only the URL params, never the workspace tenant: it was
+ * fetching with an empty tenant id, which always failed and left the crumb on
+ * its error dash (#2410). The route declares `workspaceTenant`, so the crumb
+ * resolves the tenant like the page (shared picker query + same resolver),
+ * waits for it, and the key IS the page's own. `tenantId` is null only while
+ * that query is disabled. */
+export const tenantPostCrumbQuery = (
+	params: Record<string, string>,
+	{ tenantId }: { tenantId: string | null },
+) => {
+	const postId = params.postId ?? '';
 
+	if (tenantId === null) {
+		// The crumb's query is disabled until the tenant resolves.
+		return {
+			queryKey: [...TENANT_POSTS_QUERY_KEY, 'crumb-pending', postId],
+			queryFn: () => Promise.reject(new Error('workspace tenant not resolved')),
+		};
+	}
+
+	const variables = { postId, tenantId };
+
+	return {
+		queryKey: tenantPostDetailsQueryOptions.queryKey(variables),
+		queryFn: () => tenantPostDetailsQueryOptions.fetcher(variables),
+	};
+};
+
+const CRUMB_NAME_MAX = 60;
+
+/** The first line of the body, shortened: a body can run to 20 000 characters. */
 export const selectTenantPostCrumbName = (data: unknown) => {
 	const d = toTenantPostDetails(data as PostDetail | null);
-	if (d) {
-		return d.body;
+	const firstLine = d?.body.trim().split('\n')[0]?.trim();
+	if (!firstLine) {
+		return undefined;
 	}
-	return undefined;
+	if (firstLine.length <= CRUMB_NAME_MAX) {
+		return firstLine;
+	}
+	return `${firstLine.slice(0, CRUMB_NAME_MAX - 1)}…`;
 };

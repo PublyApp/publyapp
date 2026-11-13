@@ -41,6 +41,7 @@ const mocks = vi.hoisted(() => ({
 	shouldBlock: { current: undefined as (() => boolean) | undefined },
 	beforeUnload: { current: undefined as (() => boolean) | undefined },
 	navigate: vi.fn(),
+	canGoBack: true,
 	useParams: vi.fn(() => ({ postId: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa' })),
 	invalidateQueries: vi.fn(),
 	useTenantPostDetailsQuery: vi.fn((): TenantPostDetailsQueryResultMock => ({
@@ -106,6 +107,7 @@ vi.mock('@tanstack/react-router', () => ({
 			</a>
 		);
 	},
+	useCanGoBack: () => mocks.canGoBack,
 	useBlocker: ({
 		shouldBlockFn,
 		enableBeforeUnload,
@@ -494,6 +496,48 @@ describe('TenantPostEditPage', () => {
 			expect.anything(),
 			'11111111-1111-1111-1111-111111111111',
 		);
+	});
+
+	test('save without an in-app previous page lands on the drafts list instead of leaving the app (#2410)', async () => {
+		mocks.useTenantPostDetailsQuery.mockReturnValue({
+			data: {
+				id: 'aaaaaaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+				body: 'Hello world',
+				projectId: null,
+			},
+			isPending: false,
+			isSuccess: true,
+			isError: false,
+			error: null,
+			refetch: vi.fn(),
+			isFetching: false,
+		});
+		mocks.canGoBack = false;
+		mocks.navigate.mockClear();
+		const back = vi.spyOn(window.history, 'back').mockImplementation(() => {});
+
+		const { rerender } = render(<TenantPostEditPage />);
+		fireEvent.submit(screen.getByTestId('form-stub'));
+		await new Promise((resolve) => {
+			setTimeout(resolve, 0);
+		});
+
+		expect(back).not.toHaveBeenCalled();
+		expect(mocks.navigate).toHaveBeenCalledWith({
+			to: '/tenant/posts/drafts',
+			replace: true,
+		});
+
+		mocks.canGoBack = true;
+		rerender(<TenantPostEditPage />);
+		mocks.navigate.mockClear();
+		fireEvent.submit(screen.getByTestId('form-stub'));
+		await new Promise((resolve) => {
+			setTimeout(resolve, 0);
+		});
+		expect(back).toHaveBeenCalledTimes(1);
+		expect(mocks.navigate).not.toHaveBeenCalled();
+		back.mockRestore();
 	});
 
 	test('save names each follow-up by its stored segment id, so images follow their text', async () => {

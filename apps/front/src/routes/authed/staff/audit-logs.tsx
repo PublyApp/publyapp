@@ -11,6 +11,7 @@ import type {
 } from '~/components/history/history-types';
 import type { ListPanelGroup } from '~/components/list/filter-panel';
 import type { ListFiltersValue } from '~/components/list/list-types';
+import { LocalizedDateInput } from '~/components/localized-date-input';
 import QueryDisplay, {
 	type QueryDisplayQuery,
 } from '~/components/query-display';
@@ -63,7 +64,6 @@ import {
 	type AuditLogsListSearchParamInput,
 	type AuditLogsListSearchParams,
 } from './audit-logs/_list-search-params';
-import { LocalizedDateInput } from './audit-logs/_localized-date-input';
 
 const DEFAULT_SORT = { id: 'created_at', order: 'desc' as const };
 const DEFAULT_SIZE = 100;

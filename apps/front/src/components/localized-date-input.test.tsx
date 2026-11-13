@@ -5,7 +5,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { LocalizedDateInput } from './_localized-date-input';
+import { LocalizedDateInput } from './localized-date-input';
 
 const ERROR_MESSAGE = 'Saisissez une date valide.';
 

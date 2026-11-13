@@ -167,7 +167,10 @@ const buildSyntheticParams = (segments: string[]) =>
  * means adding it here, with its own representative payload, on purpose.
  */
 type EntityRegistryEntry = {
-	query: (params: Record<string, string>) => EntityCrumbQuery;
+	query: (
+		params: Record<string, string>,
+		context: { tenantId: string | null },
+	) => EntityCrumbQuery;
 	buildPayload: (marker: string) => Record<string, unknown>;
 };
 
@@ -438,7 +441,8 @@ describe('breadcrumb contract — route-tree walk (#973 Tier 2, guard A)', () =>
 		const queryKeyOf = (
 			spec: Extract<CrumbSpec, { kind: 'entity' }>,
 			params: Record<string, string>,
-		): string => JSON.stringify(spec.query(params).queryKey);
+		): string =>
+			JSON.stringify(spec.query(params, { tenantId: 'tenant-probe' }).queryKey);
 
 		for (const route of allRoutes) {
 			const segments = dynamicSegmentsOf(route.fullPath);
