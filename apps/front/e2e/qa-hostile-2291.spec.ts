@@ -872,7 +872,10 @@ test.describe(
 				scrollWidth: element.scrollWidth,
 				clientWidth: element.clientWidth,
 			}));
-			expect(cell.text).toBe('—');
+			// #2275: the « Invitations » column shows the API count (0 for the mock,
+			// which sends none) instead of the former « — » placeholder; the
+			// ellipsis contract below is about the cell, not its content.
+			expect(cell.text).toBe('0');
 			expect(cell.textOverflow).toBe('ellipsis');
 			expect(cell.scrollWidth).toBeLessThanOrEqual(cell.clientWidth + 1);
 		});
