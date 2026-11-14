@@ -2542,6 +2542,10 @@ namespace PublyApp.Api.Migrations
                         .HasColumnType("text")
                         .HasColumnName("last_name");
 
+                    b.Property<DateTime?>("LastSignInAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_sign_in_at");
+
                     b.Property<string>("Password")
                         .IsRequired()
                         .HasColumnType("text")

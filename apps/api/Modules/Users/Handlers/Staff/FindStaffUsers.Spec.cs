@@ -13,6 +13,7 @@ using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Entities;
+using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -1032,6 +1033,128 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldFilterByAccessLevelAndKeepBothFacetCountsOverTheWholeCollection() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"access-{Guid.NewGuid():N}";
+
+		for (var i = 0; i < 2; i++) {
+			_ = await StaffUserTestHelper.SeedStaffUserAsync(
+				this._Fixture,
+				$"{marker}-owner{i}@example.com",
+				firstName: marker,
+				lastName: "Owner",
+				fullAccess: true
+			);
+		}
+		for (var i = 0; i < 3; i++) {
+			_ = await StaffUserTestHelper.SeedStaffUserAsync(
+				this._Fixture,
+				$"{marker}-user{i}@example.com",
+				firstName: marker,
+				lastName: "User"
+			);
+		}
+
+		// limit=1 proves the counts are not the page length; the facet ignores
+		// its own filter, so selecting one choice keeps both counts.
+		foreach (var (access, expectedTotal, expectedFullAccess) in new[] {
+			("full_access", 2, true),
+			("standard", 3, false),
+			("full_access,standard", 5, (bool?)null),
+		}) {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				FindStaffUserSpec._GetFindUrl(limit: 1, q: marker, access: access)
+			).WithSessionToken(token);
+			using var response = await this._Http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+			var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+			Assert.NotNull(result);
+
+			result.TotalCount.Should().Be(expectedTotal);
+			result.Counts.FullAccess.Should().Be(2);
+			result.Counts.StandardAccess.Should().Be(3);
+			if (expectedFullAccess is { } wanted) {
+				result.Data.Should().OnlyContain(user => user.IsFullAccess == wanted);
+			}
+		}
+	}
+
+	[Fact]
+	public async Task ItShouldPageThroughTheAccessFilteredCollectionWithoutSkippingRows() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"accesspage-{Guid.NewGuid():N}";
+		for (var i = 0; i < 3; i++) {
+			_ = await StaffUserTestHelper.SeedStaffUserAsync(
+				this._Fixture,
+				$"{marker}-owner{i}@example.com",
+				firstName: marker,
+				lastName: "Owner",
+				fullAccess: true
+			);
+			_ = await StaffUserTestHelper.SeedStaffUserAsync(
+				this._Fixture,
+				$"{marker}-user{i}@example.com",
+				firstName: marker,
+				lastName: "User"
+			);
+		}
+
+		var seen = new List<Guid>();
+		string? cursor = null;
+		do {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				FindStaffUserSpec._GetFindUrl(
+					cursor: cursor,
+					limit: 2,
+					q: marker,
+					access: "full_access"
+				)
+			).WithSessionToken(token);
+			using var response = await this._Http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+			var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+			Assert.NotNull(result);
+			result.Data.Should().OnlyContain(user => user.IsFullAccess);
+			seen.AddRange(result.Data.Select(user => user.Id));
+			cursor = result.NextCursor;
+		} while (cursor is not null);
+
+		seen.Should().HaveCount(3).And.OnlyHaveUniqueItems();
+	}
+
+	[Fact]
+	public async Task ItShouldReturnValidationProblemForUnknownAccessFilter() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(access: "admin")
+		).WithSessionToken(token);
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnTheAccountCreationDateOnEveryRow() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"since-{Guid.NewGuid():N}";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}@example.com",
+			firstName: marker,
+			lastName: "Since"
+		);
+		var createdAt = new DateTime(2025, 3, 4, 5, 6, 7, DateTimeKind.Utc);
+		await this._SeedStaffUserCreatedAtAsync(userId, createdAt);
+
+		var result = await this._FindAsync(token, marker);
+
+		result.Data.Should().ContainSingle()
+			.Which.CreatedAt.Should().BeCloseTo(createdAt, TimeSpan.FromSeconds(1));
+	}
+
+	[Fact]
 	public async Task ItShouldReturnAssignedRoleNamesOnTheRow() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = $"roled-{Guid.NewGuid():N}";
@@ -1073,13 +1196,58 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			this._Fixture,
 			$"{marker}@example.com"
 		);
+		_ = await this._AuthClient.LoginAsync($"{marker}@example.com", TestConstants.SeedPassword);
 		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(1));
 
 		var after = await this._ReadCountsAsync(token);
 
-		// The seeded session is the only change: both figures move by exactly one.
+		// One member signed in today (connected +1) holding two open sessions.
 		after.ConnectedToday.Should().Be(before.ConnectedToday + 1);
-		after.OpenSessions.Should().Be(before.OpenSessions + 1);
+		after.OpenSessions.Should().Be(before.OpenSessions + 2);
+	}
+
+	[Fact]
+	public async Task ItShouldKeepCountingAMemberConnectedTodayAfterTheyLoggedOut() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var before = await this._ReadCountsAsync(token);
+
+		var marker = $"loggedout-{Guid.NewGuid():N}";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}@example.com"
+		);
+		_ = await this._AuthClient.LoginAsync($"{marker}@example.com", TestConstants.SeedPassword);
+		using (var scope = this._Fixture.Factory.Services.CreateScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			_ = await dbContext.Session
+				.Where(session => session.UserId == userId)
+				.ExecuteDeleteAsync();
+		}
+
+		var after = await this._ReadCountsAsync(token);
+
+		after.ConnectedToday.Should().Be(before.ConnectedToday + 1);
+		after.OpenSessions.Should().Be(before.OpenSessions);
+	}
+
+	[Fact]
+	public async Task ItShouldNotCountAnImpersonationSessionAsConnectedToday() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var before = await this._ReadCountsAsync(token);
+
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"imp-{Guid.NewGuid():N}@example.com"
+		);
+		await this._AddStaffSessionAsync(
+			userId,
+			DateTime.UtcNow.AddDays(1),
+			isImpersonation: true
+		);
+
+		var after = await this._ReadCountsAsync(token);
+
+		after.ConnectedToday.Should().Be(before.ConnectedToday);
 	}
 
 	[Fact]
@@ -1097,7 +1265,316 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var after = await this._ReadCountsAsync(token);
 
 		after.OpenSessions.Should().Be(before.OpenSessions);
-		after.ConnectedToday.Should().Be(before.ConnectedToday + 1);
+		// No sign-in happened: a lone expired session row is not « connected today ».
+		after.ConnectedToday.Should().Be(before.ConnectedToday);
+	}
+
+	[Fact]
+	public async Task ItShouldReturnOpenSessionsAndLastSignInOnEachRow() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"signin-{Guid.NewGuid():N}";
+		var email = $"{marker}@example.com";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			email,
+			firstName: marker
+		);
+		var neverSignedInId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-never@example.com",
+			firstName: marker
+		);
+		var before = DateTime.UtcNow.AddSeconds(-2);
+		_ = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+		// One more open session and an expired one.
+		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(2));
+		await this._AddStaffSessionAsync(userId, DateTime.UtcNow.AddDays(-1));
+
+		var result = await this._FindAsync(token, marker);
+
+		var row = result.Data.Should().ContainSingle(user => user.Id == userId).Subject;
+		row.OpenSessions.Should().Be(2);
+		row.LastSignInAt.Should().BeAfter(before);
+
+		var never = result.Data.Should().ContainSingle(user => user.Id == neverSignedInId).Subject;
+		never.OpenSessions.Should().Be(0);
+		never.LastSignInAt.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldKeepTheLastSignInAfterLogoutAndSessionCleanup() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"durable-{Guid.NewGuid():N}";
+		var email = $"{marker}@example.com";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			email,
+			firstName: marker
+		);
+		var before = DateTime.UtcNow.AddSeconds(-2);
+		_ = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
+
+		// Logout and the expiry cleanup both hard-delete session rows.
+		using (var scope = this._Fixture.Factory.Services.CreateScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			_ = await dbContext.Session
+				.Where(session => session.UserId == userId)
+				.ExecuteDeleteAsync();
+		}
+
+		var result = await this._FindAsync(token, marker);
+
+		var row = result.Data.Should().ContainSingle(user => user.Id == userId).Subject;
+		row.OpenSessions.Should().Be(0);
+		row.LastSignInAt.Should().BeAfter(before);
+	}
+
+	[Fact]
+	public async Task ItShouldNotTreatAnImpersonationSessionAsASignIn() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"impers-{Guid.NewGuid():N}";
+		var userId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}@example.com",
+			firstName: marker
+		);
+		await this._AddStaffSessionAsync(
+			userId,
+			DateTime.UtcNow.AddDays(1),
+			DateTime.UtcNow.AddHours(-1),
+			isImpersonation: true
+		);
+
+		var result = await this._FindAsync(token, marker);
+
+		var row = result.Data.Should().ContainSingle(user => user.Id == userId).Subject;
+		row.LastSignInAt.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldReturnWhoInvitedTheMemberFromTheAcceptedInvitation() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"invitedby-{Guid.NewGuid():N}";
+		var invitedEmail = $"{marker}@example.com";
+		var directEmail = $"{marker}-direct@example.com";
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, invitedEmail, firstName: marker
+		);
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, directEmail, firstName: marker
+		);
+		var inviterId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-inviter@example.com",
+			firstName: "Ines",
+			lastName: "Inviter"
+		);
+		// A revoked invitation by someone else must not be reported.
+		var revokerId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture,
+			$"{marker}-revoker@example.com",
+			firstName: "Rex",
+			lastName: "Revoker"
+		);
+		await this._SeedStaffInvitationAsync(invitedEmail, revokerId, InvitationStatus.Revoked);
+		await this._SeedStaffInvitationAsync(invitedEmail, inviterId, InvitationStatus.Accepted);
+
+		var result = await this._FindAsync(token, marker);
+
+		result.Data.Should().ContainSingle(user => user.Email == invitedEmail)
+			.Which.InvitedByName.Should().Be("Ines Inviter");
+		result.Data.Should().ContainSingle(user => user.Email == directEmail)
+			.Which.InvitedByName.Should().BeNull();
+	}
+
+	[Fact]
+	public async Task ItShouldReturnRoleCountsOverTheWholeFilteredCollection() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"profiles-{Guid.NewGuid():N}";
+		var firstUserId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, $"{marker}-1@example.com", firstName: marker
+		);
+		var secondUserId = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, $"{marker}-2@example.com", firstName: marker
+		);
+		_ = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, $"{marker}-3@example.com", firstName: marker
+		);
+		var sharedRoleName = $"Shared-{marker}";
+		var soloRoleName = $"Solo-{marker}";
+		var sharedRoleId = await this._CreateStaffRoleAsync(sharedRoleName);
+		var soloRoleId = await this._CreateStaffRoleAsync(soloRoleName);
+		await this._AssignRoleAsync(firstUserId, sharedRoleId);
+		await this._AssignRoleAsync(secondUserId, sharedRoleId);
+		await this._AssignRoleAsync(secondUserId, soloRoleId);
+
+		// limit=1: the breakdown is not the page.
+		var result = await this._FindAsync(token, marker, limit: 1);
+
+		result.Data.Should().HaveCount(1);
+		result.Counts.RoleCounts.Should().Contain(profile =>
+			profile.RoleId == sharedRoleId && profile.Name == sharedRoleName && profile.Count == 2
+		);
+		result.Counts.RoleCounts.Should().Contain(profile =>
+			profile.RoleId == soloRoleId && profile.Count == 1
+		);
+		result.Counts.RoleCounts.Should().HaveCount(2);
+	}
+
+	[Fact]
+	public async Task ItShouldExcludeMembersHoldingTheRoleById() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"excl-{Guid.NewGuid():N}";
+		var support = await this._CreateStaffRoleAsync($"Support {marker}");
+		// A similar name must not be caught by the exclusion.
+		var supportLead = await this._CreateStaffRoleAsync($"Support Lead {marker}");
+		var inRole = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, $"{marker}-a@example.com", firstName: marker);
+		var inSimilarRole = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, $"{marker}-b@example.com", firstName: marker);
+		var noRole = await StaffUserTestHelper.SeedStaffUserAsync(
+			this._Fixture, $"{marker}-c@example.com", firstName: marker);
+		await this._AssignRoleAsync(inRole, support);
+		await this._AssignRoleAsync(inSimilarRole, supportLead);
+
+		var ids = await this._FindAllIdsAsync(token, marker, support, limit: 50);
+
+		ids.Should().BeEquivalentTo([inSimilarRole, noRole]);
+	}
+
+	[Fact]
+	public async Task ItShouldExcludeByRoleAcrossPages() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"exclpage-{Guid.NewGuid():N}";
+		var role = await this._CreateStaffRoleAsync($"Role {marker}");
+		var kept = new List<Guid>();
+		for (var i = 0; i < 5; i++) {
+			var id = await StaffUserTestHelper.SeedStaffUserAsync(
+				this._Fixture, $"{marker}-{i}@example.com", firstName: marker);
+			if (i % 2 == 0) {
+				await this._AssignRoleAsync(id, role);
+			} else {
+				kept.Add(id);
+			}
+		}
+
+		// One row per page: the excluded members must not leave holes or repeats.
+		var ids = await this._FindAllIdsAsync(token, marker, role, limit: 1);
+
+		ids.Should().BeEquivalentTo(kept);
+		ids.Should().OnlyHaveUniqueItems();
+	}
+
+	[Fact]
+	public async Task ItShouldRejectAMalformedExcludeRoleId() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(excludeRoleId: "not-a-guid")
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+
+		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+	}
+
+	private async Task<List<Guid>> _FindAllIdsAsync(
+		string token,
+		string marker,
+		Guid excludeRoleId,
+		int limit
+	) {
+		var ids = new List<Guid>();
+		string? cursor = null;
+		for (var page = 0; page < 20; page++) {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				FindStaffUserSpec._GetFindUrl(
+					cursor: cursor,
+					limit: limit,
+					q: marker,
+					excludeRoleId: excludeRoleId.ToString()
+				)
+			).WithSessionToken(token);
+			using var response = await this._Http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+			var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+			Assert.NotNull(result);
+			ids.AddRange(result.Data.Select(user => user.Id));
+			if (result.NextCursor is null) {
+				break;
+			}
+			cursor = result.NextCursor;
+		}
+
+		return ids;
+	}
+
+	private async Task<FindResponse> _FindAsync(string token, string marker, int limit = 50) {
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffUserSpec._GetFindUrl(limit: limit, q: marker)
+		).WithSessionToken(token);
+
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
+		result.Should().NotBeNull();
+		Assert.NotNull(result);
+		return result;
+	}
+
+	private async Task<Guid> _CreateStaffRoleAsync(string roleName) {
+		using var scope = this._Fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var role = Role.CreateStaffRole(roleName);
+		_ = await dbContext.Role.AddAsync(role);
+		await dbContext.SaveChangesAsync();
+		return role.GetRequiredId();
+	}
+
+	private async Task _AssignRoleAsync(Guid userId, Guid roleId) {
+		using var scope = this._Fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var account = await dbContext.UserAccount.FirstAsync(account =>
+			account.UserId == userId && account.Scope == AccountScope.Staff
+		);
+		_ = await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
+			UserAccountId = account.GetRequiredId(),
+			RoleId = roleId,
+		});
+		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task _SeedStaffInvitationAsync(
+		string email,
+		Guid invitedByUserId,
+		InvitationStatus status
+	) {
+		using var scope = this._Fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+		var roleId = await dbContext.Role
+			.Where(role => role.Scope == RoleScope.Staff && !role.IsDeleted)
+			.Select(role => role.Id ?? Guid.Empty)
+			.FirstAsync();
+		var invitation = Invitation.CreateStaffInvitationWithRoles(
+			email,
+			[roleId],
+			invitedByUserId,
+			DateTime.UtcNow.AddDays(7),
+			Guid.NewGuid().ToString("N")
+		);
+		invitation.Status = status;
+		if (status == InvitationStatus.Accepted) {
+			invitation.AcceptedAt = DateTime.UtcNow;
+		}
+
+		_ = await dbContext.Invitation.AddAsync(invitation);
+		await dbContext.SaveChangesAsync();
 	}
 
 	private static string _GetFindUrl(
@@ -1106,7 +1583,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		string? sortId = null,
 		string? sortOrder = null,
 		string? q = null,
-		string? status = null
+		string? status = null,
+		string? excludeRoleId = null,
+		string? access = null
 	) {
 		var basePath = PathUtils.Join(
 			Routes.Staff.Root,
@@ -1133,6 +1612,12 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		}
 		if (status is not null) {
 			queryParams.Add($"status={Uri.EscapeDataString(status)}");
+		}
+		if (excludeRoleId is not null) {
+			queryParams.Add($"exclude_role_id={Uri.EscapeDataString(excludeRoleId)}");
+		}
+		if (access is not null) {
+			queryParams.Add($"access={Uri.EscapeDataString(access)}");
 		}
 
 		return queryParams.Count > 0
@@ -1173,16 +1658,33 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await dbContext.SaveChangesAsync();
 	}
 
-	private async Task _AddStaffSessionAsync(Guid userId, DateTime expiresAt) {
+	private async Task _AddStaffSessionAsync(
+		Guid userId,
+		DateTime expiresAt,
+		DateTime? createdAt = null,
+		bool isImpersonation = false
+	) {
 		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+		var token = Guid.NewGuid().ToString("N");
 		_ = await dbContext.Session.AddAsync(new Session {
 			UserId = userId,
-			Token = Guid.NewGuid().ToString("N"),
+			Token = token,
 			ExpiresAt = expiresAt,
+			IsImpersonation = isImpersonation,
 		});
 		await dbContext.SaveChangesAsync();
+
+		// SaveChanges stamps CreatedAt on insert; backdate it afterwards.
+		if (createdAt is not null) {
+			_ = await dbContext.Session
+				.Where(session => session.Token == token)
+				.ExecuteUpdateAsync(setters => setters.SetProperty(
+					session => session.CreatedAt,
+					createdAt.Value
+				));
+		}
 	}
 
 	private async Task<StaffUserCountsDto> _ReadCountsAsync(string token) {
@@ -1304,8 +1806,16 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		public int Active { get; init; }
 		public int Suspended { get; init; }
 		public int FullAccess { get; init; }
+		public int StandardAccess { get; init; }
 		public int ConnectedToday { get; init; }
 		public int OpenSessions { get; init; }
+		public List<ProfileCountDto> RoleCounts { get; init; } = [];
+	}
+
+	private record ProfileCountDto {
+		public Guid RoleId { get; init; }
+		public string Name { get; init; } = string.Empty;
+		public int Count { get; init; }
 	}
 
 	private record StaffUserItemDto {
@@ -1317,6 +1827,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		public string Status { get; init; } = string.Empty;
 		public bool IsFullAccess { get; init; }
 		public List<string> Roles { get; init; } = [];
+		public int OpenSessions { get; init; }
+		public DateTime? LastSignInAt { get; init; }
+		public string? InvitedByName { get; init; }
+		public DateTime CreatedAt { get; init; }
 	}
 
 	private static async Task<AppProblemDetails?> _ReadProblemAsync(

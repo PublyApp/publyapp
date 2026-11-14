@@ -53,6 +53,8 @@ export type StaffInvitationRow = {
 	id: string;
 	email: string;
 	roleName: string;
+	/** One entry per role (a role name may itself contain a comma). */
+	roleNames: string[];
 	invitedByName: string;
 	status: InvitationDisplayStatus;
 	acceptedAt: Date | null;
@@ -74,6 +76,10 @@ export const toStaffInvitationRows = (
 			id: item.id,
 			email: item.email ?? '',
 			roleName: item.roleName?.trim() ?? '',
+			roleNames: (item.roleNames ?? []).flatMap((name) => {
+				const trimmed = name.trim();
+				return trimmed.length > 0 ? [trimmed] : [];
+			}),
 			invitedByName: item.invitedByName?.trim() ?? '',
 			status: normalizeInvitationStatus(item.status),
 			acceptedAt: item.acceptedAt ?? null,

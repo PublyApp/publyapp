@@ -145,6 +145,21 @@ public static class RoleEndpointsForStaff {
 			.WithReqBodyValidation<ResolveStaffRoleUserAssignmentsBody>();
 
 		staffGroup.MapPost(
+			Routes.Roles.ForStaff.Users.Assign,
+			BulkAssignStaffRoleUsers.Handle
+		)
+			.WithName("BulkAssignStaffRoleUsers")
+			.RequireRateLimiting(
+				ApiRateLimitPolicies.BulkOperation
+			)
+			.WithSummary("Bulk-assign staff users to a staff role")
+			// Same permission as unassign: membership is part of managing what the role
+			// applies to. Handing out the full-access role additionally requires holding
+			// it (RoleAssignmentGuard).
+			.WithPermission([AppPermissions.Staff.Roles.UPDATE_FOR_STAFF])
+			.WithReqBodyValidation<BulkAssignStaffRoleUsersBody>();
+
+		staffGroup.MapPost(
 			Routes.Roles.ForStaff.Users.Unassign,
 			UnassignStaffRoleUsers.Handle
 		)

@@ -10,6 +10,7 @@ import {
 	type FakeResponse,
 	type PreloadDestination,
 	preloadedQueries,
+	requestQueryParameters,
 	renderPreloadScenario,
 	warmedSnapshot,
 	widenOptions,
@@ -161,5 +162,47 @@ describe('#2340 staff-users route preload', () => {
 			linkLabel: LINK_LABEL,
 			pageTestId: 'staff-users-table',
 		});
+	});
+
+	test('the access-level filter reaches the API (whole collection, every page)', async () => {
+		mocks.respond.mockImplementation(() => ({
+			data: [
+				{
+					id: 'u1',
+					email: 'a@example.com',
+					firstName: 'A',
+					lastName: 'B',
+					roles: [],
+					isFullAccess: true,
+					status: 'active',
+				},
+			],
+			nextCursor: null,
+			totalCount: 20,
+			counts: {
+				total: 20,
+				active: 20,
+				suspended: 0,
+				fullAccess: 2,
+				standardAccess: 18,
+			},
+		}));
+		renderPreloadScenario({
+			destination: widenOptions<PreloadDestination>({
+				...destination,
+				linkSearch: { role: 'full_access' },
+			}),
+			linkLabel: LINK_LABEL,
+		});
+		fireEvent.click(await screen.findByRole('link', { name: LINK_LABEL }));
+		await waitFor(() => {
+			expect(screen.getByTestId('staff-users-table')).toBeTruthy();
+		});
+
+		const requests = requestQueryParameters(mocks.respond, ...USERS_PATH);
+		// (The team overview also reads an unfiltered counter request.)
+		expect(
+			requests.some((parameters) => parameters.access === 'full_access'),
+		).toBe(true);
 	});
 });

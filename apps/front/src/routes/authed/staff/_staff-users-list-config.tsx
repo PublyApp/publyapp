@@ -20,6 +20,7 @@ import { statusPillTone } from '~/components/ui/status-tone';
 import type { StaffUserRow } from '~/lib/query/staff-users';
 import { buildCsv } from '~/utils/csv';
 import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
+import { formatDateTime } from '~/utils/format-time';
 
 import type { StaffUserListCounts } from '@org/client-ts/models/index';
 
@@ -31,6 +32,8 @@ import {
 import { formatStaffStatusLabel } from './staff-users/status-labels';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+const FALLBACK_LOCALE = 'en';
 
 const DASH = '—';
 const Dash = () => <span className="text-muted-foreground">{DASH}</span>;
@@ -48,10 +51,14 @@ export const DEFAULT_STAFF_USER_COLUMNS = [
 	'createdAt',
 ] as const;
 
-/** The eleven columns of §4.6. The ones with no list-API field (2FA, sessions,
- * locale, last login, invited by, member since) render the missing-value dash
- * and are not sortable, never a fabricated value. */
-export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
+/** The eleven columns of §4.6. Sessions, last sign-in and invited-by come from
+ * the list API. 2FA and language have no source yet (follow-ups #2284 and the
+ * future MFA feature), so they keep the missing-value dash and are not
+ * sortable, never a fabricated value. */
+export const staffUserColumns = (
+	t: Translate,
+	locale: string = FALLBACK_LOCALE,
+): ListColumn<StaffUserRow>[] => [
 	{
 		id: 'name',
 		header: t('list-column-member'),
@@ -124,7 +131,8 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 		header: t('list-column-open-sessions'),
 		icon: IconDeviceDesktop,
 		width: 180,
-		cell: Dash,
+		value: (row) => row.openSessions,
+		cell: (row) => <span>{row.openSessions}</span>,
 		sortable: false,
 	},
 	{
@@ -140,7 +148,14 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 		header: t('list-column-last-login'),
 		icon: IconActivity,
 		width: 190,
-		cell: Dash,
+		value: (row) =>
+			row.lastSignInAt === null ? '' : formatDateTime(row.lastSignInAt, locale),
+		cell: (row) =>
+			row.lastSignInAt === null ? (
+				<Dash />
+			) : (
+				<span>{formatDateTime(row.lastSignInAt, locale)}</span>
+			),
 		sortable: false,
 	},
 	{
@@ -148,79 +163,82 @@ export const staffUserColumns = (t: Translate): ListColumn<StaffUserRow>[] => [
 		header: t('invited-by'),
 		icon: IconUserPlus,
 		width: 170,
-		cell: Dash,
+		value: (row) => row.invitedByName ?? '',
+		cell: (row) =>
+			row.invitedByName === null ? <Dash /> : <span>{row.invitedByName}</span>,
 		sortable: false,
 	},
 	{
 		id: 'createdAt',
 		header: t('member-since'),
 		icon: IconCalendar,
-		width: 140,
-		cell: Dash,
+		width: 180,
+		value: (row) =>
+			row.createdAt === null ? '' : formatDateTime(row.createdAt, locale),
+		cell: (row) =>
+			row.createdAt === null ? (
+				<Dash />
+			) : (
+				<span className="text-sm text-muted-foreground">
+					{formatDateTime(row.createdAt, locale)}
+				</span>
+			),
 		sortable: false,
 	},
 ];
 
-/** Statuses reach the API; the role filter is applied to the loaded
- * collection only and is offered only when the list page knows it holds the
- * whole collection. Double authentification is omitted (no field at all) rather
- * than rendering an always-empty filter — #2281 API gap. The full-access role is
- * the only role distinction the list DTO carries, plus the role names it
- * renders. */
+/** Status and access level both reach the API (whole collection, cursor reset).
+ * Double authentification is omitted (no field at all) rather than rendering an
+ * always-empty filter — #2281 API gap. The full-access role is the only role
+ * distinction the list DTO carries; the per-role breakdown is its own panel. */
 export const buildStaffUserFilters = (
 	t: Translate,
-	options: { includeRoles: boolean },
-): ListFilter<StaffUserRow>[] => {
-	const filters: ListFilter<StaffUserRow>[] = [
-		{
-			key: 'status',
-			label: t('list-statuses'),
-			icon: IconCircleDashed,
-			panel: true,
-			choices: [
-				{
-					value: 'active',
-					label: t('list-staff-status-active'),
-					icon: (
-						<IconCircleCheck className="size-4 shrink-0 text-[var(--publy-chip-active-text)]" />
-					),
-				},
-				{
-					value: 'suspended',
-					label: t('list-staff-status-suspended'),
-					icon: (
-						<IconCircleX className="size-4 shrink-0 text-[var(--publy-chip-suspended-text)]" />
-					),
-				},
-			],
-			valueOf: (row) => deriveStaffUserStatusKey(row.status) ?? [],
-		},
-	];
-
-	if (options.includeRoles) {
-		filters.push({
-			key: 'role',
-			label: t('list-roles'),
-			icon: IconCrown,
-			panel: true,
-			choices: [
-				{
-					value: 'full_access',
-					label: t('full-access'),
-					icon: <IconCrown className="size-4 shrink-0 text-muted-foreground" />,
-				},
-				{
-					value: 'standard',
-					label: t('standard-access'),
-					icon: <IconUser className="size-4 shrink-0 text-muted-foreground" />,
-				},
-			],
-			valueOf: (row) => deriveStaffUserRoleKey(row.isFullAccess),
-		});
-	}
-
-	return filters;
-};
+): ListFilter<StaffUserRow>[] => [
+	{
+		key: 'status',
+		label: t('list-statuses'),
+		icon: IconCircleDashed,
+		panel: true,
+		choices: [
+			{
+				value: 'active',
+				label: t('list-staff-status-active'),
+				icon: (
+					<IconCircleCheck className="size-4 shrink-0 text-[var(--publy-chip-active-text)]" />
+				),
+			},
+			{
+				value: 'suspended',
+				label: t('list-staff-status-suspended'),
+				icon: (
+					<IconCircleX className="size-4 shrink-0 text-[var(--publy-chip-suspended-text)]" />
+				),
+			},
+		],
+		valueOf: (row) => deriveStaffUserStatusKey(row.status) ?? [],
+	},
+	{
+		key: 'role',
+		// Its own title: « Rôles » is the per-role panel below it.
+		label: t('list-access-level'),
+		icon: IconCrown,
+		panel: true,
+		serverSide: true,
+		choices: [
+			{
+				value: 'full_access',
+				label: t('full-access'),
+				icon: <IconCrown className="size-4 shrink-0 text-muted-foreground" />,
+			},
+			{
+				value: 'standard',
+				label: t('standard-access'),
+				icon: <IconUser className="size-4 shrink-0 text-muted-foreground" />,
+			},
+		],
+		valueOf: (row) => deriveStaffUserRoleKey(row.isFullAccess),
+	},
+];
 
 /** The pinned footer: only the columns backed by a list-API value get a real
  * summary; the rest stay « — ». The generic page blanks the whole row when the
@@ -228,11 +246,19 @@ export const buildStaffUserFilters = (
 export const buildStaffUserTotals = (
 	t: Translate,
 	counts: StaffUserListCounts | null | undefined,
+	accessFilter: readonly string[] = [],
 ): Map<string, string> => {
 	const active = counts?.active ?? 0;
 	const suspended = counts?.suspended ?? 0;
-	const fullAccess = counts?.fullAccess ?? 0;
-	const standard = (counts?.total ?? 0) - fullAccess;
+	// The access facet ignores its own filter, so the composition of the
+	// FILTERED collection is the selected choice's facet count and zero for the
+	// choice it excludes (never the filtered total minus an unfiltered facet).
+	const onlyFullAccess =
+		accessFilter.includes('full_access') && !accessFilter.includes('standard');
+	const onlyStandard =
+		accessFilter.includes('standard') && !accessFilter.includes('full_access');
+	const fullAccess = onlyStandard ? 0 : (counts?.fullAccess ?? 0);
+	const standard = onlyFullAccess ? 0 : (counts?.standardAccess ?? 0);
 
 	const totals = new Map<string, string>();
 	totals.set(
@@ -242,9 +268,9 @@ export const buildStaffUserTotals = (
 	totals.set('email', DASH);
 	totals.set('roles', t('list-total-staff-roles', { fullAccess, standard }));
 	totals.set('status', t('list-total-staff-statuses', { active, suspended }));
+	totals.set('sessions', String(counts?.openSessions ?? 0));
 	for (const id of [
 		'twoFactor',
-		'sessions',
 		'locale',
 		'lastLogin',
 		'invitedBy',
@@ -271,8 +297,9 @@ export const buildStaffUserMobileCard =
 export const exportStaffUserRows = (
 	rows: StaffUserRow[],
 	t: Translate,
+	locale: string = FALLBACK_LOCALE,
 ): void => {
-	const columns = staffUserColumns(t);
+	const columns = staffUserColumns(t, locale);
 	const csv = buildCsv([
 		columns.map((column) => column.header),
 		...rows.map((row) =>

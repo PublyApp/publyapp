@@ -306,8 +306,10 @@ test.describe(
 				page.getByRole('columnheader', { name: 'Status' }),
 			).toBeVisible();
 			await expect(page.getByText('Maya Chen').first()).toBeVisible();
+			// The assign action opens the in-page drawer (a button, no longer a link
+			// to a separate route); the staff admin holds both permissions.
 			await expect(
-				page.getByRole('link', { name: 'Assign members' }),
+				page.getByRole('button', { name: 'Assign members' }),
 			).toBeVisible();
 		});
 

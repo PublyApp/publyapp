@@ -1,6 +1,6 @@
 import { IconUserPlus } from '@tabler/icons-react';
 import type { SortingState } from '@tanstack/react-table';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ListPage } from '~/components/list/list-page';
 import type {
@@ -18,6 +18,7 @@ import type {
 
 import type { StaffTeamOverview } from '../../_staff-list-team';
 import { buildStaffTeamPanelGroups } from '../../_staff-list-team';
+import { AssignMembersDrawer } from './_assign-members-drawer';
 import { RoleUsersListBulkActions } from './_users-bulk-actions';
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -30,6 +31,8 @@ const displayName = (row: StaffRoleUserRow, t: Translate): string =>
 
 type StaffRoleUsersListProps = {
 	roleId: string;
+	/** Holds both `roles.update_for_staff` and `users.list_for_staff`. */
+	canAssign: boolean;
 	rows: StaffRoleUserRow[];
 	columns: ListColumn<StaffRoleUserRow>[];
 	totalCount: number | null;
@@ -69,6 +72,7 @@ type StaffRoleUsersListProps = {
  * data/error orchestration under the giant-component bound. */
 export const StaffRoleUsersList = ({
 	roleId,
+	canAssign,
 	rows,
 	columns,
 	totalCount,
@@ -97,6 +101,7 @@ export const StaffRoleUsersList = ({
 }: StaffRoleUsersListProps) => {
 	const { t } = useTranslation('common');
 	const { isFetching } = query;
+	const [isAssignOpen, setIsAssignOpen] = useState(false);
 
 	return (
 		<div className="publy-page-fill">
@@ -127,15 +132,16 @@ export const StaffRoleUsersList = ({
 					counts,
 					onTeamSelect,
 				)}
-				newAction={{
-					// ponytail: no bulk-assign endpoint exists yet — the role
-					// overview is the only place membership is editable today.
-					label: t('assign-staff-members'),
-					icon: IconUserPlus,
-					to: '/staff/roles/$roleId',
-					params: { roleId },
-					variant: 'outline',
-				}}
+				newAction={
+					canAssign
+						? {
+								label: t('assign-staff-members'),
+								icon: IconUserPlus,
+								onSelect: () => setIsAssignOpen(true),
+								variant: 'outline',
+							}
+						: undefined
+				}
 				onOpen={onOpen}
 				openLabel={(row) => t('list-open-row', { name: displayName(row, t) })}
 				rowLabel={(row) => displayName(row, t)}
@@ -183,6 +189,14 @@ export const StaffRoleUsersList = ({
 					</FloatingSelectionBar>
 				}
 			/>
+			{canAssign ? (
+				<AssignMembersDrawer
+					roleId={roleId}
+					isOpen={isAssignOpen}
+					onOpenChange={setIsAssignOpen}
+					onSessionExpired={onSessionExpired}
+				/>
+			) : null}
 		</div>
 	);
 };

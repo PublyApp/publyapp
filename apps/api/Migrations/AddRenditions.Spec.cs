@@ -74,11 +74,17 @@ public sealed class AddRenditionsSpec : IAsyncLifetime {
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		var user = new User { Email = $"mig-{Guid.NewGuid():N}@example.com", Password = "unused", IsVerified = true };
 		db.Tenant.Add(tenant);
-		db.User.Add(user);
 		await db.SaveChangesAsync();
-		var post = new Post { TenantId = tenant.GetRequiredId(), Body = "legacy post", CreatedByUserId = user.GetRequiredId() };
+		// Plain SQL: later migrations extended users (last_sign_in_at), so the current
+		// model cannot write to the previous schema.
+		var userId = Guid.NewGuid();
+		var userEmail = $"mig-{Guid.NewGuid():N}@example.com";
+		_ = await db.Database.ExecuteSqlAsync($"""
+			INSERT INTO users (id, email, password, status, is_verified, created_at, updated_at, is_deleted)
+			VALUES ({userId}, {userEmail}, 'unused', 40, true, now(), now(), false)
+			""");
+		var post = new Post { TenantId = tenant.GetRequiredId(), Body = "legacy post", CreatedByUserId = userId };
 		var accountId = Guid.NewGuid();
 		var tenantGuid = tenant.GetRequiredId();
 		var externalId = $"did:plc:{Guid.NewGuid():N}";

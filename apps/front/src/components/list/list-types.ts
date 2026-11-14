@@ -41,6 +41,9 @@ export type ListFilter<T> = {
 	valueOf: (row: T) => string | string[];
 	/** Also listed as a shortcut group in the side panel. */
 	panel?: boolean;
+	/** The API already narrowed `rows` by this filter: the page never re-filters
+	 * them in memory (rows may not carry the choice's value, e.g. an id). */
+	serverSide?: boolean;
 };
 
 export type ListFiltersValue = Record<string, string[]>;

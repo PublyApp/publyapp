@@ -81,6 +81,14 @@ public static partial class Routes {
 				}
 
 				/// <summary>
+				/// Bulk-assign staff users to a staff role.
+				/// </summary>
+				public const string Assign = Routes.Roles.ForStaff.Users.Root + "/assign";
+				public static string AssignFn(string roleId) {
+					return $"{Routes.Roles.ForStaff.Users.RootFn(roleId)}/assign";
+				}
+
+				/// <summary>
 				/// Bulk-unassign staff users from a staff role.
 				/// </summary>
 				public const string Unassign = Routes.Roles.ForStaff.Users.Root + "/unassign";

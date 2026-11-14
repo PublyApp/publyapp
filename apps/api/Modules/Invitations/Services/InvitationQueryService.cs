@@ -5,6 +5,7 @@ using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Roles.Services;
 
 namespace PublyApp.Api.Modules.Invitations.Services;
 
@@ -286,6 +287,15 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			);
 		}
 
+		// The role facet ignores the role filter itself (picking a role must not hide
+		// the other choices), so keep the collection as it is before that filter.
+		var roleFacetIds = query.Select(inv => inv.Id);
+
+		if (args.RoleIds is { Count: > 0 } roleIds) {
+			query = query.Where(inv => this._DbContext.InvitationRole.Any(link =>
+				(Guid?)link.InvitationId == inv.Id && roleIds.Contains(link.RoleId)));
+		}
+
 		// Facets over the whole filtered collection (cursor and limit excluded).
 		var facetNow = DateTime.UtcNow;
 		var expiringSoonLimit = facetNow.AddDays(3);
@@ -318,13 +328,33 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 			}
 		}
 
+		// Invitations per role over the collection without the role filter (an
+		// invitation carrying several roles counts once in each).
+		var filteredInvitationIds = roleFacetIds;
+		var roleCountRows = await (
+			from invitationRole in this._DbContext.InvitationRole.AsNoTracking()
+			join role in this._DbContext.Role.AsNoTracking()
+				on (Guid?)invitationRole.RoleId equals role.Id
+			where !role.IsDeleted
+				&& filteredInvitationIds.Contains((Guid?)invitationRole.InvitationId)
+			group role by new { role.Id, role.Name } into g
+			select new { g.Key.Id, g.Key.Name, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+		var roleCounts = roleCountRows
+			.Where(row => row.Id is not null)
+			.Select(row => new StaffRoleCount(row.Id ?? Guid.Empty, row.Name, row.Count))
+			.OrderByDescending(row => row.Count)
+			.ThenBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
+			.ToList();
+
 		var counts = new StaffInvitationCounts(
 			Total: pending + accepted + expired + revoked,
 			Pending: pending,
 			Accepted: accepted,
 			Expired: expired,
 			Revoked: revoked,
-			ExpiringSoon: expiringSoon
+			ExpiringSoon: expiringSoon,
+			RoleCounts: roleCounts
 		);
 
 		if (cursor != Guid.Empty) {
@@ -396,6 +426,9 @@ public sealed class InvitationQueryService : IInvitationQueryService {
 				Email = r.Invitation.Email,
 				Scope = "Staff",
 				RoleName = roleName,
+				RoleNames = rolesByInvitation.TryGetValue(invitationId, out var staffRoles)
+					? staffRoles.Select(role => role.Name).ToList()
+					: [],
 				Status = Invitation.GetEffectiveStatus(
 					r.Invitation.Status,
 					r.Invitation.ExpiresAt,

@@ -1536,7 +1536,21 @@
         "operationId": "FindStaffUsers",
         "parameters": [
           {
+            "name": "access",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exclude_role_id",
             "in": "query",
             "schema": {
               "type": "string"
@@ -4698,6 +4712,13 @@
             }
           },
           {
+            "name": "role_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "sort_id",
             "in": "query",
             "schema": {
@@ -5793,6 +5814,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -6811,6 +6839,117 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResolveStaffRoleUserAssignmentsResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/staff/roles/{roleId}/users/assign": {
+      "post": {
+        "tags": [
+          "Staff Roles"
+        ],
+        "summary": "Bulk-assign staff users to a staff role",
+        "operationId": "BulkAssignStaffRoleUsers",
+        "parameters": [
+          {
+            "name": "roleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkAssignStaffRoleUsersBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkStaffRoleUserAssignActionResult"
                 }
               }
             }
@@ -16911,6 +17050,17 @@
           }
         }
       },
+      "BulkAssignStaffRoleUsersBody": {
+        "required": [
+          "userIds"
+        ],
+        "type": "object",
+        "properties": {
+          "userIds": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
       "BulkCreateStaffInvitationsBody": {
         "type": "object",
         "properties": {
@@ -17280,6 +17430,48 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "BulkStaffRoleUserAssignActionFailedItem": {
+        "required": [
+          "userId",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "BulkStaffRoleUserAssignActionResult": {
+        "required": [
+          "succeededCount",
+          "failedCount",
+          "failedItems"
+        ],
+        "type": "object",
+        "properties": {
+          "succeededCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkStaffRoleUserAssignActionFailedItem"
+            }
           }
         }
       },
@@ -18442,6 +18634,9 @@
             "type": "integer",
             "format": "int32"
           },
+          "counts": {
+            "$ref": "#/components/schemas/StaffRoleListCounts"
+          },
           "data": {
             "type": "array",
             "items": {
@@ -19313,6 +19508,12 @@
           },
           "roleName": {
             "type": "string"
+          },
+          "roleNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "status": {
             "$ref": "#/components/schemas/InvitationEffectiveStatus"
@@ -21187,6 +21388,12 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
+          },
+          "roleCounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffRoleCountItem"
+            }
           }
         }
       },
@@ -21219,6 +21426,23 @@
           },
           "name": {
             "type": "string"
+          }
+        }
+      },
+      "StaffRoleCountItem": {
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -21294,12 +21518,41 @@
           "isFullAccess": {
             "type": "boolean"
           },
+          "type": {
+            "$ref": "#/components/schemas/StaffRoleType"
+          },
           "userAccountCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
           }
         }
+      },
+      "StaffRoleListCounts": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "system": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "custom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "StaffRoleType": {
+        "enum": [
+          "System",
+          "Custom"
+        ]
       },
       "StaffRoleUserItem": {
         "type": "object",
@@ -21458,6 +21711,28 @@
             "items": {
               "type": "string"
             }
+          },
+          "openSessions": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "lastSignInAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "invitedByName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -21484,6 +21759,11 @@
             "type": "integer",
             "format": "int32"
           },
+          "standardAccess": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": "integer",
+            "format": "int32"
+          },
           "connectedToday": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
@@ -21493,6 +21773,12 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": "integer",
             "format": "int32"
+          },
+          "roleCounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StaffRoleCountItem"
+            }
           }
         }
       },

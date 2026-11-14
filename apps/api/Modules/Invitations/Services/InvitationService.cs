@@ -9,6 +9,8 @@ using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Roles.Entities;
+using PublyApp.Api.Modules.Roles.Services;
+
 namespace PublyApp.Api.Modules.Invitations.Services;
 
 public record FindTenantInvitationsFilters {
@@ -30,6 +32,8 @@ public record FindStaffInvitationsArgs {
 	public SortOrder? SortOrder { get; init; }
 	public IReadOnlySet<InvitationEffectiveStatus>? Statuses { get; init; }
 	public string? Search { get; init; }
+	// Invitations holding ANY of these roles (by id); null = no role filter.
+	public IReadOnlySet<Guid>? RoleIds { get; init; }
 }
 
 public record CreateStaffInvitationArgs(
@@ -138,6 +142,8 @@ public record InvitationListItem {
 	public required string Email { get; init; }
 	public required string Scope { get; init; }
 	public required string RoleName { get; init; }
+	// The same roles as RoleName, one entry each (a role name may itself hold a comma).
+	public List<string> RoleNames { get; init; } = [];
 	public required InvitationEffectiveStatus Status { get; init; }
 	public required DateTime ExpiresAt { get; init; }
 	public DateTime? AcceptedAt { get; init; }
@@ -164,7 +170,8 @@ public sealed record StaffInvitationCounts(
 	int Accepted,
 	int Expired,
 	int Revoked,
-	int ExpiringSoon
+	int ExpiringSoon,
+	IReadOnlyList<StaffRoleCount> RoleCounts
 );
 
 public abstract record FindStaffInvitationsResult {

@@ -13,10 +13,8 @@ import {
 	useTableController,
 } from '~/components/table/use-table-controller';
 import { preloadRouteQueries } from '~/lib/query/route-preload';
-import {
-	staffInvitationsQueryOptions,
-	useStaffInvitationsQuery,
-} from '~/lib/query/staff-invitations';
+import { staffInvitationsQueryOptions } from '~/lib/query/staff-invitations';
+import { staffRolesQueryOptions } from '~/lib/query/staff-roles';
 import { StaffListExportSelectedButton } from '~/routes/authed/staff/staff-list-export-selected';
 import { formatDateTime } from '~/utils/format-time';
 
@@ -27,9 +25,19 @@ import {
 	buildStaffTeamPanelGroups,
 	useStaffTeamOverview,
 } from '../_staff-list-team';
+import {
+	ROLE_ID_PATTERN,
+	ROLES_LOOKUP_VARIABLES,
+	useInvitationsListQuery,
+	useInvitationRoleFilter,
+	useRoleFilterUrlRewrite,
+} from './_invitations-data';
 import { invitationColumns } from './_invitations-list-columns';
 import {
 	buildInvitationFilters,
+	buildInvitationListCounts,
+	buildRoleNames,
+	toInvitationRoleChoices,
 	buildInvitationMobileCard,
 	buildInvitationTotals,
 	DEFAULT_INVITATION_COLUMNS,
@@ -49,7 +57,6 @@ import {
 	type InvitationListSearchParamInput,
 	type InvitationListSearchParams,
 	type KnownInvitationStatus,
-	type StaffInvitationRow,
 } from './list-helpers';
 import { InvitationRowActions } from './table-columns';
 
@@ -68,20 +75,20 @@ const staffInvitationsQueries = ({
 		variables: {
 			...buildTableApiVariables(search, DEFAULT_SORT, DEFAULT_SIZE),
 			status: search.status,
+			// Role ids (CSV), filtered by the API so it spans every page.
+			// Only well-formed ids: an old bookmark holding a role name must not
+			// turn the whole list into a 422.
+			roleId:
+				parseInvitationRoleFilter(search.role)
+					.filter((value) => ROLE_ID_PATTERN.test(value))
+					.join(',') || undefined,
 		},
 	},
+	roles: {
+		options: staffRolesQueryOptions,
+		variables: ROLES_LOOKUP_VARIABLES,
+	},
 });
-
-const countInvitationRoles = (rows: StaffInvitationRow[]) => {
-	const counts: Record<string, number> = {};
-	for (const row of rows) {
-		if (row.roleName.length === 0) {
-			continue;
-		}
-		counts[row.roleName] = (counts[row.roleName] ?? 0) + 1;
-	}
-	return counts;
-};
 
 const StaffInvitationsPage = () => {
 	const { t, i18n } = useTranslation('common');
@@ -90,7 +97,10 @@ const StaffInvitationsPage = () => {
 	const search = Route.useSearch() as InvitationListSearchParams;
 	const [shouldLogout, setShouldLogout] = useState(false);
 	const selectedStatuses = parseInvitationStatusFilter(search.status);
-	const selectedRoles = parseInvitationRoleFilter(search.role);
+	const selectedRoleValues = parseInvitationRoleFilter(search.role);
+	const roleFilter = useInvitationRoleFilter(selectedRoleValues);
+	const { rolesLookup, latchedFacet, idsCsv: roleIdsCsv } = roleFilter;
+	const selectedRoles = roleFilter.ids;
 
 	const onSearchChange = (next: InvitationListSearchParams): void => {
 		void navigate({
@@ -109,16 +119,31 @@ const StaffInvitationsPage = () => {
 		onSearchChange,
 		defaultSort: DEFAULT_SORT,
 		defaultSize: DEFAULT_SIZE,
-		cursorResetKey: search.status ?? '',
+		// Every server-side filter resets the cursor: a page-2 cursor sent with a
+		// new filter would skip into the middle of the filtered collection.
+		cursorResetKey: `${search.status ?? ''}:${roleIdsCsv}`,
 	});
 	const queries = staffInvitationsQueries({ search });
 	const listVariables = {
 		...queries.invitations.variables,
+		// Resolved in render from the URL values and the roles lookup, so the
+		// request never goes out unfiltered while the URL is rewritten.
+		roleId: roleIdsCsv || undefined,
 		// The cursor lives in React state, never in URL search (decision 4): the
 		// loader warms the first page, the page adds its own cursor.
 		cursor: controller.apiVariables.cursor,
 	};
-	const query = useStaffInvitationsQuery(listVariables);
+	// Fetch is held only while a name cannot resolve yet (lookup pending). The
+	// display also stays held after a failed lookup until the facet resolves it.
+	const query = useInvitationsListQuery(listVariables, {
+		isFetchHeld: roleFilter.hasLegacyRoleName && !rolesLookup.settled,
+		isDisplayHeld: roleFilter.unresolvedName && !rolesLookup.loaded,
+	});
+	if (latchedFacet === null && query.facetRoles !== null) {
+		roleFilter.setLatchedFacet(
+			query.facetRoles.map((role) => ({ id: role.roleId, name: role.name })),
+		);
+	}
 	// The overview publishes these variables as the counter only while they
 	// carry no filter/search; it owns that guard (see `_staff-list-team.tsx`).
 	const team = useStaffTeamOverview({ invitations: listVariables });
@@ -134,12 +159,25 @@ const StaffInvitationsPage = () => {
 
 	// `totalCount`/`counts` cover the whole filtered collection (issue #2301).
 	const countsKnown = query.data !== undefined;
-	// A role facet exists nowhere in the API: its counts are exact only when
-	// the loaded page is the whole collection.
-	const roleCounts: Record<string, number> | null =
-		query.data !== undefined && rows.length === query.data.totalCount
-			? countInvitationRoles(rows)
-			: null;
+	// The role facet is the API's whole-collection `counts.roleCounts` (an
+	// invitation holding several roles counts once in each), not the page.
+	const roleChoices = toInvitationRoleChoices(query.data?.counts?.roleCounts);
+	// A selected id's name comes from the full roles list, so it stays put while
+	// its request loads and when another filter drops it from the facet.
+	const roleNames = buildRoleNames(latchedFacet, rolesLookup.roles);
+
+	useRoleFilterUrlRewrite({
+		values: selectedRoleValues,
+		ids: roleFilter.ids,
+		canRewrite: roleFilter.canRewrite,
+		search,
+		navigate,
+	});
+
+	const listCounts = buildInvitationListCounts(
+		team.invitationCounts,
+		roleChoices,
+	);
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 	const navigateToTeam = useCallback(
@@ -211,17 +249,16 @@ const StaffInvitationsPage = () => {
 				}
 				onSearchChange({ ...search, q: next, cursor: undefined });
 			}}
-			filters={buildInvitationFilters(t, rows, selectedRoles, roleCounts)}
+			filters={buildInvitationFilters(
+				t,
+				selectedRoles,
+				roleChoices,
+				roleNames,
+				rolesLookup.settled,
+			)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
-			counts={{
-				status: {
-					pending: team.invitationCounts?.pending ?? null,
-					accepted: team.invitationCounts?.accepted ?? null,
-					expired: team.invitationCounts?.expired ?? null,
-					revoked: team.invitationCounts?.revoked ?? null,
-				},
-			}}
+			counts={listCounts}
 			countsKnown={countsKnown}
 			emptyText={tInvitations('no-invitations-found')}
 			locale={i18n.language}

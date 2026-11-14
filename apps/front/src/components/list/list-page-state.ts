@@ -57,6 +57,7 @@ export const useListPage = <T extends { id: string }>({
 		filters.every(
 			(filter) =>
 				filter.key === except ||
+				filter.serverSide === true ||
 				(filtersValue[filter.key]?.length ?? 0) === 0 ||
 				filtersValue[filter.key].some((value) =>
 					listValueHas(filter.valueOf(row), value),

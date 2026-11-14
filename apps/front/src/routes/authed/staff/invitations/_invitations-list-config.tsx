@@ -6,6 +6,7 @@ import {
 	IconShieldLock,
 } from '@tabler/icons-react';
 import type { ReactNode } from 'react';
+import type { FilterCounts } from '~/components/list/filter-menu';
 import type { ListFilter } from '~/components/list/list-types';
 import { StatusPill } from '~/components/ui/product-page';
 import { buildCsv } from '~/utils/csv';
@@ -56,24 +57,82 @@ export const DEFAULT_INVITATION_COLUMNS = [
 	'expiresAt',
 ] as const;
 
+export type InvitationRoleChoice = { id: string; name: string; count: number };
+
+/** The API's whole-collection role facet as filter choices (null = not known). */
+export const toInvitationRoleChoices = (
+	roleCounts:
+		| readonly {
+				roleId?: string | null;
+				name?: string | null;
+				count?: number | null;
+		  }[]
+		| null
+		| undefined,
+): InvitationRoleChoice[] | null =>
+	roleCounts === undefined || roleCounts === null
+		? null
+		: roleCounts.map((role) => ({
+				id: role.roleId ?? '',
+				name: role.name ?? '',
+				count: role.count ?? 0,
+			}));
+
+/** id -> name from the latched facet and the full roles list. */
+export const buildRoleNames = (
+	...sources: (readonly { id?: string | null; name?: string | null }[] | null)[]
+): Map<string, string> =>
+	new Map<string, string>(
+		sources.flatMap((source) =>
+			(source ?? []).flatMap((role) =>
+				role.id ? [[role.id, role.name ?? ''] as const] : [],
+			),
+		),
+	);
+
+/** Filter-menu counts: statuses from the team counter, roles from the facet. */
+export const buildInvitationListCounts = (
+	statusCounts: StaffInvitationListCounts | null | undefined,
+	roleChoices: readonly InvitationRoleChoice[] | null,
+): FilterCounts => {
+	const counts: FilterCounts = {
+		status: {
+			pending: statusCounts?.pending ?? null,
+			accepted: statusCounts?.accepted ?? null,
+			expired: statusCounts?.expired ?? null,
+			revoked: statusCounts?.revoked ?? null,
+		},
+	};
+	if (roleChoices !== null) {
+		counts.role = Object.fromEntries(
+			roleChoices.map((role) => [role.id, role.count]),
+		);
+	}
+	return counts;
+};
+
 export const buildInvitationFilters = (
 	t: Translate,
-	rows: StaffInvitationRow[],
 	selectedRoles: readonly string[] = [],
-	roleCounts: Record<string, number> | null = null,
+	roles: readonly InvitationRoleChoice[] | null = null,
+	knownNames: ReadonlyMap<string, string> = new Map(),
+	namesSettled = false,
 ): ListFilter<StaffInvitationRow>[] => {
-	const roleNames: string[] = [];
-	const seen = new Set<string>();
-	for (const name of selectedRoles) {
-		if (name.length > 0 && !seen.has(name)) {
-			seen.add(name);
-			roleNames.push(name);
-		}
-	}
-	for (const row of rows) {
-		if (row.roleName.length > 0 && !seen.has(row.roleName)) {
-			seen.add(row.roleName);
-			roleNames.push(row.roleName);
+	// Choices come from the API's whole-collection role counts (values are role
+	// ids, labels the names), so a role absent from the loaded page still
+	// appears; a role picked in the URL always stays.
+	const choices: { value: string; label: string; count: number | null }[] = (
+		roles ?? []
+	).map((role) => ({ value: role.id, label: role.name, count: role.count }));
+	for (const id of selectedRoles) {
+		if (id.length > 0 && !choices.some((choice) => choice.value === id)) {
+			// Its name; « loading » only until the roles list has settled.
+			choices.unshift({
+				value: id,
+				label:
+					knownNames.get(id) ?? t(namesSettled ? 'unknown-role' : 'loading'),
+				count: null,
+			});
 		}
 	}
 
@@ -90,19 +149,18 @@ export const buildInvitationFilters = (
 			})),
 			valueOf: (row) => row.status,
 		},
-		...(roleNames.length > 0
+		...(choices.length > 0
 			? [
 					{
 						key: 'role',
 						label: t('roles'),
 						icon: IconShieldLock,
 						panel: true,
-						choices: roleNames.map((name) => ({
-							value: name,
-							label: name,
-							count: roleCounts?.[name] ?? null,
-						})),
-						valueOf: (row: StaffInvitationRow) => row.roleName,
+						choices,
+						valueOf: (row: StaffInvitationRow) => row.roleNames,
+						// The API filters by role id across every page; rows carry
+						// names, so the page must not re-filter them.
+						serverSide: true,
 					} satisfies ListFilter<StaffInvitationRow>,
 				]
 			: []),

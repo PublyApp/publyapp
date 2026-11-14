@@ -66,7 +66,15 @@ const staffRolesQueries = ({
 		roles: {
 			options: staffRolesQueryOptions,
 			// The roles API paginates on `limit`, not `size`.
-			variables: { q, sortId, sortOrder, limit: size },
+			// One chosen type filters on the server (both = no filter), so a
+			// page and its counters describe the same collection.
+			variables: {
+				q,
+				sortId,
+				sortOrder,
+				limit: size,
+				type: search.type.length === 1 ? search.type[0] : undefined,
+			},
 		},
 	};
 };
@@ -187,6 +195,16 @@ const StaffRolesPage = () => {
 			filters={buildStaffRoleFilters(t)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
+			counts={
+				query.data?.counts
+					? {
+							type: {
+								system: query.data.counts.system ?? 0,
+								custom: query.data.counts.custom ?? 0,
+							},
+						}
+					: undefined
+			}
 			countsKnown={countsKnown}
 			emptyText={t('list-empty-staff-roles')}
 			locale={i18n.language}

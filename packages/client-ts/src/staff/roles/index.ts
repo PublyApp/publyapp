@@ -72,11 +72,12 @@ export interface RolesRequestBuilderGetQueryParameters {
     q?: string;
     sortId?: string;
     sortOrder?: string;
+    type?: string;
 }
 /**
  * Uri template for the request builder.
  */
-export const RolesRequestBuilderUriTemplate = "{+baseurl}/staff/roles{?cursor*,limit*,q*,sort_id*,sort_order*}";
+export const RolesRequestBuilderUriTemplate = "{+baseurl}/staff/roles{?cursor*,limit*,q*,sort_id*,sort_order*,type*}";
 /**
  * Mapper for query parameters from symbol name to serialization name represented as a constant.
  */

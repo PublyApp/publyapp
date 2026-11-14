@@ -68,6 +68,7 @@ const buildRow = (
 	id: 'invitation-1',
 	email: 'person@example.com',
 	roleName: 'Ops',
+	roleNames: ['Ops'],
 	invitedByName: 'Jane',
 	status: 'pending',
 	acceptedAt: null,

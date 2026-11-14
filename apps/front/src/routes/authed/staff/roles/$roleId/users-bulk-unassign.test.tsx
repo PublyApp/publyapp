@@ -132,6 +132,12 @@ vi.mock('~/lib/query/staff-roles', async (importOriginal) => {
 // cross-history navigation — start-server seams outside this suite's scope.
 // Mocking it keeps the pin on the ROUTE's decision (a 401-class rejection
 // must swap the page for the central logout redirect).
+const assignPermission = vi.hoisted(() => ({ canAssign: true }));
+
+vi.mock('./_assign-permission', () => ({
+	useCanAssignStaffRoleMembers: () => assignPermission.canAssign,
+}));
+
 vi.mock('../../_staff-list-team', async (importOriginal) => {
 	const actual =
 		await importOriginal<typeof import('../../_staff-list-team')>();

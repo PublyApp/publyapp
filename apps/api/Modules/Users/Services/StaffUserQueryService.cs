@@ -4,6 +4,8 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Utils;
+using PublyApp.Api.Modules.Invitations.Entities;
+using PublyApp.Api.Modules.Roles.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Modules.Users.Services;
@@ -16,6 +18,16 @@ public class StaffUserData {
 	// Assigned role names, loaded in one batched query per page (no N+1): the
 	// « Rôles » column reads them as pills.
 	public List<string> Roles { get; set; } = [];
+
+	// Still-valid sessions of this member (loaded in one batched query per page).
+	public int OpenSessions { get; set; }
+
+	// Most recent sign-in (impersonation sessions excluded); null = never signed in.
+	public DateTime? LastSignInAt { get; set; }
+
+	// Who sent the accepted staff invitation for this e-mail; null when the member
+	// was not created through an invitation.
+	public string? InvitedByName { get; set; }
 }
 
 public sealed record StaffUserCounts(
@@ -23,8 +35,10 @@ public sealed record StaffUserCounts(
 	int Active,
 	int Suspended,
 	int FullAccess,
+	int StandardAccess,
 	int ConnectedToday,
-	int OpenSessions
+	int OpenSessions,
+	IReadOnlyList<StaffRoleCount> RoleCounts
 );
 
 public abstract record FindStaffUsersResult {
@@ -44,7 +58,10 @@ public abstract record FindStaffUsersResult {
 
 public sealed record FindStaffUsersFilters(
 	string? Search,
-	IReadOnlySet<UserStatus>? Status
+	IReadOnlySet<UserStatus>? Status,
+	Guid? ExcludeRoleId = null,
+	// true = only full-access members, false = only the others; null = both.
+	bool? FullAccess = null
 );
 
 public sealed record FindStaffUsersArgs(
@@ -245,6 +262,44 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				select ua;
 		}
 
+		if (args.Filters?.ExcludeRoleId is { } excludeRoleId) {
+			// By id, in the query: composes with search, status, cursor and page size.
+			query =
+				from ua in query
+				where !this._DbContext.UserAccountRole.Any(
+					uar => uar.UserAccountId == ua.Id && uar.RoleId == excludeRoleId
+				)
+				select ua;
+		}
+
+		// The access-level facet ignores its own filter (like the role facet), so
+		// both choices keep their whole-collection counts while one is selected.
+		var accessFacetQuery = query;
+		var fullAccessRows = await (
+			from ua in accessFacetQuery
+			group ua by this._DbContext.UserAccountRole.Any(uap =>
+				uap.UserAccountId == ua.Id
+				&& !uap.Role.IsDeleted
+				&& uap.Role.IsFullAccess) into g
+			select new { IsFullAccess = g.Key, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+		var fullAccess = fullAccessRows
+			.Where(row => row.IsFullAccess)
+			.Sum(row => row.Count);
+		var standardAccess = fullAccessRows
+			.Where(row => !row.IsFullAccess)
+			.Sum(row => row.Count);
+
+		if (args.Filters?.FullAccess is { } wantsFullAccess) {
+			query =
+				from ua in query
+				where this._DbContext.UserAccountRole.Any(uap =>
+					uap.UserAccountId == ua.Id
+					&& !uap.Role.IsDeleted
+					&& uap.Role.IsFullAccess) == wantsFullAccess
+				select ua;
+		}
+
 		// Facets cover the whole filtered collection (cursor and page size are
 		// pagination only, never a filter).
 		var facetRows = await (
@@ -265,20 +320,10 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			}
 		}
 
-		// Full access is a protected system role, not a level: count the accounts
-		// holding it over the same filtered collection.
-		var fullAccess = await query.CountAsync(
-			ua => this._DbContext.UserAccountRole.Any(uap =>
-				uap.UserAccountId == ua.Id
-				&& !uap.Role.IsDeleted
-				&& uap.Role.IsFullAccess),
-			cancellationToken
-		);
-
-		// Sessions are the only activity the database records (created_at /
-		// expires_at); there is no last-activity or MFA column. « Connectés
-		// aujourd'hui » is therefore the users with a session opened since
-		// midnight UTC, and the open-session figure the still-valid ones.
+		// « Connectés aujourd'hui » is the members whose durable last sign-in
+		// (users.last_sign_in_at, stamped at login, impersonation excluded) falls
+		// since midnight UTC: a member who signed in and logged out still counts.
+		// The open-session figure is the still-valid session rows.
 		var now = DateTime.UtcNow;
 		var todayStart = now.Date;
 		var filteredUserIds = query.Select(ua => ua.UserId);
@@ -288,20 +333,39 @@ public class StaffUserQueryService : IStaffUserQueryService {
 				&& filteredUserIds.Contains(session.UserId)
 			select session
 		).CountAsync(cancellationToken);
-		var connectedToday = await (
-			from session in this._DbContext.Session.AsNoTracking()
-			where session.CreatedAt >= todayStart
-				&& filteredUserIds.Contains(session.UserId)
-			select session.UserId
-		).Distinct().CountAsync(cancellationToken);
+		var connectedToday = await query.CountAsync(
+			ua => ua.User.LastSignInAt != null && ua.User.LastSignInAt >= todayStart,
+			cancellationToken
+		);
+
+		// Members per role over the same filtered collection (a member holding
+		// several roles counts once in each).
+		var filteredAccountIds = query.Select(ua => ua.Id);
+		var roleCountRows = await (
+			from accountRole in this._DbContext.UserAccountRole.AsNoTracking()
+			join role in this._DbContext.Role.AsNoTracking()
+				on (Guid?)accountRole.RoleId equals role.Id
+			where !role.IsDeleted
+				&& filteredAccountIds.Contains((Guid?)accountRole.UserAccountId)
+			group role by new { role.Id, role.Name } into g
+			select new { g.Key.Id, g.Key.Name, Count = g.Count() }
+		).ToListAsync(cancellationToken);
+		var roleCounts = roleCountRows
+			.Where(row => row.Id is not null)
+			.Select(row => new StaffRoleCount(row.Id ?? Guid.Empty, row.Name, row.Count))
+			.OrderByDescending(row => row.Count)
+			.ThenBy(row => row.Name, StringComparer.OrdinalIgnoreCase)
+			.ToList();
 
 		var counts = new StaffUserCounts(
 			Total: total,
 			Active: active,
 			Suspended: suspended,
 			FullAccess: fullAccess,
+			StandardAccess: standardAccess,
 			ConnectedToday: connectedToday,
-			OpenSessions: openSessions
+			OpenSessions: openSessions,
+			RoleCounts: roleCounts
 		);
 
 		if (args.Cursor != Guid.Empty) {
@@ -371,6 +435,59 @@ public class StaffUserQueryService : IStaffUserQueryService {
 			)) {
 				names.Sort(StringComparer.OrdinalIgnoreCase);
 				staffUser.Roles = names;
+			}
+		}
+
+		// One batched session query for the page: open sessions.
+		var sessionRows = await (
+			from session in this._DbContext.Session.AsNoTracking()
+			where pageUserIds.Contains(session.UserId)
+			group session by session.UserId into g
+			select new {
+				UserId = g.Key,
+				Open = g.Count(session => session.ExpiresAt > now),
+			}
+		).ToListAsync(cancellationToken);
+		var sessionsByUser = sessionRows.ToDictionary(row => row.UserId);
+
+		// One batched query for the inviter: the latest accepted staff invitation
+		// sent to the member's e-mail (users.email and invitations.email are both
+		// stored lower-cased).
+		var pageEmails = results.Select(staffUser => staffUser.User.Email).ToList();
+		var inviterRows = await (
+			from invitation in this._DbContext.Invitation.AsNoTracking()
+			join inviter in this._DbContext.User.AsNoTracking()
+				on invitation.InvitedByUserId equals inviter.Id
+			where invitation.Scope == InvitationScope.Staff
+				&& invitation.Status == InvitationStatus.Accepted
+				&& pageEmails.Contains(invitation.Email)
+			select new {
+				invitation.Email,
+				invitation.AcceptedAt,
+				invitation.CreatedAt,
+				inviter.FirstName,
+				inviter.LastName,
+			}
+		).ToListAsync(cancellationToken);
+		var inviterByEmail = inviterRows
+			.GroupBy(row => row.Email)
+			.ToDictionary(
+				group => group.Key,
+				group => group
+					.OrderByDescending(row => row.AcceptedAt ?? row.CreatedAt)
+					.First()
+			);
+
+		foreach (var staffUser in results) {
+			// Durable column, stamped at sign-in: survives logout and session cleanup.
+			staffUser.LastSignInAt = staffUser.User.LastSignInAt;
+			if (sessionsByUser.TryGetValue(staffUser.User.GetRequiredId(), out var sessions)) {
+				staffUser.OpenSessions = sessions.Open;
+			}
+
+			if (inviterByEmail.TryGetValue(staffUser.User.Email, out var inviterRow)) {
+				var name = $"{inviterRow.FirstName} {inviterRow.LastName}".Trim();
+				staffUser.InvitedByName = name.Length > 0 ? name : null;
 			}
 		}
 

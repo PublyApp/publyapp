@@ -4,6 +4,8 @@
 // @ts-ignore
 import { createAppProblemDetailsFromDiscriminatorValue, createFindStaffRoleUsersResultFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, type AppProblemDetails, type FindStaffRoleUsersResult, type ValidationProblemDetails } from '../../../../models/index.js';
 // @ts-ignore
+import { AssignRequestBuilderRequestsMetadata, type AssignRequestBuilder } from './assign/index.js';
+// @ts-ignore
 import { AssignmentResolutionRequestBuilderRequestsMetadata, type AssignmentResolutionRequestBuilder } from './assignmentResolution/index.js';
 // @ts-ignore
 import { type UnassignRequestBuilder, UnassignRequestBuilderRequestsMetadata } from './unassign/index.js';
@@ -14,6 +16,10 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  * Builds and executes requests for operations under /staff/roles/{roleId}/users
  */
 export interface UsersRequestBuilder extends BaseRequestBuilder<UsersRequestBuilder> {
+    /**
+     * The assign property
+     */
+    get assign(): AssignRequestBuilder;
     /**
      * The assignmentResolution property
      */
@@ -67,6 +73,9 @@ const UsersRequestBuilderGetQueryParametersMapper: Record<string, string> = {
  * Metadata for all the navigation properties in the request builder.
  */
 export const UsersRequestBuilderNavigationMetadata: Record<Exclude<keyof UsersRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
+    assign: {
+        requestsMetadata: AssignRequestBuilderRequestsMetadata,
+    },
     assignmentResolution: {
         requestsMetadata: AssignmentResolutionRequestBuilderRequestsMetadata,
     },

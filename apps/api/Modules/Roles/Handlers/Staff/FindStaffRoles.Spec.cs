@@ -115,7 +115,8 @@ public sealed class FindStaffRolesSpec : IClassFixture<ApiFixture> {
 	private async Task<Guid> _SeedStaffRoleAsync(
 		string name,
 		string? icon = null,
-		string? tone = null
+		string? tone = null,
+		bool isFullAccess = false
 	) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -123,6 +124,7 @@ public sealed class FindStaffRolesSpec : IClassFixture<ApiFixture> {
 		var role = Role.CreateStaffRole(name);
 		role.Icon = icon;
 		role.Tone = tone;
+		role.IsFullAccess = isFullAccess;
 		await dbContext.Role.AddAsync(role);
 		await dbContext.SaveChangesAsync();
 
@@ -149,6 +151,80 @@ public sealed class FindStaffRolesSpec : IClassFixture<ApiFixture> {
 		Assert.NotNull(result);
 		result.Data.Should().HaveCount(1);
 		result.TotalCount.Should().Be(2);
+	}
+
+	[Fact]
+	public async Task ItShouldTellSystemRolesFromCustomOnesAndCountEachType() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"types-{Guid.NewGuid():N}";
+		var customId = await this._SeedStaffRoleAsync($"{marker}-custom");
+		var fullAccessId = await this._SeedStaffRoleAsync($"{marker}-full", isFullAccess: true);
+
+		using var request = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffRolesSpec._GetUrl($"limit=1&q={marker}")
+		).WithSessionToken(token);
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var page = await response.Content.ReadFromJsonAsync<FindStaffRolesResponse>();
+		Assert.NotNull(page);
+
+		// limit=1: the type counters are the whole filtered collection, not the page.
+		page.Data.Should().HaveCount(1);
+		page.Counts.Total.Should().Be(2);
+		page.Counts.System.Should().Be(1);
+		page.Counts.Custom.Should().Be(1);
+
+		using var allRequest = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffRolesSpec._GetUrl($"limit=50&q={marker}")
+		).WithSessionToken(token);
+		using var allResponse = await this._Http.SendAsync(allRequest);
+		var all = await allResponse.Content.ReadFromJsonAsync<FindStaffRolesResponse>();
+		Assert.NotNull(all);
+		all.Data.Single(role => role.Id == customId).Type.Should().Be("Custom");
+		all.Data.Single(role => role.Id == fullAccessId).Type.Should().Be("System");
+	}
+
+	[Fact]
+	public async Task ItShouldFilterByTypeOnTheServerAndKeepBothTypeCounters() {
+		var token = await this._AuthClient.LoginAsStaffAdminAsync();
+		var marker = $"typefilter-{Guid.NewGuid():N}";
+		var customId = await this._SeedStaffRoleAsync($"{marker}-custom");
+		_ = await this._SeedStaffRoleAsync($"{marker}-custom-2");
+		var fullAccessId = await this._SeedStaffRoleAsync($"{marker}-full", isFullAccess: true);
+
+		async Task<FindStaffRolesResponse> Find(string type) {
+			using var request = new HttpRequestMessage(
+				HttpMethod.Get,
+				FindStaffRolesSpec._GetUrl($"limit=50&q={marker}&type={type}")
+			).WithSessionToken(token);
+			using var response = await this._Http.SendAsync(request);
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+			var page = await response.Content.ReadFromJsonAsync<FindStaffRolesResponse>();
+			Assert.NotNull(page);
+			return page;
+		}
+
+		var system = await Find("system");
+		system.Data.Select(role => role.Id).Should().BeEquivalentTo([fullAccessId]);
+		system.TotalCount.Should().Be(1);
+		// The facets ignore the type filter itself.
+		system.Counts.System.Should().Be(1);
+		system.Counts.Custom.Should().Be(2);
+
+		var custom = await Find("custom");
+		custom.Data.Should().HaveCount(2).And.NotContain(role => role.Id == fullAccessId);
+		custom.Data.Should().Contain(role => role.Id == customId);
+		custom.TotalCount.Should().Be(2);
+		custom.Counts.System.Should().Be(1);
+
+		using var bad = new HttpRequestMessage(
+			HttpMethod.Get,
+			FindStaffRolesSpec._GetUrl("type=bogus")
+		).WithSessionToken(token);
+		using var badResponse = await this._Http.SendAsync(bad);
+		badResponse.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
 	private async Task<string> _CreateUnprivilegedStaffTokenAsync() {
@@ -181,6 +257,13 @@ public sealed class FindStaffRolesSpec : IClassFixture<ApiFixture> {
 		public string? NextCursor { get; init; }
 		public int TotalCount { get; init; }
 		public int TotalAssignments { get; init; }
+		public StaffRoleCountsResponse Counts { get; init; } = new();
+	}
+
+	private sealed record StaffRoleCountsResponse {
+		public int Total { get; init; }
+		public int System { get; init; }
+		public int Custom { get; init; }
 	}
 
 	private sealed record StaffRoleItemResponse {
@@ -188,5 +271,6 @@ public sealed class FindStaffRolesSpec : IClassFixture<ApiFixture> {
 		public string Name { get; init; } = string.Empty;
 		public string? Icon { get; init; }
 		public string? Tone { get; init; }
+		public string Type { get; init; } = string.Empty;
 	}
 }

@@ -6,10 +6,13 @@ import type { QueryClient } from '@tanstack/react-query';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getClientManager } from '~/lib/api-client/client-manager';
 import { normalizeNullableFileUrl } from '~/lib/api-client/resolve-api-file-url';
+import { invalidateStaffRoles } from '~/lib/query/staff-roles';
+import { invalidateStaffUsers } from '~/lib/query/staff-users';
 import type { SortOrder } from '~/lib/url-state/table-search-params';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
+	BulkStaffRoleUserAssignActionResult,
 	BulkStaffRoleUserUnassignActionResult,
 	FindStaffRoleUsersResult,
 	UserStatus,
@@ -183,6 +186,40 @@ export const useBulkUnassignStaffRoleUsersMutation = () => {
 		...bulkUnassignStaffRoleUsersMutationOptions,
 		onSuccess: () => {
 			void invalidateStaffRoleUsers(queryClient);
+		},
+	});
+};
+
+export type BulkAssignStaffRoleUsersInput = BulkUnassignStaffRoleUsersInput;
+
+const bulkAssignStaffRoleUsersMutationOptions = buildStaffMutationOptions<
+	ApiClient,
+	BulkStaffRoleUserAssignActionResult | undefined,
+	BulkAssignStaffRoleUsersInput
+>(
+	{
+		mutationKeyFn: () => ['staff-roles', 'bulk-assign-users'],
+		mutationFn: (client, variables) =>
+			client.staff.roles.byRoleId(variables.roleId).users.assign.post({
+				userIds: createUntypedArray(
+					variables.userIds.map((id) => createUntypedString(id)),
+				),
+			}),
+		meta: { silentSuccess: true, skipGlobalErrorHandler: true },
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+// Assigning changes the role's members, its member counts (roles list) and
+// each member's role pills / per-role counts (staff users list).
+export const useBulkAssignStaffRoleUsersMutation = () => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		...bulkAssignStaffRoleUsersMutationOptions,
+		onSuccess: () => {
+			void invalidateStaffRoles(queryClient);
+			void invalidateStaffUsers(queryClient);
 		},
 	});
 };

@@ -37,6 +37,10 @@ import { getUserFullName } from '@org/shared-ts/utils/user.utils';
  * fields here is what let a fourth field drift in earlier. */
 export type StaffUsersQueryVariables = TableSearchParams & {
 	status?: string;
+	/** Access level CSV (`full_access`, `standard`), filtered by the API. */
+	access?: string;
+	/** Only members NOT holding this staff role (the assign-members picker). */
+	excludeRoleId?: string;
 };
 
 export type StaffUserDetailsQueryVariables = {
@@ -57,6 +61,14 @@ export type StaffUserRow = {
 	roles: string[];
 	status: UserStatus | null;
 	displayName: string;
+	/** Still-valid sessions of this member (list API, #2282). */
+	openSessions: number;
+	/** Most recent sign-in; null = never signed in. */
+	lastSignInAt: Date | null;
+	/** Who sent the accepted invitation; null = not invited. */
+	invitedByName: string | null;
+	/** When the account was created (« Membre depuis »). */
+	createdAt: Date | null;
 };
 
 export type AssignedStaffRole = {
@@ -179,6 +191,8 @@ export const buildFindStaffUsersQueryParameters = (
 	return {
 		q: normalizeString(variables.q),
 		status: normalizeString(variables.status),
+		access: normalizeString(variables.access),
+		excludeRoleId: normalizeString(variables.excludeRoleId),
 		sortId: normalizeString(variables.sortId),
 		sortOrder: variables.sortOrder,
 		cursor: normalizeString(variables.cursor),
@@ -219,6 +233,10 @@ export const toStaffUserRows = (
 			),
 			status: item.status ?? null,
 			displayName: getDisplayName({ firstName, lastName, email }),
+			openSessions: item.openSessions ?? 0,
+			lastSignInAt: item.lastSignInAt ?? null,
+			invitedByName: normalizeNullableString(item.invitedByName),
+			createdAt: item.createdAt ?? null,
 		});
 	}
 

@@ -52,6 +52,11 @@ public class User : BaseAttributes, INoTenantEntity {
 	[Column("password_reset_token_expires_at")]
 	public DateTime? PasswordResetTokenExpiresAt { get; set; }
 
+	// Most recent successful sign-in. Durable on purpose: session rows are deleted
+	// on logout and by the expiry cleanup, so they cannot answer « last seen ».
+	[Column("last_sign_in_at")]
+	public DateTime? LastSignInAt { get; set; }
+
 	// Navigation properties
 	[JsonIgnore]
 	public ICollection<UserAccount> UserAccounts { get; set; } = [];

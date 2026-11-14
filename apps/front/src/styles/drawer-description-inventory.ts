@@ -86,6 +86,10 @@ export const DRAWER_DESCRIPTION_CONSUMERS = [
 		testId: 'assign-members-drawer',
 	},
 	{
+		file: 'src/routes/authed/staff/roles/$roleId/_assign-members-drawer.tsx',
+		testId: 'staff-assign-members-drawer',
+	},
+	{
 		file: 'src/routes/authed/staff/tenants/$tenantId/roles/_role-form-drawer.tsx',
 		testId: 'role-form-drawer',
 	},
