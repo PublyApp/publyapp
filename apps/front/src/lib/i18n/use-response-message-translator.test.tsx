@@ -26,9 +26,10 @@ const translatorFor = (
 	const resource = language === 'en' ? resourceEN : resourceFR;
 	const i18n = createI18nFromResources(
 		language,
-		['response-message', 'posts'],
+		['response-message', 'posts', 'common'],
 		{
 			[language]: {
+				common: resource.common,
 				'response-message': {
 					...resource['response-message'],
 					...responseMessageOverrides,
@@ -42,6 +43,42 @@ const translatorFor = (
 	return renderHook(() => useResponseMessageTranslator(), { wrapper }).result
 		.current;
 };
+
+// The staff upload routes load only the global namespaces (no `posts`): the
+// too-large sentence must resolve there, never as a raw key (#2421).
+const globalOnlyTranslatorFor = (language: SupportedLanguage) => {
+	const resource = language === 'en' ? resourceEN : resourceFR;
+	const i18n = createI18nFromResources(
+		language,
+		['common', 'response-message'],
+		{
+			[language]: {
+				common: resource.common,
+				'response-message': resource['response-message'],
+			},
+		},
+	);
+	const wrapper = ({ children }: { children: ReactNode }) =>
+		createElement(I18nextProvider, { i18n }, children);
+	return renderHook(() => useResponseMessageTranslator(), { wrapper }).result
+		.current;
+};
+
+describe('useResponseMessageTranslator with only the global namespaces', () => {
+	test.each([
+		['en', 'The image exceeds the 1 MB limit.'],
+		['fr', 'L’image dépasse la taille maximale de 1 Mo.'],
+	] as const)(
+		'resolves the too-large sentence in %s, not a key',
+		(language, expected) => {
+			const translate = globalOnlyTranslatorFor(language);
+
+			expect(translate('upload-file-too-large', { maxBytes: 1_000_000 })).toBe(
+				expected,
+			);
+		},
+	);
+});
 
 const RENDITION_INVALID = 'publish-rendition-invalid';
 
@@ -142,6 +179,18 @@ describe('useResponseMessageTranslator in French', () => {
 		expect(translate('post-segment-image-limit-reached', {})).toBeUndefined();
 	});
 
+	test('names the image size limit in Mo from maxBytes, never a raw byte count', () => {
+		const translate = translatorFor('fr');
+
+		const message = translate('post-image-too-large', { maxBytes: 16_777_216 });
+		expect(translate('upload-file-too-large', { maxBytes: 16_777_216 })).toBe(
+			message,
+		);
+		expect(message).toMatch(/16,7\sMo/);
+		expect(message).not.toContain('16777216');
+		expect(translate('post-image-too-large', {})).toBeUndefined();
+	});
+
 	test('a translation that still has placeholders is treated as untranslated', () => {
 		const translate = translatorFor('fr', {
 			'post-segments-locked': 'Le segment {{index}} est verrouillé',
@@ -152,6 +201,18 @@ describe('useResponseMessageTranslator in French', () => {
 });
 
 describe('useResponseMessageTranslator in English', () => {
+	test.each(['post-image-too-large', 'upload-file-too-large'])(
+		'%s names the size limit from maxBytes, floored like the add-row help',
+		(key) => {
+			const translate = translatorFor('en');
+
+			expect(translate(key, { maxBytes: 16_777_216 })).toBe(
+				'The image exceeds the 16.7 MB limit.',
+			);
+			expect(translate(key, {})).toBeUndefined();
+		},
+	);
+
 	test.each([
 		['post-segment-blank', { segmentNumber: 3 }],
 		['publication-rendition-locked', {}],

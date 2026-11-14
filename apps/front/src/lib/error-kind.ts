@@ -1,4 +1,7 @@
-import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
+import {
+	NETWORK_FAILURE_MESSAGE,
+	toApiFailure,
+} from '@org/shared-ts/lib/api-failure/to-api-failure';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
 /**
@@ -13,11 +16,6 @@ export type ErrorKind =
 	| 'forbidden'
 	| 'server'
 	| 'unknown';
-
-// The fetch failures of Chrome, Firefox and Safari, when the request never
-// reached the server (ShopKart OS's list).
-const NETWORK_FAILURE =
-	/failed to fetch|networkerror|load failed|network request failed/i;
 
 const messageOf = (cause: unknown) =>
 	cause instanceof Error ? cause.message : String(cause);
@@ -115,7 +113,7 @@ const classifyKind = (cause: unknown, online: boolean): ErrorKind => {
 	if (
 		!online ||
 		failure.kind === 'network' ||
-		NETWORK_FAILURE.test(messageOf(cause))
+		NETWORK_FAILURE_MESSAGE.test(messageOf(cause))
 	) {
 		return 'offline';
 	}

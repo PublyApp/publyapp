@@ -227,6 +227,15 @@ const toValidationFailure = (error: unknown): ValidationFailure | undefined => {
 	};
 };
 
+/**
+ * The fetch failures of Chrome ("Failed to fetch"), Firefox ("NetworkError..."),
+ * Safari ("Load failed"), React Native and Node ("fetch failed"), when the
+ * request never got an answer. The one list the classifier and the front's
+ * `error-kind.ts` both use.
+ */
+export const NETWORK_FAILURE_MESSAGE =
+	/failed to fetch|fetch failed|networkerror|load failed|network request failed/i;
+
 export const toApiFailure = (error: unknown): ApiFailure => {
 	const validationFailure = toValidationFailure(error);
 	if (validationFailure) {
@@ -251,9 +260,7 @@ export const toApiFailure = (error: unknown): ApiFailure => {
 
 	if (error instanceof TypeError) {
 		const message = error.message;
-		const isNetwork =
-			/(?:\bfetch\b|\bnetwork\b|failed to fetch|networkerror)/i.test(message);
-		if (isNetwork) {
+		if (NETWORK_FAILURE_MESSAGE.test(message)) {
 			return {
 				kind: 'network',
 				message:

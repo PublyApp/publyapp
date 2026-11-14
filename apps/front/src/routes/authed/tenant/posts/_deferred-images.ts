@@ -1,4 +1,5 @@
 import type { DeferredImageSelection } from './_post-image-picker';
+import type { PickedImageSize } from './_publish-validation';
 
 /** The create drawer holds every picked image in ONE list: the post's own
  * images carry no `segmentKey`, a follow-up's carry the composer key of that
@@ -49,6 +50,12 @@ export const imagesOfLiveSegments = (
 		(image) => image.segmentKey === undefined || live.has(image.segmentKey),
 	);
 };
+
+/** The id and byte size of each picked image: what the publish validation
+ * holds against a destination's size cap. */
+export const imageSizesOf = (
+	images: readonly DeferredImageSelection[],
+): PickedImageSize[] => images.map(({ id, file }) => ({ id, size: file.size }));
 
 /** How many images each follow-up segment holds, by composer key. */
 export const countBySegment = (all: readonly DeferredImageSelection[]) => {

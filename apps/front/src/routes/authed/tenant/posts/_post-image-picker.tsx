@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Label } from '~/components/ui/label';
-import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
+import { useImageUploadFailureMessage } from '~/lib/i18n/use-image-upload-failure-message';
 import {
 	useAttachPostImageMutation,
 	useRemovePostImageMutation,
@@ -12,13 +12,9 @@ import {
 } from '~/lib/query/tenant-post-images';
 import type { TenantPostImage } from '~/lib/query/tenant-post-images';
 
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
-
 import { PostImageAddRow } from './_post-image-add-row';
 import { LockedImageCards, PostImageCard } from './_post-image-card';
+import { useOversizeImageCheck } from './_use-oversize-image-check';
 import type { ImageLimits } from './_use-publish-selection';
 
 const NO_LOCKED_IMAGES: readonly TenantPostImage[] = [];
@@ -42,6 +38,42 @@ const nextSelectionId = () => {
 	deferredSelectionCounter += 1;
 	return `deferred-image-${deferredSelectionCounter}`;
 };
+
+type PickerCard = {
+	key: string;
+	url: string | null;
+	file: File | null;
+	altText: string;
+	/** Why the image cannot be published as it is; empty = none. */
+	error: string;
+};
+
+const onlineCards = (
+	images: TenantPostImage[],
+	altDrafts: Record<string, string>,
+): PickerCard[] =>
+	images.map((image) => ({
+		key: image.id ?? image.url,
+		url: image.url,
+		file: null,
+		altText:
+			(image.id ? altDrafts[image.id] : undefined) ?? image.altText ?? '',
+		error: '',
+	}));
+
+/** A stricter destination chosen later can leave a queued file above the cap:
+ * it stays, marked, never hidden or dropped. */
+const deferredCards = (
+	selections: DeferredImageSelection[],
+	oversizeError: (file: File) => string,
+): PickerCard[] =>
+	selections.map((selection) => ({
+		key: selection.id,
+		url: null,
+		file: selection.file,
+		altText: selection.altText,
+		error: oversizeError(selection.file),
+	}));
 
 const moveItem = <T,>(items: T[], from: number, to: number): T[] => {
 	if (to < 0 || to >= items.length) {
@@ -118,7 +150,8 @@ export const PostImagePicker = ({
 	lockedImages?: readonly TenantPostImage[];
 }) => {
 	const { t } = useTranslation(['posts', 'common']);
-	const translateResponseMessage = useResponseMessageTranslator();
+	const checkOversize = useOversizeImageCheck(limits);
+	const imageUploadFailureMessage = useImageUploadFailureMessage();
 	const maxImages = Math.min(
 		limits?.maxImages ?? Number.POSITIVE_INFINITY,
 		hardMax ?? Number.POSITIVE_INFINITY,
@@ -136,13 +169,11 @@ export const PostImagePicker = ({
 	// brings the committed text back.
 	const [altDrafts, setAltDrafts] = useState<Record<string, string>>({});
 
-	const showFailure = (error: unknown) => {
-		setFailureMessage(
-			getFailureMessage(toApiFailure(error), {
-				fallback: t('common:an-error-occurred'),
-				translate: translateResponseMessage,
-			}) ?? '',
-		);
+	const showFailure = (
+		error: unknown,
+		action: 'upload' | 'update' = 'update',
+	) => {
+		setFailureMessage(imageUploadFailureMessage(error, action));
 	};
 
 	const isBusy =
@@ -177,17 +208,18 @@ export const PostImagePicker = ({
 		try {
 			await attachInOrder(files);
 		} catch (error) {
-			showFailure(error);
+			showFailure(error, 'upload');
 		} finally {
 			invalidateCaches();
 		}
 	};
 
 	const handleFiles = async (picked: File[]) => {
-		setFailureMessage('');
 		const room = maxImages - count;
 		setLimitNotice(picked.length > room);
-		const accepted = picked.slice(0, Math.max(room, 0));
+		const { fitting, tooLarge } = checkOversize(picked);
+		setFailureMessage(tooLarge);
+		const accepted = fitting.slice(0, Math.max(room, 0));
 		if (accepted.length === 0) {
 			return;
 		}
@@ -308,19 +340,8 @@ export const PostImagePicker = ({
 	};
 
 	const cards = isOnline
-		? existingImages.map((image) => ({
-				key: image.id ?? image.url,
-				url: image.url,
-				file: null,
-				altText:
-					(image.id ? altDrafts[image.id] : undefined) ?? image.altText ?? '',
-			}))
-		: selections.map((selection) => ({
-				key: selection.id,
-				url: null,
-				file: selection.file,
-				altText: selection.altText,
-			}));
+		? onlineCards(existingImages, altDrafts)
+		: deferredCards(selections, (file) => checkOversize([file]).tooLarge);
 
 	const inputId = `post-image-input-${idKey ?? segmentId ?? postId ?? 'new'}`;
 	// No image type is shared by every selected destination (#2174): an empty
@@ -350,6 +371,7 @@ export const PostImagePicker = ({
 							url={card.url}
 							file={card.file}
 							altText={card.altText}
+							error={card.error}
 							disabled={isControlDisabled}
 							onAltChange={(value) => handleAltChange(index, value)}
 							onAltCommit={() => void handleAltCommit(index)}

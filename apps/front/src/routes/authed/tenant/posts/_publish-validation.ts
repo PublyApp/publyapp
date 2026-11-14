@@ -11,6 +11,11 @@ import { segmentMaxImages } from './_segment-image-limits';
 import type { SelectedDestination } from './_use-publish-selection';
 
 const NO_SEGMENT_IMAGE_COUNTS: Readonly<Record<string, number>> = {};
+const NO_IMAGE_SIZES: readonly PickedImageSize[] = [];
+
+/** A picked, not yet uploaded image: the post's own (its id is its key in
+ * `imageKeys`) or a follow-up's (a key `imageKeys` does not hold). */
+export type PickedImageSize = { id: string; size: number };
 
 /** The server refuses a publish-now request above this many destinations. */
 export const PUBLISH_NOW_MAX_DESTINATIONS = 20;
@@ -18,8 +23,14 @@ export const PUBLISH_NOW_MAX_DESTINATIONS = 20;
 type DestinationBlock = {
 	key:
 		| 'posts:publish-blocked-media-required'
-		| 'posts:publish-blocked-threads-unsupported';
+		| 'posts:publish-blocked-threads-unsupported'
+		| 'posts:publish-blocked-too-many-images'
+		| 'posts:publish-blocked-image-too-large';
 	destination: string;
+	/** The post's image count, for the too-many-images block. */
+	count?: number;
+	/** The destination's cap: images for too-many-images, bytes for too-large. */
+	max?: number;
 };
 
 /** The first selected destination that cannot take this post as it will be
@@ -31,8 +42,37 @@ const findDestinationBlock = (
 	overrides: DestinationOverrides,
 	imageKeys: readonly string[],
 	followUpCount: number,
+	imageSizes: readonly PickedImageSize[],
 ): DestinationBlock | null => {
+	const postImageKeys = new Set(imageKeys);
 	for (const { id, label, limits } of destinations) {
+		const count = effectiveImageCount(overrides[id], imageKeys);
+		if (count > limits.maxImages) {
+			return {
+				key: 'posts:publish-blocked-too-many-images',
+				destination: label,
+				count,
+				max: limits.maxImages,
+			};
+		}
+		// A destination that customizes its images takes only its own post images
+		// (plus every follow-up image, which no customization touches); the others
+		// take every picked file.
+		const own = overrides[id]?.media?.imageKeys;
+		const ownKeys = own == null ? null : new Set(own);
+		const isPublished = (image: PickedImageSize) =>
+			ownKeys === null || ownKeys.has(image.id) || !postImageKeys.has(image.id);
+		if (
+			imageSizes.some(
+				(image) => isPublished(image) && image.size > limits.maxImageBytes,
+			)
+		) {
+			return {
+				key: 'posts:publish-blocked-image-too-large',
+				destination: label,
+				max: limits.maxImageBytes,
+			};
+		}
 		if (
 			limits.requiresMedia === true &&
 			effectiveImageCount(overrides[id], imageKeys) === 0
@@ -151,6 +191,7 @@ export const findPublishProblems = ({
 	segments,
 	imageKeys,
 	segmentImageCounts = NO_SEGMENT_IMAGE_COUNTS,
+	imageSizes = NO_IMAGE_SIZES,
 }: {
 	destinations: readonly SelectedDestination[];
 	overrides: DestinationOverrides;
@@ -161,6 +202,9 @@ export const findPublishProblems = ({
 	imageKeys: readonly string[];
 	/** How many images each follow-up holds, by segment id. */
 	segmentImageCounts?: Readonly<Record<string, number>>;
+	/** Id and byte size of every picked, not yet uploaded image (the post's and
+	 * the follow-ups'): held against each destination's size cap. */
+	imageSizes?: readonly PickedImageSize[];
 }): PublishProblems => {
 	const segmentKeys = [BODY_KEY, ...segments.map((segment) => segment.id)];
 
@@ -187,6 +231,7 @@ export const findPublishProblems = ({
 			overrides,
 			imageKeys,
 			segments.length,
+			imageSizes,
 		),
 	};
 };

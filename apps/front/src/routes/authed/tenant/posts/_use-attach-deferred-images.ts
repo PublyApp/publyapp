@@ -1,15 +1,10 @@
 import { useTranslation } from 'react-i18next';
-import { useResponseMessageTranslator } from '~/lib/i18n/use-response-message-translator';
+import { useImageUploadFailureMessage } from '~/lib/i18n/use-image-upload-failure-message';
 import {
 	useAttachPostImageMutation,
 	useInvalidatePostImageCaches,
 	useUpdatePostImageAltMutation,
 } from '~/lib/query/tenant-post-images';
-
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
 
 import { AttemptCancelledError } from './_attempt';
 import type { DeferredImageSelection } from './_post-image-picker';
@@ -57,7 +52,7 @@ export type AttachDeferredImagesOutcome =
  */
 export const useAttachDeferredImages = (tenantId: string) => {
 	const { t } = useTranslation(['common', 'posts']);
-	const translateResponseMessage = useResponseMessageTranslator();
+	const imageUploadFailureMessage = useImageUploadFailureMessage();
 	const attachImage = useAttachPostImageMutation();
 	const updateImageAlt = useUpdatePostImageAltMutation();
 	const invalidateCaches = useInvalidatePostImageCaches();
@@ -147,10 +142,7 @@ export const useAttachDeferredImages = (tenantId: string) => {
 				cause:
 					error instanceof SegmentImageTargetMissingError
 						? t('posts:segment-image-target-missing')
-						: (getFailureMessage(toApiFailure(error), {
-								fallback: t('common:an-error-occurred'),
-								translate: translateResponseMessage,
-							}) ?? ''),
+						: imageUploadFailureMessage(error),
 			};
 		} finally {
 			invalidateCaches();

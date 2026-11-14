@@ -306,7 +306,7 @@ test.describe(
 			});
 
 			await expect(
-				page.getByText('Image must be 2 MB or smaller'),
+				page.getByText('The image exceeds the 2 MB limit.'),
 			).toBeVisible();
 			await expect(page.getByTestId('logo-upload-url')).toHaveText('');
 			await expect(page.getByTestId('logo-upload-dropzone-chosen')).toHaveCount(

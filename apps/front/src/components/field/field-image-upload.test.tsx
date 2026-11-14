@@ -60,14 +60,14 @@ vi.mock('~/components/ui/button', () => ({
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
-		t: (key: string) => {
+		t: (key: string, options?: { size?: string }) => {
 			const labels: TestLabelMap = {
 				'drag-image-here': 'Drag an image here, or',
 				browse: 'browse',
 				'uploading-logo': 'Uploading…',
-				'logo-upload-hint': 'PNG, JPEG, WEBP, or GIF — up to 2 MB',
 				'logo-upload-invalid-type': 'Image must be PNG, JPEG, WEBP, or GIF',
-				'logo-upload-too-large': 'Image must be 2 MB or smaller',
+				'image-too-large': `The image exceeds the ${options?.size} limit.`,
+				'common:image-too-large': `The image exceeds the ${options?.size} limit.`,
 				'logo-upload-failed': "Couldn't upload the image. Please try again.",
 				'image-uploaded-success': 'Image uploaded successfully.',
 				'clear-logo': 'Clear logo',
@@ -221,7 +221,7 @@ describe('Field.ImageUpload', () => {
 		});
 
 		expect(mutate).not.toHaveBeenCalled();
-		expect(screen.getByText('Image must be 2 MB or smaller')).toBeTruthy();
+		expect(screen.getByText('The image exceeds the 2 MB limit.')).toBeTruthy();
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
 	});
 
@@ -331,6 +331,37 @@ describe('Field.ImageUpload', () => {
 		});
 		expect(screen.getByTestId('logo-url-value').textContent).toBe('');
 		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
+	test('names the server size limit from maxBytes, not the raw detail', async () => {
+		mocks.useUploadStaffImageMutation.mockReturnValue({
+			mutate: (
+				_input: unknown,
+				opts: { onError: (error: unknown) => void },
+			) => {
+				opts.onError({
+					status: 413,
+					title: 'Payload Too Large',
+					detail: 'File exceeds the maximum size of 1 MB',
+					translationKey: 'upload-file-too-large',
+					additionalData: { maxBytes: 1_000_000 },
+				});
+			},
+			isPending: false,
+		});
+
+		render(<ImageUploadHarness />);
+
+		const input = screen.getByLabelText('Logo') as HTMLInputElement;
+		fireEvent.change(input, {
+			target: { files: [buildFile('logo.png', 1000)] },
+		});
+
+		await waitFor(() => {
+			expect(
+				screen.getByText('The image exceeds the 1 MB limit.'),
+			).toBeTruthy();
+		});
 	});
 
 	test('surfaces a server upload failure inline', async () => {

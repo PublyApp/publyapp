@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.WebUtilities;
 
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
+using PublyApp.Api.Modules.Uploads;
 
 namespace PublyApp.Api.Lib.Extensions;
 
@@ -15,7 +16,8 @@ public static partial class CustomExceptionHandler {
 		string Title,
 		string Detail,
 		TranslationKey Key,
-		IDictionary<string, string[]>? Errors
+		IDictionary<string, string[]>? Errors,
+		IReadOnlyDictionary<string, object?>? Extensions = null
 	);
 
 	[GeneratedRegex(@"Required parameter ""string (\w+)"" was not provided")]
@@ -52,7 +54,10 @@ public static partial class CustomExceptionHandler {
 	/// conditions (a body-size trip, a malformed binder message) it cannot
 	/// reliably trigger.
 	/// </summary>
-	public static ExceptionMapping MapException(Exception? exceptionType) {
+	public static ExceptionMapping MapException(
+		Exception? exceptionType,
+		long? uploadMaxBytes = null
+	) {
 		// Kestrel throws this when a request body exceeds the limit set by
 		// RequestSizeLimitAttribute / FormOptions.MultipartBodyLengthLimit
 		// (see UploadEndpointsForStaff), before the handler's own size check runs.
@@ -63,9 +68,14 @@ public static partial class CustomExceptionHandler {
 			return new ExceptionMapping(
 				StatusCodes.Status413PayloadTooLarge,
 				"Payload Too Large",
-				"Request body exceeds the maximum allowed size",
+				uploadMaxBytes is { } maxBytes
+					? $"File exceeds the maximum size of {UploadLimits.FormatLimit(maxBytes)}"
+					: "Request body exceeds the maximum allowed size",
 				ResponseKeys.UploadFileTooLarge,
-				null
+				null,
+				uploadMaxBytes is { } limit
+					? new Dictionary<string, object?> { ["maxBytes"] = limit }
+					: null
 			);
 		}
 
@@ -165,7 +175,75 @@ public static partial class CustomExceptionHandler {
 		);
 	}
 
+	/// <summary>
+	/// An upload endpoint caps the whole body at UPLOAD_MAX_BYTES plus the multipart
+	/// headroom; when the endpoint carries exactly that request-size limit, the FILE
+	/// limit (UPLOAD_MAX_BYTES) is what the user should be told (#2421). Any other
+	/// endpoint (or none) yields null.
+	/// </summary>
+	public static long? ResolveUploadFileLimit(Endpoint? endpoint, long uploadMaxBytes) {
+		var requestSizeLimit = endpoint?.Metadata
+			.GetMetadata<Microsoft.AspNetCore.Http.Metadata.IRequestSizeLimitMetadata>();
+		var uploadRequestLimit = uploadMaxBytes + UploadLimits.MultipartHeaderHeadroomBytes;
+		return requestSizeLimit?.MaxRequestBodySize == uploadRequestLimit ? uploadMaxBytes : null;
+	}
+
+	private static async Task _WriteProblemAsync(HttpContext context, ExceptionMapping mapped) {
+		context.Response.StatusCode = mapped.StatusCode;
+
+		AppProblemDetails response = mapped.Errors is not null
+			? ValidationProblemDetails.Create(mapped.Detail, mapped.Key, mapped.Errors)
+			: AppProblemDetails.Create(mapped.StatusCode, mapped.Title, mapped.Detail, mapped.Key);
+		response.Instance = context.Request.Path.Value;
+		response.Extensions["traceId"] = context.TraceIdentifier;
+		if (mapped.Extensions is not null) {
+			foreach (var (name, value) in mapped.Extensions) {
+				response.Extensions[name] = value;
+			}
+		}
+
+		// Serialize the RUNTIME type: WriteAsJsonAsync<T> would use the
+		// AppProblemDetails static type and drop ValidationProblemDetails'
+		// `errors` object, leaving a 422 with no field errors on the wire.
+		await context.Response.WriteAsJsonAsync(
+			(object)response,
+			options: null,
+			contentType: "application/problem+json",
+			cancellationToken: context.RequestAborted
+		);
+	}
+
+	/// <summary>
+	/// The route handler's form binding catches the <c>BadHttpRequestException</c> Kestrel
+	/// throws when an upload body exceeds the endpoint's size limit (it derives from
+	/// <c>IOException</c>) and only sets a bare 413, so the exception handler never runs
+	/// and the client gets no body and no content type. Answer that bodyless 413 with the
+	/// same problem the handler's own size check returns (#2421).
+	/// </summary>
+	private static async Task _WriteBodylessPayloadTooLargeAsync(StatusCodeContext statusCodeContext) {
+		var context = statusCodeContext.HttpContext;
+		if (context.Response.StatusCode != StatusCodes.Status413PayloadTooLarge) {
+			return;
+		}
+
+		// Only an upload endpoint is answered; any other bodyless 413 stays as it was.
+		var uploadMaxBytes = CustomExceptionHandler.ResolveUploadFileLimit(
+			context.GetEndpoint(),
+			AppEnvironment.Instance.UPLOAD_MAX_BYTES
+		);
+		if (uploadMaxBytes is null) {
+			return;
+		}
+
+		var mapped = CustomExceptionHandler.MapException(
+			new BadHttpRequestException("Request body too large.", StatusCodes.Status413PayloadTooLarge),
+			uploadMaxBytes
+		);
+		await CustomExceptionHandler._WriteProblemAsync(context, mapped);
+	}
+
 	public static void UseCustomExceptionHandler(this IApplicationBuilder app) {
+		app.UseStatusCodePages(CustomExceptionHandler._WriteBodylessPayloadTooLargeAsync);
 		app.UseExceptionHandler(exceptionHandlerApp => {
 			exceptionHandlerApp.Run(async context => {
 				var logger = context.RequestServices
@@ -177,7 +255,13 @@ public static partial class CustomExceptionHandler {
 				var exceptionHandlerFeature = context.Features.Get<IExceptionHandlerFeature>();
 				var exceptionType = exceptionHandlerFeature?.Error;
 
-				var mapped = CustomExceptionHandler.MapException(exceptionType);
+				var mapped = CustomExceptionHandler.MapException(
+					exceptionType,
+					CustomExceptionHandler.ResolveUploadFileLimit(
+						context.GetEndpoint(),
+						AppEnvironment.Instance.UPLOAD_MAX_BYTES
+					)
+				);
 
 				if (exceptionType is not null) {
 					if (mapped.StatusCode == StatusCodes.Status500InternalServerError) {
@@ -191,23 +275,7 @@ public static partial class CustomExceptionHandler {
 					}
 				}
 
-				context.Response.StatusCode = mapped.StatusCode;
-
-				AppProblemDetails response = mapped.Errors is not null
-					? ValidationProblemDetails.Create(mapped.Detail, mapped.Key, mapped.Errors)
-					: AppProblemDetails.Create(mapped.StatusCode, mapped.Title, mapped.Detail, mapped.Key);
-				response.Instance = context.Request.Path.Value;
-				response.Extensions["traceId"] = context.TraceIdentifier;
-
-				// Serialize the RUNTIME type: WriteAsJsonAsync<T> would use the
-				// AppProblemDetails static type and drop ValidationProblemDetails'
-				// `errors` object, leaving a 422 with no field errors on the wire.
-				await context.Response.WriteAsJsonAsync(
-					(object)response,
-					options: null,
-					contentType: "application/problem+json",
-					cancellationToken: context.RequestAborted
-				);
+				await CustomExceptionHandler._WriteProblemAsync(context, mapped);
 			});
 		});
 	}
