@@ -11,6 +11,7 @@ import {
 	SINGLE_TENANT_USER_CREDENTIALS,
 	TENANT_ADMIN_CREDENTIALS,
 } from './helpers/login';
+import { waitForBoundingBoxToSettle } from './helpers/settle';
 
 /**
  * #990 / PR #1054 browser-side guard. Earlier source-level checks could prove
@@ -374,6 +375,14 @@ const measureDrawer = async (
 ): Promise<DrawerMeasurements> => {
 	const drawer = page.getByTestId(drawerTestId);
 	await expect(drawer).toHaveCSS('translate', 'none');
+	// Async content (e.g. the create-post limit counter, #2279) can still grow
+	// the footer after the drawer is visible, which would make the before/after
+	// footer rects differ for a reason unrelated to scrolling. Measure only
+	// once the footer and the surface have stopped resizing.
+	await waitForBoundingBoxToSettle(drawer);
+	await waitForBoundingBoxToSettle(
+		drawer.locator('[data-slot="drawer-footer"]'),
+	);
 
 	return drawer.evaluate(
 		async (surface, forcedContentHeight): Promise<DrawerMeasurements> => {
@@ -589,10 +598,24 @@ const openTenantPostCreateDrawer = async (page: Page): Promise<void> => {
 	// (same reason tenant-posts-drafts.spec.ts clears its storageState).
 	await page.context().clearCookies();
 	await loginAsTenantUser(page, SINGLE_TENANT_USER_CREDENTIALS);
+	// The limit counter ("0 / 300 · @account") needs both
+	// `GET /publishing/publish-targets` and the tenant permissions (fetched when
+	// the drawer mounts) (#2279). Arm the targets wait before navigating so a
+	// response that lands early is not missed; bound it so a renamed path fails
+	// with a clear wait error instead of the whole test timeout.
+	const targetsLoaded = page.waitForResponse(
+		(response) =>
+			response.request().method() === 'GET' &&
+			response.ok() &&
+			new URL(response.url()).pathname.endsWith('/publishing/publish-targets'),
+		{ timeout: 15_000 },
+	);
 	await page.goto('/tenant/posts/drafts');
 	await expect(page.getByTestId('tenant-posts-drafts-page')).toBeVisible({
 		timeout: 10_000,
 	});
+	// Settle the targets before opening so the drawer paints with them.
+	await targetsLoaded;
 	// Below `md` the header action is hidden and the page's actions live in the
 	// speed-dial (owner decision 04/11), so open the drawer the way a narrow
 	// user does instead of clicking a `display:none` link.
@@ -602,9 +625,14 @@ const openTenantPostCreateDrawer = async (page: Page): Promise<void> => {
 	} else {
 		await page.locator('button[data-speed-dial]').click();
 	}
-	await expect(page.getByTestId('tenant-posts-create-drawer')).toBeVisible({
-		timeout: 10_000,
-	});
+	const drawer = page.getByTestId('tenant-posts-create-drawer');
+	await expect(drawer).toBeVisible({ timeout: 10_000 });
+	// The footer block renders nothing until the tenant permissions resolve
+	// (they start when the drawer content mounts), and it hosts the limit
+	// counter. It is the readiness signal for the late footer growth.
+	await expect(drawer.getByTestId('tenant-posts-publish-on-block')).toBeVisible(
+		{ timeout: 10_000 },
+	);
 };
 
 // The link-companies drawer lives on the GLOBAL tenant-user organizations
