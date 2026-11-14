@@ -592,30 +592,9 @@ surface without waiting to be told. `docs/records/2026-07-29-spec-front-parity-c
 decision log; this section is the forward-looking rulebook. When a new screen forces a genuinely
 new choice, decide in this spirit and add the rule here.
 
-### Visual consistency (no concession)
+### Visual consistency and composition (shared radan-ui rules)
 
-The same kind of element (skeleton, card, pill/badge, toast, empty state) looks the same on every
-page; no page-local variant. Reuse the shared component; if it cannot express the need, change the
-shared component for every page. PublyApp and ShopKartOS share one visual language. Skeletons mirror
-the real content and come from one shared convention. Full rule: `DESIGN.md` §4 « Visual consistency »
-(owner rule 2026-11-08, #2352). A reviewer treats a page-local variant of a shared element as a finding.
-
-### Composition and Compound Components (required everywhere)
-
-Owner rule 2026-11-08 (#2352), for PublyApp and ShopKartOS: « J'exige qu'on adopte le pattern de
-composition partout dans cette application… "Compound Components pattern"… il faut qu'on utilise ça
-partout. »
-
-- Build UI by composing small components through `children`, not by configuring one big component.
-- A component with parts is a **compound**: `Card`, `Card.Header`, `Card.Body`, `Card.Footer`… Parts that
-  need shared state read it from the parent through context; the caller never threads it by hand.
-- **Never a growing list of boolean or config props** (`hasThumb`, `showPill`, `withFooter`, `variant`
-  strings that toggle sub-parts on and off). A new need adds or composes a part; it does not add a flag.
-- Skeletons follow the same shape: each component's skeleton is a composition of shared skeleton
-  parts (`Skeleton.Card`, `Skeleton.Line`…), kept next to the component it mirrors.
-- New code applies it now. Existing components migrate through a follow-up audit; a PR that touches a
-  component in the flag style moves the part it changes to composition.
-- A reviewer treats a new boolean/config prop that toggles a sub-part as a finding.
+Defined once in radan-ui, not copied here: [visual consistency](https://github.com/radandevist/radan-ui/blob/main/docs/rules/visual-consistency.md) and [composition](https://github.com/radandevist/radan-ui/blob/main/docs/rules/composition.md). PublyApp's application of composition: [`composition.md`](../composition.md).
 
 ### Elevation & borders
 

@@ -42,8 +42,7 @@ Method:
    « Not worth it » is not a reason.
 5. **Look at the side-by-side captures yourself** before trusting the score: if the screen visibly
    differs from the prototype, the measurement is missing a block — fix the measurement, then the screen.
-6. **Visual consistency** (`DESIGN.md` « Visual consistency »): every skeleton, card, pill and empty
-   state uses the shared component, with no page-local variant.
+6. **Visual consistency** — shared radan-ui rule: [visual-consistency.md](https://github.com/radandevist/radan-ui/blob/main/docs/rules/visual-consistency.md).
 7. Check placeholder states (skeletons, « no data yet » ghosts) keep the real block's size (±2 px),
    dark mode, and 390 px mobile with no overflow.
 8. **Proof on the PR:** side-by-side captures (« Application » left, « Maquette » right) for each
