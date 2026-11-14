@@ -352,7 +352,7 @@ to every UI change in `apps/front`:
 - [Forms in a drawer](https://github.com/radandevist/radan-ui/blob/main/docs/rules/forms-in-drawer.md): right drawer from `md`, bottom sheet below, sticky footer; modals only for confirmations.
 - [Motion](https://github.com/radandevist/radan-ui/blob/main/docs/rules/motion.md): one appear/disappear animation through `Collapse`; reduced motion respected.
 
-PublyApp does not depend on `@radandevist/radan-ui` yet. Once [#2380](https://github.com/PublyApp/publyapp/issues/2380) installs the package, the same files are at `node_modules/@radandevist/radan-ui/docs/rules/`.
+PublyApp already depends on `@radandevist/radan-ui` 0.2.0 (pinned in `apps/front/package.json`). That version ships six of these rule files at `node_modules/@radandevist/radan-ui/docs/rules/`; `native-navigation.md` first ships in 0.4.0. Moving the front to the package's rule files is part of [#2380](https://github.com/PublyApp/publyapp/issues/2380) (finish adopting radan-ui); until then the links above point at the radan-ui `main` branch.
 
 PublyApp's own application of these rules (which local components are already compounds): [`docs/guides/composition.md`](docs/guides/composition.md).
 

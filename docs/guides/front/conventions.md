@@ -594,7 +594,7 @@ new choice, decide in this spirit and add the rule here.
 
 ### Visual consistency and composition (shared radan-ui rules)
 
-Defined once in radan-ui, not copied here: [visual consistency](https://github.com/radandevist/radan-ui/blob/main/docs/rules/visual-consistency.md) and [composition](https://github.com/radandevist/radan-ui/blob/main/docs/rules/composition.md). PublyApp's application of composition: [`composition.md`](composition.md).
+Defined once in radan-ui, not copied here: [visual consistency](https://github.com/radandevist/radan-ui/blob/main/docs/rules/visual-consistency.md) and [composition](https://github.com/radandevist/radan-ui/blob/main/docs/rules/composition.md). PublyApp's application of composition: [`composition.md`](../composition.md).
 
 ### Elevation & borders
 

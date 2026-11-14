@@ -11,6 +11,12 @@ file only records how PublyApp applies it.
 - New compounds follow the form their neighbours use. In `card.tsx` that means flat named parts, not a `Card.Header`
   namespace.
 
+## Scope and migration
+
+- The rule applies to new and changed components.
+- An existing component that still takes boolean or part-toggle props is fixed when its file is touched. There is no separate sweep.
+- A reviewer treats a new part-toggle flag (`hasThumb`, `showPill`, `withFooter`, `variant="card|row"`) as a finding.
+
 ## Lint
 
 A shared lint rule, `house/no-boolean-prop-soup`, is planned in the common lint set
