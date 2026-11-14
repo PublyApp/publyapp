@@ -363,18 +363,9 @@ aggregations. **front has no `<Image>` primitive** — only raw `<img>` for word
 - Each toast variant's contrast is measured live in the browser (see Guards). `richColors` is off
   because Sonner's un-layered stylesheet would defeat the app cascade. — source: `app.css`, `e2e/toast-contrast.spec.ts`
 
-### Visual consistency (owner rule, no concession)
+### Visual consistency
 
-- **One element kind, one look, on every page.** A skeleton, a card, a pill or badge, a toast, an empty
-  state: the same kind of element looks the same wherever it appears. No page-local variant: reuse the
-  shared component, and when it cannot express a need, change the shared component (for every page) instead
-  of drawing a local copy. — source: owner rule 2026-11-08 (#2352)
-- **PublyApp and ShopKartOS share one visual language.** A shared UI library will come later; until then,
-  a convention settled in one product (for example the skeleton convention) is aligned in the other.
-- **Skeletons mirror the real content.** A loading placeholder has the shape of what it replaces (rows,
-  avatar, text lines, chart outline) and the same size (±2 px), and it comes from one shared convention,
-  never a plain grey block drawn differently on each page.
-- Owner's words: « La consistance, c'est un point sur lequel je ne veux pas qu'on fasse de concession… »
+The shared rule (tokens, one primitive per pattern, flat surfaces, named overrides) is defined once in radan-ui: [visual-consistency.md](https://github.com/radandevist/radan-ui/blob/main/docs/rules/visual-consistency.md). PublyApp applies it to its shared components: `skeleton.tsx`, `card.tsx`, `badge.tsx`, `toaster.tsx` and `state-view.tsx`. A page-local copy of any of them is a finding.
 
 ### Empty / error / loading states
 
