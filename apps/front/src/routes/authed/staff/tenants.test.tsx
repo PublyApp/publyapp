@@ -93,8 +93,8 @@ const TRANSLATIONS = {
 	'list-stat-suspended-count_one': '{{count}} suspendue',
 	'list-stat-suspended-count_other': '{{count}} suspendues',
 	'list-stat-seats-share': '{{percent}} % des places occupées',
-	'list-stat-over-80_one': '{{count}} au-delà de 80 %',
-	'list-stat-over-80_other': '{{count}} au-delà de 80 %',
+	'list-stat-between-80-99_one': '{{count}} entre 80 et 99 %',
+	'list-stat-between-80-99_other': '{{count}} entre 80 et 99 %',
 	'list-stat-full_one': '{{count}} complète',
 	'list-stat-full_other': '{{count}} complètes',
 	'list-total-organisations_one': '{{count}} organisation',
@@ -285,8 +285,14 @@ const counts = {
 	activeThisWeek: 1,
 };
 
+const panelCounts = {
+	status: { active: 1, pending: 1, suspended: 0 },
+	seats: { full: 0, high: 1, available: 1 },
+	locales: [{ locale: 'fr', count: 2 }],
+};
+
 const queryResult = (overrides: Record<string, unknown> = {}) => ({
-	data: { data: rows, nextCursor: null, totalCount: 2, counts },
+	data: { data: rows, nextCursor: null, totalCount: 2, counts, panelCounts },
 	error: null,
 	isPending: false,
 	isError: false,
@@ -386,6 +392,40 @@ describe('staff tenants route (organisations list)', () => {
 		).toBe('/staff/tenants/new');
 	});
 
+	test('the Filters popover counts its own status facet over the whole search', () => {
+		mocks.search = { status: 'pending' };
+		mocks.useStaffTenantsQuery.mockReturnValue(
+			queryResult({
+				data: {
+					data: rows.slice(1),
+					nextCursor: null,
+					totalCount: 1,
+					counts: { ...counts, total: 1, active: 0, pending: 1 },
+					panelCounts,
+				},
+			}),
+		);
+		renderPage();
+
+		fireEvent.click(
+			screen.getByText('Filtres').closest('button') as HTMLElement,
+		);
+		const popover = document.querySelector('[data-slot="popover-content"]');
+		if (!popover) {
+			throw new Error('filters popover missing');
+		}
+		const activeChoice = within(popover as HTMLElement)
+			.getByText('Active')
+			.closest('label');
+		// A facet excludes its own filter: Active stays 1 under ?status=pending.
+		expect(activeChoice?.textContent).toContain('1');
+		const panel = document.getElementById('app-shell-page-panel');
+		const panelActive = within(panel as HTMLElement)
+			.getByText('Active')
+			.closest('button');
+		expect(panelActive?.textContent).toContain('1');
+	});
+
 	test('a ?status=pending link filters server-side and shows its chip', () => {
 		mocks.search = { status: 'pending' };
 		renderPage();
@@ -429,7 +469,13 @@ describe('staff tenants route (organisations list)', () => {
 	test('counters and totals still use the API counts when more pages exist', async () => {
 		mocks.useStaffTenantsQuery.mockReturnValue(
 			queryResult({
-				data: { data: rows, nextCursor: 'next-page', totalCount: 2, counts },
+				data: {
+					data: rows,
+					nextCursor: 'next-page',
+					totalCount: 2,
+					counts,
+					panelCounts,
+				},
 			}),
 		);
 		renderPage();

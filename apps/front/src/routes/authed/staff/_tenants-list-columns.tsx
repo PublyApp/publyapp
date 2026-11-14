@@ -51,6 +51,15 @@ const dash = <span className="text-muted-foreground">—</span>;
 const numberCell = (value: number | null): ReactNode =>
 	value === null ? dash : <span className="tabular-nums">{value}</span>;
 
+const textCell = (value: string | null): ReactNode =>
+	value === null ? (
+		dash
+	) : (
+		<span className="block truncate" title={value}>
+			{value}
+		</span>
+	);
+
 const Occupancy = ({ row }: { row: StaffTenantRow }) => {
 	const percent = occupancyPercent(row);
 	const band = occupancyBand(row);
@@ -128,6 +137,12 @@ export const tenantColumns = (
 	locale: string,
 ): ListColumn<StaffTenantRow>[] => {
 	const labels = tenantColumnLabels(t);
+	const localeCell = (value: string | null): ReactNode => {
+		if (value === 'fr' || value === 'en') {
+			return t(`list-language-${value}`);
+		}
+		return value ?? dash;
+	};
 
 	const column = (
 		id: string,
@@ -230,80 +245,87 @@ export const tenantColumns = (
 			'connectedAccounts',
 			200,
 			IconBrandStackshare,
-			() => dash,
-			() => null,
+			(row) => numberCell(row.connectedAccountsCount),
+			(row) => row.connectedAccountsCount,
 		),
 		column(
 			'postsMonth',
 			'postsMonth',
 			210,
 			IconPencil,
-			() => dash,
-			() => null,
+			(row) => numberCell(row.postsThisMonthCount),
+			(row) => row.postsThisMonthCount,
 		),
 		column(
 			'invitations',
 			'invitations',
 			150,
 			IconMail,
-			() => dash,
-			() => null,
+			(row) => numberCell(row.pendingInvitationsCount),
+			(row) => row.pendingInvitationsCount,
 		),
 		column(
 			'owners',
 			'owners',
 			150,
 			IconUserStar,
-			() => dash,
-			() => null,
+			(row) => numberCell(row.ownersCount),
+			(row) => row.ownersCount,
 		),
 		column(
 			'roles',
 			'roles',
 			120,
 			IconShieldLock,
-			() => dash,
-			() => null,
+			(row) => numberCell(row.rolesCount),
+			(row) => row.rolesCount,
 		),
 		column(
 			'locale',
 			'language',
 			120,
 			IconLanguage,
-			() => dash,
-			() => null,
+			(row) => localeCell(row.defaultLocale),
+			(row) => row.defaultLocale,
 		),
 		column(
 			'timezone',
 			'timezone',
 			190,
 			IconClockHour4,
-			() => dash,
-			() => null,
+			(row) => textCell(row.timezone),
+			(row) => row.timezone,
 		),
 		column(
 			'website',
 			'website',
 			190,
 			IconWorld,
-			() => dash,
-			() => null,
+			(row) => textCell(row.websiteUrl),
+			(row) => row.websiteUrl,
 		),
 		column(
 			'billingEmail',
 			'billingEmail',
 			240,
 			IconMailDollar,
-			() => dash,
-			() => null,
+			(row) => textCell(row.billingEmail),
+			(row) => row.billingEmail,
 		),
 		column(
 			'createdAt',
 			'createdAt',
 			130,
 			IconCalendar,
-			() => dash,
-			() => null,
+			(row) =>
+				row.createdAt ? (
+					<span className="tabular-nums">
+						{formatShortDate(row.createdAt, locale)}
+					</span>
+				) : (
+					dash
+				),
+			(row) => row.createdAt?.toISOString() ?? null,
 		),
 		column(
 			'lastActivityAt',

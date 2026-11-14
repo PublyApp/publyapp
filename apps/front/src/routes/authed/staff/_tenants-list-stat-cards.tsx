@@ -65,8 +65,10 @@ export const TenantStatCards = ({
 	const active = counts.active ?? 0;
 	const pending = counts.pending ?? 0;
 	const suspended = counts.suspended ?? 0;
-	const almostFull = counts.almostFull ?? 0;
 	const full = counts.full ?? 0;
+	// Same bucket as the side panel « Presque pleines » (80-99 %): the API's
+	// almostFull is >= 80 %, so the complete ones are taken out of it.
+	const almostFull = Math.max(0, (counts.almostFull ?? 0) - full);
 	const pendingInvitations = counts.pendingInvitations ?? 0;
 	const pendingInvitationTenants = counts.pendingInvitationTenants ?? 0;
 	const expiringInvitations = counts.expiringInvitations ?? 0;
@@ -112,7 +114,7 @@ export const TenantStatCards = ({
 				footer={
 					<>
 						<span className="text-[var(--publy-chip-pending-text)]">
-							{t('list-stat-over-80', { count: almostFull })}
+							{t('list-stat-between-80-99', { count: almostFull })}
 						</span>{' '}
 						· {t('list-stat-full', { count: full })}
 					</>

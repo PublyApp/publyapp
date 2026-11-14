@@ -23,6 +23,15 @@ const tenantRow: StaffTenantRow = {
 	projectsCount: 2,
 	maxUsers: 10,
 	lastActivityAt: null,
+	createdAt: new Date('2026-01-15T00:00:00Z'),
+	timezone: 'Indian/Antananarivo',
+	websiteUrl: 'https://acme.example',
+	billingEmail: 'billing@acme.example',
+	ownersCount: 2,
+	rolesCount: 3,
+	connectedAccountsCount: 5,
+	postsThisMonthCount: 12,
+	pendingInvitationsCount: 1,
 };
 
 const columnById = (id: string) =>
@@ -66,6 +75,29 @@ describe('tenants list — « Identifiant » and « Langues »', () => {
 	});
 });
 
+describe('tenants list — columns filled by #2275', () => {
+	test.each([
+		['timezone', 'Indian/Antananarivo'],
+		['website', 'https://acme.example'],
+		['billingEmail', 'billing@acme.example'],
+	])('renders %s from the row', (id, text) => {
+		render(<>{columnById(id)?.cell?.(tenantRow)}</>);
+		expect(screen.getByText(text)).toBeTruthy();
+	});
+
+	test('renders the counts', () => {
+		render(<>{columnById('postsMonth')?.cell?.(tenantRow)}</>);
+		expect(screen.getByText('12')).toBeTruthy();
+	});
+
+	test('falls back to « — » for missing text', () => {
+		render(
+			<>{columnById('timezone')?.cell?.({ ...tenantRow, timezone: null })}</>,
+		);
+		expect(screen.getByText('—')).toBeTruthy();
+	});
+});
+
 describe('tenants StatCards — « Invitations en attente »', () => {
 	test('renders the pending invitation total, organisations and expiry', () => {
 		render(
@@ -79,8 +111,8 @@ describe('tenants StatCards — « Invitations en attente »', () => {
 					members: 12,
 					seats: 15,
 					projects: 2,
-					almostFull: 1,
-					full: 1,
+					almostFull: 5,
+					full: 2,
 					activeThisWeek: 2,
 					pendingInvitations: 7,
 					pendingInvitationTenants: 4,
@@ -89,6 +121,12 @@ describe('tenants StatCards — « Invitations en attente »', () => {
 				}}
 			/>,
 		);
+
+		// « Presque pleines » is the 80-99 % bucket (almostFull 5 incl. 2 full = 3),
+		// the same number as the side panel; the full ones stay in the subtitle.
+		const almost = screen.getByTestId('tenant-stat-almost-full');
+		expect(almost.textContent).toContain('3');
+		expect(almost.textContent).toContain('list-stat-full');
 
 		const card = screen.getByTestId('tenant-stat-pending-invitations');
 		// `t` is key-only here, so the figure is the only interpolated number.

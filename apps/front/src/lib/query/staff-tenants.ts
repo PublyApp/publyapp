@@ -60,6 +60,15 @@ export type StaffTenantRow = {
 	projectsCount: number;
 	maxUsers: number;
 	lastActivityAt: Date | null;
+	createdAt: Date | null;
+	timezone: string | null;
+	websiteUrl: string | null;
+	billingEmail: string | null;
+	ownersCount: number;
+	rolesCount: number;
+	connectedAccountsCount: number;
+	postsThisMonthCount: number;
+	pendingInvitationsCount: number;
 };
 
 export type StaffTenantDetailsQueryVariables = {
@@ -261,6 +270,15 @@ export const toStaffTenantRows = (
 			projectsCount: item.projectsCount ?? 0,
 			maxUsers: item.maxUsers ?? 0,
 			lastActivityAt: normalizeDate(item.lastActivityAt),
+			createdAt: normalizeDate(item.createdAt),
+			timezone: normalizeString(item.timezone ?? undefined) ?? null,
+			websiteUrl: normalizeString(item.websiteUrl ?? undefined) ?? null,
+			billingEmail: normalizeString(item.billingEmail ?? undefined) ?? null,
+			ownersCount: item.ownersCount ?? 0,
+			rolesCount: item.rolesCount ?? 0,
+			connectedAccountsCount: item.connectedAccountsCount ?? 0,
+			postsThisMonthCount: item.postsThisMonthCount ?? 0,
+			pendingInvitationsCount: item.pendingInvitationsCount ?? 0,
 		});
 	}
 

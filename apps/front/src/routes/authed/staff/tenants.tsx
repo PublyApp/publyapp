@@ -26,7 +26,9 @@ import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-fai
 import { TenantBulkActions } from './_tenants-list-bulk-actions';
 import { tenantColumns } from './_tenants-list-columns';
 import {
+	buildTenantFacetCounts,
 	buildTenantFilters,
+	buildTenantPanelFacetCounts,
 	buildTenantMobileCard,
 	buildTenantTotals,
 	DEFAULT_TENANT_COLUMNS,
@@ -129,6 +131,8 @@ const StaffTenantsPage = () => {
 	// `totalCount`/`counts` describe the whole filtered collection (#2301).
 	const countsKnown = query.data !== undefined;
 	const counts = query.data?.counts;
+	// The panel counters ignore the other filters but respect the search (#2275).
+	const panel = query.data?.panelCounts;
 
 	const onSessionExpired = useCallback(() => setShouldLogout(true), []);
 
@@ -198,30 +202,10 @@ const StaffTenantsPage = () => {
 			filters={buildTenantFilters(t)}
 			filtersValue={filtersValue}
 			onFiltersChange={setFilters}
-			counts={{
-				status: {
-					active: counts?.active ?? null,
-					pending: counts?.pending ?? null,
-					suspended: counts?.suspended ?? null,
-				},
-				occupancy: {
-					full: counts?.full ?? null,
-					high:
-						counts == null
-							? null
-							: (counts.almostFull ?? 0) - (counts.full ?? 0),
-					available:
-						counts == null
-							? null
-							: (counts.total ?? 0) - (counts.almostFull ?? 0),
-				},
-				locale: {
-					fr:
-						counts?.byLocale?.find((row) => row.locale === 'fr')?.count ?? null,
-					en:
-						counts?.byLocale?.find((row) => row.locale === 'en')?.count ?? null,
-				},
-			}}
+			// The Filters popover facets within the other filters (status from
+			// `panelCounts`, the rest status-filtered `counts`); the side panel keeps whole-collection `panelCounts`.
+			counts={buildTenantFacetCounts(counts, panel)}
+			panelCounts={buildTenantPanelFacetCounts(panel)}
 			countsKnown={countsKnown}
 			emptyText={t('list-empty')}
 			locale={locale}

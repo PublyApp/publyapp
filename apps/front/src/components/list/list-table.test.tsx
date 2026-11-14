@@ -167,8 +167,12 @@ describe('ListTable', () => {
 			expect(cell.className).not.toContain('z-(--publy-z-raised)');
 		}
 
-		for (const header of document.querySelectorAll('th')) {
-			expect(header.className).toContain('z-(--publy-z-raised)');
+		// The pinned first header outranks the other (sliding) headers, which
+		// would otherwise paint over it, later in the DOM at the same z-index.
+		const headers = [...document.querySelectorAll('th')];
+		expect(headers[0]?.className).toContain('z-(--publy-z-raised)');
+		for (const header of headers.slice(1)) {
+			expect(header.className).not.toContain('z-(--publy-z-raised)');
 		}
 		expect(document.querySelector('[data-pinned-head]')?.className).toContain(
 			'z-(--publy-z-raised)',

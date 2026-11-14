@@ -71,6 +71,9 @@ export type ListPageProps<T extends { id: string }> = {
 	/** API facet counts for the filter menu and panel shortcuts. Keys are
 	 * filter ids and choice values; a missing/null entry renders « — ». */
 	counts?: FilterCounts;
+	/** API counts for the side panel only (whole collection, ignoring the other
+	 * filters); falls back to `counts` when the API has no separate source. */
+	panelCounts?: FilterCounts;
 	/**
 	 * Whether the counters (panel groups, filter-menu badges, tabs) describe the
 	 * whole collection. Pass `false` when the counter source is not fully loaded

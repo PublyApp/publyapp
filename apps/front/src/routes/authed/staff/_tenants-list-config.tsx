@@ -3,6 +3,7 @@ import {
 	IconCircleDashed,
 	IconLanguage,
 } from '@tabler/icons-react';
+import type { FilterCounts } from '~/components/list/filter-menu';
 import type { ListFilter } from '~/components/list/list-types';
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
 import { StatusPill } from '~/components/ui/product-page';
@@ -12,7 +13,10 @@ import { buildCsv } from '~/utils/csv';
 import { downloadFile, formatExportDateStamp } from '~/utils/download-file';
 import { formatShortDate, getRelativeTimeParts } from '~/utils/format-time';
 
-import type { TenantListCountsResponse } from '@org/client-ts/models/index';
+import type {
+	TenantListCountsResponse,
+	TenantPanelCountsResponse,
+} from '@org/client-ts/models/index';
 
 import { tenantColumns } from './_tenants-list-columns';
 import { StatusIcon, type TenantStatusFilterKey } from './_tenants-list-model';
@@ -289,3 +293,55 @@ export const exportTenantRows = (
 		mimeType: 'text/csv;charset=utf-8',
 	});
 };
+
+const localeCount = (
+	rows: { locale?: string | null; count?: number | null }[] | null | undefined,
+	locale: string,
+): number | null => rows?.find((row) => row.locale === locale)?.count ?? null;
+
+/** Filters-popover counts: each facet excludes its own filter, so status comes
+ * from the search-only panel counts; occupancy and language follow the status
+ * filter. */
+export const buildTenantFacetCounts = (
+	counts: TenantListCountsResponse | null | undefined,
+	panel: TenantPanelCountsResponse | null | undefined,
+): FilterCounts => {
+	const total = counts?.total ?? 0;
+	const almostFull = counts?.almostFull ?? 0;
+	return {
+		status: {
+			active: panel?.status?.active ?? null,
+			pending: panel?.status?.pending ?? null,
+			suspended: panel?.status?.suspended ?? null,
+		},
+		occupancy: {
+			full: counts?.full ?? null,
+			high: counts ? almostFull - (counts.full ?? 0) : null,
+			available: counts ? total - almostFull : null,
+		},
+		locale: {
+			fr: localeCount(counts?.byLocale, 'fr'),
+			en: localeCount(counts?.byLocale, 'en'),
+		},
+	};
+};
+
+/** Side-panel counts: whole search, ignoring the other filters. */
+export const buildTenantPanelFacetCounts = (
+	panel: TenantPanelCountsResponse | null | undefined,
+): FilterCounts => ({
+	status: {
+		active: panel?.status?.active ?? null,
+		pending: panel?.status?.pending ?? null,
+		suspended: panel?.status?.suspended ?? null,
+	},
+	occupancy: {
+		full: panel?.seats?.full ?? null,
+		high: panel?.seats?.high ?? null,
+		available: panel?.seats?.available ?? null,
+	},
+	locale: {
+		fr: localeCount(panel?.locales, 'fr'),
+		en: localeCount(panel?.locales, 'en'),
+	},
+});
