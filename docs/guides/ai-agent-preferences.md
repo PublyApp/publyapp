@@ -35,7 +35,7 @@ If a preference below conflicts with an existing guide, follow the existing guid
 - Keep **route components thin**.
   - Routes should ideally: read `useParams`/outlet context, render page shell + composed children.
   - State and queries should live where they are used (self-contained composition), not plumbed through multi-hop props.
-- Prefer **component composition** over prop drilling. Compound components and boolean-prop rules: [`composition.md`](composition.md).
+- Prefer **component composition** over prop drilling. Compound components and boolean-prop rules: [radan-ui composition rule](https://github.com/radandevist/radan-ui/blob/main/docs/rules/composition.md).
   - If a component can derive `roleId` via `useParams`, do that instead of passing it down.
   - If a component owns a drawer, it should own open/close state as well.
 
