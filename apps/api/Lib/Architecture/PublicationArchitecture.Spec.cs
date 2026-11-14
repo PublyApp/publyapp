@@ -104,6 +104,8 @@ public sealed partial class PublicationArchitectureSpec {
 		"Modules/Publishing/Handlers/Tenant/CancelPostScheduleForTenant.Spec.cs",
 		"Modules/Publishing/Handlers/Tenant/EditPostScheduleForTenant.Spec.cs",
 		"Modules/Publishing/Handlers/Tenant/FindScheduledPublicationsForTenant.Spec.cs",
+		// #2208: the post-scoped list spec seeds rows of every status.
+		"Modules/Publishing/Handlers/Tenant/FindPostPublicationsForTenant.Spec.cs",
 		"Modules/Publishing/Jobs/DispatchDuePosts.Spec.cs",
 		"Modules/Publishing/Jobs/DispatchDuePostsConcurrency.Spec.cs",
 		// #647: retry endpoint spec seeds Failed/Paused/Published rows to retry.

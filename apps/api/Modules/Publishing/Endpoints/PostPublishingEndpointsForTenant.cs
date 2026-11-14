@@ -70,6 +70,15 @@ public static class PostPublishingEndpointsForTenant {
 			.WithReqQueryValidation<FindScheduledPublicationsQuery>()
 			.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW]);
 
+		group.MapGet(
+			Routes.Posts.ForTenant.PostPublications,
+			FindPostPublicationsForTenant.Handle
+		)
+			.WithName("FindPostPublicationsForTenant")
+			.WithSummary("Find one post's publications (every live status, no window)")
+			.RequireRateLimiting(ApiRateLimitPolicies.AuthenticatedDefault)
+			.WithTenantPermission([AppPermissions.Tenant.Posts.VIEW]);
+
 		group.MapPost(
 			Routes.Posts.ForTenant.RetryPublication,
 			RetryPublicationForTenant.Handle

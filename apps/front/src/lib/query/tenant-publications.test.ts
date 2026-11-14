@@ -237,6 +237,9 @@ describe('toTenantPublicationRows', () => {
 			updatedAt,
 			segmentsPublished: 0,
 			segmentsTotal: 1,
+			postStatus: null,
+			publishedCount: 0,
+			destinationCount: 0,
 		});
 		expect(rows[1].status).toBe('failed');
 		expect(rows[1].lastError).toBe('Bluesky refused the credentials');
@@ -245,6 +248,25 @@ describe('toTenantPublicationRows', () => {
 		expect(rows[1].accountUsable).toBe(true);
 		expect(rows[1].superseded).toBe(true);
 		expect(rows[1].customized).toBe(false);
+	});
+
+	test('carries the post status and destination counts like a queue row', () => {
+		const [row] = toTenantPublicationRows({
+			data: [
+				{
+					id: '0198c7a2-0000-7000-8000-000000000006',
+					postStatus: 'failed',
+					publishedCount: 1,
+					destinationCount: 2,
+				},
+			],
+		});
+
+		expect(row).toMatchObject({
+			postStatus: 'failed',
+			publishedCount: 1,
+			destinationCount: 2,
+		});
 	});
 
 	test('carries the customized flag of a destination with a rendition', () => {

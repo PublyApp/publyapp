@@ -4,6 +4,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Publishing.Entities;
+using PublyApp.Api.Modules.Publishing.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 
 namespace PublyApp.Api.Modules.Publishing.Services;
@@ -40,6 +41,18 @@ public record PublicationListItem {
 	public int SegmentsTotal { get; init; } = 1;
 	/// <summary>True when this destination overrides part of the post's content (#2172).</summary>
 	public bool Customized { get; init; }
+	/// <summary>
+	/// Destinations of the post that are published; same derivation as the queue: superseded
+	/// Failed rows excluded, a cancelled newest row counts zero.
+	/// </summary>
+	public int PublishedCount { get; init; }
+	/// <summary>Destinations of the post, counted like the published ones.</summary>
+	public int DestinationCount { get; init; }
+	/// <summary>
+	/// The post's derived status wire value, as on the queue rows: History needs it to show
+	/// the same "Failed · 1/2 published" label (the label applies to a failed post).
+	/// </summary>
+	public string PostStatus { get; init; } = "draft";
 }
 
 public abstract record FindPublicationsResult {
@@ -126,14 +139,6 @@ public sealed class PublicationListService : IPublicationListService {
 				AccountUsable =
 					publication.SocialAccount.Status == SocialAccountStatus.Active
 					&& !publication.SocialAccount.IsDeleted,
-				// Correlated form of PublicationSupersession.Supersedes (an EF subquery over
-				// the range variable cannot call it); keep the two in step.
-				Superseded = this._Db.Publication.Any(other =>
-					other.TenantId == publication.TenantId
-					&& other.PostId == publication.PostId
-					&& other.SocialAccountId == publication.SocialAccountId
-					&& other.Id != publication.Id
-					&& other.CreatedAt > publication.CreatedAt),
 				SegmentsPublished = this._Db.PublicationSegmentResult.Count(result =>
 					result.PublicationId == publication.Id && !result.IsDeleted),
 				FollowUpCount = this._Db.PostSegment.Count(segment =>
@@ -150,9 +155,28 @@ public sealed class PublicationListService : IPublicationListService {
 				.ToString();
 		}
 
+		// SQL aggregate, same derivation as the queue (PostStatusSummaryQuery).
+		var supersededIds = await PostStatusSummaryQuery.SupersededIdsAsync(
+			this._Db,
+			args.TenantId,
+			rows.Select(row => row.Publication.GetRequiredId()).ToList(),
+			cancellationToken
+		);
+		var summaries = await PostStatusSummaryQuery.SummarizeAsync(
+			this._Db,
+			args.TenantId,
+			rows.Select(row => row.Publication.PostId).Distinct().ToList(),
+			cancellationToken
+		);
+
 		return new FindPublicationsResult.Success(
 			new CursorPaginatedResult<PublicationListItem> {
-				Data = rows.Select(PublicationListService.ToListItem).ToList(),
+				Data = rows
+					.Select(row => PublicationListService.ToListItem(
+						row,
+						supersededIds.Contains(row.Publication.GetRequiredId()),
+						summaries.GetValueOrDefault(row.Publication.PostId, PostStatusSummaryQuery.Empty)))
+					.ToList(),
 				NextCursor = nextCursor,
 			}
 		);
@@ -186,7 +210,7 @@ public sealed class PublicationListService : IPublicationListService {
 			: publication.LastError;
 	}
 
-	internal static PublicationListItem ToListItem(PublicationRow row) {
+	internal static PublicationListItem ToListItem(PublicationRow row, bool superseded, PostStatusSummary summary) {
 		// The excerpt shows what this destination publishes: post + its rendition.
 		var postBody = RenditionResolver.EffectiveRootText(row.PostBody, row.RenditionTexts);
 		return new PublicationListItem {
@@ -203,7 +227,7 @@ public sealed class PublicationListService : IPublicationListService {
 			FailureCategory = PublicationListService._CategoryFor(row.Publication),
 			Attempts = row.Publication.Attempts,
 			AccountUsable = row.AccountUsable,
-			Superseded = row.Superseded,
+			Superseded = superseded,
 			UpdatedAt = row.Publication.UpdatedAt,
 			SegmentsPublished = row.SegmentsPublished,
 			// A published publication is the thread AS IT WENT OUT: segments added to the post
@@ -212,13 +236,15 @@ public sealed class PublicationListService : IPublicationListService {
 				? Math.Max(1, row.SegmentsPublished)
 				: row.FollowUpCount + 1,
 			Customized = row.Customized,
+			PublishedCount = summary.PublishedCount,
+			DestinationCount = summary.DestinationCount,
+			PostStatus = PostStatusDerivation.FormatPostStatus(summary.Status),
 		};
 	}
 }
 
 internal sealed class PublicationRow {
 	public bool AccountUsable { get; init; }
-	public bool Superseded { get; init; }
 	public required Publication Publication { get; init; }
 	public required string PostBody { get; init; }
 	public string? RenditionTexts { get; init; }

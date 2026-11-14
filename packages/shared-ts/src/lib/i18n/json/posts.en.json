@@ -170,7 +170,7 @@
 	"schedule-both-invalid": "Enter a valid date and time.",
 	"schedule-time-invalid": "Enter a valid time.",
 	"schedule-time-label": "Time",
-	"scheduled-destinations-heading": "Scheduled destinations",
+	"scheduled-destinations-heading": "Upcoming or failed destinations",
 	"scheduled-destinations-description": "Customize what a destination publishes, until it is published.",
 	"rendition-save": "Save customization",
 	"rendition-saved": "Customization saved.",

@@ -1262,6 +1262,15 @@ export function createFindNeedsReconnectAccountsForTenantResponseFromDiscriminat
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindPostPublicationsResponse}
+ */
+// @ts-ignore
+export function createFindPostPublicationsResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindPostPublicationsResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {FindPostsForTenantResponse}
  */
 // @ts-ignore
@@ -4227,6 +4236,17 @@ export function deserializeIntoFindNeedsReconnectAccountsForTenantResponse(findN
 }
 /**
  * The deserialization information for the current model
+ * @param FindPostPublicationsResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindPostPublicationsResponse(findPostPublicationsResponse: Partial<FindPostPublicationsResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "data": n => { findPostPublicationsResponse.data = n.getCollectionOfObjectValues<ScheduledPublicationItem>(createScheduledPublicationItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param FindPostsForTenantResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -5141,12 +5161,15 @@ export function deserializeIntoPublicationListItem(publicationListItem: Partial<
         "accountUsable": n => { publicationListItem.accountUsable = n.getBooleanValue(); },
         "attempts": n => { publicationListItem.attempts = n.getNumberValue(); },
         "customized": n => { publicationListItem.customized = n.getBooleanValue(); },
+        "destinationCount": n => { publicationListItem.destinationCount = n.getNumberValue(); },
         "externalUrl": n => { publicationListItem.externalUrl = n.getStringValue(); },
         "failureCategory": n => { publicationListItem.failureCategory = n.getStringValue(); },
         "id": n => { publicationListItem.id = n.getGuidValue(); },
         "lastError": n => { publicationListItem.lastError = n.getStringValue(); },
         "postExcerpt": n => { publicationListItem.postExcerpt = n.getStringValue(); },
         "postId": n => { publicationListItem.postId = n.getGuidValue(); },
+        "postStatus": n => { publicationListItem.postStatus = n.getStringValue(); },
+        "publishedCount": n => { publicationListItem.publishedCount = n.getNumberValue(); },
         "segmentsPublished": n => { publicationListItem.segmentsPublished = n.getNumberValue(); },
         "segmentsTotal": n => { publicationListItem.segmentsTotal = n.getNumberValue(); },
         "socialAccountId": n => { publicationListItem.socialAccountId = n.getGuidValue(); },
@@ -6810,6 +6833,12 @@ export interface FindNeedsReconnectAccountsForTenantResponse extends AdditionalD
      */
     accounts?: AccountItem[] | null;
 }
+export interface FindPostPublicationsResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The data property
+     */
+    data?: ScheduledPublicationItem[] | null;
+}
 export interface FindPostsForTenantResponse extends AdditionalDataHolder, Parsable {
     /**
      * The data property
@@ -8020,6 +8049,10 @@ export interface PublicationListItem extends AdditionalDataHolder, Parsable {
      */
     customized?: boolean | null;
     /**
+     * Destinations of the post, counted like the published ones.
+     */
+    destinationCount?: number | null;
+    /**
      * The externalUrl property
      */
     externalUrl?: string | null;
@@ -8043,6 +8076,14 @@ export interface PublicationListItem extends AdditionalDataHolder, Parsable {
      * The postId property
      */
     postId?: Guid | null;
+    /**
+     * The post's derived status wire value, as on the queue rows: History needs it to showthe same "Failed · 1/2 published" label (the label applies to a failed post).
+     */
+    postStatus?: string | null;
+    /**
+     * Destinations of the post that are published; same derivation as the queue: supersededFailed rows excluded, a cancelled newest row counts zero.
+     */
+    publishedCount?: number | null;
     /**
      * Thread segments published so far (0 for a plain post, #2171).
      */
@@ -9585,6 +9626,18 @@ export function serializeFindNeedsReconnectAccountsForTenantResponse(writer: Ser
 }
 /**
  * Serializes information the current object
+ * @param FindPostPublicationsResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindPostPublicationsResponse(writer: SerializationWriter, findPostPublicationsResponse: Partial<FindPostPublicationsResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findPostPublicationsResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<ScheduledPublicationItem>("data", findPostPublicationsResponse.data, serializeScheduledPublicationItem);
+    writer.writeAdditionalData(findPostPublicationsResponse.additionalData);
+}
+/**
+ * Serializes information the current object
  * @param FindPostsForTenantResponse The instance to serialize from.
  * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
  * @param writer Serialization writer to use to serialize this model
@@ -10562,12 +10615,15 @@ export function serializePublicationListItem(writer: SerializationWriter, public
     writer.writeBooleanValue("accountUsable", publicationListItem.accountUsable);
     writer.writeNumberValue("attempts", publicationListItem.attempts);
     writer.writeBooleanValue("customized", publicationListItem.customized);
+    writer.writeNumberValue("destinationCount", publicationListItem.destinationCount);
     writer.writeStringValue("externalUrl", publicationListItem.externalUrl);
     writer.writeStringValue("failureCategory", publicationListItem.failureCategory);
     writer.writeGuidValue("id", publicationListItem.id);
     writer.writeStringValue("lastError", publicationListItem.lastError);
     writer.writeStringValue("postExcerpt", publicationListItem.postExcerpt);
     writer.writeGuidValue("postId", publicationListItem.postId);
+    writer.writeStringValue("postStatus", publicationListItem.postStatus);
+    writer.writeNumberValue("publishedCount", publicationListItem.publishedCount);
     writer.writeNumberValue("segmentsPublished", publicationListItem.segmentsPublished);
     writer.writeNumberValue("segmentsTotal", publicationListItem.segmentsTotal);
     writer.writeGuidValue("socialAccountId", publicationListItem.socialAccountId);

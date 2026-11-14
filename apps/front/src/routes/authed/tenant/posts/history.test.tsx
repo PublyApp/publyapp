@@ -148,6 +148,8 @@ const EN_LABELS: TestLabelMap = {
 	'posts:publish-status-paused': 'Paused',
 	'posts:publish-status-scheduled': 'Scheduled',
 	'posts:publish-status-failed': 'Failed',
+	'posts:publish-status-failed-partial':
+		'Failed · {{published}}/{{total}} published',
 	'posts:publication-failed-cause': 'Failed: {{cause}}',
 	'posts:publication-paused-cause': 'Paused: {{cause}}',
 	'posts:publication-paused-next-action':
@@ -163,9 +165,19 @@ const EN_LABELS: TestLabelMap = {
 
 const translate = (
 	key: string,
-	options?: { cause?: string; count?: number },
+	options?: {
+		cause?: string;
+		count?: number;
+		published?: number;
+		total?: number;
+	},
 ) => {
 	const value = EN_LABELS[key] ?? EN_LABELS[key.replace(/^posts:/, '')] ?? key;
+	if (options?.published !== undefined) {
+		return value
+			.replace('{{published}}', String(options.published))
+			.replace('{{total}}', String(options.total));
+	}
 	if (options?.count !== undefined) {
 		return `${options.count} ${value}`;
 	}
@@ -201,6 +213,9 @@ const row = (overrides: Record<string, unknown>): TenantPublicationRow => ({
 	updatedAt: new Date('2026-08-25T10:00:00Z'),
 	segmentsPublished: 0,
 	segmentsTotal: 1,
+	postStatus: 'published',
+	publishedCount: 1,
+	destinationCount: 1,
 	...overrides,
 });
 
@@ -630,6 +645,64 @@ describe('TenantPostsHistoryPage', () => {
 		const pill = screen.getByTestId('tenant-posts-history-status-pill');
 		expect(pill.getAttribute('data-tone')).toBe('info');
 		expect(pill.textContent).toBe('In progress…');
+	});
+
+	test('a failed destination of a partly published post reads "Failed · 1/2 published", as in the queue', () => {
+		mocks.rows = [
+			row({
+				id: 'pub-mixed-failed',
+				status: 'failed',
+				externalUrl: null,
+				lastError: 'Rate limited',
+				postStatus: 'failed',
+				publishedCount: 1,
+				destinationCount: 2,
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		expect(
+			screen.getByTestId('tenant-posts-history-status-pill').textContent,
+		).toBe('Failed · 1/2 published');
+		expect(screen.queryByTestId('tenant-posts-mixed-status')).toBeNull();
+	});
+
+	test('the published destination of that post keeps its pill and gets the mixed line under it', () => {
+		mocks.rows = [
+			row({
+				id: 'pub-mixed-published',
+				postStatus: 'failed',
+				publishedCount: 1,
+				destinationCount: 2,
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		expect(
+			screen.getByTestId('tenant-posts-history-status-pill').textContent,
+		).toBe('Published');
+		expect(screen.getByTestId('tenant-posts-mixed-status').textContent).toBe(
+			'Failed · 1/2 published',
+		);
+	});
+
+	test('a fully failed post shows no counts line', () => {
+		mocks.rows = [
+			row({
+				id: 'pub-all-failed',
+				status: 'failed',
+				externalUrl: null,
+				lastError: 'Rate limited',
+				postStatus: 'failed',
+				publishedCount: 0,
+				destinationCount: 2,
+			}),
+		];
+		render(<TenantPostsHistoryPage />);
+
+		expect(
+			screen.getByTestId('tenant-posts-history-status-pill').textContent,
+		).toBe('Failed');
 	});
 
 	test('scheduled row shows the shared publication status pill (Scheduled, neutral tone)', () => {

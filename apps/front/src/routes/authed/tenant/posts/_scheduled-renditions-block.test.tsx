@@ -29,8 +29,7 @@ const mocks = vi.hoisted(() => ({
 	rows: [] as unknown[],
 	canPublish: true,
 	walk: {
-		isAggregating: false,
-		shouldLogout: false,
+		isPending: false,
 		error: null as Error | null,
 		restart: vi.fn(),
 	},
@@ -49,8 +48,18 @@ vi.mock('@tanstack/react-router', () => ({
 	Link: ({ children }: { children: unknown }) => children,
 }));
 
-vi.mock('./_use-scheduled-publication-all-pages', () => ({
-	useScheduledPublicationAllPages: () => ({ rows: mocks.rows, ...mocks.walk }),
+// The post-scoped query: `data` is the already-mapped rows list here.
+vi.mock('~/lib/query/tenant-scheduled-publications', () => ({
+	usePostPublicationsQuery: () => ({
+		data: mocks.rows,
+		error: mocks.walk.error,
+		isPending: mocks.walk.isPending,
+		isLoading: mocks.walk.isPending,
+		isFetching: false,
+		isError: mocks.walk.error !== null,
+		refetch: mocks.walk.restart,
+	}),
+	toScheduledPublicationRows: (data: unknown) => data ?? [],
 }));
 
 vi.mock('~/lib/query/tenant-permissions', () => ({
@@ -217,8 +226,7 @@ const openEditor = async (user: ReturnType<typeof userEvent.setup>) => {
 beforeEach(() => {
 	mocks.language = 'en';
 	mocks.canPublish = true;
-	mocks.walk.isAggregating = false;
-	mocks.walk.shouldLogout = false;
+	mocks.walk.isPending = false;
 	mocks.walk.error = null;
 	mocks.rows = [rowOf('pub-a')];
 	mocks.save.mockResolvedValue(undefined);
@@ -252,8 +260,43 @@ describe('ScheduledRenditionsBlock gating and load states', () => {
 		expect(mocks.walk.restart).toHaveBeenCalledTimes(1);
 	});
 
+	test('the title fits failed rows too, and the action never wraps', () => {
+		mocks.rows = [rowOf('pub-a', { status: 'failed' })];
+		renderBlock();
+
+		expect(
+			screen.getByRole('heading', { name: 'Upcoming or failed destinations' }),
+		).toBeTruthy();
+		expect(
+			screen
+				.getByTestId('tenant-posts-scheduled-customize')
+				.className.includes('whitespace-nowrap'),
+		).toBe(true);
+		// Very narrow: the action drops under the row instead of overflowing it.
+		expect(
+			screen
+				.getByTestId('tenant-posts-scheduled-customize')
+				.className.includes('row-start-3'),
+		).toBe(true);
+	});
+
+	test('a post that vanished (404) shows the failure card, not a logout and not an empty block', () => {
+		mocks.rows = [];
+		mocks.walk.error = Object.assign(new Error('Post not found'), {
+			status: 404,
+		});
+		renderBlock();
+
+		expect(
+			screen.getByTestId('tenant-posts-scheduled-destinations-error'),
+		).toBeTruthy();
+		expect(screen.queryByTestId('logout-redirect')).toBeNull();
+	});
+
 	test('an expired session logs out instead of rendering', () => {
-		mocks.walk.shouldLogout = true;
+		mocks.walk.error = Object.assign(new Error('unauthorized'), {
+			status: 401,
+		});
 		renderBlock();
 
 		expect(screen.getByTestId('logout-redirect')).toBeTruthy();
@@ -261,7 +304,7 @@ describe('ScheduledRenditionsBlock gating and load states', () => {
 
 	test('shows a skeleton while the first rows are still loading', () => {
 		mocks.rows = [];
-		mocks.walk.isAggregating = true;
+		mocks.walk.isPending = true;
 		renderBlock();
 
 		expect(
@@ -365,8 +408,7 @@ describe('ScheduledRenditionsBlock', () => {
 		mocks.rows = [
 			rowOf('pub-a', { customized: true }),
 			rowOf('pub-b', { accountDisplayHandle: '@second.example' }),
-			rowOf('pub-replaced', { superseded: true }),
-			rowOf('pub-other-post', { postId: 'another-post' }),
+			rowOf('pub-published', { status: 'published' }),
 		];
 		renderBlock();
 

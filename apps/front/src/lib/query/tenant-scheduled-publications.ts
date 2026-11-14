@@ -4,6 +4,7 @@ import { getClientManager } from '~/lib/api-client/client-manager';
 
 import type { ApiClient } from '@org/client-ts/apiClient';
 import type {
+	FindPostPublicationsResponse,
 	FindScheduledPublicationsResponse,
 	ScheduledPublicationItem,
 } from '@org/client-ts/models/index';
@@ -192,7 +193,11 @@ const toScheduledPublicationRow = (
 };
 
 export const toScheduledPublicationRows = (
-	data: FindScheduledPublicationsResponse | null | undefined,
+	data:
+		| FindScheduledPublicationsResponse
+		| FindPostPublicationsResponse
+		| null
+		| undefined,
 ): ScheduledPublicationRow[] => {
 	const rows: ScheduledPublicationRow[] = [];
 	for (const item of data?.data ?? []) {
@@ -233,6 +238,38 @@ export const useScheduledPublicationsQuery = (
 	useQuery({
 		queryKey: scheduledPublicationsQueryOptions.queryKey(variables),
 		queryFn: () => scheduledPublicationsQueryOptions.fetcher(variables),
+	});
+
+/** One post's own publications: every live status, no window, no paging. Shares
+ * the tenant-scheduled-publications key, so the existing invalidation covers it. */
+export const postPublicationsQueryOptions = buildTenantQueryOptions<
+	ApiClient,
+	FindPostPublicationsResponse,
+	{ postId: string }
+>(
+	{
+		queryKeyFn: () => [...TENANT_SCHEDULED_PUBLICATIONS_QUERY_KEY],
+		fetcher: async (client, variables) => {
+			const result = await client.posts
+				.byPostId(variables.postId)
+				.publications.get();
+			if (!result) {
+				throw new Error('post publications result was empty');
+			}
+
+			return result;
+		},
+	},
+	{ clientAccessor: getClientManager() },
+);
+
+export const usePostPublicationsQuery = (variables: {
+	postId: string;
+	tenantId: string;
+}) =>
+	useQuery({
+		queryKey: postPublicationsQueryOptions.queryKey(variables),
+		queryFn: () => postPublicationsQueryOptions.fetcher(variables),
 	});
 
 export type ScheduledPublicationsInfiniteVariables = {

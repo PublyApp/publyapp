@@ -1050,4 +1050,59 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
+
+	// ── #2208: History destination counts ─────────
+
+	[Fact]
+	public async Task ItShouldCarryTheQueuesDestinationCountsInHistory() {
+		var tenantId = await this._GetAcmeIdAsync();
+		var token = await this._AuthClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
+		// A published destination, a Failed one replaced by a newer CANCELLED row of the same
+		// account (the pair counts zero), and a plain Failed one: 1 published of 2.
+		var published = await this._CreateScheduledRowAsync(
+			tenantId, "history counts probe", new DateTime(2098, 5, 3, 9, 0, 0, DateTimeKind.Utc),
+			seedStatus: PublicationStatus.Published
+		);
+		var replaced = await this._AddDestinationRowAsync(
+			tenantId, published.PostId, PublicationStatus.Failed,
+			new DateTime(2098, 5, 3, 9, 5, 0, DateTimeKind.Utc), new DateTime(2098, 5, 1, 9, 0, 0, DateTimeKind.Utc)
+		);
+		var cancelledNewest = await this._AddDestinationRowAsync(
+			tenantId, published.PostId, PublicationStatus.Scheduled,
+			new DateTime(2098, 5, 4, 9, 0, 0, DateTimeKind.Utc), new DateTime(2098, 5, 2, 9, 0, 0, DateTimeKind.Utc),
+			replaced.AccountId
+		);
+		var failed = await this._AddDestinationRowAsync(
+			tenantId, published.PostId, PublicationStatus.Failed,
+			new DateTime(2098, 5, 3, 9, 10, 0, DateTimeKind.Utc), new DateTime(2098, 5, 1, 9, 0, 0, DateTimeKind.Utc)
+		);
+		await using (var scope = this._Fixture.Factory.Services.CreateAsyncScope()) {
+			var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			_ = await db.Publication
+				.Where(p => p.Id == cancelledNewest.PublicationId)
+				.ExecuteUpdateAsync(setters => setters
+					.SetProperty(p => p.IsDeleted, true)
+					.SetProperty(p => p.DeletedAt, DateTime.UtcNow));
+		}
+
+		using var request = new HttpRequestMessage(HttpMethod.Get, "/publishing/publications?limit=100")
+			.WithSessionToken(token)
+			.WithTenantId(tenantId);
+		using var response = await this._Http.SendAsync(request);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var doc = await FindScheduledPublicationsForTenantSpec._GetJsonAsync(response);
+		var rows = doc.GetProperty("data").EnumerateArray()
+			.Where(row => row.GetProperty("postId").GetString() == published.PostId.ToString())
+			.ToList();
+
+		rows.Select(row => row.GetProperty("id").GetString())
+			.Should().BeEquivalentTo(
+				[published.PublicationId.ToString(), replaced.PublicationId.ToString(), failed.PublicationId.ToString()]
+			);
+		foreach (var row in rows) {
+			row.GetProperty("publishedCount").GetInt32().Should().Be(1);
+			row.GetProperty("destinationCount").GetInt32().Should().Be(2);
+			row.GetProperty("postStatus").GetString().Should().Be("failed");
+		}
+	}
 }

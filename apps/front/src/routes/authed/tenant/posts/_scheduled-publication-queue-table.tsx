@@ -100,7 +100,7 @@ export const ScheduledPublicationQueueTable = ({
 			id: 'status',
 			header: t('queue-status-label'),
 			enableSorting: false,
-			meta: { width: '132px' },
+			meta: { width: '200px' },
 			cell: ({ row }) => (
 				<MutedWhenSuperseded superseded={row.original.superseded}>
 					<div className="flex flex-col items-start gap-1">

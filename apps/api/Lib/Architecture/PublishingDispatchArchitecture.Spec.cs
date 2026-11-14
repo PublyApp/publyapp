@@ -111,6 +111,8 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 		"EditPostScheduleForTenant",
 		"CancelPostScheduleForTenant",
 		"FindScheduledPublicationsForTenant",
+		// #2208: one post's own publications.
+		"FindPostPublicationsForTenant",
 		// D2 publish-now landed in #1457 and is a publishing surface; its
 		// handler resolves in PostEndpointsForTenant but its name must be
 		// inventoried here so the route-vs-name cross-check holds.
@@ -138,6 +140,7 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 	private static readonly PublishingRouteInventoryEntry[] _PublishingRouteInventory = [
 		// ── Publishing routes (must carry permission + rate limit) ─────────────
 		new("/posts/publications", "GET", IsPublishing: true),
+		new("/posts/{postId}/publications", "GET", IsPublishing: true),
 		new("/posts/{postId}/schedule", "POST", IsPublishing: true),
 		new("/posts/{postId}/schedule", "PATCH", IsPublishing: true),
 		new("/posts/{postId}/schedule", "DELETE", IsPublishing: true),

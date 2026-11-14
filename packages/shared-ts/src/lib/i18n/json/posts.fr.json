@@ -170,7 +170,7 @@
 	"schedule-both-invalid": "Saisissez une date et une heure valides.",
 	"schedule-time-invalid": "Saisissez une heure valide.",
 	"schedule-time-label": "Heure",
-	"scheduled-destinations-heading": "Destinations planifiées",
+	"scheduled-destinations-heading": "Destinations à venir ou en échec",
 	"scheduled-destinations-description": "Personnalisez ce que publie une destination, tant qu’elle n’est pas publiée.",
 	"rendition-save": "Enregistrer la personnalisation",
 	"rendition-saved": "Personnalisation enregistrée.",

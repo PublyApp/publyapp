@@ -8,6 +8,8 @@ import { ImageRequestBuilderRequestsMetadata, type ImageRequestBuilder } from '.
 // @ts-ignore
 import { ImagesRequestBuilderNavigationMetadata, type ImagesRequestBuilder } from './images/index.js';
 // @ts-ignore
+import { PublicationsRequestBuilderRequestsMetadata, type PublicationsRequestBuilder } from './publications/index.js';
+// @ts-ignore
 import { PublishNowRequestBuilderRequestsMetadata, type PublishNowRequestBuilder } from './publishNow/index.js';
 // @ts-ignore
 import { ScheduleRequestBuilderRequestsMetadata, type ScheduleRequestBuilder } from './schedule/index.js';
@@ -28,6 +30,10 @@ export interface WithPostItemRequestBuilder extends BaseRequestBuilder<WithPostI
      * The images property
      */
     get images(): ImagesRequestBuilder;
+    /**
+     * The publications property
+     */
+    get publications(): PublicationsRequestBuilder;
     /**
      * The publishNow property
      */
@@ -111,6 +117,9 @@ export const WithPostItemRequestBuilderNavigationMetadata: Record<Exclude<keyof 
     },
     images: {
         navigationMetadata: ImagesRequestBuilderNavigationMetadata,
+    },
+    publications: {
+        requestsMetadata: PublicationsRequestBuilderRequestsMetadata,
     },
     publishNow: {
         requestsMetadata: PublishNowRequestBuilderRequestsMetadata,

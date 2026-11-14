@@ -7,7 +7,7 @@ import { publicationStatusPresentation } from '~/lib/publishing/publication-stat
 import type { ScheduledPublicationRow } from '~/lib/query/tenant-scheduled-publications';
 import { formatInZone } from '~/utils/format-time';
 
-type StatusRow = Pick<
+export type StatusRow = Pick<
 	ScheduledPublicationRow,
 	'status' | 'postStatus' | 'publishedCount' | 'destinationCount' | 'superseded'
 >;
@@ -20,6 +20,54 @@ const isMixedOutcome = (row: StatusRow): boolean =>
 	row.publishedCount > 0 &&
 	row.publishedCount < row.destinationCount;
 
+/** "1/2 published" for a post whose destinations only partly published, else
+ * null. Shared by the queue, the calendar and History so they read alike. */
+export const useMixedOutcomeLabel = (row: StatusRow): string | null => {
+	const { t } = useTranslation('posts');
+
+	if (!isMixedOutcome(row)) {
+		return null;
+	}
+
+	return t('posts:publish-status-failed-partial', {
+		published: row.publishedCount,
+		total: row.destinationCount,
+	});
+};
+
+/** The text of a status pill: "Failed · 1/2 published" for a failed destination
+ * of a partly published post, else the status label. One rule for the queue, the
+ * calendar and History. */
+export const useStatusPillLabel = (row: StatusRow): string | null => {
+	const { t } = useTranslation('posts');
+	const mixedLabel = useMixedOutcomeLabel(row);
+	const presentation = publicationStatusPresentation(row.status);
+
+	if (mixedLabel !== null && row.status === 'failed') {
+		return mixedLabel;
+	}
+
+	return presentation && t(presentation.labelKey);
+};
+
+/** The mixed-outcome line under a non-failed destination's own pill. */
+export const MixedOutcomeNote = ({ row }: { row: StatusRow }) => {
+	const mixedLabel = useMixedOutcomeLabel(row);
+
+	if (mixedLabel === null || row.status === 'failed') {
+		return null;
+	}
+
+	return (
+		<span
+			className="text-xs whitespace-nowrap text-muted-foreground"
+			data-testid="tenant-posts-mixed-status"
+		>
+			{mixedLabel}
+		</span>
+	);
+};
+
 /** A row's status pill. A replaced row (a newer publication took over its
  * post and account) reads "Replaced", never as a live status; a failed
  * destination of a post that partly published reads "Failed · 1/2
@@ -27,6 +75,7 @@ const isMixedOutcome = (row: StatusRow): boolean =>
 export const ScheduledPublicationStatus = ({ row }: { row: StatusRow }) => {
 	const { t } = useTranslation('posts');
 	const presentation = publicationStatusPresentation(row.status);
+	const pillLabel = useStatusPillLabel(row);
 
 	if (row.superseded && row.status !== 'published') {
 		return (
@@ -36,17 +85,6 @@ export const ScheduledPublicationStatus = ({ row }: { row: StatusRow }) => {
 		);
 	}
 
-	const mixedLabel = isMixedOutcome(row)
-		? t('posts:publish-status-failed-partial', {
-				published: row.publishedCount,
-				total: row.destinationCount,
-			})
-		: null;
-	const pillLabel =
-		mixedLabel !== null && row.status === 'failed'
-			? mixedLabel
-			: presentation && t(presentation.labelKey);
-
 	return (
 		<div className="flex flex-col items-start gap-1">
 			<StatusPill
@@ -55,14 +93,7 @@ export const ScheduledPublicationStatus = ({ row }: { row: StatusRow }) => {
 			>
 				{pillLabel ?? '—'}
 			</StatusPill>
-			{mixedLabel !== null && row.status !== 'failed' ? (
-				<span
-					className="text-xs text-muted-foreground"
-					data-testid="tenant-posts-mixed-status"
-				>
-					{mixedLabel}
-				</span>
-			) : null}
+			<MixedOutcomeNote row={row} />
 		</div>
 	);
 };
