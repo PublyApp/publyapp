@@ -4,11 +4,9 @@ import { AnnouncementBar } from './announcement-bar';
 import { CookieConsentBand } from './cookie-consent-band';
 import { CookiePrefsDrawer } from './cookie-prefs-drawer';
 import { MarketingContainer } from './marketing-container';
-import { MarketingCtaBand } from './marketing-cta-band';
 import { MarketingFooter } from './marketing-footer';
 import { MarketingHeader } from './marketing-header';
 import { MarketingMobileNav } from './marketing-mobile-nav';
-import { MarketingSocialProof } from './marketing-social-proof';
 
 /**
  * The marketing shell (#1038): the chrome every marketing page sits in.
@@ -21,13 +19,13 @@ import { MarketingSocialProof } from './marketing-social-proof';
 export const MarketingShell = ({
 	children,
 	pathname,
-	showSocialProof = true,
-	showCtaBand = true,
+	bands,
 }: {
 	children: ReactNode;
 	pathname: string;
-	showSocialProof?: boolean;
-	showCtaBand?: boolean;
+	/** Reading-width bands between the page body and the footer (social proof,
+	 * CTA): composed by the caller, none by default. */
+	bands?: ReactNode;
 }) => {
 	const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 	const [isCookiePrefsOpen, setIsCookiePrefsOpen] = useState(false);
@@ -53,8 +51,7 @@ export const MarketingShell = ({
 					{children}
 				</MarketingContainer>
 			</main>
-			{showSocialProof ? <MarketingSocialProof /> : null}
-			{showCtaBand ? <MarketingCtaBand /> : null}
+			{bands}
 			<MarketingFooter
 				onManageCookiePreferences={() => setIsCookiePrefsOpen(true)}
 			/>

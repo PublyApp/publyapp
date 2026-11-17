@@ -12,7 +12,7 @@ import {
 } from '~/lib/query/tenant-post-images';
 import type { TenantPostImage } from '~/lib/query/tenant-post-images';
 
-import { PostImageAddRow } from './_post-image-add-row';
+import { PostImageAddRow, PostImageNotices } from './_post-image-add-row';
 import { LockedImageCards, PostImageCard } from './_post-image-card';
 import { useOversizeImageCheck } from './_use-oversize-image-check';
 import type { ImageLimits } from './_use-publish-selection';
@@ -186,6 +186,7 @@ export const PostImagePicker = ({
 	const locked = lockedImages.length;
 	const count = (isOnline ? existingImages.length : selections.length) + locked;
 	const isFull = count >= maxImages;
+	const capImages = Number.isFinite(maxImages) ? maxImages : null;
 
 	// Sequential on purpose (each append takes the next position), so it
 	// recurses instead of looping.
@@ -386,14 +387,18 @@ export const PostImagePicker = ({
 				inputId={inputId}
 				label={label}
 				limits={limits}
-				maxImages={Number.isFinite(maxImages) ? maxImages : null}
 				addDisabled={addDisabled}
-				isFull={isFull}
-				hasNoCommonType={hasNoCommonType}
-				showLimitNotice={limitNotice && count > 0}
-				failureMessage={failureMessage}
 				onPick={(files) => void handleFiles(files)}
-			/>
+			>
+				<PostImageNotices
+					limits={limits}
+					cap={capImages}
+					noCommonType={hasNoCommonType}
+					limitReached={limitNotice && count > 0}
+					full={isFull}
+					failureMessage={failureMessage}
+				/>
+			</PostImageAddRow>
 		</div>
 	);
 };
