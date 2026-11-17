@@ -19,5 +19,4 @@ file only records how PublyApp applies it.
 
 ## Lint
 
-A shared lint rule, `house/no-boolean-prop-soup`, is planned in the common lint set
-([radandevist/radan-ui#50](https://github.com/radandevist/radan-ui/issues/50)). It has no date yet.
+The shared lint rule `house/no-boolean-prop-soup` was added in radan-ui 0.7.0 and is still at `warn` in 0.8.0. PublyApp's own `.oxlintrc.json` does not load it yet; adopting it is tracked in [#2435](https://github.com/PublyApp/publyapp/issues/2435).

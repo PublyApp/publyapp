@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 
+import { MarketingCtaBand } from '../components/marketing/marketing-cta-band';
 import { MarketingShell } from '../components/marketing/marketing-shell';
+import { MarketingSocialProof } from '../components/marketing/marketing-social-proof';
 
 type MarketingLayoutProps = {
 	children: ReactNode;
@@ -19,5 +21,17 @@ export const MarketingLayout = ({
 	children,
 	pathname = '/',
 }: MarketingLayoutProps) => {
-	return <MarketingShell pathname={pathname}>{children}</MarketingShell>;
+	return (
+		<MarketingShell
+			pathname={pathname}
+			bands={
+				<>
+					<MarketingSocialProof />
+					<MarketingCtaBand />
+				</>
+			}
+		>
+			{children}
+		</MarketingShell>
+	);
 };

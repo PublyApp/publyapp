@@ -3,12 +3,22 @@ import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { resetCookieConsentStoreForTests } from '~/lib/store/cookie-consent-store';
 
+import { MarketingCtaBand } from './marketing-cta-band';
 import { MarketingShell } from './marketing-shell';
+import { MarketingSocialProof } from './marketing-social-proof';
 import { renderMarketing } from './marketing.test-helper';
 
 const renderShell = () =>
 	renderMarketing(
-		<MarketingShell pathname="/">
+		<MarketingShell
+			pathname="/"
+			bands={
+				<>
+					<MarketingSocialProof />
+					<MarketingCtaBand />
+				</>
+			}
+		>
 			<p>page body</p>
 		</MarketingShell>,
 	);
@@ -73,6 +83,20 @@ describe('MarketingShell composition', () => {
 			.querySelector('[data-container-width="chrome"]');
 
 		expect(headerRow?.className).toContain('h-(--publy-header-height)');
+	});
+});
+
+describe('MarketingShell bands slot', () => {
+	test('renders no social proof or CTA band when no bands are composed', async () => {
+		await renderMarketing(
+			<MarketingShell pathname="/">
+				<p>page body</p>
+			</MarketingShell>,
+		);
+
+		expect(screen.queryByTestId('marketing-social-proof')).toBeNull();
+		expect(screen.queryByTestId('marketing-cta-band')).toBeNull();
+		expect(screen.getByTestId('marketing-footer')).toBeTruthy();
 	});
 });
 

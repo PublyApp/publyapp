@@ -12,8 +12,8 @@ import path from 'node:path';
 
 import { createElement } from 'react';
 import { describe, expect, test } from 'vitest';
-import { MarketingShell } from '~/components/marketing/marketing-shell';
 import { renderMarketing } from '~/components/marketing/marketing.test-helper';
+import { MarketingLayout } from '~/layouts/marketing-layout';
 
 import { resolveEffectiveDeclarations } from './css-cascade-test-support';
 import { resolveThemeToken } from './theme-token-test-support';
@@ -133,15 +133,12 @@ const inferBackgroundToken = (element: Element): string => {
 	return '--publy-background';
 };
 
+// The real layout, so the sweep covers the bands it composes (CTA, social proof).
 const renderMarketingShell = () =>
 	renderMarketing(
-		// `children` goes in the props object, not the positional slot: the
-		// shell declares it required, and `createElement`'s overload checks the
-		// props argument against the full prop type before it ever looks at the
-		// variadic children.
-		createElement(MarketingShell, {
+		createElement(MarketingLayout, {
 			pathname: '/',
-			// react-doctor-disable-next-line react-doctor/no-children-prop -- children is a required prop of MarketingShell; passing positionally fails createElement's overload check.
+			// react-doctor-disable-next-line react-doctor/no-children-prop -- children is a required prop of MarketingLayout; passing positionally fails createElement's overload check.
 			children: createElement('p', null, 'page body'),
 		}),
 	);
@@ -164,6 +161,7 @@ describe('marketing shell text contrast', () => {
 
 		for (const rootSelector of roots) {
 			const root = shell!.querySelector(rootSelector);
+			expect(root, rootSelector).toBeTruthy();
 			if (!root) {
 				continue;
 			}

@@ -344,15 +344,9 @@ reading the code.
 **Shared UI rules (HARD, from radan-ui):** defined once in radan-ui and linked here, never copied. They apply in full
 to every UI change in `apps/front`:
 
-- [Visual consistency](https://github.com/radandevist/radan-ui/blob/main/docs/rules/visual-consistency.md): tokens never raw values, one shared primitive per pattern, flat surfaces with hairline rings, overrides are named exceptions.
-- [Composition](https://github.com/radandevist/radan-ui/blob/main/docs/rules/composition.md): parts through `children`, never config flags; a component with parts is a compound.
-- [Skeletons](https://github.com/radandevist/radan-ui/blob/main/docs/rules/skeletons.md): one library, one bone per real element, never a grey block.
-- [Mobile feels native](https://github.com/radandevist/radan-ui/blob/main/docs/rules/mobile-native.md): below `md`, bottom sheets not popovers, no visible ✕, no bottom nav, page state in the URL.
-- [Native navigation](https://github.com/radandevist/radan-ui/blob/main/docs/rules/native-navigation.md): below `md`, a page change is a whole-viewport screen change with a back arrow in the top bar.
-- [Forms in a drawer](https://github.com/radandevist/radan-ui/blob/main/docs/rules/forms-in-drawer.md): right drawer from `md`, bottom sheet below, sticky footer; modals only for confirmations.
-- [Motion](https://github.com/radandevist/radan-ui/blob/main/docs/rules/motion.md): one appear/disappear animation through `Collapse`; reduced motion respected.
+- [radan-ui binding rules index](https://github.com/radandevist/radan-ui/blob/main/docs/rules/README.md): the one link to every shared UI rule (visual consistency, composition, skeletons, mobile feel, navigation, forms, motion, and any added later).
 
-PublyApp already depends on `@radandevist/radan-ui` 0.2.0 (pinned in `apps/front/package.json`). That version ships six of these rule files at `node_modules/@radandevist/radan-ui/docs/rules/`; `native-navigation.md` first ships in 0.4.0. Moving the front to the package's rule files is part of [#2380](https://github.com/PublyApp/publyapp/issues/2380) (finish adopting radan-ui); until then the links above point at the radan-ui `main` branch.
+PublyApp depends on `@radandevist/radan-ui` 0.8.0 (pinned in `apps/front/package.json`). That version ships the rule files, index included, at `apps/front/node_modules/@radandevist/radan-ui/docs/rules/`. Moving the front to the package's rule files is part of [#2380](https://github.com/PublyApp/publyapp/issues/2380) (finish adopting radan-ui); until then the link above points at the radan-ui `main` branch.
 
 PublyApp's own application of these rules (which local components are already compounds): [`docs/guides/composition.md`](docs/guides/composition.md).
 
