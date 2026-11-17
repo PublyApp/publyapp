@@ -38,6 +38,7 @@ Zernio, and nothing may assume the route is permanent.
   - **D — platforms:** Facebook pages + Instagram first; other platforms later, one by one.
   - **A — publish status:** **webhooks**, « the official way, don't spam Zernio's API with polling ». Polling is not a path; the only safety net is ONE reconciliation `GET` per publication when no webhook arrived after a generous delay (see « Status tracking »).
   - **Safety net accepted:** the single reconciliation `GET` ~15 minutes after the send, when no webhook arrived (never periodic), is accepted as the fallback.
+  - **C — scheduling:** our own scheduler keeps the scheduled time; at due time we send `publishNow` to Zernio (no `scheduledFor` at Zernio).
   - **B — media:** via Zernio's presigned upload; our storage stays private. A future native Instagram route will need public signed media URLs (Meta fetches the image); out of scope now.
 - Added 14/11: **adaptable from day one** — swapping Zernio for another aggregator, or
   adding a second one, must be one adapter + config: no core-model migration, no UI
@@ -294,7 +295,7 @@ Goal: the account row, its history, publications, analytics and composer behavio
 - **Native note (« Path to native »):** Meta's Instagram API fetches the image itself from a **public URL**, so a future native Instagram route will need a public, expiring media URL anyway. That is a native-route concern; it does not change the recommendation for the bridge.
 - **Recommendation:** presign (option 1), inside the adapter. The port passes bytes (as providers already receive them), so Decision B is invisible to the domain.
 
-### C. Where does scheduling happen: our scheduler or Zernio's `scheduledFor`?
+### C. Where does scheduling happen: our scheduler or Zernio's `scheduledFor`? — DECIDED 2026-11-17: our scheduler, `publishNow`
 
 - **Option 1 — our scheduler** (`DispatchDuePostsJob`) fires at the due time and sends `publishNow`. Pro: one state machine, edit/cancel/reschedule work as for native accounts, aggregator-agnostic, nothing to reconcile. Con: depends on our worker being up at the due minute.
 - **Option 2 — send `scheduledFor` to Zernio.** Pro: Zernio publishes even if we are down. Con: two sources of truth; editing/cancelling must call Zernio and can race; every aggregator has different semantics.
