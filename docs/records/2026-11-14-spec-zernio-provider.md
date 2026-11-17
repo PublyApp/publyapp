@@ -39,6 +39,7 @@ Zernio, and nothing may assume the route is permanent.
   - **A — publish status:** **webhooks**, « the official way, don't spam Zernio's API with polling ». Polling is not a path; the only safety net is ONE reconciliation `GET` per publication when no webhook arrived after a generous delay (see « Status tracking »).
   - **Safety net accepted:** the single reconciliation `GET` ~15 minutes after the send, when no webhook arrived (never periodic), is accepted as the fallback.
   - **C — scheduling:** our own scheduler keeps the scheduled time; at due time we send `publishNow` to Zernio (no `scheduledFor` at Zernio).
+  - **E — post granularity:** one Zernio post per destination (per publication), not one grouped post. Reasons: our engine is per-destination; the native path is per-account; accounts may mix native and aggregator routes; retries are safe per destination with their own idempotency key; Zernio bills per connected account, not per call.
   - **B — media:** via Zernio's presigned upload; our storage stays private. A future native Instagram route will need public signed media URLs (Meta fetches the image); out of scope now.
 - Added 14/11: **adaptable from day one** — swapping Zernio for another aggregator, or
   adding a second one, must be one adapter + config: no core-model migration, no UI
@@ -308,7 +309,7 @@ Goal: the account row, its history, publications, analytics and composer behavio
 - **Trade-off:** each extra platform needs limits, media rules, error nuances and QA; Instagram alone already adds `RequiresMedia`.
 - **Recommendation:** Facebook pages + Instagram. Other platforms appear in the import list as « not supported yet » (disabled), enabled one registry entry at a time.
 
-### E. One aggregator post per publication, or one post for several accounts?
+### E. One aggregator post per publication, or one post for several accounts? — DECIDED 2026-11-17: one post per publication
 
 - **Option 1 — one Zernio post per publication** (our unit): clean per-destination status/URL/failure, simple idempotency key = publication id. Con: N calls for N destinations; content-hash dedup (24 h) can collide when the same text goes to the same account twice.
 - **Option 2 — one post with several platform entries** (as in the live test): fewer calls; but one key for several of our publications and partial results to split.
