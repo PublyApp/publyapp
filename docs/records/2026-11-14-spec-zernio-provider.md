@@ -1,6 +1,6 @@
 # #2343 — Publishing through an aggregator (Zernio first), bring-your-own-key (spec)
 
-Date: 2026-11-14 · Issue: #2343 · Status: draft for owner decisions
+Date: 2026-11-14 (owner decisions recorded 2026-11-17) · Issue: #2343 · Status: draft; decisions A and D settled, others open
 
 ## Goal
 
@@ -34,6 +34,9 @@ Zernio, and nothing may assume the route is permanent.
   `publishNow` returned 201 with one `platformPostUrl` per page; the same
   `Idempotency-Key` returned 200 and the same post (no duplicate). Instagram untested
   (needs an image).
+- **Decisions of 2026-11-17:**
+  - **D — platforms:** Facebook pages + Instagram first; other platforms later, one by one.
+  - **A — publish status:** **webhooks**, « the official way, don't spam Zernio's API with polling ». Polling is not a path; the only safety net is ONE reconciliation `GET` per publication when no webhook arrived after a generous delay (see « Status tracking »).
 - Added 14/11: **adaptable from day one** — swapping Zernio for another aggregator, or
   adding a second one, must be one adapter + config: no core-model migration, no UI
   rewrite; an account must be movable between native and via-aggregator without losing
@@ -86,11 +89,11 @@ Zernio, and nothing may assume the route is permanent.
   - **Content-hash dedup**: identical content to the same account within 24 h → `409` with `existingPostId`.
   - Responses: `201` created; `200` idempotent retry; `207` inline publish partly/fully failed (a 2xx: read `post.status`); `202` X pending; errors `400, 401 (missing/invalid_credentials), 402, 403 (ACCOUNT_DISCONNECTED, ACCOUNT_NOT_ENABLED_FOR_POSTING, PROFILE_OVER_LIMIT), 409, 429, 503` (« a timed-out write may have succeeded »).
   - Per-platform result: `platform, status, accountId, username, publishedAt, platformPostId, platformPostUrl, errorMessage, errorCategory, errorSource`. Post statuses: `draft, pending_approval, scheduled, publishing, published, partial, failed, cancelled`; platform statuses: `pending, processing, uploading, published, failed, cancelled`.
-- `GET /v1/posts/{id}` for polling; keep polling while `publishing`/`scheduled`; a TikTok entry can stay `publishing` up to 48 h — [post lifecycle](https://docs.zernio.com/guides/post-lifecycle).
+- `GET /v1/posts/{id}` returns the post and `platforms[]` status; a TikTok entry can stay `publishing` up to 48 h (used here only for the single reconciliation read, never periodic polling) — [post lifecycle](https://docs.zernio.com/guides/post-lifecycle).
 - `errorCategory`: `auth_expired, user_content, user_abuse, platform_rate_limit, quota_exhausted, account_issue, platform_rejected, platform_error, system_error, unknown`; `errorSource`: `user | platform | system` — same page. `POST /v1/posts/{id}/retry` reruns failed platforms — [error handling](https://docs.zernio.com/guides/error-handling).
 - Rate limits: 60 req/min up to 2 connected accounts, 600 for 3–2000; headers `X-RateLimit-*`, `Retry-After` on 429 — [rate limits](https://docs.zernio.com/guides/rate-limits).
 - Media: `POST /v1/media/presign {filename, contentType, size?}` → `{uploadUrl, publicUrl, key, expiresIn: 3600}`; `PUT` bytes to `uploadUrl` (no Authorization); `publicUrl` expires after 7 days unless used by a post (then copied to permanent storage); images JPEG/PNG/GIF/WebP; presign accepts up to 5 GB — [media uploads](https://docs.zernio.com/guides/media-uploads).
-- Webhooks: `POST /v1/webhooks/settings {name,url,events,secret}`; events `post.published, post.partial, post.failed, post.cancelled, post.platform.published, post.platform.failed…`; header `X-Zernio-Signature` = lowercase hex HMAC-SHA256 of the raw body (no timestamp); event `id` stable across retries (dedupe on it); respond 2xx within 5 s; up to 7 attempts over ~51 h, then dead-letter; endpoint disabled after 3 days of failures — [webhooks](https://docs.zernio.com/webhooks), [post events](https://docs.zernio.com/webhooks/posts). The exact post payload fields could not be confirmed from the docs pages read (open item for the webhook slice).
+- Webhooks: `POST /v1/webhooks/settings {name,url,events,secret,isActive?,accountIds?,profileIds?,customHeaders?,disabledResourceGroups?}` **registers a webhook through the API** (also `GET` list, `PUT` update/rotate secret via `webhookId`, `DELETE ?webhookId=`; max 50 per user; needs the key's `webhooks` resource group, profile-scoped keys get 403) — [create webhook settings](https://docs.zernio.com/webhooks/create-webhook-settings). Events `post.published` (all targets ok), `post.partial`, `post.failed` (all failed), `post.cancelled`, per platform `post.platform.published` / `post.platform.failed`, and `webhook.test` via `POST /v1/webhooks/test`; post events echo the `metadata` we send at creation as `post.metadata`, identify the post as `post._id` and targets at `post.platforms[].accountId`. Header `X-Zernio-Signature` = lowercase hex HMAC-SHA256 of the raw body keyed with the endpoint secret (legacy alias `X-Late-Signature`), **no timestamp**; the event `id` is identical on every retry; respond 2xx within 5 s; retries on 408/429/5xx/timeouts/HTML 2xx, other 4xx are terminal (dead-letter); up to 7 attempts over ~51 h; endpoint disabled after 3 days without success — [webhooks](https://docs.zernio.com/webhooks), [post events](https://docs.zernio.com/webhooks/posts). The exact per-event JSON field names (`platformPostUrl` etc.) are on per-event pages not read; the webhook slice must confirm them against a `webhook.test`/real delivery.
 - Platform limits (docs per platform, not exposed by an API as far as found): Facebook text up to 63,206 chars, up to 10 images, JPEG/PNG/GIF, 4 MB, text-only allowed — [facebook](https://docs.zernio.com/platforms/facebook); Instagram caption 2,200 chars, up to 20 images (carousel), JPEG/PNG, 8 MB, media required — [instagram](https://docs.zernio.com/platforms/instagram).
 - Billing: per connected account beyond 2 (cost on the organisation's own Zernio plan).
 
@@ -128,10 +131,13 @@ public interface IAggregatorAdapter {
     Task<KeyCheck> CheckKeyAsync(string apiKey, CancellationToken ct);          // test/rotate
     Task<ListedAccounts> ListAccountsAsync(string apiKey, CancellationToken ct); // import
     Task<AggregatorPostResult> PublishAsync(AggregatorPublishCall call, CancellationToken ct);
-    Task<AggregatorPostResult> GetPostAsync(string apiKey, string postId, CancellationToken ct); // reconcile + polling
+    Task<AggregatorPostResult> GetPostAsync(string apiKey, string postId, CancellationToken ct); // the single safety-net read + ambiguous-write reconcile
     ProviderCapability Narrow(ProviderCapability platformBaseline);              // may only NARROW the platform limits
     AggregatorTraits Traits { get; }                   // see Adaptability
-    // webhook slice only: WebhookVerifyResult Verify(rawBody, headers, secret), ParseEvent(rawBody)
+    Task<WebhookRegistration> RegisterWebhookAsync(string apiKey, string url, string secret, CancellationToken ct);  // or Manual
+    Task UnregisterWebhookAsync(string apiKey, string webhookId, CancellationToken ct);
+    WebhookVerifyResult Verify(ReadOnlySpan<byte> rawBody, IHeaderDictionary headers, string secret);
+    AggregatorEvent ParseEvent(ReadOnlySpan<byte> rawBody);                       // event id, post id, metadata, per-platform status/url/error
 }
 ```
 
@@ -154,9 +160,9 @@ The **platform account** is the stable thing: `SocialProvider` is the platform (
 
 ### Data model (expand-only migrations)
 
-1. `aggregator_connections` (new): `id, tenant_id, aggregator_kind (int, check in known values), protected_api_key (Data Protection, purpose "aggregator-<kind>-v1"), key_hint (last 4 chars, plain, for display), protected_webhook_secret (null until webhook slice), status (Active | Invalid), last_checked_at, last_error, + BaseAttributes`. Unique `(tenant_id, aggregator_kind)` where not deleted. One key per organisation per aggregator kind; a second aggregator later is another row, no schema change.
+1. `aggregator_connections` (new): `id, tenant_id, aggregator_kind (int, check in known values), protected_api_key (Data Protection, purpose "aggregator-<kind>-v1"), key_hint (last 4 chars, plain, for display), protected_webhook_secret (random, generated by us), aggregator_webhook_id (the id the aggregator gave the registered endpoint, null when registered manually), webhook_status (None | Registered | Failing | Manual), last_webhook_at, status (Active | Invalid), last_checked_at, last_error, + BaseAttributes`. Plus a small `aggregator_webhook_events` table `(aggregator_kind, event_id)` unique, with `received_at`, purged after 30 days (replay/duplicate protection). Unique `(tenant_id, aggregator_kind)` where not deleted. One key per organisation per aggregator kind; a second aggregator later is another row, no schema change.
 2. `social_accounts` (add columns): `delivery_route int not null default 0` (`Native = 0`, `Aggregator = 1`; every existing row is Native), `aggregator_kind int null`, `aggregator_account_id text null`; check: `delivery_route = 1` requires both aggregator columns. **The aggregator columns are not cleared when an account moves to native**: they become a read-only « previously via X » link (history/audit, and a possible way back). New `SocialCredentialType.Aggregated = 3`. `protected_credentials` is NOT NULL today: an aggregated-only account stores an empty protected value (relaxing to nullable is also expand-safe and preferable; the implementation PR decides). The unique index `(tenant, provider, external_account_id)` stays.
-3. `publications` (add nullable): `delivery_route int null` and `aggregator_kind int null` (snapshot of the route that carried THIS publication, set when it is sent; null on rows before this feature = native), `aggregator_post_id text null` (polling/reconcile). `external_record_id` / `external_url` already carry the platform post id / URL. The snapshot keeps « sent via Zernio » truthful in History after the account moved to native, and makes reconcile ask the route that actually wrote. No per-platform table: one aggregator post per publication (one platform each), so per-destination status stays our `Publication` row.
+3. `publications` (add nullable): `delivery_route int null` and `aggregator_kind int null` (snapshot of the route that carried THIS publication, set when it is sent; null on rows before this feature = native), `aggregator_post_id text null` (webhook correlation and the single reconcile read). `external_record_id` / `external_url` already carry the platform post id / URL. The snapshot keeps « sent via Zernio » truthful in History after the account moved to native, and makes reconcile ask the route that actually wrote. No per-platform table: one aggregator post per publication (one platform each), so per-destination status stays our `Publication` row.
 4. Enums stored numerically; new check-constraint values are added by a new constraint (`CK_SocialAccount_*`, provider check if any) in the same expand step. No column is dropped or retyped. Contract (cleanup) migrations are not part of this work.
 
 ### Key handling
@@ -178,6 +184,28 @@ The **platform account** is the stable thing: `SocialProvider` is the platform (
 - Permission: same social-accounts manage permission; feature entirely absent from the UI until the operator has not disabled it (reuse `ProviderAvailability` idea with an aggregator kind list, see Open decision 6).
 - Key invalid at publish time (401): connection flagged `Invalid`, banner on Integrations, publication paused `Reconnect`.
 
+### Webhook registration (at key save)
+
+Zernio **does** let us register webhooks through its API (`POST /v1/webhooks/settings`, requires the key's `webhooks` resource group). At key save, after the key check:
+
+1. Generate a random per-connection secret (stored encrypted as `protected_webhook_secret`; never shown after creation).
+2. Call adapter `RegisterWebhookAsync(apiKey, url = <PUBLIC_API_URL>/webhooks/aggregators/zernio/<connectionId>, secret)` which does `POST /v1/webhooks/settings` with `name: "PublyApp"`, `events: [post.platform.published, post.platform.failed, post.published, post.partial, post.failed, post.cancelled]`, `secret`, `isActive: true`; store the returned `_id` as `aggregator_webhook_id`; then `POST /v1/webhooks/test` once and mark `webhook_status = Registered` when the signed `webhook.test` arrives (otherwise `Failing` with the cause).
+3. **Fallbacks, all documented in the drawer:** a restricted key without the `webhooks` group or a profile-scoped key (403), the 50-webhook limit (400), or a non-public API URL (local dev) → `webhook_status = Manual`: the drawer shows the exact URL, event list and the generated secret once, with the steps to create it in the Zernio dashboard. Publishing still works (synchronous answers + the one-shot safety net); only asynchronous results depend on the webhook.
+4. Re-save (rotation) calls `PUT` with the new `secret` on the stored webhook id; if the id is gone (404) it registers again. Key removal calls `DELETE ?webhookId=` best effort (the key may already be dead) then deletes our row.
+5. `accountIds` filtering is NOT used in v1 (one webhook per organisation key covers all its accounts; re-imports need no webhook change).
+6. Public URL requirement: the API must be reachable by Zernio over the internet; dev/preview setups without one get `Manual`/`NotReachable` and the feature degrades as above.
+
+### Webhook endpoint
+
+`POST /webhooks/aggregators/{kind}/{connectionId}` (anonymous route, own rate-limit bucket, body limit, raw body read before any parsing):
+
+1. Load the connection by id and kind; unknown → `404` with no detail. Missing secret on our side → `500` fail closed (never process unsigned).
+2. `adapter.Verify(rawBody, headers, secret)`: Zernio = lowercase hex HMAC-SHA256 of the raw body in `X-Zernio-Signature` (or `X-Late-Signature`), constant-time compare; mismatch → `401` (Zernio treats 4xx as terminal, which is right for a forged request).
+3. `adapter.ParseEvent`; insert the event id into `aggregator_webhook_events` (unique); duplicate → `200` immediately (idempotent acknowledge).
+4. Enqueue a job carrying only `(connectionId, eventId, parsed minimal fields)` and return `200` within 5 s (Zernio's limit); the job calls `ApplyAggregatorStatus`. A processing crash is retried by our job engine, not by Zernio.
+5. Events not about a publication of ours (`message.*`, other post ids, `webhook.test`) are acknowledged and ignored (`webhook.test` updates `webhook_status`). Correlation: `aggregator_post_id` first, then `metadata.publicationId`, always checked to belong to the connection's tenant.
+6. Update `last_webhook_at`; the health check compares it with the safety-net outcomes.
+
 ### « Importer depuis Zernio »
 
 Generic UI label from the adapter's display name (« Importer depuis {aggregator} »), parameterised by kind.
@@ -196,7 +224,7 @@ Unchanged up to `PublishPublicationJobHandler`. For an aggregated account:
 1. Session opened as above (key).
 2. Media: images already fitted by `ImageDerivative` to the account capability, uploaded through the media path chosen in Decision B.
 3. `AggregatorPublishProvider` calls adapter `PublishAsync` with `{apiKey, aggregatorAccountId, platform, content, media, idempotencyKey = request.IdempotencyKey}`. Zernio adapter: `POST /v1/posts` with `Idempotency-Key = <our key>`, `publishNow: true`, one platform entry. `OnBeforeWrite` is called right before the POST (ambiguity journal as today).
-4. Result mapping: `201`/`200` with platform `published` → `PublishResult.Published(platformPostId, platformPostUrl)` (a `200` replay is `AlreadyExistsTreatedAsPublished`); `207`/platform `failed` → classified failure (below); platform `pending/processing`/post `publishing`/`scheduled` → `Pending`: store `aggregator_post_id`, job re-enqueues itself (delayed) to poll (Decision A).
+4. Result mapping: `201`/`200` with platform `published` → `PublishResult.Published(platformPostId, platformPostUrl)` (a `200` replay is `AlreadyExistsTreatedAsPublished`); `207`/platform `failed` → classified failure (below); platform `pending/processing`/post `publishing`/`scheduled` → `Pending`: store `aggregator_post_id`, publication stays `InProgress`, the job ends and **waits for the webhook** (« Status tracking »). We also send `metadata: { publicationId }` on the post so webhook events can be correlated even if `aggregator_post_id` was never stored (crash between response and write).
 5. Timeouts / `503` after the write started → `Ambiguous`. Reconcile: resending with the same `Idempotency-Key` inside Zernio's 24 h window is safe (`200` original, or `409 idempotency_conflict` → transient, retry after `Retry-After`); `ReconcileRequest.FirstAttemptAtUtc` decides: < 24 h → `SafeToResend`, otherwise `NeedsReview` (we never resend blind).
 6. `409` with `existingPostId` (content-hash dedup: same text to the same account within 24 h) → `ContentFailure("this exact post was already sent to this account in the last 24 hours")`, unless `existingPostId` equals our stored `aggregator_post_id` (then it is ours: treat as published).
 7. `429` → `TransientFailure(RetryAfter from header)`; connection errors before the write → `TransientFailure`.
@@ -205,7 +233,15 @@ Segments/threads: none (capability says no). `SetPublicationRendition` overrides
 
 ### Status tracking
 
-See Decision A. Our publication states stay unchanged (`Scheduled/InProgress/Published/Failed/Paused`); the adapter's raw status is not exposed to the UI. « Pending at the aggregator » is `InProgress` with a polling job; a final `failed` becomes `Failed` with category and cause; `partial` cannot occur with one platform per post.
+Decision A (2026-11-17): **webhooks**. Our publication states stay unchanged (`Scheduled/InProgress/Published/Failed/Paused`); the adapter's raw status is not exposed to the UI.
+
+1. **Common case — final answer in the `POST` response** (`publishNow` is synchronous): no webhook needed to finish; the later `post.*` event is a duplicate and is a no-op.
+2. **Pending case:** the publication stays `InProgress` with `aggregator_post_id`. The webhook `post.platform.published` / `post.platform.failed` (per our single platform target; the `post.published/failed` rollups say the same for a one-platform post) calls one internal command `ApplyAggregatorStatus(connectionId, postId|metadata.publicationId, platformStatus, url, error)`, which goes through `PublicationStatusTransitionService` like every other writer.
+3. **Idempotent updates.** Event dedupe on the event `id` (unique `(aggregator_kind, event_id)`: insert-or-ignore, so a retry or redelivery is acknowledged and dropped). The status command is also idempotent by state: a terminal publication (`Published`/`Failed`) ignores a later event; `Published` is never overwritten by a late `failed` of an older attempt; out-of-order events cannot move a publication backwards. The same event processed twice yields the same row.
+4. **Failure events** carry `errorCategory/errorMessage`: mapped by the adapter through the same table as the synchronous path (« Failure categories »), so the cause shown is identical whichever way it arrived.
+5. **Safety net (not polling).** For every publication still `InProgress` with an `aggregator_post_id`, **one** delayed reconciliation job runs once, 15 minutes after the send (configurable constant; longer for platforms known to be slow, e.g. a TikTok entry may stay `publishing` for 48 h, so such a platform's delay is larger when it is enabled): it does a **single** `GET /v1/posts/{id}` and applies the answer through the same command. If the post is still `publishing`, it does **not** reschedule itself: the publication is moved to `Failed`/`NeedsReview` with the cause « no final status from Zernio after 15 minutes; check the post on Zernio, then mark it published or retry ». Never a loop, never periodic: worst case is one extra call per publication that missed its webhook, and zero when webhooks arrive.
+6. **Webhook health.** If the connection's webhook is `Failing` (Zernio disabled it after 3 days of failures; or none arrived while the safety net fired repeatedly), Integrations shows a banner « Zernio status updates are not reaching PublyApp » with the next action (re-register); the safety net keeps publications from hanging.
+
 
 ### Limits advertised to the composer
 
@@ -241,13 +277,11 @@ Goal: the account row, its history, publications, analytics and composer behavio
 
 ## Open decisions for the owner
 
-### A. Status: webhooks or polling?
+### A. Status: webhooks or polling? — DECIDED 2026-11-17: webhooks
 
-- **What it decides:** how we learn the final result when the answer to `POST /v1/posts` is not final (`publishing`/`scheduled`, e.g. a slow Instagram media step) or when Zernio later marks a post failed.
-- **Option 1 — polling `GET /v1/posts/{id}`** from a delayed job (e.g. +10 s, +1 min, +5 min, then stop and mark `NeedsReview`). Pro: no public endpoint, no per-tenant secrets, works on localhost/dev and in the fake-server tests, uses the job engine we already have. Con: 1–3 extra calls per post (cheap vs 600/min), slightly delayed result.
-- **Option 2 — webhooks** (`post.platform.published/failed`). Pro: instant, no polling load, catches late failures. Con: a public endpoint per org (BYOK means each org's key registers its own webhook), a secret per connection, signature without timestamp (replay protection = dedupe on event `id`), Zernio can disable the endpoint after 3 days of failures, harder to test locally.
-- **Example:** an Instagram carousel is accepted at 10:00:00 as `processing`. Polling sees `published` at 10:00:10 and stores the URL. With webhooks we get the event at 10:00:06 but lose it if our endpoint was down more than ~51 h.
-- **Recommendation:** polling in v1 (synchronous `publishNow` already answers final for the common case). Build the webhook endpoint later as its own slice only if polling proves insufficient; the port already reserves `Verify/ParseEvent`.
+- **Owner decision:** webhooks, « the official way, don't spam Zernio's API with polling ». Polling is removed as a path; one reconciliation `GET` per publication after a generous delay is the only fallback (« Status tracking » step 5).
+- **What this costs us (accepted):** a public endpoint per aggregator kind, a secret per connection, registration at key save, replay protection by event-id dedupe (the signature has no timestamp), and harder local testing (mitigated by the fake aggregator server posting signed events to the endpoint in specs, and `webhook.test` for a manual check).
+- **Example:** an Instagram carousel is accepted at 10:00:00 as `processing`; Zernio posts `post.platform.published` at 10:00:06 with the URL; we record it once even if Zernio retries the delivery, and never call Zernio again for that post. If that webhook never arrives, a single `GET` at 10:15 settles it.
 
 ### B. Media: Zernio presign upload or our storage URLs?
 
@@ -265,7 +299,7 @@ Goal: the account row, its history, publications, analytics and composer behavio
 - **Example:** post scheduled for 18:00, user edits the text at 17:55: option 1 changes our row; option 2 must update the remote post and handle « already publishing ».
 - **Recommendation:** option 1 (our scheduler, `publishNow`). Revisit only if worker uptime becomes a real problem.
 
-### D. Which platforms first?
+### D. Which platforms first? — DECIDED 2026-11-17: Facebook pages + Instagram, others later one by one
 
 - **Option 1:** Facebook pages + Instagram only (what the live test covers; clear docs limits). **Option 2:** every platform Zernio lists (16+).
 - **Trade-off:** each extra platform needs limits, media rules, error nuances and QA; Instagram alone already adds `RequiresMedia`.
@@ -297,11 +331,11 @@ Example: adding « Ayrshare » (illustrative, not planned).
 3. Registration: one `AddHttpClient(...)` + `AddScoped<IAggregatorAdapter, AyrshareAdapter>()` line; adapters are resolved by `Kind` from `IEnumerable<IAggregatorAdapter>`.
 4. Config: none unless the aggregator needs a base URL override (test fake server) — the same `HttpClient` name pattern as Bluesky's.
 5. Front: **nothing structural.** The Integrations page lists aggregators from a `GET …/aggregators` endpoint (kind, display name, key help link, supported platforms) served from adapter metadata; the key drawer, « Importer depuis {name} » drawer and « via {name} » badge are generic and keyed by kind. Only i18n strings for the display name come from the adapter metadata, not new components.
-6. Webhooks (only if the adapter wants them): endpoint is `POST /webhooks/aggregators/{kind}/{connectionId}`; the generic controller loads the connection, calls `adapter.Verify(...)` with that connection's secret, dedupes on the event id, then `adapter.ParseEvent` → the same internal « post status changed » command that polling uses.
+6. **Webhooks (the primary status path, decision A):** one generic route `POST /webhooks/aggregators/{kind}/{connectionId}` (see « Webhook endpoint »). The adapter supplies only `RegisterWebhookAsync` / `UnregisterWebhookAsync` (or `Manual` instructions), `Verify(rawBody, headers, secret)` and `ParseEvent(rawBody)`; dedupe, idempotent apply, safety net and health are generic.
 7. **Same port, either route:** the second aggregator and every future native provider implement the same `IPublishProvider` contract behind `RoutingPublishProvider` (aggregator via `IAggregatorAdapter`, native directly); a native provider is NOT an « adapter », it is a sibling of `BlueskyPublishProvider`.
 8. **Not needed:** no new table, no change to `publications`, `social_accounts`, the job handler, the composer, validation, or failure-category code.
 
-`AggregatorTraits` exists only to describe what the adapter really needs us to do, filled by the adapter: `StatusVia` (`Synchronous | Polling | Webhook | Both`), `IdempotencyWindow` (Zernio: 24 h; `null` = no idempotency → the generic provider never auto-resends, falls to `NeedsReview`), `AcceptsBytes` vs `AcceptsPublicUrl` (Zernio: bytes via presign), `SupportsSchedulingRemotely` (informational; unused in v1, Decision C). If a second aggregator does not fit these four knobs we will see it then; we add nothing speculative now.
+`AggregatorTraits` exists only to describe what the adapter really needs us to do, filled by the adapter: `StatusVia` (`Webhook` for Zernio; `Synchronous` only means « final in the response »; there is no periodic polling mode), `IdempotencyWindow` (Zernio: 24 h; `null` = no idempotency → the generic provider never auto-resends, falls to `NeedsReview`), `AcceptsBytes` vs `AcceptsPublicUrl` (Zernio: bytes via presign), `SupportsSchedulingRemotely` (informational; unused in v1, Decision C). If a second aggregator does not fit these four knobs we will see it then; we add nothing speculative now.
 
 Guard against drift: an architecture spec fails the build if any type outside `Aggregators/Adapters/Zernio/` contains « zernio » (case-insensitive) in code identifiers or wire strings — the same style as the existing status-writer architecture guard. (i18n copy like « via Zernio » comes from adapter metadata, not literals in the front.)
 
@@ -328,11 +362,11 @@ Each slice has a fake aggregator HTTP server (`Fakes/FakeAggregatorServer`, an i
 2. **Import accounts (buildable now).** `social_accounts` route columns migration, `SocialProvider.Facebook/Instagram`, `ListAccountsAsync`, list/import/re-import endpoints, « via Zernio » badge, removed-on-Zernio handling. Tests: specs incl. idempotent re-import and unsupported platforms, vitest import drawer, e2e import.
 3. **Publish text (Facebook).** `AggregatorPublishProvider`, routing, session branch, `publications.aggregator_post_id`, idempotency + reconcile, failure mapping table, capability entries. Tests: provider specs per row of the mapping table with the fake server (201, 200 replay, 207, 401, 403, 409 both kinds, 429, 503 ambiguous, timeout), job handler spec with the fake, e2e publish to a fake Facebook page.
 4. **Media + Instagram.** Adapter presign upload, `RequiresMedia`, image fitting. Tests: upload failure paths, size/format caps, e2e Instagram image post (fake).
-5. **Status polling.** `Pending` result → delayed poll job; terminal mapping. Tests: fake returns `processing` then `published`/`failed`.
+5. **Webhook endpoint + status.** Generic route, `Verify/ParseEvent`, event table, `ApplyAggregatorStatus`, one-shot reconciliation job, webhook health banner. Tests: fake server posting signed events (valid, bad signature, no secret, duplicate event id, out-of-order, event for another tenant's connection, late `failed` after `published`), the safety net fires once and never reschedules, bad payload is 4xx without side effects, e2e Instagram pending → webhook → published.
 6. **Key removal/invalid states (UI).** Banner, paused publications, reconnect path. Tests: vitest + e2e.
-7. **(Optional, later) Webhook endpoint** — Decision A. **(Optional, later) Route switch** — Decision F.
+7. **(Later) Route switch** — Decision F.
 
-Buildable before the owner answers: slices 1 and 2, and slice 3 for Facebook text (decisions A–D only change slices 4–7; the recommendations are the defaults).
+Decisions A and D are settled; slices 1–3 are buildable now (slice 1 includes webhook registration at key save, see « Webhook registration »). Remaining open decisions (B, C, E, F, G) only affect slices 4, 6 and 7 and the recommendations are the defaults.
 
 Instagram needs one real-image live test by the owner before slice 4 is called done (the issue notes it is untested).
 
@@ -341,7 +375,7 @@ Instagram needs one real-image live test by the owner before slice 4 is called d
 - The API key is encrypted at rest with the existing Data Protection ring, shown only as `key_hint`, never logged, never in job payloads, error causes, audit entries, OpenAPI examples or the front bundle; `SocialSession` already redacts `AccessJwt`; secret-leak specs are extended.
 - Tenant isolation: every query is tenant-scoped (`ITenantEntity`); a test proves tenant A cannot list/import/publish with tenant B's connection or account ids; `aggregator_account_id` is only accepted if it came from the tenant's own `ListAccounts` result (re-validated on import).
 - SSRF: the adapter talks only to a fixed base URL from code (no user-supplied host, unlike Mastodon); URLs returned by the aggregator (`platformPostUrl`) are stored as data and validated as `https` before display/link; presign `uploadUrl` is requested only from the fixed base URL's response and checked to be `https`.
-- Webhook (when built): verify `X-Zernio-Signature` = HMAC-SHA256 over the **raw** body with a per-connection secret using a constant-time comparison; refuse (fail closed) when no secret is configured; respond within 5 s and process in a job; dedupe on event `id` (no timestamp in the signature, so replay protection is the dedupe); the endpoint is unauthenticated by design but rate-limited and resolves tenant only through the signed connection id.
-- Rate limits: honour `Retry-After` and `X-RateLimit-*`; the per-org Zernio limit (60 req/min with ≤ 2 accounts) is shared between import, publish and polling, so polling backs off.
+- Webhook endpoint: see « Webhook endpoint » below; unauthenticated by design, protected by the per-connection HMAC secret, constant-time comparison, fail closed, rate limit, event-id dedupe, and tenant resolved only through the connection the signature validated against.
+- Rate limits: honour `Retry-After` and `X-RateLimit-*`; the per-org Zernio limit (60 req/min with ≤ 2 accounts) is shared between import and publish; the status path makes no periodic calls, which is the point of decision A.
 - Logging: provider failures log category + status code, never request bodies containing content with keys, never the `Authorization` header.
 - Kill switch: deleting the connection stops all aggregated publishing for that organisation immediately.
