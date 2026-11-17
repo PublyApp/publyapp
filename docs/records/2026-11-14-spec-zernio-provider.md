@@ -40,6 +40,7 @@ Zernio, and nothing may assume the route is permanent.
   - **Safety net accepted:** the single reconciliation `GET` ~15 minutes after the send, when no webhook arrived (never periodic), is accepted as the fallback.
   - **C — scheduling:** our own scheduler keeps the scheduled time; at due time we send `publishNow` to Zernio (no `scheduledFor` at Zernio).
   - **E — post granularity:** one Zernio post per destination (per publication), not one grouped post. Reasons: our engine is per-destination; the native path is per-account; accounts may mix native and aggregator routes; retries are safe per destination with their own idempotency key; Zernio bills per connected account, not per call.
+  - **F — route switching:** the data model for switching an account's delivery route (changeable route on the account) is prepared now; the « move to native » screen/flow is built only when our first native platform app is approved. The flow stays documented in « Moving an account to native ».
   - **B — media:** via Zernio's presigned upload; our storage stays private. A future native Instagram route will need public signed media URLs (Meta fetches the image); out of scope now.
 - Added 14/11: **adaptable from day one** — swapping Zernio for another aggregator, or
   adding a second one, must be one adapter + config: no core-model migration, no UI
@@ -316,7 +317,7 @@ Goal: the account row, its history, publications, analytics and composer behavio
 - **Example:** same text to 2 Facebook pages: option 1 = 2 posts, 2 keys; option 2 = 1 post, `partial` possible.
 - **Recommendation:** option 1.
 
-### F. Native ↔ aggregator switching: build the endpoint now or later?
+### F. Native ↔ aggregator switching: build the endpoint now or later? — DECIDED 2026-11-17: model now, flow later
 
 - **Option 1 — model-ready now, UI/endpoint when our first native platform is approved.** The columns (`delivery_route`, retained aggregator link, publication snapshot) ship in slice 2, so no later migration of the core model is needed. **Option 2 — build the whole « Connect natively » flow now.** It cannot work before a native integration exists, so it would be dead code.
 - **Recommendation:** option 1. The flow is fully specified in « Moving an account to native » below so the first native PR only implements it.
