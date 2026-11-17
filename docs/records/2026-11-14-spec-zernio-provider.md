@@ -37,6 +37,8 @@ Zernio, and nothing may assume the route is permanent.
 - **Decisions of 2026-11-17:**
   - **D — platforms:** Facebook pages + Instagram first; other platforms later, one by one.
   - **A — publish status:** **webhooks**, « the official way, don't spam Zernio's API with polling ». Polling is not a path; the only safety net is ONE reconciliation `GET` per publication when no webhook arrived after a generous delay (see « Status tracking »).
+  - **Safety net accepted:** the single reconciliation `GET` ~15 minutes after the send, when no webhook arrived (never periodic), is accepted as the fallback.
+  - **B — media:** via Zernio's presigned upload; our storage stays private. A future native Instagram route will need public signed media URLs (Meta fetches the image); out of scope now.
 - Added 14/11: **adaptable from day one** — swapping Zernio for another aggregator, or
   adding a second one, must be one adapter + config: no core-model migration, no UI
   rewrite; an account must be movable between native and via-aggregator without losing
@@ -283,7 +285,7 @@ Goal: the account row, its history, publications, analytics and composer behavio
 - **What this costs us (accepted):** a public endpoint per aggregator kind, a secret per connection, registration at key save, replay protection by event-id dedupe (the signature has no timestamp), and harder local testing (mitigated by the fake aggregator server posting signed events to the endpoint in specs, and `webhook.test` for a manual check).
 - **Example:** an Instagram carousel is accepted at 10:00:00 as `processing`; Zernio posts `post.platform.published` at 10:00:06 with the URL; we record it once even if Zernio retries the delivery, and never call Zernio again for that post. If that webhook never arrives, a single `GET` at 10:15 settles it.
 
-### B. Media: Zernio presign upload or our storage URLs?
+### B. Media: Zernio presign upload or our storage URLs? — DECIDED 2026-11-17: presigned upload, our storage stays private
 
 - **What it decides:** how images reach Zernio.
 - **Option 1 — presign** (`POST /v1/media/presign`, `PUT` bytes, use `publicUrl`). Pro: our storage stays private (it is not publicly readable today), no new exposure, we already hold the bytes in the job (same as Bluesky/Mastodon upload). Con: one more round trip per image; presigned URL lives 1 h (fine, we upload right before posting); Zernio-specific, so the neutral port is « adapter receives bytes and decides » (a second aggregator that takes URLs would need its own upload).
