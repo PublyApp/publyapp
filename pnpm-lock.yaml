@@ -145,8 +145,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared-ts
       '@radandevist/radan-ui':
-        specifier: 0.7.0
-        version: 0.7.0(@base-ui/react@1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(sonner@2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
+        specifier: 0.8.0
+        version: 0.8.0(@base-ui/react@1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(sonner@2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
       '@tabler/icons-react':
         specifier: 3.50.0
         version: 3.50.0(react@19.3.1)
@@ -2226,8 +2226,8 @@ packages:
   '@posthog/types@1.419.0':
     resolution: {integrity: sha512-XX7zRYt/vK8AzaD6V+oDquAzacZf5exJv971dja9En8Qf6g84Qvc3rpT0w6hDYYLWrjaSSkdjFfvvoXI0ouJDg==}
 
-  '@radandevist/radan-ui@0.7.0':
-    resolution: {integrity: sha512-AEjT6HtAcp8dGcvw0QtjJIYTm8/W0tDQN7DOkZBS8IidZ4KbeG8MEb8Mlho5gef4YkZqAAtZqAxUoeXUdOkTXA==}
+  '@radandevist/radan-ui@0.8.0':
+    resolution: {integrity: sha512-iKSBTVIytnZS2wujJyH++bC4+EZSBxuc5EGTu5plDPFSmnm/3GHBLQZsmrk0gxgr2i/4AF5tertq9ZHVJt2PGA==}
     engines: {node: '>=22'}
     hasBin: true
     peerDependencies:
@@ -8115,7 +8115,7 @@ snapshots:
 
   '@posthog/types@1.419.0': {}
 
-  '@radandevist/radan-ui@0.7.0(@base-ui/react@1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(sonner@2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))':
+  '@radandevist/radan-ui@0.8.0(@base-ui/react@1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-native@0.88.1(@babel/core@7.29.13)(@react-native/metro-config@0.88.1(@babel/core@7.29.13))(@types/react@19.3.0)(react@19.3.1))(react@19.3.1)(sonner@2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))':
     dependencies:
       class-variance-authority: 0.7.1
       tailwind-merge: 3.7.0

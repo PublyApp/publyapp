@@ -346,7 +346,7 @@ to every UI change in `apps/front`:
 
 - [radan-ui binding rules index](https://github.com/radandevist/radan-ui/blob/main/docs/rules/README.md): the one link to every shared UI rule (visual consistency, composition, skeletons, mobile feel, navigation, forms, motion, and any added later).
 
-PublyApp depends on `@radandevist/radan-ui` 0.7.0 (pinned in `apps/front/package.json`). That version ships the rule files, index included, at `apps/front/node_modules/@radandevist/radan-ui/docs/rules/`. Moving the front to the package's rule files is part of [#2380](https://github.com/PublyApp/publyapp/issues/2380) (finish adopting radan-ui); until then the link above points at the radan-ui `main` branch.
+PublyApp depends on `@radandevist/radan-ui` 0.8.0 (pinned in `apps/front/package.json`). That version ships the rule files, index included, at `apps/front/node_modules/@radandevist/radan-ui/docs/rules/`. Moving the front to the package's rule files is part of [#2380](https://github.com/PublyApp/publyapp/issues/2380) (finish adopting radan-ui); until then the link above points at the radan-ui `main` branch.
 
 PublyApp's own application of these rules (which local components are already compounds): [`docs/guides/composition.md`](docs/guides/composition.md).
 
