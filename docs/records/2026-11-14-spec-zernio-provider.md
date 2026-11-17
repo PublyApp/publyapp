@@ -1,6 +1,6 @@
 # #2343 — Publishing through an aggregator (Zernio first), bring-your-own-key (spec)
 
-Date: 2026-11-14 (owner decisions recorded 2026-11-17) · Issue: #2343 · Status: draft; decisions A and D settled, others open
+Date: 2026-11-14 (owner decisions recorded 2026-11-17) · Issue: #2343 · Status: all owner decisions A–G decided (2026-11-17), ready for implementation slices
 
 ## Goal
 
@@ -41,6 +41,7 @@ Zernio, and nothing may assume the route is permanent.
   - **C — scheduling:** our own scheduler keeps the scheduled time; at due time we send `publishNow` to Zernio (no `scheduledFor` at Zernio).
   - **E — post granularity:** one Zernio post per destination (per publication), not one grouped post. Reasons: our engine is per-destination; the native path is per-account; accounts may mix native and aggregator routes; retries are safe per destination with their own idempotency key; Zernio bills per connected account, not per call.
   - **F — route switching:** the data model for switching an account's delivery route (changeable route on the account) is prepared now; the « move to native » screen/flow is built only when our first native platform app is approved. The flow stays documented in « Moving an account to native ».
+  - **G — operator switch:** none for now; Zernio appears only for an organisation that saves its own key.
   - **B — media:** via Zernio's presigned upload; our storage stays private. A future native Instagram route will need public signed media URLs (Meta fetches the image); out of scope now.
 - Added 14/11: **adaptable from day one** — swapping Zernio for another aggregator, or
   adding a second one, must be one adapter + config: no core-model migration, no UI
@@ -322,7 +323,7 @@ Goal: the account row, its history, publications, analytics and composer behavio
 - **Option 1 — model-ready now, UI/endpoint when our first native platform is approved.** The columns (`delivery_route`, retained aggregator link, publication snapshot) ship in slice 2, so no later migration of the core model is needed. **Option 2 — build the whole « Connect natively » flow now.** It cannot work before a native integration exists, so it would be dead code.
 - **Recommendation:** option 1. The flow is fully specified in « Moving an account to native » below so the first native PR only implements it.
 
-### G. Operator switch and who sees the feature
+### G. Operator switch and who sees the feature — DECIDED 2026-11-17: no switch
 
 - **Option 1:** reuse the `DISABLED_PUBLISH_PROVIDERS` idea with a sibling `DISABLED_AGGREGATORS` env (default: enabled). **Option 2:** no switch (the feature is invisible without a key anyway).
 - **Recommendation:** option 2 for v1 — an org without a key sees only a quiet « Connect Zernio » entry; add the env switch when an operator asks.
@@ -371,7 +372,7 @@ Each slice has a fake aggregator HTTP server (`Fakes/FakeAggregatorServer`, an i
 6. **Key removal/invalid states (UI).** Banner, paused publications, reconnect path. Tests: vitest + e2e.
 7. **(Later) Route switch** — Decision F.
 
-Decisions A and D are settled; slices 1–3 are buildable now (slice 1 includes webhook registration at key save, see « Webhook registration »). Remaining open decisions (B, C, E, F, G) only affect slices 4, 6 and 7 and the recommendations are the defaults.
+All decisions A–G are settled (2026-11-17); every slice is buildable (slice 1 includes webhook registration at key save, see « Webhook registration »).
 
 Instagram needs one real-image live test by the owner before slice 4 is called done (the issue notes it is untested).
 
