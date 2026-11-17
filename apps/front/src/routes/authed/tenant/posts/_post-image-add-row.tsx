@@ -27,71 +27,66 @@ type AddRowProps = {
 const formatTypes = (types: string[]): string =>
 	types.map((type) => type.replace('image/', '').toUpperCase()).join(', ');
 
-/** The notice lines under the "Add images" label: the advertised limits, why
- * adding is off, and the last failure. `cap` is the cap in force; null = none. */
-export const PostImageNotices = ({
-	limits,
-	cap,
-	noCommonType,
-	limitReached,
-	full,
-	failureMessage,
-}: {
-	limits: ImageLimits | null;
-	cap: number | null;
-	noCommonType: boolean;
-	limitReached: boolean;
-	full: boolean;
-	failureMessage: string;
-}) => {
+/** Notice lines under the "Add images" label. Each is a part the picker
+ * renders (or not) as a child of `PostImageAddRow`. */
+export const PostImageNoticeNoCommonType = () => {
+	const { t } = useTranslation(['posts']);
+
+	return (
+		<p
+			className="publy-type-helper text-muted-foreground"
+			data-testid="tenant-posts-create-image-no-common-type"
+		>
+			{t('posts:image-no-common-type')}
+		</p>
+	);
+};
+
+export const PostImageNoticeHelp = ({ limits }: { limits: ImageLimits }) => {
 	const { t, i18n } = useTranslation(['posts']);
 
 	return (
-		<>
-			{noCommonType ? (
-				<p
-					className="publy-type-helper text-muted-foreground"
-					data-testid="tenant-posts-create-image-no-common-type"
-				>
-					{t('posts:image-no-common-type')}
-				</p>
-			) : null}
-			{limits && !noCommonType ? (
-				<p className="publy-type-helper text-muted-foreground">
-					{t('posts:image-help', {
-						types: formatTypes(limits.acceptedImageContentTypes),
-						size: formatBytes(limits.maxImageBytes, i18n.language, 'limit'),
-						max: limits.maxImages,
-					})}
-				</p>
-			) : null}
-			{cap !== null && limitReached ? (
-				<p
-					className="publy-type-helper text-muted-foreground"
-					data-testid="tenant-posts-create-image-limit"
-				>
-					{t('posts:image-limit-reached', { max: cap })}
-				</p>
-			) : null}
-			{cap !== null && full && !limitReached ? (
-				<p
-					className="publy-type-helper text-muted-foreground"
-					data-testid="tenant-posts-create-image-full"
-				>
-					{t('posts:image-full', { max: cap })}
-				</p>
-			) : null}
-			{failureMessage ? (
-				<p
-					className="publy-type-helper text-[var(--publy-danger)]"
-					role="alert"
-				>
-					{failureMessage}
-				</p>
-			) : null}
-		</>
+		<p className="publy-type-helper text-muted-foreground">
+			{t('posts:image-help', {
+				types: formatTypes(limits.acceptedImageContentTypes),
+				size: formatBytes(limits.maxImageBytes, i18n.language, 'limit'),
+				max: limits.maxImages,
+			})}
+		</p>
 	);
 };
+
+export const PostImageNoticeLimitReached = ({ max }: { max: number }) => {
+	const { t } = useTranslation(['posts']);
+
+	return (
+		<p
+			className="publy-type-helper text-muted-foreground"
+			data-testid="tenant-posts-create-image-limit"
+		>
+			{t('posts:image-limit-reached', { max })}
+		</p>
+	);
+};
+
+export const PostImageNoticeFull = ({ max }: { max: number }) => {
+	const { t } = useTranslation(['posts']);
+
+	return (
+		<p
+			className="publy-type-helper text-muted-foreground"
+			data-testid="tenant-posts-create-image-full"
+		>
+			{t('posts:image-full', { max })}
+		</p>
+	);
+};
+
+export const PostImageNoticeFailure = ({ message }: { message: string }) => (
+	<p className="publy-type-helper text-[var(--publy-danger)]" role="alert">
+		{message}
+	</p>
+);
 
 /** The dashed "Add images" row: the file input, the advertised limits, and why
  * adding is off (full, or no image type shared by the destinations). */

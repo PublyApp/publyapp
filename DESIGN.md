@@ -72,11 +72,11 @@ raised/popover effect in radan-ui, not here. PublyApp does not override any rada
 define them): primary active/soft, marketing eyebrow, `--publy-foreground-subtle`, `--publy-border-strong`,
 disabled, table header, row border, dropdown/selection-bar/auth-panel/alert/chart/role-tone sets, the
 avatar palette, shell/container sizes, the z-index scale, motion, the danger-zone and the type scale
-(radan-ui 0.2.0 ships none). Scoped re-points (the landing night band) must re-point the `--radan-ui-*` variables, because the
+(radan-ui 0.7.0 ships none). Scoped re-points (the landing night band) must re-point the `--radan-ui-*` variables, because the
 Tailwind utilities read those.
 — source: `apps/front/src/styles/app.css` (`@import '@radandevist/radan-ui/theme.css'`, `:root`, `html.dark`, `@theme inline`), `apps/front/node_modules/@radandevist/radan-ui/dist/theme.css`
 
-**Semantic groups** (light value → dark value; values resolved through `app.css` aliases onto radan-ui's `theme.css`, as of radan-ui 0.2.0):
+**Semantic groups** (light value → dark value; values resolved through `app.css` aliases onto radan-ui's `theme.css`, as of radan-ui 0.7.0):
 
 | Group                   | Light                                | Dark                     | Notes                                                                                                                         |
 | ----------------------- | ------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
