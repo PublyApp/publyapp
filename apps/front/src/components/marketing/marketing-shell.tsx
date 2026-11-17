@@ -11,8 +11,8 @@ import { MarketingMobileNav } from './marketing-mobile-nav';
 /**
  * The marketing shell (#1038): the chrome every marketing page sits in.
  *
- * Header at CHROME width; the page body, social proof, CTA band and footer at
- * READING width. The mobile drawer and the cookie surfaces are owned here
+ * Header at CHROME width; the page body, any `bands` the caller composes
+ * (social proof, CTA band) and the footer at READING width. The mobile drawer and the cookie surfaces are owned here
  * rather than by any page, so their open state survives navigation between
  * marketing pages and there is exactly one of each in the tree.
  */
