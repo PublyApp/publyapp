@@ -69,7 +69,6 @@ const TEST_TS =
 const TEST_CS = /(\.Spec\.cs$|^apps\/api\/(Lib\/Testing|Tests)\/)/;
 const TOOLING =
 	/^(packages\/(scripts-ts|lint-ts|lint-cs|scripts-cs)\/|apps\/front\/(scripts|tools)\/)/;
-const FRONT = /^(apps\/front|packages\/shared-ts)\//;
 const CODE = /\.(cs|[cm]?[tj]sx?)$/;
 
 /** Zone of a source file (zones of AGENTS.md "Code quality"), or null when not judged. */
