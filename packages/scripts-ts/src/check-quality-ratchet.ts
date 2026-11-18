@@ -21,11 +21,6 @@ export interface ZoneBaseline {
 	complexityPer1k: number;
 	duplicationPer1k: number;
 }
-interface FunctionException {
-	path: string;
-	name: string;
-	reason: string;
-}
 export interface Baseline {
 	functionCap: number;
 	prSizeMaxLines: number;
@@ -33,7 +28,7 @@ export interface Baseline {
 	baselineExceptionLabel: string;
 	tolerancePer1k: number;
 	zones: Record<Zone, ZoneBaseline>;
-	exceptions: FunctionException[];
+	exceptions: { path: string; name: string; reason: string }[];
 }
 
 const isNum = (v: number | string | undefined): boolean =>
@@ -46,16 +41,13 @@ export const parseBaseline = (text: string): Baseline => {
 	for (const z of ZONES) {
 		nums.push(b.zones?.[z]?.complexityPer1k, b.zones?.[z]?.duplicationPer1k);
 	}
+	const namedWaivers = (w: Baseline['exceptions'] | undefined) =>
+		Array.isArray(w) && w.every((e) => e.reason && e.name !== '<anonymous>');
 	const labels = [b.sizeExceptionLabel, b.baselineExceptionLabel];
-	const waivers: FunctionException[] = Array.isArray(b.exceptions)
-		? b.exceptions
-		: [];
-	const badWaiver = waivers.some((e) => !e.reason || e.name === '<anonymous>');
 	if (
 		!nums.every(isNum) ||
-		!labels.every((l) => l) ||
-		!Array.isArray(b.exceptions) ||
-		badWaiver
+		!labels.every(Boolean) ||
+		!namedWaivers(b.exceptions)
 	) {
 		throw new Error(
 			'quality-baseline.json is invalid: numbers, labels, all zones and named waivers are required',
