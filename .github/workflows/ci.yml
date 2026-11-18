@@ -323,7 +323,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
     steps:
       - name: Checkout
         id: checkout
@@ -462,8 +461,6 @@ jobs:
         id: quality-ratchet
         if: always()
         continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: node packages/scripts-ts/src/check-quality-ratchet.ts
       - name: Collect ci-lane-result
         if: always()

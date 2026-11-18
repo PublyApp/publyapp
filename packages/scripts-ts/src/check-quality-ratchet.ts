@@ -400,24 +400,7 @@ const prLabels = (): string[] => {
 		return [];
 	}
 	const pr = JSON.parse(fs.readFileSync(eventPath, 'utf8')).pull_request;
-	const payload: string[] = (pr?.labels ?? []).map(
-		(l: { name: string }) => l.name,
-	);
-	if (!process.env.GH_TOKEN || !process.env.GITHUB_REPOSITORY) {
-		return payload;
-	}
-	// A re-run keeps the original payload: ask GitHub for the live labels.
-	const live = spawnSync(
-		'gh',
-		[
-			'api',
-			`repos/${process.env.GITHUB_REPOSITORY}/issues/${pr.number}/labels`,
-			'-q',
-			'.[].name',
-		],
-		{ encoding: 'utf8' },
-	);
-	return live.status === 0 ? live.stdout.split('\n').filter(Boolean) : payload;
+	return (pr?.labels ?? []).map((l: { name: string }) => l.name);
 };
 
 const resolveBase = (): string =>

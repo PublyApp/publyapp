@@ -13,7 +13,7 @@ The rule itself, for agents, is in [AGENTS.md](../../AGENTS.md) section "Quality
    Zones: `api`, `front` (`apps/front/src`, `packages/shared-ts`), `tests-api` (`*.Spec.cs`), `tests-front` (`*.test.*`, `*.spec.*`, e2e),
    `tooling` (scripts-ts, lint-ts, lint-cs, scripts-cs, `apps/front/scripts|tools`).
 3. **PR size.** More than `prSizeMaxLines` (600) added+deleted lines, excluding tests, generated files, migrations, lockfiles and
-   snapshots, fails. Only the owner may allow it, with the `size-exception` label (never add it yourself). Checked on `pull_request` only.
+   snapshots, fails. Only the owner may allow it, with the `size-exception` label (never add it yourself); after the label is set, edit the PR description (or push) so the check re-reads the label. Checked on `pull_request` only.
 
 Generated files, migrations and vendored code are out of scope everywhere.
 

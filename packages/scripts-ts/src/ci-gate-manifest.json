@@ -942,7 +942,7 @@
 			"reason": "No exact local command match for run step \"Check no ignored tracked files\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-no-ignored-tracked.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::guards::Check quality ratchet": {
-			"hash": "04cf339ebb8c1005",
+			"hash": "569cedd537d1dc8c",
 			"mirror": "just ci-quality-ratchet",
 			"reason": "just ci-quality-ratchet runs the same binary (node packages/scripts-ts/src/check-quality-ratchet.ts); locally it diffs against merge-base with origin/develop and skips the PR-size label lookup (CI-only: needs the PR event)."
 		},
