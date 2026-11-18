@@ -28,11 +28,7 @@ tool behind the weekly figures. Licence Elastic-2.0 allows internal CI use; C# n
 
 ## Locally and tightening
 
-```bash
-git commit ...             # it measures commits, not the working tree
-pnpm check:quality         # or: just ci-quality-ratchet (also runs the unit tests)
-```
-
-Base = `git merge-base HEAD origin/develop` (override: `QUALITY_BASE=<sha>`). To tighten a palier, a dedicated PR lowers zone
-values (edit `quality-baseline.json` by hand from the figures `pnpm check:quality` prints on the base branch) or `functionCap` / `prSizeMaxLines` / `tolerancePer1k`.
-Retire the gate if an off-the-shelf tool enforces the same three rules with the same numbers.
+Commit, then run `pnpm check:quality` (or `just ci-quality-ratchet`): it measures commits, not the working tree. Base =
+`git merge-base HEAD origin/develop` (override: `QUALITY_BASE=<sha>`). To tighten a palier, a dedicated PR lowers
+`quality-baseline.json` values by hand from the figures the command prints on the base branch. Retire the gate if an
+off-the-shelf tool enforces the same three rules with the same numbers.
