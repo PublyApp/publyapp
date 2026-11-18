@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	type Baseline,
 	type CoderotSnapshot,
+	assertCoverage,
 	assertSnapshot,
 	checkBaselineNotRaised,
 	checkFunctionCap,
@@ -11,6 +12,7 @@ import {
 	classifyPath,
 	countSizedLines,
 	measureZones,
+	parseBaseline,
 	parseTouches,
 	renamedTo,
 	toBaselineZones,
@@ -227,13 +229,15 @@ describe('baseline cannot rise', () => {
 		expect(checkBaselineNotRaised(baseline, waived, [])).toHaveLength(1);
 	});
 
-	it('allows lowering, a bootstrap without base, and the owner label', () => {
+	it('allows lowering, an owner-labelled bootstrap, and the owner label', () => {
 		const lowered = {
 			...baseline,
 			zones: { ...baseline.zones, api: { ...zone, complexityPer1k: 5 } },
 		};
 		expect(checkBaselineNotRaised(baseline, lowered, [])).toEqual([]);
-		expect(checkBaselineNotRaised(null, baseline, [])).toEqual([]);
+		expect(
+			checkBaselineNotRaised(null, baseline, ['quality-baseline-exception']),
+		).toEqual([]);
 		const raised = { ...baseline, functionCap: 20 };
 		expect(
 			checkBaselineNotRaised(baseline, raised, ['quality-baseline-exception']),
@@ -253,5 +257,51 @@ describe('renames', () => {
 		const diff =
 			'diff --git a/apps/api/A.cs b/apps/api/B.cs\nsimilarity index 100%\nrename from apps/api/A.cs\nrename to apps/api/B.cs\n';
 		expect(parseTouches(diff).size).toBe(0);
+	});
+});
+
+describe('baseline schema and coverage', () => {
+	const text = JSON.stringify(baseline);
+
+	it('accepts a valid baseline', () => {
+		expect(parseBaseline(text)).toEqual(baseline);
+	});
+
+	it('rejects quoted, deleted or mistyped thresholds and anonymous waivers', () => {
+		const front = '"front":{"complexityPer1k":10,"duplicationPer1k":20},';
+		const bad: [string, string][] = [
+			['"tolerancePer1k":0.5', '"tolerancePer1k":"0.5"'],
+			['"functionCap":15,', ''],
+			['"complexityPer1k":10', '"complexityPer1k":"10"'],
+			[front, ''],
+			['"exceptions":[]', '"exceptions":null'],
+			['"quality-baseline-exception"', '""'],
+			[
+				'"exceptions":[]',
+				'"exceptions":[{"path":"a","name":"<anonymous>","reason":"r"}]',
+			],
+		];
+		for (const [from, to] of bad) {
+			expect(text).toContain(from);
+			expect(() => parseBaseline(text.replace(from, to))).toThrow(/invalid/);
+		}
+	});
+
+	it('requires the owner label to introduce the baseline', () => {
+		expect(checkBaselineNotRaised(null, baseline, [])).toHaveLength(1);
+	});
+
+	it('fails when a judged tracked file is missing from the scan', () => {
+		const snap: CoderotSnapshot = {
+			files: [{ path: 'apps/api/A.cs', blob: 'a', test: false }],
+			blobs: {},
+			clones: [],
+		};
+		expect(() =>
+			assertCoverage(['apps/api/A.cs', 'README.md'], snap),
+		).not.toThrow();
+		expect(() =>
+			assertCoverage(['apps/api/A.cs', 'apps/api/B.cs'], snap),
+		).toThrow(/B\.cs/);
 	});
 });
