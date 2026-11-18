@@ -1096,8 +1096,8 @@ test('central workflow rejects six mutations for every one of its 106 classifier
 				rejected += 1;
 			}
 		}
-		assert.equal(mutatedWorkflows.size, 624);
-		assert.equal(rejected, 624);
+		assert.equal(mutatedWorkflows.size, 636);
+		assert.equal(rejected, 636);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
