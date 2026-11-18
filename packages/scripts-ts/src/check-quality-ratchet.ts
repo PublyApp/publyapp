@@ -80,10 +80,18 @@ export interface CoderotSnapshot {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../../..');
 const baselinePath = path.join(here, 'quality-baseline.json');
-const coderotBin = path.resolve(
-	here,
-	'../node_modules/@coderot-ai/cli/dist/coderot.js',
-);
+/** The measurement tool is pinned exactly in package.json (CODEOWNED); the gate refuses any other version. */
+export const CODEROT_VERSION = '1.5.0';
+const coderotDir = path.resolve(here, '../node_modules/@coderot-ai/cli');
+const coderotBin = path.resolve(here, coderotDir, 'dist/coderot.js');
+
+export const assertCoderotVersion = (installed: string): void => {
+	if (installed !== CODEROT_VERSION) {
+		throw new Error(
+			`@coderot-ai/cli ${installed} is installed, the gate requires ${CODEROT_VERSION}`,
+		);
+	}
+};
 
 const EXCLUDED =
 	/(\.g\.cs$|routeTree\.gen\.ts$|\/generated\/|\/Migrations\/|^packages\/client-ts\/|\/openapi\.json$|^\.worktrees\/|\/node_modules\/)/;
@@ -150,7 +158,7 @@ const cloneRanges = (snap: CoderotSnapshot) => {
 	return byPath;
 };
 
-/** Fails closed: an empty, partial or unparsed scan must never pass vacuously. */
+/** A blob the gate can trust: parsed, fully measured, finite non-negative numbers. */
 const validBlob = (b?: CoderotBlob): boolean =>
 	!!b &&
 	b.parsed !== false &&
@@ -177,6 +185,7 @@ const validClone = (paths: Set<string>, locations: CloneLocation[]) =>
 			l.start <= l.end,
 	);
 
+/** Fails closed: an empty scan, one with no valid clone, or an invalid in-scope file. */
 export const assertSnapshot = (snap: CoderotSnapshot): void => {
 	const paths = new Set((snap.files ?? []).map((f) => f.path));
 	const clones = snap.clones ?? [];
@@ -464,6 +473,10 @@ const run = (cmd: string, args: string[]): string => {
 };
 
 const readSnapshot = (): CoderotSnapshot => {
+	assertCoderotVersion(
+		JSON.parse(fs.readFileSync(path.join(coderotDir, 'package.json'), 'utf8'))
+			.version,
+	);
 	const out = fs.mkdtempSync(path.join(os.tmpdir(), 'quality-'));
 	try {
 		run(process.execPath, [

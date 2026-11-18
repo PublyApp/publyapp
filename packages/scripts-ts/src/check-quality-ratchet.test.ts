@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	type Baseline,
 	type CoderotSnapshot,
+	assertCoderotVersion,
 	assertCoverage,
 	assertSnapshot,
 	baseRef,
@@ -528,5 +529,12 @@ describe('owner approval, waivers and trivial deletions', () => {
 		expect(
 			checkFunctionCap(snap, parseTouches(head + '-  doIt();\n'), baseline),
 		).toHaveLength(1);
+	});
+});
+
+describe('measurement tool pin', () => {
+	it('accepts only the pinned coderot version', () => {
+		expect(() => assertCoderotVersion('1.5.0')).not.toThrow();
+		expect(() => assertCoderotVersion('1.6.0')).toThrow(/requires 1\.5\.0/);
 	});
 });
