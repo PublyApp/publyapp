@@ -28,9 +28,6 @@ export interface Baseline {
 	exceptions: { path: string; name: string; reason: string }[];
 }
 
-const isNum = (v: number | string | undefined): boolean =>
-	typeof v === 'number' && Number.isFinite(v);
-
 /** Strict schema: a quoted, deleted or mistyped threshold must fail, never silently disable a check. */
 export const parseBaseline = (text: string): Baseline => {
 	const b = JSON.parse(text);
@@ -42,7 +39,7 @@ export const parseBaseline = (text: string): Baseline => {
 		Array.isArray(w) && w.every((e) => e.reason && e.name !== '<anonymous>');
 	const labels = [b.sizeExceptionLabel, b.baselineExceptionLabel];
 	if (
-		!nums.every(isNum) ||
+		!nums.every(Number.isFinite) ||
 		!labels.every(Boolean) ||
 		!namedWaivers(b.exceptions)
 	) {
