@@ -346,6 +346,14 @@ ci-dockerignore-shadow:
   pnpm --filter scripts-ts exec vitest run src/check-dockerignore-shadow.test.ts
   node ./packages/scripts-ts/src/check-dockerignore-shadow.ts
 
+# #2438 quality palier 1: new/modified functions <= 15 cognitive complexity, per-zone
+# complexity/duplication ratchet, PR size. Measures COMMITTED code (commit first).
+# Mirrors .github/workflows/ci.yml::guards::Check quality ratchet. See docs/guides/quality-ratchet.md.
+ci-quality-ratchet:
+  @echo "=== [gate] quality ratchet (#2438) ==="
+  pnpm --filter scripts-ts exec vitest run src/check-quality-ratchet.test.ts
+  node ./packages/scripts-ts/src/check-quality-ratchet.ts
+
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:
   @echo "=== [gate] install (frozen lockfile, no scripts) ==="
@@ -553,7 +561,7 @@ e2e-smoke:
 
 
 # Everyday pre-push gate (no e2e). Fails on the first red sub-gate.
-ci: ci-drift ci-migration-expand-contract ci-doc-links ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-dockerignore-shadow ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-npm-audit-production ci-npm-audit-development ci-spec-drift nuget-audit ci-api-shard-partition test-api
+ci: ci-drift ci-migration-expand-contract ci-doc-links ci-deploy-env-docs ci-project-closure-adapter ci-no-ignored-tracked ci-dockerignore-shadow ci-quality-ratchet ci-install ci-format ci-lint ci-lint-ts ci-knip ci-shared-ts ci-quality ci-front ci-npm-audit-production ci-npm-audit-development ci-spec-drift nuget-audit ci-api-shard-partition test-api
   @echo ""
   @echo "=== just ci: PASSED ==="
   @echo "Not covered here: the two e2e suites (run 'just ci-full')."

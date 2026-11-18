@@ -1,0 +1,36 @@
+{
+	"$comment": [
+		"Palier 1 quality gate (#2438). Single source of truth for thresholds, read by check-quality-ratchet.ts.",
+		"Ratchet: a zone metric (cognitive complexity / duplicated lines per 1000 SLOC, measured by coderot) may not exceed the value here + tolerancePer1k.",
+		"Lower a value in the same PR that improves the zone: `pnpm check:quality --write` (never raises). Raising needs a documented owner exception.",
+		"Tolerance 0.5 absorbs 0.1-rounding and clone-detection noise between merge commits (one extra complexity-15 function adds ~0.2 per 1k in the smallest zone).",
+		"exceptions: functions allowed above functionCap, each with a reason. See docs/guides/quality-ratchet.md."
+	],
+	"functionCap": 15,
+	"prSizeMaxLines": 600,
+	"sizeExceptionLabel": "size-exception",
+	"tolerancePer1k": 0.5,
+	"zones": {
+		"api": {
+			"complexityPer1k": 93.4,
+			"duplicationPer1k": 158.2
+		},
+		"front": {
+			"complexityPer1k": 86.8,
+			"duplicationPer1k": 81.6
+		},
+		"tests-api": {
+			"complexityPer1k": 23,
+			"duplicationPer1k": 372.8
+		},
+		"tests-front": {
+			"complexityPer1k": 42.7,
+			"duplicationPer1k": 241.2
+		},
+		"tooling": {
+			"complexityPer1k": 231.6,
+			"duplicationPer1k": 39.4
+		}
+	},
+	"exceptions": []
+}
