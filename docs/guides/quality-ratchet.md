@@ -34,5 +34,5 @@ pnpm check:quality         # or: just ci-quality-ratchet (also runs the unit tes
 ```
 
 Base = `git merge-base HEAD origin/develop` (override: `QUALITY_BASE=<sha>`). To tighten a palier, a dedicated PR lowers zone
-values (measure on the base branch, then `pnpm check:quality --write`) or `functionCap` / `prSizeMaxLines` / `tolerancePer1k`.
+values (edit `quality-baseline.json` by hand from the figures `pnpm check:quality` prints on the base branch) or `functionCap` / `prSizeMaxLines` / `tolerancePer1k`.
 Retire the gate if an off-the-shelf tool enforces the same three rules with the same numbers.

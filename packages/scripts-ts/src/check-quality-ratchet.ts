@@ -21,7 +21,7 @@ export interface ZoneBaseline {
 	complexityPer1k: number;
 	duplicationPer1k: number;
 }
-export interface FunctionException {
+interface FunctionException {
 	path: string;
 	name: string;
 	reason: string;
@@ -97,16 +97,12 @@ export const classifyPath = (file: string): Zone | null => {
 /** Files that never count toward the PR size budget. */
 const SIZE_EXEMPT =
 	/(pnpm-lock\.yaml$|package-lock\.json$|packages\.lock\.json$|\.lock$|\.snap$|\/__snapshots__\/)/;
-export const isSizeExempt = (file: string): boolean => {
-	if (SIZE_EXEMPT.test(file) || EXCLUDED.test(file)) {
-		return true;
-	}
-	return (
-		TEST_CS.test(file) ||
-		/(\/__tests__\/|\.(test|spec)\.[cm]?[tj]sx?$)/.test(file) ||
-		TEST_TS.test(file)
-	);
-};
+export const isSizeExempt = (file: string): boolean =>
+	SIZE_EXEMPT.test(file) ||
+	EXCLUDED.test(file) ||
+	TEST_CS.test(file) ||
+	TEST_TS.test(file) ||
+	/(\/__tests__\/|\.(test|spec)\.[cm]?[tj]sx?$)/.test(file);
 
 // ----------------------------------------------------------------- metrics
 
@@ -457,14 +453,6 @@ const readBaselineAt = (base: string): Baseline | null => {
 	}
 };
 
-const writeBaseline = (b: Baseline): void => {
-	const raw = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
-	fs.writeFileSync(
-		baselinePath,
-		JSON.stringify({ ...raw, ...b }, null, '\t') + '\n',
-	);
-};
-
 const main = (): number => {
 	const baseline = readBaseline();
 	const snap = readSnapshot();
@@ -472,10 +460,6 @@ const main = (): number => {
 	const measured = toBaselineZones(measureZones(snap));
 	for (const z of ZONES) {
 		console.log(`${z}: ${JSON.stringify(measured[z])}`);
-	}
-	if (process.argv.includes('--write')) {
-		writeBaseline({ ...baseline, zones: measured });
-		return 0;
 	}
 	const base = resolveBase();
 	const labels = prLabels();
