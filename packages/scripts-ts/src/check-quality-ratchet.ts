@@ -62,8 +62,6 @@ const coderotBin = path.resolve(
 	'../node_modules/@coderot-ai/cli/dist/coderot.js',
 );
 
-// ---------------------------------------------------------------- classify
-
 const EXCLUDED =
 	/(\.g\.cs$|routeTree\.gen\.ts$|\/generated\/|\/Migrations\/|^packages\/client-ts\/|\/openapi\.json$|^\.worktrees\/|\/node_modules\/)/;
 const TEST_TS =
@@ -103,8 +101,6 @@ export const isSizeExempt = (file: string): boolean =>
 	TEST_CS.test(file) ||
 	TEST_TS.test(file) ||
 	/(\/__tests__\/|\.(test|spec)\.[cm]?[tj]sx?$)/.test(file);
-
-// ----------------------------------------------------------------- metrics
 
 export type ZoneMetrics = Record<
 	Zone,
@@ -247,8 +243,6 @@ export const checkBaselineNotRaised = (
 	);
 };
 
-// ------------------------------------------------------------ function cap
-
 export interface Touch {
 	start: number;
 	end: number;
@@ -346,8 +340,6 @@ export const checkFunctionCap = (
 	return errors;
 };
 
-// ----------------------------------------------------------------- PR size
-
 /** `git diff --numstat -M` prints renames as `a => b` or `d/{a => b}/x`: keep the new path. */
 export const renamedTo = (name: string): string =>
 	name
@@ -383,8 +375,6 @@ export const checkPrSize = (
 		`SIZE ${lines} changed lines (excluding tests, generated files, migrations, lockfiles, snapshots) > ${baseline.prSizeMaxLines}. Split the PR; only the owner may allow it with the "${baseline.sizeExceptionLabel}" label.`,
 	];
 };
-
-// --------------------------------------------------------------------- I/O
 
 const run = (cmd: string, args: string[]): string => {
 	const r = spawnSync(cmd, args, {
