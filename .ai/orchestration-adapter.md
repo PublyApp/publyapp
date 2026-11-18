@@ -77,13 +77,12 @@ reintroduce a predecessor workflow.
 - After each task reaches `APPROVED`, merge its task branch into `feat/front-2-phase-1-m1` before starting dependent work.
 - Final gate: global review after all four tasks, loop until `VERDICT: APPROVED`, then PR to `develop`. (Historical: this run was bound to a GPT-5.5 `xhigh` reviewer. GPT-5.5 is retired from the ladder — see `model_ladder` — so a re-run would take its reviewer from the current ladder.)
 
-## Code quality palier 1 — paste into every implementer and reviewer brief
+## Code quality palier 1 — every implementer and reviewer brief
 
-Owner decision 2026-11-18 (AGENTS.md « Code quality — palier 1 »): every added or modified
-function ≤ 15 cognitive complexity; no zone may rise in complexity or duplication per 1,000
-lines; PR ≤ 600 changed lines excluding tests, generated files, migrations and lockfiles.
-Reviewers treat a breach as a MEDIUM finding (blocks the merge). Numbers only get stricter in
-later paliers.
+Every brief links [AGENTS.md « Code quality — palier 1 »](../AGENTS.md#code-quality--palier-1-hard-owner-decision-2026-11-18)
+and tells the agent to apply its three rules (function cap, no zone may rise, PR size) and, once
+#2438 is merged, to run `pnpm check:quality` before pushing. Do not paraphrase the numbers in the
+brief: link the section. A breach is a blocking QUALITY finding (see that section), never a MINOR.
 
 ## Hard Stops
 

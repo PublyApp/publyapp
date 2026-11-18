@@ -11,22 +11,46 @@ and this repo's adapter at [`.ai/orchestration-adapter.md`](.ai/orchestration-ad
 
 These numbers are a **first step**: each later palier makes them stricter, never looser.
 
-- Every function you **add or modify** (C#, TypeScript; product, tooling and tests) has a
-  cognitive complexity of **15 or less**. Split it otherwise.
-- A change must **not raise** the complexity or the duplication per 1,000 lines of any zone:
-  `api`, `front`, API tests (`*.Spec.cs`), front tests, tooling (guards, `lint-*`, `scripts-*`).
-  Reuse an existing helper instead of copying code, in tests too.
-- A PR stays at **600 changed lines or fewer**, excluding tests, generated files, migrations and
-  lockfiles. Split larger work into several PRs unless the owner grants an exception.
-- Targets for palier 1 (end of January 2027) and the 2026-11-18 baseline: issue
-  [#2438](https://github.com/PublyApp/publyapp/issues/2438) and its comments. Work items:
-  [#2439](https://github.com/PublyApp/publyapp/issues/2439) (front),
-  [#2440](https://github.com/PublyApp/publyapp/issues/2440) (tooling),
-  [#2441](https://github.com/PublyApp/publyapp/issues/2441) (tests).
-- Measured with `npx @coderot-ai/cli@1.5.0 analyze --since 12m --out <dir outside the repo>`
-  (local only; never run its `ci` mode, which uploads metrics). The CI gate is being added by
-  [#2438](https://github.com/PublyApp/publyapp/issues/2438); until it lands, reviewers enforce
-  these rules by hand.
+**Scope.** C# and TypeScript files in the zones below. Generated files (`*.g.cs`, `routeTree.gen.ts`,
+`packages/client-ts`, `generated/`), EF migrations and vendored code are out of scope everywhere.
+
+| Zone | Paths |
+|---|---|
+| `api` | `apps/api`, excluding `*.Spec.cs` |
+| `front` | `apps/front/src`, `packages/shared-ts`, excluding tests |
+| `tests-api` | `*.Spec.cs` under `apps/api` |
+| `tests-front` | `*.test.*`, `*.spec.*`, `apps/front/e2e`, `apps/front/tests` |
+| `tooling` | `packages/scripts-ts`, `packages/scripts-cs`, `packages/lint-ts`, `packages/lint-cs` (their specs included), `apps/front/scripts`, `apps/front/tools` |
+
+Anything else (`apps/mobile`, `apps/apphost`) is not judged in palier 1.
+
+1. **Function cap.** Every function you add, or modify (the PR diff touches a line in its own body,
+   not only in a nested function), has a cognitive complexity of **15 or less**. Split it otherwise.
+2. **No zone may rise.** Complexity and duplicated lines per 1,000 source lines (SLOC) of each zone stay
+   at or below the committed baseline. Reuse an existing helper instead of copying code, in tests too.
+3. **PR size.** At most **600 changed lines** (added + deleted), excluding tests, generated files,
+   migrations, lockfiles and snapshots. Larger work is split into several PRs. Only the owner can
+   allow more, by setting the `size-exception` label on the PR; an agent never sets it.
+
+**Enforcement.** The required CI gate, the committed baseline
+(`packages/scripts-ts/src/quality-baseline.json`), the measurement (`@coderot-ai/cli`, local only; its
+upload mode `ci` is never used) and the local command `pnpm check:quality` arrive with
+[#2438](https://github.com/PublyApp/publyapp/issues/2438). Until that gate is merged, reviewers check
+rules 1 and 3 by hand; rule 2 is only checked by the gate.
+
+**Admission.** This gate is an owner-mandated exception to the « Bespoke guard admission » hard rule
+below (owner decision 2026-11-18, palier 1): when the two conflict, this section wins for the quality
+gate only. Retirement condition: the gate is replaced if an off-the-shelf tool enforces the same three
+rules with the same numbers.
+
+**Review severity.** A breach of rules 1–3 is a **blocking QUALITY finding**, outside the usual
+CRITICAL/MAJOR/MEDIUM/MINOR user-scenario rubric: it blocks the merge and is never downgraded to MINOR.
+
+Palier 1 targets (end of January 2027) and the 2026-11-18 measurements: issue
+[#2438](https://github.com/PublyApp/publyapp/issues/2438). Work items:
+[#2439](https://github.com/PublyApp/publyapp/issues/2439) (front),
+[#2440](https://github.com/PublyApp/publyapp/issues/2440) (tooling),
+[#2441](https://github.com/PublyApp/publyapp/issues/2441) (tests).
 
 ## Project Overview
 
