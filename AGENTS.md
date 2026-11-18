@@ -16,13 +16,13 @@ These numbers are a **first step**: each later palier makes them stricter, never
 
 | Zone | Paths |
 |---|---|
-| `api` | `apps/api`, excluding `*.Spec.cs` |
+| `api` | `apps/api`, excluding `tests-api` |
 | `front` | `apps/front/src`, `packages/shared-ts`, excluding tests |
-| `tests-api` | `*.Spec.cs` under `apps/api` |
-| `tests-front` | `*.test.*`, `*.spec.*`, `apps/front/e2e`, `apps/front/tests` |
+| `tests-api` | `*.Spec.cs` under `apps/api`, `apps/api/Lib/Testing/**`, `apps/api/Tests/**` |
+| `tests-front` | `*.test.*` and `*.spec.*` under `apps/front/src` and `packages/shared-ts`; `apps/front/e2e`; `apps/front/tests` |
 | `tooling` | `packages/scripts-ts`, `packages/scripts-cs`, `packages/lint-ts`, `packages/lint-cs` (their specs included), `apps/front/scripts`, `apps/front/tools` |
 
-Anything else (`apps/mobile`, `apps/apphost`) is not judged in palier 1.
+Precedence when a file matches two rows: `tooling` first, then the test zones, then `api`/`front`. Anything else (`apps/mobile`, `apps/apphost`) is not judged in palier 1.
 
 1. **Function cap.** Every function you add, or modify (the PR diff touches a line in its own body,
    not only in a nested function), has a cognitive complexity of **15 or less**. Split it otherwise.
@@ -33,10 +33,12 @@ Anything else (`apps/mobile`, `apps/apphost`) is not judged in palier 1.
    allow more, by setting the `size-exception` label on the PR; an agent never sets it.
 
 **Enforcement.** The required CI gate, the committed baseline
-(`packages/scripts-ts/src/quality-baseline.json`), the measurement (`@coderot-ai/cli`, local only; its
-upload mode `ci` is never used) and the local command `pnpm check:quality` arrive with
-[#2438](https://github.com/PublyApp/publyapp/issues/2438). Until that gate is merged, reviewers check
-rules 1 and 3 by hand; rule 2 is only checked by the gate.
+(`packages/scripts-ts/src/quality-baseline.json`), the measurement procedure and the local command
+`pnpm check:quality` are described in [`docs/guides/quality-ratchet.md`](docs/guides/quality-ratchet.md),
+added by PR [#2443](https://github.com/PublyApp/publyapp/pull/2443) (issue
+[#2438](https://github.com/PublyApp/publyapp/issues/2438)). The measurement uses `@coderot-ai/cli`
+locally; its upload mode `ci` is never used. Until that gate is merged, reviewers check rules 1 and 3
+by hand; rule 2 is only checked by the gate.
 
 **Admission.** This gate is an owner-mandated exception to the « Bespoke guard admission » hard rule
 below (owner decision 2026-11-18, palier 1): when the two conflict, this section wins for the quality
