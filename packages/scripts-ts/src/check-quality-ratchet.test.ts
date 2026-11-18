@@ -9,6 +9,7 @@ import {
 	type Baseline,
 	type CoderotSnapshot,
 	assertCoverage,
+	assertDuplicates,
 	assertSnapshot,
 	baseRef,
 	checkBaselineNotRaised,
@@ -20,6 +21,7 @@ import {
 	measureZones,
 	parseBaseline,
 	parseTouches,
+	policyFor,
 	readBaselineAt,
 	renamedTo,
 	toBaselineZones,
@@ -189,7 +191,14 @@ describe('fail closed', () => {
 			{ path: 'packages/scripts-ts/src/a.ts', blob: 'a', test: false },
 		],
 		blobs: { a: { sloc: 1, functions: [] } },
-		clones: [{ locations: [] }],
+		clones: [
+			{
+				locations: [
+					{ path: 'apps/api/A.cs', start: 1, end: 5 },
+					{ path: 'apps/api/B.cs', start: 1, end: 5 },
+				],
+			},
+		],
 	});
 
 	it('accepts a complete snapshot', () => {
@@ -200,14 +209,23 @@ describe('fail closed', () => {
 		expect(() => assertSnapshot({ ...full(), files: [] })).toThrow();
 		expect(() => assertSnapshot({ ...full(), clones: undefined })).toThrow();
 		expect(() => assertSnapshot({ ...full(), clones: [] })).toThrow(
-			/no clones/,
+			/no real clone/,
 		);
+		expect(() =>
+			assertSnapshot({ ...full(), clones: [{ locations: [] }] }),
+		).toThrow(/no real clone/);
 		expect(() => assertSnapshot({ ...full(), blobs: {} })).toThrow(
 			/fully measure/,
 		);
 		const unparsed = full();
 		unparsed.blobs.a = { sloc: 1, functions: [], parsed: false };
 		expect(() => assertSnapshot(unparsed)).toThrow();
+		const nan = full();
+		nan.blobs.a = {
+			sloc: 1,
+			functions: [{ name: 'f', start: 1, end: 2, cognitive: Number.NaN }],
+		};
+		expect(() => assertSnapshot(nan)).toThrow(/fully measure/);
 		const partial = full();
 		partial.blobs.a = { sloc: 1, functions: [], unmeasuredFunctions: 2 };
 		expect(() => assertSnapshot(partial)).toThrow();
@@ -317,7 +335,7 @@ describe('owner controls, base and size scope', () => {
 	it('exempts generated or derived files from the size budget', () => {
 		const stat = (f: string) => '700\t0\tpackages/scripts-ts/src/' + f;
 		expect(countSizedLines(stat('reason-guard-ref.json'))).toBe(0);
-		expect(countSizedLines(stat('ci-gate-manifest.json'))).toBe(0);
+		expect(countSizedLines(stat('ci-gate-manifest.json'))).toBe(700);
 		expect(countSizedLines(stat('other.ts'))).toBe(700);
 	});
 
@@ -345,7 +363,85 @@ describe('readBaselineAt', () => {
 			git(dir, 'add', '-A');
 			git(dir, 'commit', '-q', '-m', 'b');
 			expect(readBaselineAt('HEAD', dir)).toEqual(baseline);
-			expect(() => readBaselineAt('deadbeef', dir)).toThrow(/cannot read base/);
+			expect(() => readBaselineAt('deadbeef', dir)).toThrow(/cannot read/);
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+});
+
+describe('remaining failure modes', () => {
+	it('flags a function when a pure deletion removes its last line', () => {
+		const snap = snapshot([{ name: 'big', start: 10, end: 29, cognitive: 16 }]);
+		const diff =
+			'diff --git a/apps/api/Modules/A.cs b/apps/api/Modules/A.cs\n+++ b/apps/api/Modules/A.cs\n@@ -30 +29,0 @@\n';
+		expect(checkFunctionCap(snap, parseTouches(diff), baseline)).toHaveLength(
+			1,
+		);
+	});
+
+	it('fails on a zone with code but no duplication, and on NaN measures', () => {
+		const flat = { sloc: 10, cognitive: 1, duplicated: 0 };
+		const m = {
+			api: flat,
+			front: flat,
+			'tests-api': flat,
+			'tests-front': flat,
+			tooling: flat,
+		};
+		expect(() => assertDuplicates(m)).toThrow(/no duplication/);
+		const nan = {
+			...baseline.zones,
+			api: { complexityPer1k: Number.NaN, duplicationPer1k: 1 },
+		};
+		expect(checkRatchet(nan, baseline)).toHaveLength(1);
+	});
+
+	it('detects a raised tolerance or size limit', () => {
+		expect(
+			checkBaselineNotRaised(baseline, { ...baseline, tolerancePer1k: 1 }, []),
+		).toHaveLength(1);
+		expect(
+			checkBaselineNotRaised(
+				baseline,
+				{ ...baseline, prSizeMaxLines: 900 },
+				[],
+			),
+		).toHaveLength(1);
+	});
+
+	it('applies label policy on the PR event only, size also locally', () => {
+		expect(policyFor('pull_request')).toEqual({ baseline: true, size: true });
+		expect(policyFor('merge_group')).toEqual({ baseline: false, size: false });
+		expect(policyFor(undefined)).toEqual({ baseline: false, size: true });
+	});
+
+	it('reads the baseline at the given tip and throws on a corrupt tree', () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qr-'));
+		const git = (...a: string[]) =>
+			spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...a], {
+				cwd: dir,
+				encoding: 'utf8',
+			});
+		const rel = 'packages/scripts-ts/src/quality-baseline.json';
+		const commit = (b: Baseline) => {
+			fs.mkdirSync(path.join(dir, path.dirname(rel)), { recursive: true });
+			fs.writeFileSync(path.join(dir, rel), JSON.stringify(b));
+			git('add', '-A');
+			git('commit', '-q', '-m', 'c');
+		};
+		try {
+			git('init', '-q');
+			commit({ ...baseline, functionCap: 20 });
+			commit({ ...baseline, functionCap: 12 });
+			expect(readBaselineAt('HEAD', dir)?.functionCap).toBe(12);
+			expect(readBaselineAt('HEAD~1', dir)?.functionCap).toBe(20);
+			const tree = git('rev-parse', 'HEAD^{tree}').stdout.trim();
+			fs.rmSync(
+				path.join(dir, '.git/objects', tree.slice(0, 2), tree.slice(2)),
+				{ force: true },
+			);
+			expect(() => readBaselineAt('HEAD', dir)).toThrow(/cannot read/);
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
