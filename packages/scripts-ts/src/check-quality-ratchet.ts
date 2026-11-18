@@ -18,11 +18,13 @@ export type ZoneBaseline = Record<
 	'complexityPer1k' | 'duplicationPer1k',
 	number
 >;
+/** Owner-only controls: constants here (CODEOWNED), never read from the PR-editable baseline. */
+export const SIZE_LABEL = 'size-exception';
+export const OWNER_LABEL = 'quality-baseline-exception';
+
 export interface Baseline {
 	functionCap: number;
 	prSizeMaxLines: number;
-	sizeExceptionLabel: string;
-	baselineExceptionLabel: string;
 	tolerancePer1k: number;
 	zones: Record<Zone, ZoneBaseline>;
 	exceptions: { path: string; name: string; reason: string }[];
@@ -37,14 +39,9 @@ export const parseBaseline = (text: string): Baseline => {
 	}
 	const namedWaivers = (w: Baseline['exceptions'] | undefined) =>
 		Array.isArray(w) && w.every((e) => e.reason && e.name !== '<anonymous>');
-	const labels = [b.sizeExceptionLabel, b.baselineExceptionLabel];
-	if (
-		!nums.every(Number.isFinite) ||
-		!labels.every(Boolean) ||
-		!namedWaivers(b.exceptions)
-	) {
+	if (!nums.every(Number.isFinite) || !namedWaivers(b.exceptions)) {
 		throw new Error(
-			'quality-baseline.json is invalid: numbers, labels, all zones and named waivers are required',
+			'quality-baseline.json is invalid: numbers, all zones and named waivers are required',
 		);
 	}
 	return b;
@@ -107,7 +104,7 @@ export const classifyPath = (file: string): Zone | null => {
 
 /** Files that never count toward the PR size budget. */
 const SIZE_EXEMPT =
-	/(pnpm-lock\.yaml$|package-lock\.json$|packages\.lock\.json$|\.lock$|\.snap$|\/__snapshots__\/)/;
+	/(pnpm-lock\.yaml$|package-lock\.json$|packages\.lock\.json$|\.lock$|\.snap$|\/__snapshots__\/|reason-guard-ref\.json$|ci-gate-manifest\.json$)/;
 export const isSizeExempt = (file: string): boolean =>
 	SIZE_EXEMPT.test(file) ||
 	EXCLUDED.test(file) ||
@@ -143,8 +140,10 @@ const cloneRanges = (snap: CoderotSnapshot) => {
 
 /** Fails closed: an empty, partial or unparsed scan must never pass vacuously. */
 export const assertSnapshot = (snap: CoderotSnapshot): void => {
-	if (!snap.files?.length || !Array.isArray(snap.clones)) {
-		throw new Error('coderot snapshot is empty or has no clone data');
+	if (!snap.files?.length || !snap.clones?.length) {
+		throw new Error(
+			'coderot snapshot is empty or has no clones (a real tree always has some)',
+		);
 	}
 	for (const file of snap.files) {
 		const blob = snap.blobs[file.blob];
@@ -203,24 +202,35 @@ export const toBaselineZones = (m: ZoneMetrics): Record<Zone, ZoneBaseline> =>
 		]),
 	) as Record<Zone, ZoneBaseline>;
 
+const KEYS = ['complexityPer1k', 'duplicationPer1k'] as const;
+const zoneNums = (zones: Record<Zone, ZoneBaseline>): Record<string, number> =>
+	Object.fromEntries(
+		ZONES.flatMap((z) => KEYS.map((k) => [z + '.' + k, zones[z][k]])),
+	);
+
 /** Ratchet: every zone metric must stay <= committed baseline + tolerance. */
 export const checkRatchet = (
 	measured: Record<Zone, ZoneBaseline>,
 	baseline: Baseline,
 ): string[] => {
-	const errors: string[] = [];
-	for (const zone of ZONES) {
-		for (const key of ['complexityPer1k', 'duplicationPer1k'] as const) {
-			const limit = baseline.zones[zone][key] + baseline.tolerancePer1k;
-			if (measured[zone][key] > limit) {
-				errors.push(
-					`RATCHET ${zone}.${key}: ${measured[zone][key]} > baseline ${baseline.zones[zone][key]} (+${baseline.tolerancePer1k} tolerance). Reduce complexity/duplication in this zone; never raise the baseline without an owner exception.`,
-				);
-			}
-		}
-	}
-	return errors;
+	const limit = zoneNums(baseline.zones);
+	const now = zoneNums(measured);
+	return Object.keys(limit)
+		.filter((k) => now[k] > limit[k] + baseline.tolerancePer1k)
+		.map(
+			(k) =>
+				`RATCHET ${k}: ${now[k]} > baseline ${limit[k]} (+${baseline.tolerancePer1k} tolerance). Reduce complexity/duplication in this zone; never raise the baseline without an owner exception.`,
+		);
 };
+
+const waiverKey = (e: { path: string; name: string }) => e.path + '::' + e.name;
+const thresholds = (b: Baseline) =>
+	new Map([
+		['functionCap', b.functionCap],
+		['prSizeMaxLines', b.prSizeMaxLines],
+		['tolerancePer1k', b.tolerancePer1k],
+		...Object.entries(zoneNums(b.zones)),
+	]);
 
 /** The PR baseline may only get stricter than the base branch's (owner label aside). */
 export const checkBaselineNotRaised = (
@@ -228,40 +238,28 @@ export const checkBaselineNotRaised = (
 	after: Baseline,
 	labels: string[],
 ): string[] => {
-	if (labels.includes((before ?? after).baselineExceptionLabel)) {
+	if (labels.includes(OWNER_LABEL)) {
 		return [];
 	}
 	if (!before) {
 		return [
-			`BASELINE introduced: the base branch has no quality-baseline.json; only the owner can allow it with the "${after.baselineExceptionLabel}" label.`,
+			`BASELINE introduced: the base branch has no quality-baseline.json; only the owner can allow it with the "${OWNER_LABEL}" label.`,
 		];
 	}
-	const raised: string[] = [];
-	const cmp = (name: string, was: number, now: number) => {
-		if (now > was) {
-			raised.push(name + ' ' + was + ' -> ' + now);
-		}
-	};
-	cmp('functionCap', before.functionCap, after.functionCap);
-	cmp('prSizeMaxLines', before.prSizeMaxLines, after.prSizeMaxLines);
-	cmp('tolerancePer1k', before.tolerancePer1k, after.tolerancePer1k);
-	for (const zone of ZONES) {
-		for (const k of ['complexityPer1k', 'duplicationPer1k'] as const) {
-			cmp(zone + '.' + k, before.zones[zone][k], after.zones[zone][k]);
-		}
-	}
-	const known = new Set(before.exceptions.map((e) => e.path + '::' + e.name));
-	for (const e of after.exceptions) {
-		if (!known.has(e.path + '::' + e.name)) {
-			raised.push('new exception ' + e.path + '::' + e.name);
-		}
-	}
-	if (after.sizeExceptionLabel !== before.sizeExceptionLabel) {
-		raised.push('sizeExceptionLabel changed');
-	}
+	const was = thresholds(before);
+	const now = thresholds(after);
+	const known = new Set(before.exceptions.map(waiverKey));
+	const raised = [
+		...[...was]
+			.filter(([k, v]) => (now.get(k) ?? 0) > v)
+			.map(([k, v]) => k + ' ' + v + ' -> ' + now.get(k)),
+		...after.exceptions
+			.filter((e) => !known.has(waiverKey(e)))
+			.map((e) => 'new exception ' + waiverKey(e)),
+	];
 	return raised.map(
 		(r) =>
-			`BASELINE raised (${r}). A baseline never rises; only the owner can allow it with the "${before.baselineExceptionLabel}" label.`,
+			`BASELINE raised (${r}). A baseline never rises; only the owner can allow it with the "${OWNER_LABEL}" label.`,
 	);
 };
 
@@ -290,18 +288,15 @@ const hunkToTouch = (line: string): Touch | null => {
 /** Parses `git diff -U0` output into touched new-file line ranges per path. */
 export const parseTouches = (diff: string): Map<string, Touch[]> => {
 	const touches = new Map<string, Touch[]>();
-	let current: Touch[] | null = null;
+	let current: Touch[] = [];
 	for (const line of diff.split('\n')) {
-		if (line.startsWith('+++ ')) {
-			const file = line.slice(4);
-			current = file.startsWith('b/') ? [] : null;
-			if (current) {
-				touches.set(file.slice(2), current);
-			}
-			continue;
-		}
 		const touch = hunkToTouch(line);
-		if (touch && current) {
+		if (line.startsWith('+++ ')) {
+			current = [];
+			if (line.startsWith('+++ b/')) {
+				touches.set(line.slice(6), current);
+			}
+		} else if (touch) {
 			current.push(touch);
 		}
 	}
@@ -309,58 +304,55 @@ export const parseTouches = (diff: string): Map<string, Touch[]> => {
 };
 
 /** Innermost function whose body holds the line: a nested function is judged alone. */
-const ownerOf = (fns: CoderotFunction[], line: number) => {
-	let best: CoderotFunction | undefined;
-	for (const fn of fns) {
-		const inside = line >= fn.start && line <= fn.end;
-		if (inside && (!best || fn.end - fn.start < best.end - best.start)) {
-			best = fn;
-		}
-	}
-	return best;
-};
+const ownerOf = (fns: CoderotFunction[], line: number) =>
+	fns
+		.filter((fn) => line >= fn.start && line <= fn.end)
+		.sort((a, b) => a.end - a.start - (b.end - b.start))[0];
+
+const touchedLines = (t: Touch): number[] =>
+	t.between
+		? [t.start]
+		: Array.from({ length: t.end - t.start + 1 }, (_, i) => t.start + i);
 
 /** Functions of one file whose own body holds a touched line. */
 const touchedFunctions = (fns: CoderotFunction[], touches: Touch[]) => {
-	const hit = new Set<CoderotFunction>();
-	for (const t of touches) {
-		const last = t.between ? t.start : t.end;
-		for (let line = t.start; line <= last; line++) {
-			const owner = ownerOf(fns, line);
-			const spansBoth = !t.between || owner === ownerOf(fns, t.end);
-			if (owner && spansBoth) {
-				hit.add(owner);
-			}
-		}
-	}
-	return hit;
+	const owners = touches.flatMap((t) =>
+		touchedLines(t).map((line) => ({ t, owner: ownerOf(fns, line) })),
+	);
+	return new Set(
+		owners
+			.filter(
+				({ t, owner }) =>
+					owner && (!t.between || owner === ownerOf(fns, t.end)),
+			)
+			.map(({ owner }) => owner),
+	);
 };
 
 export const checkFunctionCap = (
 	snap: CoderotSnapshot,
 	touches: Map<string, Touch[]>,
 	baseline: Baseline,
-): string[] => {
-	const errors: string[] = [];
-	for (const file of snap.files) {
+): string[] =>
+	snap.files.flatMap((file) => {
 		const fileTouches = touches.get(file.path);
 		const blob = snap.blobs[file.blob];
 		if (!fileTouches || !blob || !classifyPath(file.path)) {
-			continue;
+			return [];
 		}
-		for (const fn of touchedFunctions(blob.functions, fileTouches)) {
-			const waived = baseline.exceptions.some(
-				(e) => e.path === file.path && e.name === fn.name,
+		return [...touchedFunctions(blob.functions, fileTouches)]
+			.filter(
+				(fn) =>
+					fn?.cognitive > baseline.functionCap &&
+					!baseline.exceptions.some(
+						(e) => waiverKey(e) === file.path + '::' + fn.name,
+					),
+			)
+			.map(
+				(fn) =>
+					`FUNCTION ${file.path}:${fn?.start} ${fn?.name}: cognitive complexity ${fn?.cognitive} > ${baseline.functionCap}. A new or modified function must be <= ${baseline.functionCap}: split it.`,
 			);
-			if (fn.cognitive > baseline.functionCap && !waived) {
-				errors.push(
-					`FUNCTION ${file.path}:${fn.start} ${fn.name}: cognitive complexity ${fn.cognitive} > ${baseline.functionCap}. A new or modified function must be <= ${baseline.functionCap}: split it.`,
-				);
-			}
-		}
-	}
-	return errors;
-};
+	});
 
 /** `git diff --numstat -M` prints renames as `a => b` or `d/{a => b}/x`: keep the new path. */
 export const renamedTo = (name: string): string =>
@@ -387,14 +379,11 @@ export const checkPrSize = (
 	labels: string[],
 	baseline: Baseline,
 ): string[] => {
-	if (
-		lines <= baseline.prSizeMaxLines ||
-		labels.includes(baseline.sizeExceptionLabel)
-	) {
+	if (lines <= baseline.prSizeMaxLines || labels.includes(SIZE_LABEL)) {
 		return [];
 	}
 	return [
-		`SIZE ${lines} changed lines (excluding tests, generated files, migrations, lockfiles, snapshots) > ${baseline.prSizeMaxLines}. Split the PR; only the owner may allow it with the "${baseline.sizeExceptionLabel}" label.`,
+		`SIZE ${lines} changed lines (excluding tests, generated files, migrations, lockfiles, snapshots) > ${baseline.prSizeMaxLines}. Split the PR; only the owner may allow it with the "${SIZE_LABEL}" label.`,
 	];
 };
 
@@ -432,18 +421,25 @@ const readSnapshot = (): CoderotSnapshot => {
 	}
 };
 
-const prLabels = (): string[] => {
-	const eventPath = process.env.GITHUB_EVENT_PATH;
-	if (!eventPath || process.env.GITHUB_EVENT_NAME !== 'pull_request') {
-		return [];
-	}
-	const pr = JSON.parse(fs.readFileSync(eventPath, 'utf8')).pull_request;
-	return (pr?.labels ?? []).map((l: { name: string }) => l.name);
+type EventPayload = {
+	pull_request?: { base?: { sha?: string }; labels?: { name: string }[] };
+	merge_group?: { base_sha?: string };
 };
 
-const resolveBase = (): string =>
+const readEvent = (): EventPayload => {
+	const eventPath = process.env.GITHUB_EVENT_PATH;
+	return eventPath ? JSON.parse(fs.readFileSync(eventPath, 'utf8')) : {};
+};
+
+/** The branch the PR targets (event base sha), not a hardcoded develop. */
+export const baseRef = (event: EventPayload): string =>
+	event.pull_request?.base?.sha ??
+	event.merge_group?.base_sha ??
+	'origin/develop';
+
+const resolveBase = (event: EventPayload): string =>
 	process.env.QUALITY_BASE ??
-	run('git', ['merge-base', 'HEAD', 'origin/develop']).trim();
+	run('git', ['merge-base', 'HEAD', baseRef(event)]).trim();
 
 /** Label-based PR policy (size, baseline) is enforced on the PR event; the merge queue carries no labels. */
 const prPolicy = (): boolean =>
@@ -452,16 +448,23 @@ const prPolicy = (): boolean =>
 
 const baselineRel = 'packages/scripts-ts/src/quality-baseline.json';
 
-const readBaselineAt = (base: string): Baseline | null => {
-	const exists = spawnSync(
-		'git',
-		['cat-file', '-e', base + ':' + baselineRel],
-		{ cwd: repoRoot },
-	);
-	if (exists.status !== 0) {
+/** Only "file absent in a readable base tree" means bootstrap; an unreadable base throws. */
+export const readBaselineAt = (
+	base: string,
+	cwd = repoRoot,
+): Baseline | null => {
+	const git = (args: string[]) =>
+		spawnSync('git', args, { cwd, encoding: 'utf8' });
+	if (git(['rev-parse', '--verify', base + '^{commit}']).status !== 0) {
+		throw new Error(
+			'cannot read base commit ' + base + ' (shallow or corrupt checkout?)',
+		);
+	}
+	const rel = base + ':' + baselineRel;
+	if (git(['cat-file', '-e', rel]).status !== 0) {
 		return null;
 	}
-	return parseBaseline(run('git', ['show', base + ':' + baselineRel]));
+	return parseBaseline(git(['show', rel]).stdout);
 };
 
 const main = (): number => {
@@ -471,8 +474,9 @@ const main = (): number => {
 	assertCoverage(run('git', ['ls-files']).split('\n'), snap);
 	const measured = toBaselineZones(measureZones(snap));
 	console.log(JSON.stringify(measured));
-	const base = resolveBase();
-	const labels = prLabels();
+	const event = readEvent();
+	const base = resolveBase(event);
+	const labels = (event.pull_request?.labels ?? []).map((l) => l.name);
 	const errors = [
 		...(prPolicy()
 			? checkBaselineNotRaised(readBaselineAt(base), baseline, labels)

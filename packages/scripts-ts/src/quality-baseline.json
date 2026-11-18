@@ -2,8 +2,6 @@
 	"$comment": "Palier 1 quality gate (#2438): single source of thresholds for check-quality-ratchet.ts. Zone values are per 1000 SLOC and never rise; see docs/guides/quality-ratchet.md.",
 	"functionCap": 15,
 	"prSizeMaxLines": 600,
-	"sizeExceptionLabel": "size-exception",
-	"baselineExceptionLabel": "quality-baseline-exception",
 	"tolerancePer1k": 0.5,
 	"zones": {
 		"api": { "complexityPer1k": 94.8, "duplicationPer1k": 161.5 },

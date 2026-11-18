@@ -454,13 +454,13 @@ jobs:
         run: node packages/scripts-ts/src/check-api-tests-path-coverage.ts
       - name: Test quality ratchet
         id: quality_ratchet_tests
-        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        if: always()
         timeout-minutes: 15
         continue-on-error: true
         run: pnpm --filter scripts-ts exec vitest run src/check-quality-ratchet.test.ts
       - name: Check quality ratchet
         id: quality_ratchet
-        if: always() && needs.classify.result == 'success' && needs.classify.outputs.quality == 'true'
+        if: always()
         timeout-minutes: 15
         continue-on-error: true
         run: node packages/scripts-ts/src/check-quality-ratchet.ts
@@ -471,9 +471,9 @@ jobs:
           CI_WORKFLOW_PATH: '.github/workflows/ci.yml'
           CI_WORKFLOW_REF: '${{ github.workflow_ref }}'
           CI_WORKFLOW_EVENT: '${{ github.event_name }}'
-          CI_LANE_SPECS: '{"setup":["guards.checkout","guards.install_pnpm","guards.setup_node","guards.setup_dotnet","guards.setup_just","guards.install_workspace","guards.trusted_postinstall","guards.prepare_hooks","guards.materialize_env"],"quality":["guards.ci_guard_suite","guards.ci_guard_spawners","guards.ci_drift_tests","guards.npm_audit_runner","guards.production_audit_test","guards.formatter_scope","guards.front_lint_test","guards.ci_contract_tests","guards.ci_drift","guards.action_versions","guards.project_closure","guards.quality_ratchet_tests","guards.quality_ratchet","guards.quality.not-applicable"],"tracked-guards":["guards.no_ignored_tracked","guards.no_dockerignore_shadow"],"api-paths":["guards.api-paths-tests","guards.api-paths"]}'
+          CI_LANE_SPECS: '{"setup":["guards.checkout","guards.install_pnpm","guards.setup_node","guards.setup_dotnet","guards.setup_just","guards.install_workspace","guards.trusted_postinstall","guards.prepare_hooks","guards.materialize_env"],"quality":["guards.ci_guard_suite","guards.ci_guard_spawners","guards.ci_drift_tests","guards.npm_audit_runner","guards.production_audit_test","guards.formatter_scope","guards.front_lint_test","guards.ci_contract_tests","guards.ci_drift","guards.action_versions","guards.project_closure","guards.quality.not-applicable"],"tracked-guards":["guards.no_ignored_tracked","guards.no_dockerignore_shadow"],"api-paths":["guards.api-paths-tests","guards.api-paths"],"quality-ratchet":["guards.quality_ratchet_tests","guards.quality_ratchet"]}'
           CI_CLASSIFIER_OUTPUTS: '{"quality":"${{ needs.classify.outputs.quality }}"}'
-          CI_LANE_MODES: '{"setup":"relevant","tracked-guards":"relevant","api-paths":"relevant"}'
+          CI_LANE_MODES: '{"setup":"relevant","tracked-guards":"relevant","api-paths":"relevant","quality-ratchet":"relevant"}'
           CI_STEP_RESULTS: '{"guards.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"guards.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"guards.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"guards.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"guards.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"guards.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"guards.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"guards.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"guards.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"guards.ci_guard_suite":{"outcome":"${{ steps.ci_guard_suite.outcome }}"},"guards.ci_guard_spawners":{"outcome":"${{ steps.ci_guard_spawners.outcome }}"},"guards.ci_drift_tests":{"outcome":"${{ steps.ci_drift_tests.outcome }}"},"guards.npm_audit_runner":{"outcome":"${{ steps.npm_audit_runner.outcome }}"},"guards.production_audit_test":{"outcome":"${{ steps.production_audit_test.outcome }}"},"guards.formatter_scope":{"outcome":"${{ steps.formatter_scope.outcome }}"},"guards.front_lint_test":{"outcome":"${{ steps.front_lint_test.outcome }}"},"guards.ci_contract_tests":{"outcome":"${{ steps.ci_contract_tests.outcome }}"},"guards.ci_drift":{"outcome":"${{ steps.ci_drift.outcome }}"},"guards.action_versions":{"outcome":"${{ steps.action_versions.outcome }}"},"guards.project_closure":{"outcome":"${{ steps.project_closure.outcome }}"},"guards.quality.not-applicable":{"outcome":"${{ steps.quality-sentinel.outcome }}"},"guards.no_ignored_tracked":{"outcome":"${{ steps.no_ignored_tracked.outcome }}"},"guards.no_dockerignore_shadow":{"outcome":"${{ steps.no_dockerignore_shadow.outcome }}"},"guards.api-paths-tests":{"outcome":"${{ steps.api-paths-tests.outcome }}"},"guards.api-paths":{"outcome":"${{ steps.api-paths.outcome }}"},"guards.quality_ratchet_tests":{"outcome":"${{ steps.quality_ratchet_tests.outcome }}"},"guards.quality_ratchet":{"outcome":"${{ steps.quality_ratchet.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result

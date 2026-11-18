@@ -992,7 +992,7 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 	}
 });
 
-test('central workflow rejects six mutations for every one of its 106 classifier conditions', async () => {
+test('central workflow rejects six mutations for every one of its 104 classifier conditions', async () => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-ci-condition-delete-'),
 	);
@@ -1014,12 +1014,12 @@ test('central workflow rejects six mutations for every one of its 106 classifier
 				)
 				.map((step) => ({ jobId, stepId: String(step.id) })),
 	);
-	assert.equal(classifierTrueSteps.length, 106);
+	assert.equal(classifierTrueSteps.length, 104);
 	assert.equal(
 		new Set(
 			classifierTrueSteps.map(({ jobId, stepId }) => `${jobId}/${stepId}`),
 		).size,
-		106,
+		104,
 	);
 	assert.deepEqual(
 		classifierTrueSteps
@@ -1096,8 +1096,8 @@ test('central workflow rejects six mutations for every one of its 106 classifier
 				rejected += 1;
 			}
 		}
-		assert.equal(mutatedWorkflows.size, 636);
-		assert.equal(rejected, 636);
+		assert.equal(mutatedWorkflows.size, 624);
+		assert.equal(rejected, 624);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}

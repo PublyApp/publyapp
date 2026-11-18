@@ -350,7 +350,7 @@ ci-dockerignore-shadow:
 ci-quality-ratchet:
   @echo "=== [gate] quality ratchet (#2438) ==="
   pnpm --filter scripts-ts exec vitest run src/check-quality-ratchet.test.ts
-  node ./packages/scripts-ts/src/check-quality-ratchet.ts
+  node packages/scripts-ts/src/check-quality-ratchet.ts
 
 # Install exactly as CI does (supply-chain policy: frozen + no lifecycle scripts)
 ci-install:

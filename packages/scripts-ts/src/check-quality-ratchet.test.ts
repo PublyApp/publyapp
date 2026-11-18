@@ -1,3 +1,8 @@
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,6 +10,7 @@ import {
 	type CoderotSnapshot,
 	assertCoverage,
 	assertSnapshot,
+	baseRef,
 	checkBaselineNotRaised,
 	checkFunctionCap,
 	checkPrSize,
@@ -14,6 +20,7 @@ import {
 	measureZones,
 	parseBaseline,
 	parseTouches,
+	readBaselineAt,
 	renamedTo,
 	toBaselineZones,
 } from './check-quality-ratchet.ts';
@@ -22,8 +29,6 @@ const zone = { complexityPer1k: 10, duplicationPer1k: 20 };
 const baseline: Baseline = {
 	functionCap: 15,
 	prSizeMaxLines: 600,
-	sizeExceptionLabel: 'size-exception',
-	baselineExceptionLabel: 'quality-baseline-exception',
 	tolerancePer1k: 0.5,
 	zones: {
 		api: zone,
@@ -184,7 +189,7 @@ describe('fail closed', () => {
 			{ path: 'packages/scripts-ts/src/a.ts', blob: 'a', test: false },
 		],
 		blobs: { a: { sloc: 1, functions: [] } },
-		clones: [],
+		clones: [{ locations: [] }],
 	});
 
 	it('accepts a complete snapshot', () => {
@@ -194,6 +199,9 @@ describe('fail closed', () => {
 	it('rejects empty, clone-less, missing-blob and unparsed snapshots', () => {
 		expect(() => assertSnapshot({ ...full(), files: [] })).toThrow();
 		expect(() => assertSnapshot({ ...full(), clones: undefined })).toThrow();
+		expect(() => assertSnapshot({ ...full(), clones: [] })).toThrow(
+			/no clones/,
+		);
 		expect(() => assertSnapshot({ ...full(), blobs: {} })).toThrow(
 			/fully measure/,
 		);
@@ -269,7 +277,6 @@ describe('baseline schema and coverage', () => {
 			['"complexityPer1k":10', '"complexityPer1k":"10"'],
 			[front, ''],
 			['"exceptions":[]', '"exceptions":null'],
-			['"quality-baseline-exception"', '""'],
 			[
 				'"exceptions":[]',
 				'"exceptions":[{"path":"a","name":"<anonymous>","reason":"r"}]',
@@ -297,5 +304,50 @@ describe('baseline schema and coverage', () => {
 		expect(() =>
 			assertCoverage(['apps/api/A.cs', 'apps/api/B.cs'], snap),
 		).toThrow(/B\.cs/);
+	});
+});
+
+describe('owner controls, base and size scope', () => {
+	it('takes the base from the event, not a hardcoded develop', () => {
+		expect(baseRef({ pull_request: { base: { sha: 'abc' } } })).toBe('abc');
+		expect(baseRef({ merge_group: { base_sha: 'def' } })).toBe('def');
+		expect(baseRef({})).toBe('origin/develop');
+	});
+
+	it('exempts generated or derived files from the size budget', () => {
+		const stat = (f: string) => '700\t0\tpackages/scripts-ts/src/' + f;
+		expect(countSizedLines(stat('reason-guard-ref.json'))).toBe(0);
+		expect(countSizedLines(stat('ci-gate-manifest.json'))).toBe(0);
+		expect(countSizedLines(stat('other.ts'))).toBe(700);
+	});
+
+	it('ignores deleted files when parsing touches', () => {
+		const diff = '--- a/x.ts\n+++ /dev/null\n@@ -1,3 +0,0 @@\n';
+		expect(parseTouches(diff).size).toBe(0);
+	});
+});
+
+describe('readBaselineAt', () => {
+	const git = (cwd: string, ...args: string[]) =>
+		spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+			cwd,
+		});
+
+	it('returns null for an absent file, parses a present one, throws on an unreadable base', () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qr-'));
+		try {
+			git(dir, 'init', '-q');
+			git(dir, 'commit', '-q', '--allow-empty', '-m', 'a');
+			expect(readBaselineAt('HEAD', dir)).toBeNull();
+			const rel = 'packages/scripts-ts/src/quality-baseline.json';
+			fs.mkdirSync(path.join(dir, path.dirname(rel)), { recursive: true });
+			fs.writeFileSync(path.join(dir, rel), JSON.stringify(baseline));
+			git(dir, 'add', '-A');
+			git(dir, 'commit', '-q', '-m', 'b');
+			expect(readBaselineAt('HEAD', dir)).toEqual(baseline);
+			expect(() => readBaselineAt('deadbeef', dir)).toThrow(/cannot read base/);
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });
