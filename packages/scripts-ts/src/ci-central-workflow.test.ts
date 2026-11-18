@@ -2167,7 +2167,7 @@ test('central manifest derives honest evidence for every one of its 248 entries'
 			`${id} evidence must be derived from its exact step kind and command graph`,
 		);
 	}
-	assert.equal(decisions.size, 246);
+	assert.equal(decisions.size, 248);
 	assert.equal(
 		manifest.steps['ci.yml::quality-js::Install pnpm']?.mirror,
 		null,

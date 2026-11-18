@@ -5,10 +5,8 @@ import path from 'node:path';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
 
-// Quality palier 1 gate (#2438): function cap, per-zone ratchet, PR size.
-// All thresholds live in quality-baseline.json; see docs/guides/quality-ratchet.md.
-// Numbers come from `coderot analyze` (local, never `ci`: that mode uploads) so
-// the weekly figures and this gate agree.
+// Quality palier 1 gate (#2438); thresholds live in quality-baseline.json (see docs/guides/quality-ratchet.md).
+// Numbers come from local `coderot analyze` (never `ci`: it uploads) so weekly figures and gate agree.
 
 export type Zone = 'api' | 'front' | 'tests-api' | 'tests-front' | 'tooling';
 export const ZONES: readonly Zone[] = [
