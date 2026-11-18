@@ -60,6 +60,10 @@ describe('classifyPath', () => {
 		expect(classifyPath('apps/front/src/routeTree.gen.ts')).toBeNull();
 		expect(classifyPath('apps/api/Data/X.g.cs')).toBeNull();
 		expect(classifyPath('README.md')).toBeNull();
+		expect(classifyPath('apps/mobile/src/a.ts')).toBeNull();
+		expect(classifyPath('packages/scripts-ts/src/a.test.ts')).toBe('tooling');
+		expect(classifyPath('packages/lint-cs/A.Spec.cs')).toBe('tooling');
+		expect(classifyPath('apps/front/e2e/a.ts')).toBe('tests-front');
 	});
 });
 

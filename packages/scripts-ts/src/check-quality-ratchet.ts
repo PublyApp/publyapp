@@ -64,37 +64,33 @@ const coderotBin = path.resolve(
 
 const EXCLUDED =
 	/(\.g\.cs$|routeTree\.gen\.ts$|\/generated\/|\/Migrations\/|^packages\/client-ts\/|\/openapi\.json$|^\.worktrees\/|\/node_modules\/)/;
-const TEST_CS = /(\.Spec\.cs$|^apps\/api\/Tests\/)/;
-const TEST_TS =
-	/(\.(test|spec)\.[cm]?[tj]sx?$|\/__tests__\/|^apps\/front\/(e2e|tests|deploy)\/)/;
+const TEST_TS = /(\.(test|spec)\.[cm]?[tj]sx?$|^apps\/front\/(e2e|tests)\/)/;
 const TOOLING =
 	/^(packages\/(scripts-ts|lint-ts|lint-cs|scripts-cs)\/|apps\/front\/(scripts|tools)\/)/;
+const FRONT = /^(apps\/front|packages\/shared-ts)\//;
 const CODE = /\.(cs|[cm]?[tj]sx?)$/;
 
-/** Zone of a source file, or null when the file is out of the gate's scope. */
-export const classifyPath = (
-	file: string,
-	coderotTest = false,
-): Zone | null => {
+/** Zone of a source file (zones of AGENTS.md "Code quality"), or null when not judged. */
+export const classifyPath = (file: string): Zone | null => {
 	if (!CODE.test(file) || EXCLUDED.test(file)) {
 		return null;
-	}
-	if (TEST_CS.test(file)) {
-		return 'tests-api';
-	}
-	if (TEST_TS.test(file) || (coderotTest && !file.endsWith('.cs'))) {
-		return 'tests-front';
 	}
 	if (TOOLING.test(file)) {
 		return 'tooling';
 	}
 	if (file.startsWith('apps/api/')) {
-		return 'api';
+		return file.endsWith('.Spec.cs') ? 'tests-api' : 'api';
 	}
-	if (/^(apps\/front\/src\/|packages\/shared-ts\/|apps\/mobile\/)/.test(file)) {
+	if (!FRONT.test(file)) {
+		return null;
+	}
+	if (TEST_TS.test(file)) {
+		return 'tests-front';
+	}
+	if (/^(apps\/front\/src|packages\/shared-ts)\//.test(file)) {
 		return 'front';
 	}
-	return file.startsWith('apps/front/') ? 'tooling' : null;
+	return null;
 };
 
 /** Files that never count toward the PR size budget. */
@@ -104,7 +100,10 @@ export const isSizeExempt = (file: string): boolean => {
 	if (SIZE_EXEMPT.test(file) || EXCLUDED.test(file)) {
 		return true;
 	}
-	return TEST_CS.test(file) || TEST_TS.test(file);
+	return (
+		/(\.Spec\.cs$|^apps\/api\/Tests\/|\/__tests__\/)/.test(file) ||
+		TEST_TS.test(file)
+	);
 };
 
 // ----------------------------------------------------------------- metrics
@@ -146,7 +145,7 @@ export const measureZones = (snap: CoderotSnapshot): ZoneMetrics => {
 	) as ZoneMetrics;
 	const clones = cloneRanges(snap);
 	for (const file of snap.files) {
-		const zone = classifyPath(file.path, file.test);
+		const zone = classifyPath(file.path);
 		const blob = snap.blobs[file.blob];
 		if (!zone || !blob) {
 			continue;
@@ -307,7 +306,7 @@ export const checkFunctionCap = (
 	for (const file of snap.files) {
 		const fileTouches = touches.get(file.path);
 		const blob = snap.blobs[file.blob];
-		if (!fileTouches || !blob || !classifyPath(file.path, file.test)) {
+		if (!fileTouches || !blob || !classifyPath(file.path)) {
 			continue;
 		}
 		for (const fn of blob.functions) {
