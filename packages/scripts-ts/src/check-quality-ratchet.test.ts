@@ -9,7 +9,6 @@ import {
 	type Baseline,
 	type CoderotSnapshot,
 	assertCoverage,
-	assertDuplicates,
 	assertSnapshot,
 	baseRef,
 	checkBaselineNotRaised,
@@ -195,7 +194,7 @@ describe('fail closed', () => {
 			{
 				locations: [
 					{ path: 'apps/api/A.cs', start: 1, end: 5 },
-					{ path: 'apps/api/B.cs', start: 1, end: 5 },
+					{ path: 'apps/api/A.Spec.cs', start: 1, end: 5 },
 				],
 			},
 		],
@@ -209,11 +208,11 @@ describe('fail closed', () => {
 		expect(() => assertSnapshot({ ...full(), files: [] })).toThrow();
 		expect(() => assertSnapshot({ ...full(), clones: undefined })).toThrow();
 		expect(() => assertSnapshot({ ...full(), clones: [] })).toThrow(
-			/no real clone/,
+			/valid clone/,
 		);
 		expect(() =>
 			assertSnapshot({ ...full(), clones: [{ locations: [] }] }),
-		).toThrow(/no real clone/);
+		).toThrow(/valid clone/);
 		expect(() => assertSnapshot({ ...full(), blobs: {} })).toThrow(
 			/fully measure/,
 		);
@@ -226,9 +225,52 @@ describe('fail closed', () => {
 			functions: [{ name: 'f', start: 1, end: 2, cognitive: Number.NaN }],
 		};
 		expect(() => assertSnapshot(nan)).toThrow(/fully measure/);
+		const badFn = (
+			fn: { start: number; end: number; cognitive: number },
+			sloc = 5,
+		) => {
+			const snap = full();
+			snap.blobs.a = { sloc, functions: [{ name: 'f', ...fn }] };
+			return snap;
+		};
+		expect(() =>
+			assertSnapshot(badFn({ start: Number.NaN, end: 2, cognitive: 1 })),
+		).toThrow(/fully measure/);
+		expect(() =>
+			assertSnapshot(badFn({ start: 5, end: 2, cognitive: 1 })),
+		).toThrow(/fully measure/);
+		expect(() =>
+			assertSnapshot(badFn({ start: 1, end: 2, cognitive: -1 })),
+		).toThrow(/fully measure/);
+		expect(() =>
+			assertSnapshot(badFn({ start: 1, end: 2, cognitive: 1 }, 0)),
+		).toThrow(/fully measure/);
 		const partial = full();
 		partial.blobs.a = { sloc: 1, functions: [], unmeasuredFunctions: 2 };
 		expect(() => assertSnapshot(partial)).toThrow();
+	});
+
+	it('validates every clone location against the scan', () => {
+		const at = (path: string, start: number, end: number) => ({
+			path,
+			start,
+			end,
+		});
+		const a = at('apps/api/A.cs', 1, 5);
+		const ok = [{ locations: [a, at('apps/api/A.Spec.cs', 1, 5)] }];
+		const stray = [...ok, { locations: [a, at('apps/api/Missing.cs', 1, 5)] }];
+		const backwards = [...ok, { locations: [a, at('apps/api/A.cs', 9, 2)] }];
+		const single = [{ locations: [a] }];
+		expect(() => assertSnapshot({ ...full(), clones: ok })).not.toThrow();
+		expect(() => assertSnapshot({ ...full(), clones: stray })).toThrow(
+			/location/,
+		);
+		expect(() => assertSnapshot({ ...full(), clones: backwards })).toThrow(
+			/location/,
+		);
+		expect(() => assertSnapshot({ ...full(), clones: single })).toThrow(
+			/valid clone/,
+		);
 	});
 });
 
@@ -380,16 +422,7 @@ describe('remaining failure modes', () => {
 		);
 	});
 
-	it('fails on a zone with code but no duplication, and on NaN measures', () => {
-		const flat = { sloc: 10, cognitive: 1, duplicated: 0 };
-		const m = {
-			api: flat,
-			front: flat,
-			'tests-api': flat,
-			'tests-front': flat,
-			tooling: flat,
-		};
-		expect(() => assertDuplicates(m)).toThrow(/no duplication/);
+	it('fails the ratchet on NaN measures', () => {
 		const nan = {
 			...baseline.zones,
 			api: { complexityPer1k: Number.NaN, duplicationPer1k: 1 },
@@ -410,9 +443,9 @@ describe('remaining failure modes', () => {
 		).toHaveLength(1);
 	});
 
-	it('applies label policy on the PR event only, size also locally', () => {
+	it('checks the baseline on PRs and in the queue, size on PRs and locally', () => {
 		expect(policyFor('pull_request')).toEqual({ baseline: true, size: true });
-		expect(policyFor('merge_group')).toEqual({ baseline: false, size: false });
+		expect(policyFor('merge_group')).toEqual({ baseline: true, size: false });
 		expect(policyFor(undefined)).toEqual({ baseline: false, size: true });
 	});
 
@@ -445,5 +478,45 @@ describe('remaining failure modes', () => {
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
+	});
+});
+
+describe('owner approval, waivers and trivial deletions', () => {
+	it('lets a raise land unlabelled when the owner recorded it, and only that raise', () => {
+		const raised = { ...baseline, functionCap: 20 };
+		const approved = { ...raised, ownerApproved: ['functionCap=20'] };
+		expect(checkBaselineNotRaised(baseline, approved, [])).toEqual([]);
+		expect(
+			checkBaselineNotRaised(baseline, { ...approved, tolerancePer1k: 2 }, []),
+		).toHaveLength(1);
+		expect(checkBaselineNotRaised(baseline, raised, [])).toHaveLength(1);
+	});
+
+	it('requires a named waiver and string approvals', () => {
+		const text = JSON.stringify(baseline);
+		const waiver = '"exceptions":[{"path":"a","name":"","reason":"r"}]';
+		expect(() =>
+			parseBaseline(text.replace('"exceptions":[]', waiver)),
+		).toThrow(/invalid/);
+		expect(() =>
+			parseBaseline(
+				text.replace('"exceptions":[]', '"exceptions":[],"ownerApproved":[1]'),
+			),
+		).toThrow(/invalid/);
+	});
+
+	it('does not flag a function for a deleted blank or comment line at its edge', () => {
+		const snap = snapshot([{ name: 'big', start: 10, end: 29, cognitive: 16 }]);
+		const head =
+			'diff --git a/apps/api/Modules/A.cs b/apps/api/Modules/A.cs\n+++ b/apps/api/Modules/A.cs\n@@ -30 +29,0 @@\n';
+		expect(
+			checkFunctionCap(snap, parseTouches(head + '-\n'), baseline),
+		).toEqual([]);
+		expect(
+			checkFunctionCap(snap, parseTouches(head + '-  // old\n'), baseline),
+		).toEqual([]);
+		expect(
+			checkFunctionCap(snap, parseTouches(head + '-  doIt();\n'), baseline),
+		).toHaveLength(1);
 	});
 });
