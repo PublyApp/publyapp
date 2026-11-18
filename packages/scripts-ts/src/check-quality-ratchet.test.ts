@@ -63,6 +63,9 @@ describe('classifyPath', () => {
 		expect(classifyPath('apps/mobile/src/a.ts')).toBeNull();
 		expect(classifyPath('packages/scripts-ts/src/a.test.ts')).toBe('tooling');
 		expect(classifyPath('packages/lint-cs/A.Spec.cs')).toBe('tooling');
+		expect(classifyPath('apps/api/Lib/Testing/H.cs')).toBe('tests-api');
+		expect(classifyPath('apps/api/Tests/A.cs')).toBe('tests-api');
+		expect(classifyPath('apps/front/deploy/a.test.ts')).toBeNull();
 		expect(classifyPath('apps/front/e2e/a.ts')).toBe('tests-front');
 	});
 });

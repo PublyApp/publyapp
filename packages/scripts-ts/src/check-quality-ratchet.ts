@@ -64,7 +64,9 @@ const coderotBin = path.resolve(
 
 const EXCLUDED =
 	/(\.g\.cs$|routeTree\.gen\.ts$|\/generated\/|\/Migrations\/|^packages\/client-ts\/|\/openapi\.json$|^\.worktrees\/|\/node_modules\/)/;
-const TEST_TS = /(\.(test|spec)\.[cm]?[tj]sx?$|^apps\/front\/(e2e|tests)\/)/;
+const TEST_TS =
+	/(^(apps\/front\/src|packages\/shared-ts)\/.*\.(test|spec)\.[cm]?[tj]sx?$|^apps\/front\/(e2e|tests)\/)/;
+const TEST_CS = /(\.Spec\.cs$|^apps\/api\/(Lib\/Testing|Tests)\/)/;
 const TOOLING =
 	/^(packages\/(scripts-ts|lint-ts|lint-cs|scripts-cs)\/|apps\/front\/(scripts|tools)\/)/;
 const FRONT = /^(apps\/front|packages\/shared-ts)\//;
@@ -79,10 +81,7 @@ export const classifyPath = (file: string): Zone | null => {
 		return 'tooling';
 	}
 	if (file.startsWith('apps/api/')) {
-		return file.endsWith('.Spec.cs') ? 'tests-api' : 'api';
-	}
-	if (!FRONT.test(file)) {
-		return null;
+		return TEST_CS.test(file) ? 'tests-api' : 'api';
 	}
 	if (TEST_TS.test(file)) {
 		return 'tests-front';
@@ -101,7 +100,8 @@ export const isSizeExempt = (file: string): boolean => {
 		return true;
 	}
 	return (
-		/(\.Spec\.cs$|^apps\/api\/Tests\/|\/__tests__\/)/.test(file) ||
+		TEST_CS.test(file) ||
+		/(\/__tests__\/|\.(test|spec)\.[cm]?[tj]sx?$)/.test(file) ||
 		TEST_TS.test(file)
 	);
 };
