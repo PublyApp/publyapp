@@ -82,28 +82,42 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../../..');
 const baselinePath = path.join(here, 'quality-baseline.json');
 /**
- * The measurement tool is pinned by version AND by the SHA-256 of its entry file and manifest (both CODEOWNED
- * here), so an override, a patch or a lockfile edit cannot swap it. To bump: change the three constants together.
+ * The measurement tool is pinned by version AND by one SHA-256 over every file of the installed package
+ * (sorted relative paths + bytes, pnpm's own node_modules/.bin shims excluded), CODEOWNED here: an override,
+ * a patch or a lockfile edit cannot swap any part of it (entry, Roslyn components, wasm).
+ * To bump: change package.json and these two constants together.
  */
 export const CODEROT_VERSION = '1.5.0';
-export const CODEROT_ENTRY_SHA256 =
-	'ac96d77b84e500cd833be40b340bc4db7f270b3a2b08d60c5333760d75fc594c';
-export const CODEROT_MANIFEST_SHA256 =
-	'020f1d66b8e8c1317b7292b72923cee65249bf86cee043ebcbf4f15d654edc5a';
+export const CODEROT_TREE_SHA256 =
+	'87c39d527df121ed4f84227529715ca1e8a47f29ac1ecb2053d00753f0f8b152';
 const coderotDir = path.resolve(here, '../node_modules/@coderot-ai/cli');
 const coderotBin = path.join(coderotDir, 'dist/coderot.js');
 
-const sha256 = (file: string): string =>
-	createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+const packageFiles = (dir: string, rel = ''): string[] =>
+	fs
+		.readdirSync(path.join(dir, rel), { withFileTypes: true })
+		.filter((e) => e.name !== 'node_modules')
+		.flatMap((e) =>
+			e.isDirectory() ? packageFiles(dir, rel + e.name + '/') : [rel + e.name],
+		)
+		.sort();
+
+export const hashPackageTree = (dir: string): string => {
+	const hash = createHash('sha256');
+	for (const rel of packageFiles(dir)) {
+		hash.update(rel + '\0').update(fs.readFileSync(path.join(dir, rel)));
+		hash.update('\0');
+	}
+	return hash.digest('hex');
+};
 
 export const assertCoderotIntegrity = (dir = coderotDir): void => {
-	const manifest = path.join(dir, 'package.json');
-	const entry = path.join(dir, 'dist/coderot.js');
-	const { version } = JSON.parse(fs.readFileSync(manifest, 'utf8'));
+	const manifest = JSON.parse(
+		fs.readFileSync(path.join(dir, 'package.json'), 'utf8'),
+	);
 	if (
-		version !== CODEROT_VERSION ||
-		sha256(manifest) !== CODEROT_MANIFEST_SHA256 ||
-		sha256(entry) !== CODEROT_ENTRY_SHA256
+		manifest.version !== CODEROT_VERSION ||
+		hashPackageTree(dir) !== CODEROT_TREE_SHA256
 	) {
 		throw new Error(
 			`@coderot-ai/cli is not the pinned ${CODEROT_VERSION} build (version or file hash differs): refusing to trust its output`,

@@ -9,6 +9,7 @@ import {
 	type Baseline,
 	type CoderotSnapshot,
 	assertCoderotIntegrity,
+	hashPackageTree,
 	assertCoverage,
 	assertSnapshot,
 	baseRef,
@@ -537,13 +538,21 @@ describe('measurement tool pin', () => {
 		expect(() => assertCoderotIntegrity()).not.toThrow();
 	});
 
-	it('rejects a substituted build (same version, different bytes)', () => {
+	it('hashes every file, so any changed or added file is rejected', () => {
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qr-tool-'));
 		try {
 			fs.mkdirSync(path.join(dir, 'dist'));
 			fs.writeFileSync(path.join(dir, 'package.json'), '{"version":"1.5.0"}');
 			fs.writeFileSync(path.join(dir, 'dist/coderot.js'), 'console.log(1)');
+			const before = hashPackageTree(dir);
 			expect(() => assertCoderotIntegrity(dir)).toThrow(/pinned 1\.5\.0 build/);
+			fs.writeFileSync(path.join(dir, 'dist/extra.wasm'), '0');
+			expect(hashPackageTree(dir)).not.toBe(before);
+			fs.mkdirSync(path.join(dir, 'node_modules'));
+			fs.writeFileSync(path.join(dir, 'node_modules/shim'), 'x');
+			expect(hashPackageTree(dir)).not.toBe(before);
+			fs.rmSync(path.join(dir, 'dist/extra.wasm'));
+			expect(hashPackageTree(dir)).toBe(before);
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
