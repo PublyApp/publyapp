@@ -81,7 +81,7 @@ reintroduce a predecessor workflow.
 
 Every brief links [AGENTS.md « Code quality — palier 1 »](../AGENTS.md#code-quality--palier-1-hard-owner-decision-2026-11-18)
 and tells the agent to apply its three rules (function cap, no zone may rise, PR size) and, once
-#2438 is merged, to run `pnpm check:quality` before pushing. Do not paraphrase the numbers in the
+the gate lands (PR #2443 merged, `pnpm check:quality` exists), to run `pnpm check:quality` before pushing. Do not paraphrase the numbers in the
 brief: link the section. A breach is a blocking QUALITY finding (see that section), never a MINOR.
 In the `review_schema` 1 record it is written `severity: MEDIUM`, `disposition: BLOCKS_PR`, with
 `quality` in its title; the §6 user-scenario downgrade does not apply to it.

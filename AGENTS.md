@@ -34,8 +34,7 @@ Precedence when a file matches two rows: `tooling` first, then the test zones, t
 
 **Enforcement.** The required CI gate, the committed baseline
 (`packages/scripts-ts/src/quality-baseline.json`), the measurement procedure and the local command
-`pnpm check:quality` are described in [`docs/guides/quality-ratchet.md`](docs/guides/quality-ratchet.md),
-added by PR [#2443](https://github.com/PublyApp/publyapp/pull/2443) (issue
+`pnpm check:quality` are described in the quality-ratchet guide added by PR [#2443](https://github.com/PublyApp/publyapp/pull/2443) (issue
 [#2438](https://github.com/PublyApp/publyapp/issues/2438)). The measurement uses `@coderot-ai/cli`
 locally; its upload mode `ci` is never used. Until that gate is merged, reviewers check rules 1 and 3
 by hand; rule 2 is only checked by the gate.
