@@ -12,24 +12,24 @@
 	"tolerancePer1k": 0.5,
 	"zones": {
 		"api": {
-			"complexityPer1k": 99999,
-			"duplicationPer1k": 99999
+			"complexityPer1k": 93.3,
+			"duplicationPer1k": 158.2
 		},
 		"front": {
-			"complexityPer1k": 99999,
-			"duplicationPer1k": 99999
+			"complexityPer1k": 87,
+			"duplicationPer1k": 82.7
 		},
 		"tests-api": {
-			"complexityPer1k": 99999,
-			"duplicationPer1k": 99999
+			"complexityPer1k": 24.2,
+			"duplicationPer1k": 383
 		},
 		"tests-front": {
-			"complexityPer1k": 99999,
-			"duplicationPer1k": 99999
+			"complexityPer1k": 48.4,
+			"duplicationPer1k": 254.4
 		},
 		"tooling": {
-			"complexityPer1k": 99999,
-			"duplicationPer1k": 99999
+			"complexityPer1k": 111.6,
+			"duplicationPer1k": 132.1
 		}
 	},
 	"exceptions": []

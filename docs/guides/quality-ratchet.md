@@ -1,41 +1,44 @@
 # Quality gate, palier 1 (#2438)
 
-A required CI step (`CI guard battery` > `Check quality ratchet`) and a local command enforce three rules.
-The rule itself, for agents, is in [AGENTS.md](../../AGENTS.md) section "Quality palier 1"; the follow-up issues are
-[#2439](https://github.com/PublyApp/publyapp/issues/2439) (front), [#2440](https://github.com/PublyApp/publyapp/issues/2440)
-(tooling) and [#2441](https://github.com/PublyApp/publyapp/issues/2441) (tests).
+The rule (zones, function cap, no zone may rise, PR size, review severity) is the AGENTS.md section
+[Code quality — palier 1](../../AGENTS.md#code-quality--palier-1-hard-owner-decision-2026-11-18); this guide only describes
+how the gate works. The gate is an **owner-mandated exception** to the
+[Bespoke guard admission](test-conventions.md#bespoke-guard-admission-hard-rule) hard rule (owner decision 2026-11-18);
+a breach of it is a **blocking QUALITY finding** in review, never downgraded.
 
-1. **Function cap.** A function new or modified by the PR (a touched line sits in its own body, not in a nested function)
-   must have cognitive complexity <= `functionCap` (15). C# and TypeScript, product, tooling and tests. Untouched functions are not judged.
-   An exception is a justified entry in `exceptions` of the baseline (`path`, `name`, `reason`).
-2. **Ratchet per zone.** For each zone, complexity and duplicated lines per 1000 SLOC on the PR head must be
-   <= the committed baseline + `tolerancePer1k` (0.5: absorbs 0.1 rounding and clone-detection noise).
-   Zones: `api`, `front` (`apps/front/src`, `packages/shared-ts`), `tests-api` (`*.Spec.cs`), `tests-front` (`*.test.*`, `*.spec.*`, e2e),
-   `tooling` (scripts-ts, lint-ts, lint-cs, scripts-cs, `apps/front/scripts|tools`).
-3. **PR size.** (Generated, migration and vendored files are out of scope everywhere.) More than `prSizeMaxLines` (600) added+deleted lines, excluding tests, generated files, migrations, lockfiles and
-   snapshots, fails. Only the owner may allow it, with the `size-exception` label (never add it yourself); after the label is set, edit the PR description (or push) so the check re-reads the label. Checked on `pull_request` only.
+## How it works
+
+A required CI step (`CI guard battery` > `Check quality ratchet`, lane `quality-ratchet` of `ci-final-gate`) runs
+[`check-quality-ratchet.ts`](../../packages/scripts-ts/src/check-quality-ratchet.ts) with all thresholds read from
+[`quality-baseline.json`](../../packages/scripts-ts/src/quality-baseline.json) (`functionCap`, `prSizeMaxLines`,
+`sizeExceptionLabel`, `tolerancePer1k`, per-zone baseline, `exceptions`).
+
+- **Function cap:** a function is judged when a touched line sits in its own body; a nested function (an `it` in a huge
+  `describe`) is judged alone. A justified waiver goes in `exceptions` (`path`, `name`, `reason`).
+- **Ratchet:** each zone's complexity and duplicated lines per 1000 SLOC must be <= baseline + `tolerancePer1k` (0.5: absorbs
+  0.1 rounding and clone-detection noise).
+- **PR size:** added + deleted lines excluding tests, generated files, migrations, lockfiles and snapshots; `pull_request`
+  events only. After the owner sets `size-exception`, edit the PR description (or push) so the check re-reads the label.
 
 ## Measurement
 
-`@coderot-ai/cli` 1.5.0 (devDependency of `scripts-ts`) run as `coderot analyze --since-commit HEAD`: it reads git history,
-writes a local report and sends nothing (never use `coderot ci`: it uploads). It is the tool behind the weekly figures, so the gate and
-the curves agree. Licence Elastic-2.0 allows internal use in our own CI; it forbids offering the tool as a hosted service and
-removing its notices, neither of which we do. C# analysis needs the .NET runtime (already in the `guards` job). Zones are classified
-by `check-quality-ratchet.ts`, since coderot does not flag `*.Spec.cs` as tests.
+`@coderot-ai/cli` 1.5.0 (devDependency of `scripts-ts`), `coderot analyze --since-commit HEAD`: local report, nothing sent
+(never `coderot ci`, which uploads). It is the tool behind the weekly figures, so gate and curves agree. Licence Elastic-2.0
+allows internal CI use. C# needs the .NET runtime (present in the `guards` job). Zones are classified by the script, since
+coderot does not flag `*.Spec.cs` as tests.
 
 ## Locally
 
 ```bash
-git commit ...                 # the tool measures commits, not the working tree
+git commit ...                 # it measures commits, not the working tree
 pnpm check:quality             # or: just ci-quality-ratchet (also runs the unit tests)
 pnpm check:quality --write     # lowers baseline values this branch improved (never raises)
 ```
 
-The base is `git merge-base HEAD origin/develop` (override with `QUALITY_BASE=<sha>`).
+Base = `git merge-base HEAD origin/develop` (override: `QUALITY_BASE=<sha>`).
 
 ## Tightening a palier
 
-All numbers live in [`packages/scripts-ts/src/quality-baseline.json`](../../packages/scripts-ts/src/quality-baseline.json):
-- A PR that improves a zone runs `pnpm check:quality --write` and commits the lowered baseline.
-- Moving to the next palier: edit `functionCap`, `prSizeMaxLines` or `tolerancePer1k`, or lower the zone values by hand, in a dedicated PR.
-  Values are never raised without a documented owner exception in that PR.
+A PR that improves a zone commits the lowered baseline (`--write`). The next palier edits `functionCap`, `prSizeMaxLines`,
+`tolerancePer1k` or zone values in a dedicated PR. Values are never raised without a documented owner exception.
+Retirement: replace the gate if an off-the-shelf tool enforces the same three rules with the same numbers.
