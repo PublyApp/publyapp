@@ -492,6 +492,16 @@ describe('owner approval, waivers and trivial deletions', () => {
 		expect(checkBaselineNotRaised(baseline, raised, [])).toHaveLength(1);
 	});
 
+	it('ignores an approval that was already on the base', () => {
+		const was = {
+			...baseline,
+			functionCap: 20,
+			ownerApproved: ['functionCap=25'],
+		};
+		const later = { ...was, functionCap: 25 };
+		expect(checkBaselineNotRaised(was, later, [])).toHaveLength(1);
+	});
+
 	it('requires a named waiver and string approvals', () => {
 		const text = JSON.stringify(baseline);
 		const waiver = '"exceptions":[{"path":"a","name":"","reason":"r"}]';

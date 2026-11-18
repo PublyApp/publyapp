@@ -15,12 +15,22 @@ const requiredPatterns = [
 	'/packages/scripts-ts/src/ci-*.ts',
 	'/packages/scripts-ts/src/check-ci-gate-structure.ts',
 	'/packages/scripts-ts/src/ci-gate-manifest.json',
+	'/.github/CODEOWNERS',
+	'/packages/scripts-ts/src/codeowners-contract.test.ts',
+	'/packages/scripts-ts/src/check-quality-ratchet.ts',
+	'/packages/scripts-ts/src/check-quality-ratchet.test.ts',
+	'/packages/scripts-ts/src/quality-baseline.json',
 ];
 const protectedPaths = [
 	'/.github/workflows/ci.yml',
 	'/packages/scripts-ts/src/ci-x.ts',
 	'/packages/scripts-ts/src/check-ci-gate-structure.ts',
 	'/packages/scripts-ts/src/ci-gate-manifest.json',
+	'/.github/CODEOWNERS',
+	'/packages/scripts-ts/src/codeowners-contract.test.ts',
+	'/packages/scripts-ts/src/check-quality-ratchet.ts',
+	'/packages/scripts-ts/src/check-quality-ratchet.test.ts',
+	'/packages/scripts-ts/src/quality-baseline.json',
 ];
 
 // @ts-expect-error rung-0: add proper type in later rung

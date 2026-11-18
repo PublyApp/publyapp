@@ -298,7 +298,11 @@ export const checkBaselineNotRaised = (
 	const was = thresholds(before);
 	const now = thresholds(after);
 	const known = new Set(before.exceptions.map(waiverKey));
-	const approved = new Set(after.ownerApproved ?? []);
+	// Only approvals added by this PR count: a stale entry cannot re-authorize a later raise.
+	const old = new Set(before.ownerApproved ?? []);
+	const approved = new Set(
+		(after.ownerApproved ?? []).filter((a) => !old.has(a)),
+	);
 	const raised = [
 		...[...was]
 			.filter(([k, v]) => (now.get(k) ?? 0) > v)
@@ -545,7 +549,9 @@ const main = (): number => {
 		...(event.pull_request?.labels ?? []).map((l) => l.name),
 		...(local && process.env.QUALITY_SIZE_EXCEPTION ? [SIZE_LABEL] : []),
 	];
-	const tip = readBaselineAt(process.env.QUALITY_BASE ?? baseRef(event));
+	const tip = policy.baseline
+		? readBaselineAt(process.env.QUALITY_BASE ?? baseRef(event))
+		: null;
 	// Introduction was gated (label) on the PR event; the queue only re-checks later raises.
 	const queueIntro = process.env.GITHUB_EVENT_NAME === 'merge_group' && !tip;
 	const errors = [
