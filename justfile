@@ -346,9 +346,7 @@ ci-dockerignore-shadow:
   pnpm --filter scripts-ts exec vitest run src/check-dockerignore-shadow.test.ts
   node ./packages/scripts-ts/src/check-dockerignore-shadow.ts
 
-# #2438 quality palier 1: new/modified functions <= 15 cognitive complexity, per-zone
-# complexity/duplication ratchet, PR size. Measures COMMITTED code (commit first).
-# Mirrors .github/workflows/ci.yml::guards::Check quality ratchet. See docs/guides/quality-ratchet.md.
+# #2438 quality gate (measures COMMITTED code). Mirrors ci.yml::guards::Check quality ratchet; see docs/guides/quality-ratchet.md.
 ci-quality-ratchet:
   @echo "=== [gate] quality ratchet (#2438) ==="
   pnpm --filter scripts-ts exec vitest run src/check-quality-ratchet.test.ts

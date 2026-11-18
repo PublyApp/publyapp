@@ -1,44 +1,38 @@
 # Quality gate, palier 1 (#2438)
 
 The rule (zones, function cap, no zone may rise, PR size, review severity) is the AGENTS.md section
-[Code quality — palier 1](../../AGENTS.md#code-quality--palier-1-hard-owner-decision-2026-11-18); this guide only describes
-how the gate works. The gate is an **owner-mandated exception** to the
-[Bespoke guard admission](test-conventions.md#bespoke-guard-admission-hard-rule) hard rule (owner decision 2026-11-18);
-a breach of it is a **blocking QUALITY finding** in review, never downgraded.
+[Code quality — palier 1](../../AGENTS.md#code-quality--palier-1-hard-owner-decision-2026-11-18); this guide describes the gate.
+It is an **owner-mandated exception** to the [Bespoke guard admission](test-conventions.md#bespoke-guard-admission-hard-rule)
+rule (owner decision 2026-11-18); a breach is a **blocking QUALITY finding**.
 
 ## How it works
 
-A required CI step (`CI guard battery` > `Check quality ratchet`, lane `quality-ratchet` of `ci-final-gate`) runs
-[`check-quality-ratchet.ts`](../../packages/scripts-ts/src/check-quality-ratchet.ts) with all thresholds read from
-[`quality-baseline.json`](../../packages/scripts-ts/src/quality-baseline.json) (`functionCap`, `prSizeMaxLines`,
-`sizeExceptionLabel`, `tolerancePer1k`, per-zone baseline, `exceptions`).
+`CI guard battery` > `Check quality ratchet` (quality lane of `ci-final-gate`, 15 min timeout) runs
+[`check-quality-ratchet.ts`](../../packages/scripts-ts/src/check-quality-ratchet.ts), reading every threshold from
+[`quality-baseline.json`](../../packages/scripts-ts/src/quality-baseline.json). Both files are CODEOWNED.
 
-- **Function cap:** a function is judged when a touched line sits in its own body; a nested function (an `it` in a huge
-  `describe`) is judged alone. A justified waiver goes in `exceptions` (`path`, `name`, `reason`).
-- **Ratchet:** each zone's complexity and duplicated lines per 1000 SLOC must be <= baseline + `tolerancePer1k` (0.5: absorbs
-  0.1 rounding and clone-detection noise).
-- **PR size:** added + deleted lines excluding tests, generated files, migrations, lockfiles and snapshots; `pull_request`
-  events only. After the owner sets `size-exception`, edit the PR description (or push) so the check re-reads the label.
+- **Function cap:** a function is judged when a touched line sits in its own body (a nested function is judged alone). Pure
+  renames touch nothing. A justified waiver goes in `exceptions` (`path`, `name`, `reason`).
+- **Ratchet:** zone complexity and duplicated lines per 1000 SLOC <= baseline + `tolerancePer1k`.
+- **Baseline never rises:** the PR's baseline file is compared with the one on the base branch; any raised value, new
+  exception or changed label fails, unless the owner sets the `quality-baseline-exception` label.
+- **PR size:** added + deleted lines (renames followed) excluding tests, generated files, migrations, lockfiles, snapshots;
+  `pull_request` only. The owner sets `size-exception`, then edit the PR description (or push) so the label is re-read.
+- **Fail closed:** an empty scan, no clone data, an unparsed or unmeasured file, or a zone without files fails the gate.
+- **Precedence:** tooling, then test zones, then api/front. Files outside the zones (`apps/mobile`, `apps/front/deploy`) are not judged.
 
 ## Measurement
 
-`@coderot-ai/cli` 1.5.0 (devDependency of `scripts-ts`), `coderot analyze --since-commit HEAD`: local report, nothing sent
-(never `coderot ci`, which uploads). It is the tool behind the weekly figures, so gate and curves agree. Licence Elastic-2.0
-allows internal CI use. C# needs the .NET runtime (present in the `guards` job). Zones are classified by the script, since
-coderot does not flag `*.Spec.cs` as tests.
+`@coderot-ai/cli` 1.5.0, `analyze --since-commit HEAD` (~5 s, local, nothing sent; never `coderot ci`, which uploads). It is the
+tool behind the weekly figures. Licence Elastic-2.0 allows internal CI use; C# needs the .NET runtime (in the `guards` job).
 
-## Locally
+## Locally and tightening
 
 ```bash
-git commit ...                 # it measures commits, not the working tree
-pnpm check:quality             # or: just ci-quality-ratchet (also runs the unit tests)
-pnpm check:quality --write     # lowers baseline values this branch improved (never raises)
+git commit ...             # it measures commits, not the working tree
+pnpm check:quality         # or: just ci-quality-ratchet (also runs the unit tests)
 ```
 
-Base = `git merge-base HEAD origin/develop` (override: `QUALITY_BASE=<sha>`).
-
-## Tightening a palier
-
-A PR that improves a zone commits the lowered baseline (`--write`). The next palier edits `functionCap`, `prSizeMaxLines`,
-`tolerancePer1k` or zone values in a dedicated PR. Values are never raised without a documented owner exception.
-Retirement: replace the gate if an off-the-shelf tool enforces the same three rules with the same numbers.
+Base = `git merge-base HEAD origin/develop` (override: `QUALITY_BASE=<sha>`). To tighten a palier, a dedicated PR lowers zone
+values (measure on the base branch, then `pnpm check:quality --write`) or `functionCap` / `prSizeMaxLines` / `tolerancePer1k`.
+Retire the gate if an off-the-shelf tool enforces the same three rules with the same numbers.

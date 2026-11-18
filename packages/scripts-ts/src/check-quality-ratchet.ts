@@ -8,14 +8,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // Quality palier 1 gate (#2438); thresholds live in quality-baseline.json (see docs/guides/quality-ratchet.md).
 // Numbers come from local `coderot analyze` (never `ci`: it uploads) so weekly figures and gate agree.
 
-export type Zone = 'api' | 'front' | 'tests-api' | 'tests-front' | 'tooling';
-export const ZONES: readonly Zone[] = [
+export const ZONES = [
 	'api',
 	'front',
 	'tests-api',
 	'tests-front',
 	'tooling',
-];
+] as const;
+export type Zone = (typeof ZONES)[number];
 
 export interface ZoneBaseline {
 	complexityPer1k: number;
@@ -41,7 +41,6 @@ export interface CoderotFunction {
 	start: number;
 	end: number;
 	cognitive: number;
-	sloc: number;
 }
 export interface CoderotBlob {
 	parsed?: boolean;
@@ -217,27 +216,6 @@ export const checkRatchet = (
 	return errors;
 };
 
-/** Lowers (never raises) baseline values that the measure beats; rounds up. */
-export const lowerBaseline = (
-	measured: Record<Zone, ZoneBaseline>,
-	baseline: Baseline,
-): Baseline => {
-	const zones = { ...baseline.zones };
-	for (const zone of ZONES) {
-		zones[zone] = {
-			complexityPer1k: Math.min(
-				baseline.zones[zone].complexityPer1k,
-				measured[zone].complexityPer1k,
-			),
-			duplicationPer1k: Math.min(
-				baseline.zones[zone].duplicationPer1k,
-				measured[zone].duplicationPer1k,
-			),
-		};
-	}
-	return { ...baseline, zones };
-};
-
 /** The PR baseline may only get stricter than the base branch's (owner label aside). */
 export const checkBaselineNotRaised = (
 	before: Baseline | null,
@@ -257,16 +235,9 @@ export const checkBaselineNotRaised = (
 	cmp('prSizeMaxLines', before.prSizeMaxLines, after.prSizeMaxLines);
 	cmp('tolerancePer1k', before.tolerancePer1k, after.tolerancePer1k);
 	for (const zone of ZONES) {
-		cmp(
-			zone + '.complexity',
-			before.zones[zone].complexityPer1k,
-			after.zones[zone].complexityPer1k,
-		);
-		cmp(
-			zone + '.duplication',
-			before.zones[zone].duplicationPer1k,
-			after.zones[zone].duplicationPer1k,
-		);
+		for (const k of ['complexityPer1k', 'duplicationPer1k'] as const) {
+			cmp(zone + '.' + k, before.zones[zone][k], after.zones[zone][k]);
+		}
 	}
 	const known = new Set(before.exceptions.map((e) => e.path + '::' + e.name));
 	for (const e of after.exceptions) {
@@ -521,8 +492,7 @@ const main = (): number => {
 		console.log(`${z}: ${JSON.stringify(measured[z])}`);
 	}
 	if (process.argv.includes('--write')) {
-		writeBaseline(lowerBaseline(measured, baseline));
-		console.log('quality-baseline.json lowered where improved.');
+		writeBaseline({ ...baseline, zones: measured });
 		return 0;
 	}
 	const base = resolveBase();

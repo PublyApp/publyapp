@@ -10,7 +10,6 @@ import {
 	checkRatchet,
 	classifyPath,
 	countSizedLines,
-	lowerBaseline,
 	measureZones,
 	parseTouches,
 	renamedTo,
@@ -100,17 +99,6 @@ describe('checkRatchet', () => {
 			api: { complexityPer1k: 10.6, duplicationPer1k: 20 },
 		};
 		expect(checkRatchet(bad, baseline)).toHaveLength(1);
-	});
-
-	it('lowers but never raises the baseline', () => {
-		const measured = {
-			...baseline.zones,
-			api: { complexityPer1k: 5, duplicationPer1k: 99 },
-		};
-		expect(lowerBaseline(measured, baseline).zones.api).toEqual({
-			complexityPer1k: 5,
-			duplicationPer1k: 20,
-		});
 	});
 });
 

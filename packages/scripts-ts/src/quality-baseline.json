@@ -1,10 +1,7 @@
 {
 	"$comment": [
-		"Palier 1 quality gate (#2438). Single source of truth for thresholds, read by check-quality-ratchet.ts.",
-		"Ratchet: a zone metric (cognitive complexity / duplicated lines per 1000 SLOC, measured by coderot) may not exceed the value here + tolerancePer1k.",
-		"Lower a value in the same PR that improves the zone: `pnpm check:quality --write` (never raises). Raising needs a documented owner exception.",
-		"Tolerance 0.5 absorbs 0.1-rounding and clone-detection noise between merge commits (one extra complexity-15 function adds ~0.2 per 1k in the smallest zone).",
-		"exceptions: functions allowed above functionCap, each with a reason. See docs/guides/quality-ratchet.md."
+		"Palier 1 quality gate (#2438): single source of thresholds, read by check-quality-ratchet.ts; see docs/guides/quality-ratchet.md.",
+		"Zone values are per 1000 SLOC and may never rise versus the base branch; tolerancePer1k absorbs 0.1 rounding and clone-detection noise."
 	],
 	"functionCap": 15,
 	"prSizeMaxLines": 600,
@@ -12,26 +9,11 @@
 	"baselineExceptionLabel": "quality-baseline-exception",
 	"tolerancePer1k": 0.5,
 	"zones": {
-		"api": {
-			"complexityPer1k": 94.8,
-			"duplicationPer1k": 161.5
-		},
-		"front": {
-			"complexityPer1k": 87,
-			"duplicationPer1k": 82.7
-		},
-		"tests-api": {
-			"complexityPer1k": 25.1,
-			"duplicationPer1k": 374.8
-		},
-		"tests-front": {
-			"complexityPer1k": 48.4,
-			"duplicationPer1k": 254.7
-		},
-		"tooling": {
-			"complexityPer1k": 111.4,
-			"duplicationPer1k": 132.9
-		}
+		"api": { "complexityPer1k": 94.8, "duplicationPer1k": 161.5 },
+		"front": { "complexityPer1k": 87, "duplicationPer1k": 82.7 },
+		"tests-api": { "complexityPer1k": 25.1, "duplicationPer1k": 374.8 },
+		"tests-front": { "complexityPer1k": 48.4, "duplicationPer1k": 254.7 },
+		"tooling": { "complexityPer1k": 111.4, "duplicationPer1k": 132.9 }
 	},
 	"exceptions": []
 }
