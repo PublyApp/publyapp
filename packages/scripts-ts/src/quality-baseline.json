@@ -9,6 +9,7 @@
 	"functionCap": 15,
 	"prSizeMaxLines": 600,
 	"sizeExceptionLabel": "size-exception",
+	"baselineExceptionLabel": "quality-baseline-exception",
 	"tolerancePer1k": 0.5,
 	"zones": {
 		"api": {
@@ -28,8 +29,8 @@
 			"duplicationPer1k": 254.7
 		},
 		"tooling": {
-			"complexityPer1k": 111.6,
-			"duplicationPer1k": 132.1
+			"complexityPer1k": 111.4,
+			"duplicationPer1k": 132.9
 		}
 	},
 	"exceptions": []

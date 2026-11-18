@@ -10,5 +10,8 @@
 /packages/scripts-ts/src/gen-reason-ref.ts @radandevist
 /packages/scripts-ts/src/gen-reason-ref.test.ts @radandevist
 /packages/scripts-ts/src/reason-guard-ref.json @radandevist
+/packages/scripts-ts/src/check-quality-ratchet.ts @radandevist
+/packages/scripts-ts/src/check-quality-ratchet.test.ts @radandevist
+/packages/scripts-ts/src/quality-baseline.json @radandevist
 /packages/scripts-ts/src/ci-gate-removals.json @radandevist
 /packages/scripts-ts/src/run-ci-contract-tests.ts @radandevist

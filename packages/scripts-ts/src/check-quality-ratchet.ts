@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Quality palier 1 gate (#2438); thresholds live in quality-baseline.json (see docs/guides/quality-ratchet.md).
 // Numbers come from local `coderot analyze` (never `ci`: it uploads) so weekly figures and gate agree.
@@ -30,6 +30,7 @@ export interface Baseline {
 	functionCap: number;
 	prSizeMaxLines: number;
 	sizeExceptionLabel: string;
+	baselineExceptionLabel: string;
 	tolerancePer1k: number;
 	zones: Record<Zone, ZoneBaseline>;
 	exceptions: FunctionException[];
@@ -43,6 +44,8 @@ export interface CoderotFunction {
 	sloc: number;
 }
 export interface CoderotBlob {
+	parsed?: boolean;
+	unmeasuredFunctions?: number;
 	sloc: number;
 	functions: CoderotFunction[];
 }
@@ -52,7 +55,7 @@ export interface CoderotSnapshot {
 	clones?: { locations: { path: string; start: number; end: number }[] }[];
 }
 
-const here = path.dirname(new URL(import.meta.url).pathname);
+const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../../..');
 const baselinePath = path.join(here, 'quality-baseline.json');
 const coderotBin = path.resolve(
@@ -65,7 +68,7 @@ const coderotBin = path.resolve(
 const EXCLUDED =
 	/(\.g\.cs$|routeTree\.gen\.ts$|\/generated\/|\/Migrations\/|^packages\/client-ts\/|\/openapi\.json$|^\.worktrees\/|\/node_modules\/)/;
 const TEST_TS =
-	/(^(apps\/front\/src|packages\/shared-ts)\/.*\.(test|spec)\.[cm]?[tj]sx?$|^apps\/front\/(e2e|tests)\/)/;
+	/(^(apps\/front\/src|packages\/shared-ts)(\/.*\.(test|spec)\.[cm]?[tj]sx?$|\/(.*\/)?__tests__\/)|^apps\/front\/(e2e|tests)\/)/;
 const TEST_CS = /(\.Spec\.cs$|^apps\/api\/(Lib\/Testing|Tests)\/)/;
 const TOOLING =
 	/^(packages\/(scripts-ts|lint-ts|lint-cs|scripts-cs)\/|apps\/front\/(scripts|tools)\/)/;
@@ -137,6 +140,28 @@ const cloneRanges = (
 		}
 	}
 	return byPath;
+};
+
+/** Fails closed: an empty, partial or unparsed scan must never pass vacuously. */
+export const assertSnapshot = (snap: CoderotSnapshot): void => {
+	if (!snap.files?.length || !Array.isArray(snap.clones)) {
+		throw new Error('coderot snapshot is empty or has no clone data');
+	}
+	for (const file of snap.files) {
+		const blob = snap.blobs[file.blob];
+		const broken = !blob || blob.parsed === false || blob.unmeasuredFunctions;
+		if (broken && classifyPath(file.path)) {
+			throw new Error(`coderot could not fully measure ${file.path}`);
+		}
+	}
+	const empty = ZONES.filter(
+		(z) => !snap.files.some((f) => classifyPath(f.path) === z),
+	);
+	if (empty.length > 0) {
+		throw new Error(
+			`coderot snapshot has no file in zone(s): ${empty.join(', ')}`,
+		);
+	}
 };
 
 export const measureZones = (snap: CoderotSnapshot): ZoneMetrics => {
@@ -211,6 +236,51 @@ export const lowerBaseline = (
 		};
 	}
 	return { ...baseline, zones };
+};
+
+/** The PR baseline may only get stricter than the base branch's (owner label aside). */
+export const checkBaselineNotRaised = (
+	before: Baseline | null,
+	after: Baseline,
+	labels: string[],
+): string[] => {
+	if (!before || labels.includes(before.baselineExceptionLabel)) {
+		return [];
+	}
+	const raised: string[] = [];
+	const cmp = (name: string, was: number, now: number) => {
+		if (now > was) {
+			raised.push(name + ' ' + was + ' -> ' + now);
+		}
+	};
+	cmp('functionCap', before.functionCap, after.functionCap);
+	cmp('prSizeMaxLines', before.prSizeMaxLines, after.prSizeMaxLines);
+	cmp('tolerancePer1k', before.tolerancePer1k, after.tolerancePer1k);
+	for (const zone of ZONES) {
+		cmp(
+			zone + '.complexity',
+			before.zones[zone].complexityPer1k,
+			after.zones[zone].complexityPer1k,
+		);
+		cmp(
+			zone + '.duplication',
+			before.zones[zone].duplicationPer1k,
+			after.zones[zone].duplicationPer1k,
+		);
+	}
+	const known = new Set(before.exceptions.map((e) => e.path + '::' + e.name));
+	for (const e of after.exceptions) {
+		if (!known.has(e.path + '::' + e.name)) {
+			raised.push('new exception ' + e.path + '::' + e.name);
+		}
+	}
+	if (after.sizeExceptionLabel !== before.sizeExceptionLabel) {
+		raised.push('sizeExceptionLabel changed');
+	}
+	return raised.map(
+		(r) =>
+			`BASELINE raised (${r}). A baseline never rises; only the owner can allow it with the "${before.baselineExceptionLabel}" label.`,
+	);
 };
 
 // ------------------------------------------------------------ function cap
@@ -329,11 +399,18 @@ export const checkFunctionCap = (
 
 // ----------------------------------------------------------------- PR size
 
+/** `git diff --numstat -M` prints renames as `a => b` or `d/{a => b}/x`: keep the new path. */
+export const renamedTo = (name: string): string =>
+	name
+		.replace(/\{[^{}]* => ([^{}]*)\}/, '$1')
+		.replace(/^.* => /, '')
+		.replace('//', '/');
+
 export const countSizedLines = (numstat: string): number => {
 	let total = 0;
 	for (const line of numstat.split('\n')) {
 		const [added, deleted, ...rest] = line.split('\t');
-		const file = rest.join('\t');
+		const file = renamedTo(rest.join('\t'));
 		if (!file || isSizeExempt(file) || added === '-') {
 			continue;
 		}
@@ -365,9 +442,12 @@ const run = (cmd: string, args: string[]): string => {
 		cwd: repoRoot,
 		encoding: 'utf8',
 		maxBuffer: 512 * 1024 * 1024,
+		timeout: 10 * 60 * 1000,
 	});
-	if (r.status !== 0) {
-		throw new Error(`${cmd} ${args.join(' ')} failed:\n${r.stderr}${r.stdout}`);
+	if (r.error || r.status !== 0) {
+		throw new Error(
+			`${cmd} ${args.join(' ')} failed:\n${r.error ?? ''}${r.stderr}${r.stdout}`,
+		);
 	}
 	return r.stdout;
 };
@@ -411,6 +491,19 @@ const sizeApplies = (): boolean =>
 const readBaseline = (): Baseline =>
 	JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
 
+const readBaselineAt = (base: string): Baseline | null => {
+	try {
+		return JSON.parse(
+			run('git', [
+				'show',
+				base + ':packages/scripts-ts/src/quality-baseline.json',
+			]),
+		);
+	} catch {
+		return null; // ponytail: first introduction has no base baseline
+	}
+};
+
 const writeBaseline = (b: Baseline): void => {
 	const raw = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
 	fs.writeFileSync(
@@ -422,6 +515,7 @@ const writeBaseline = (b: Baseline): void => {
 const main = (): number => {
 	const baseline = readBaseline();
 	const snap = readSnapshot();
+	assertSnapshot(snap);
 	const measured = toBaselineZones(measureZones(snap));
 	for (const z of ZONES) {
 		console.log(`${z}: ${JSON.stringify(measured[z])}`);
@@ -432,19 +526,21 @@ const main = (): number => {
 		return 0;
 	}
 	const base = resolveBase();
+	const labels = prLabels();
 	const errors = [
+		...checkBaselineNotRaised(readBaselineAt(base), baseline, labels),
 		...checkRatchet(measured, baseline),
 		...checkFunctionCap(
 			snap,
-			parseTouches(run('git', ['diff', '-U0', '--no-renames', base, 'HEAD'])),
+			parseTouches(run('git', ['diff', '-U0', '-M', base, 'HEAD'])),
 			baseline,
 		),
 		...(sizeApplies()
 			? checkPrSize(
 					countSizedLines(
-						run('git', ['diff', '--numstat', '--no-renames', base, 'HEAD']),
+						run('git', ['diff', '--numstat', '-M', base, 'HEAD']),
 					),
-					prLabels(),
+					labels,
 					baseline,
 				)
 			: []),

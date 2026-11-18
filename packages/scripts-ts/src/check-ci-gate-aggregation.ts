@@ -283,6 +283,8 @@ const baseJobLaneContracts = {
 				'guards.ci_drift',
 				'guards.action_versions',
 				'guards.project_closure',
+				'guards.quality_ratchet_tests',
+				'guards.quality_ratchet',
 				'guards.quality.not-applicable',
 			],
 			'quality',
@@ -294,10 +296,6 @@ const baseJobLaneContracts = {
 		contract('guards', 'api-paths', [
 			'guards.api-paths-tests',
 			'guards.api-paths',
-		]),
-		contract('guards', 'quality-ratchet', [
-			'guards.quality-ratchet-tests',
-			'guards.quality-ratchet',
 		]),
 	],
 	'docs-react': [

@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	type Baseline,
 	type CoderotSnapshot,
+	assertSnapshot,
+	checkBaselineNotRaised,
 	checkFunctionCap,
 	checkPrSize,
 	checkRatchet,
@@ -11,6 +13,7 @@ import {
 	lowerBaseline,
 	measureZones,
 	parseTouches,
+	renamedTo,
 	toBaselineZones,
 } from './check-quality-ratchet.ts';
 
@@ -19,6 +22,7 @@ const baseline: Baseline = {
 	functionCap: 15,
 	prSizeMaxLines: 600,
 	sizeExceptionLabel: 'size-exception',
+	baselineExceptionLabel: 'quality-baseline-exception',
 	tolerancePer1k: 0.5,
 	zones: {
 		api: zone,
@@ -66,6 +70,7 @@ describe('classifyPath', () => {
 		expect(classifyPath('apps/api/Lib/Testing/H.cs')).toBe('tests-api');
 		expect(classifyPath('apps/api/Tests/A.cs')).toBe('tests-api');
 		expect(classifyPath('apps/front/deploy/a.test.ts')).toBeNull();
+		expect(classifyPath('apps/front/src/__tests__/h.ts')).toBe('tests-front');
 		expect(classifyPath('apps/front/e2e/a.ts')).toBe('tests-front');
 	});
 });
@@ -176,5 +181,89 @@ describe('PR size', () => {
 		expect(checkPrSize(601, [], baseline)).toHaveLength(1);
 		expect(checkPrSize(600, [], baseline)).toEqual([]);
 		expect(checkPrSize(900, ['size-exception'], baseline)).toEqual([]);
+	});
+});
+
+describe('fail closed', () => {
+	const full = (): CoderotSnapshot => ({
+		files: [
+			{ path: 'apps/api/A.cs', blob: 'a', test: false },
+			{ path: 'apps/api/A.Spec.cs', blob: 'a', test: false },
+			{ path: 'apps/front/src/a.ts', blob: 'a', test: false },
+			{ path: 'apps/front/src/a.test.ts', blob: 'a', test: false },
+			{ path: 'packages/scripts-ts/src/a.ts', blob: 'a', test: false },
+		],
+		blobs: { a: { sloc: 1, functions: [] } },
+		clones: [],
+	});
+
+	it('accepts a complete snapshot', () => {
+		expect(() => assertSnapshot(full())).not.toThrow();
+	});
+
+	it('rejects empty, clone-less, missing-blob and unparsed snapshots', () => {
+		expect(() => assertSnapshot({ ...full(), files: [] })).toThrow();
+		expect(() => assertSnapshot({ ...full(), clones: undefined })).toThrow();
+		expect(() => assertSnapshot({ ...full(), blobs: {} })).toThrow(
+			/fully measure/,
+		);
+		const unparsed = full();
+		unparsed.blobs.a = { sloc: 1, functions: [], parsed: false };
+		expect(() => assertSnapshot(unparsed)).toThrow();
+		const partial = full();
+		partial.blobs.a = { sloc: 1, functions: [], unmeasuredFunctions: 2 };
+		expect(() => assertSnapshot(partial)).toThrow();
+	});
+
+	it('rejects a snapshot with a whole zone missing', () => {
+		const snap = full();
+		snap.files = snap.files.slice(0, 2);
+		expect(() => assertSnapshot(snap)).toThrow(/zone/);
+	});
+});
+
+describe('baseline cannot rise', () => {
+	it('fails when any value, tolerance or exception rises', () => {
+		const raised = {
+			...baseline,
+			zones: { ...baseline.zones, api: { ...zone, complexityPer1k: 11 } },
+		};
+		expect(checkBaselineNotRaised(baseline, raised, [])).toHaveLength(1);
+		expect(
+			checkBaselineNotRaised(baseline, { ...baseline, functionCap: 16 }, []),
+		).toHaveLength(1);
+		const waived = {
+			...baseline,
+			exceptions: [{ path: 'a', name: 'b', reason: 'r' }],
+		};
+		expect(checkBaselineNotRaised(baseline, waived, [])).toHaveLength(1);
+	});
+
+	it('allows lowering, a bootstrap without base, and the owner label', () => {
+		const lowered = {
+			...baseline,
+			zones: { ...baseline.zones, api: { ...zone, complexityPer1k: 5 } },
+		};
+		expect(checkBaselineNotRaised(baseline, lowered, [])).toEqual([]);
+		expect(checkBaselineNotRaised(null, baseline, [])).toEqual([]);
+		const raised = { ...baseline, functionCap: 20 };
+		expect(
+			checkBaselineNotRaised(baseline, raised, ['quality-baseline-exception']),
+		).toEqual([]);
+	});
+});
+
+describe('renames', () => {
+	it('keeps the new path of a rename and counts a pure move as 0', () => {
+		expect(renamedTo('a/{old => new}/x.ts')).toBe('a/new/x.ts');
+		expect(renamedTo('old.ts => new.ts')).toBe('new.ts');
+		expect(countSizedLines('0\t0\tapps/front/scripts/{a.mts => a.ts}')).toBe(0);
+		expect(countSizedLines('3\t1\tapps/api/{Old => New}/A.cs')).toBe(4);
+	});
+
+	it('gives a pure rename no touched lines', () => {
+		const diff =
+			'diff --git a/apps/api/A.cs b/apps/api/B.cs\nsimilarity index 100%\nrename from apps/api/A.cs\nrename to apps/api/B.cs\n';
+		expect(parseTouches(diff).size).toBe(0);
 	});
 });
