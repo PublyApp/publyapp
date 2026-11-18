@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	type Baseline,
 	type CoderotSnapshot,
-	assertCoderotVersion,
+	assertCoderotIntegrity,
 	assertCoverage,
 	assertSnapshot,
 	baseRef,
@@ -533,8 +533,19 @@ describe('owner approval, waivers and trivial deletions', () => {
 });
 
 describe('measurement tool pin', () => {
-	it('accepts only the pinned coderot version', () => {
-		expect(() => assertCoderotVersion('1.5.0')).not.toThrow();
-		expect(() => assertCoderotVersion('1.6.0')).toThrow(/requires 1\.5\.0/);
+	it('accepts the installed pinned build', () => {
+		expect(() => assertCoderotIntegrity()).not.toThrow();
+	});
+
+	it('rejects a substituted build (same version, different bytes)', () => {
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qr-tool-'));
+		try {
+			fs.mkdirSync(path.join(dir, 'dist'));
+			fs.writeFileSync(path.join(dir, 'package.json'), '{"version":"1.5.0"}');
+			fs.writeFileSync(path.join(dir, 'dist/coderot.js'), 'console.log(1)');
+			expect(() => assertCoderotIntegrity(dir)).toThrow(/pinned 1\.5\.0 build/);
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });

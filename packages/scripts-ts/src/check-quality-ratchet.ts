@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -80,15 +81,32 @@ export interface CoderotSnapshot {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../../..');
 const baselinePath = path.join(here, 'quality-baseline.json');
-/** The measurement tool is pinned exactly in package.json (CODEOWNED); the gate refuses any other version. */
+/**
+ * The measurement tool is pinned by version AND by the SHA-256 of its entry file and manifest (both CODEOWNED
+ * here), so an override, a patch or a lockfile edit cannot swap it. To bump: change the three constants together.
+ */
 export const CODEROT_VERSION = '1.5.0';
+export const CODEROT_ENTRY_SHA256 =
+	'ac96d77b84e500cd833be40b340bc4db7f270b3a2b08d60c5333760d75fc594c';
+export const CODEROT_MANIFEST_SHA256 =
+	'020f1d66b8e8c1317b7292b72923cee65249bf86cee043ebcbf4f15d654edc5a';
 const coderotDir = path.resolve(here, '../node_modules/@coderot-ai/cli');
-const coderotBin = path.resolve(here, coderotDir, 'dist/coderot.js');
+const coderotBin = path.join(coderotDir, 'dist/coderot.js');
 
-export const assertCoderotVersion = (installed: string): void => {
-	if (installed !== CODEROT_VERSION) {
+const sha256 = (file: string): string =>
+	createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+
+export const assertCoderotIntegrity = (dir = coderotDir): void => {
+	const manifest = path.join(dir, 'package.json');
+	const entry = path.join(dir, 'dist/coderot.js');
+	const { version } = JSON.parse(fs.readFileSync(manifest, 'utf8'));
+	if (
+		version !== CODEROT_VERSION ||
+		sha256(manifest) !== CODEROT_MANIFEST_SHA256 ||
+		sha256(entry) !== CODEROT_ENTRY_SHA256
+	) {
 		throw new Error(
-			`@coderot-ai/cli ${installed} is installed, the gate requires ${CODEROT_VERSION}`,
+			`@coderot-ai/cli is not the pinned ${CODEROT_VERSION} build (version or file hash differs): refusing to trust its output`,
 		);
 	}
 };
@@ -473,10 +491,7 @@ const run = (cmd: string, args: string[]): string => {
 };
 
 const readSnapshot = (): CoderotSnapshot => {
-	assertCoderotVersion(
-		JSON.parse(fs.readFileSync(path.join(coderotDir, 'package.json'), 'utf8'))
-			.version,
-	);
+	assertCoderotIntegrity();
 	const out = fs.mkdtempSync(path.join(os.tmpdir(), 'quality-'));
 	try {
 		run(process.execPath, [
