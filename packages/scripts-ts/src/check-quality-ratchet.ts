@@ -127,16 +127,13 @@ const unionLength = (ranges: [number, number][]): number => {
 	return total;
 };
 
-const cloneRanges = (
-	snap: CoderotSnapshot,
-): Map<string, [number, number][]> => {
+const cloneRanges = (snap: CoderotSnapshot) => {
 	const byPath = new Map<string, [number, number][]>();
-	for (const clone of snap.clones ?? []) {
-		for (const loc of clone.locations) {
-			const list = byPath.get(loc.path) ?? [];
-			list.push([loc.start, loc.end]);
-			byPath.set(loc.path, list);
-		}
+	for (const loc of (snap.clones ?? []).flatMap((c) => c.locations)) {
+		byPath.set(loc.path, [
+			...(byPath.get(loc.path) ?? []),
+			[loc.start, loc.end],
+		]);
 	}
 	return byPath;
 };
@@ -299,43 +296,32 @@ export const parseTouches = (diff: string): Map<string, Touch[]> => {
 	return touches;
 };
 
-const within = (inner: CoderotFunction, outer: CoderotFunction): boolean =>
-	inner !== outer && inner.start >= outer.start && inner.end <= outer.end;
-
-const lineInside = (line: number, fn: CoderotFunction): boolean =>
-	line >= fn.start && line <= fn.end;
-
-const touchHitsOwnLines = (
-	fn: CoderotFunction,
-	touch: Touch,
-	children: CoderotFunction[],
-): boolean => {
-	if (touch.between) {
-		const both = (c: CoderotFunction) =>
-			lineInside(touch.start, c) && lineInside(touch.end, c);
-		return both(fn) && !children.some(both);
-	}
-	const last = Math.min(touch.end, fn.end);
-	for (let line = Math.max(touch.start, fn.start); line <= last; line++) {
-		if (!children.some((c) => lineInside(line, c))) {
-			return true;
+/** Innermost function whose body holds the line: a nested function is judged alone. */
+const ownerOf = (fns: CoderotFunction[], line: number) => {
+	let best: CoderotFunction | undefined;
+	for (const fn of fns) {
+		const inside = line >= fn.start && line <= fn.end;
+		if (inside && (!best || fn.end - fn.start < best.end - best.start)) {
+			best = fn;
 		}
 	}
-	return false;
+	return best;
 };
 
-/**
- * A function is modified when a touched line sits in its own body. Lines of a
- * nested function (e.g. an `it` callback in a huge `describe`) belong to that
- * nested function, which is judged on its own.
- */
-const functionTouched = (
-	fn: CoderotFunction,
-	touches: Touch[],
-	all: CoderotFunction[],
-): boolean => {
-	const children = all.filter((c) => within(c, fn));
-	return touches.some((t) => touchHitsOwnLines(fn, t, children));
+/** Functions of one file whose own body holds a touched line. */
+const touchedFunctions = (fns: CoderotFunction[], touches: Touch[]) => {
+	const hit = new Set<CoderotFunction>();
+	for (const t of touches) {
+		const last = t.between ? t.start : t.end;
+		for (let line = t.start; line <= last; line++) {
+			const owner = ownerOf(fns, line);
+			const spansBoth = !t.between || owner === ownerOf(fns, t.end);
+			if (owner && spansBoth) {
+				hit.add(owner);
+			}
+		}
+	}
+	return hit;
 };
 
 export const checkFunctionCap = (
@@ -350,15 +336,11 @@ export const checkFunctionCap = (
 		if (!fileTouches || !blob || !classifyPath(file.path)) {
 			continue;
 		}
-		for (const fn of blob.functions) {
+		for (const fn of touchedFunctions(blob.functions, fileTouches)) {
 			const waived = baseline.exceptions.some(
 				(e) => e.path === file.path && e.name === fn.name,
 			);
-			if (
-				fn.cognitive > baseline.functionCap &&
-				!waived &&
-				functionTouched(fn, fileTouches, blob.functions)
-			) {
+			if (fn.cognitive > baseline.functionCap && !waived) {
 				errors.push(
 					`FUNCTION ${file.path}:${fn.start} ${fn.name}: cognitive complexity ${fn.cognitive} > ${baseline.functionCap}. A new or modified function must be <= ${baseline.functionCap}: split it.`,
 				);
