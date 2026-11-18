@@ -538,23 +538,47 @@ describe('measurement tool pin', () => {
 		expect(() => assertCoderotIntegrity()).not.toThrow();
 	});
 
-	it('hashes every file, so any changed or added file is rejected', () => {
+	const withTool = (check: (dir: string) => void) => {
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qr-tool-'));
 		try {
 			fs.mkdirSync(path.join(dir, 'dist'));
 			fs.writeFileSync(path.join(dir, 'package.json'), '{"version":"1.5.0"}');
 			fs.writeFileSync(path.join(dir, 'dist/coderot.js'), 'console.log(1)');
-			const before = hashPackageTree(dir);
-			expect(() => assertCoderotIntegrity(dir)).toThrow(/pinned 1\.5\.0 build/);
-			fs.writeFileSync(path.join(dir, 'dist/extra.wasm'), '0');
-			expect(hashPackageTree(dir)).not.toBe(before);
-			fs.mkdirSync(path.join(dir, 'node_modules'));
-			fs.writeFileSync(path.join(dir, 'node_modules/shim'), 'x');
-			expect(hashPackageTree(dir)).not.toBe(before);
-			fs.rmSync(path.join(dir, 'dist/extra.wasm'));
-			expect(hashPackageTree(dir)).toBe(before);
+			check(dir);
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
+	};
+
+	it('rejects a build whose bytes differ from the pin', () => {
+		withTool((dir) => {
+			expect(() => assertCoderotIntegrity(dir)).toThrow(/pinned 1\.5\.0 build/);
+		});
+	});
+
+	it('hashes an added file', () => {
+		withTool((dir) => {
+			const before = hashPackageTree(dir);
+			fs.writeFileSync(path.join(dir, 'dist/extra.wasm'), '0');
+			expect(hashPackageTree(dir)).not.toBe(before);
+		});
+	});
+
+	it('skips only node_modules/.bin', () => {
+		withTool((dir) => {
+			const before = hashPackageTree(dir);
+			fs.mkdirSync(path.join(dir, 'node_modules/.bin'), { recursive: true });
+			fs.writeFileSync(path.join(dir, 'node_modules/.bin/shim'), 'x');
+			expect(hashPackageTree(dir)).toBe(before);
+		});
+	});
+
+	it('hashes a nested node_modules dependency', () => {
+		withTool((dir) => {
+			const before = hashPackageTree(dir);
+			fs.mkdirSync(path.join(dir, 'node_modules/zod'), { recursive: true });
+			fs.writeFileSync(path.join(dir, 'node_modules/zod/index.js'), 'x');
+			expect(hashPackageTree(dir)).not.toBe(before);
+		});
 	});
 });

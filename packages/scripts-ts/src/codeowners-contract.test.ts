@@ -21,6 +21,10 @@ const requiredPatterns = [
 	'/packages/scripts-ts/src/check-quality-ratchet.test.ts',
 	'/packages/scripts-ts/src/quality-baseline.json',
 	'/packages/scripts-ts/package.json',
+	'/package.json',
+	'/pnpm-workspace.yaml',
+	'/pnpm-lock.yaml',
+	'/patches/**',
 ];
 const protectedPaths = [
 	'/.github/workflows/ci.yml',
@@ -33,6 +37,10 @@ const protectedPaths = [
 	'/packages/scripts-ts/src/check-quality-ratchet.test.ts',
 	'/packages/scripts-ts/src/quality-baseline.json',
 	'/packages/scripts-ts/package.json',
+	'/package.json',
+	'/pnpm-workspace.yaml',
+	'/pnpm-lock.yaml',
+	'/patches/**',
 ];
 
 // @ts-expect-error rung-0: add proper type in later rung

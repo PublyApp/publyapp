@@ -82,10 +82,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../../..');
 const baselinePath = path.join(here, 'quality-baseline.json');
 /**
- * The measurement tool is pinned by version AND by one SHA-256 over every file of the installed package
- * (sorted relative paths + bytes, pnpm's own node_modules/.bin shims excluded), CODEOWNED here: an override,
- * a patch or a lockfile edit cannot swap any part of it (entry, Roslyn components, wasm).
- * To bump: change package.json and these two constants together.
+ * The measurement tool is pinned by version AND by one SHA-256 over every file of the installed package (sorted
+ * relative paths + bytes; only pnpm's machine-specific node_modules/.bin shims are skipped): entry, Roslyn
+ * components and wasm cannot be swapped. Its dependency closure (zod, yaml, oxc-parser, web-tree-sitter, jscpd)
+ * lives outside the package and is pinned through the CODEOWNED root package.json, pnpm-workspace.yaml,
+ * pnpm-lock.yaml and patches/. To bump: change package.json and these two constants together.
  */
 export const CODEROT_VERSION = '1.5.0';
 export const CODEROT_TREE_SHA256 =
@@ -96,7 +97,7 @@ const coderotBin = path.join(coderotDir, 'dist/coderot.js');
 const packageFiles = (dir: string, rel = ''): string[] =>
 	fs
 		.readdirSync(path.join(dir, rel), { withFileTypes: true })
-		.filter((e) => e.name !== 'node_modules')
+		.filter((e) => rel + e.name !== 'node_modules/.bin')
 		.flatMap((e) =>
 			e.isDirectory() ? packageFiles(dir, rel + e.name + '/') : [rel + e.name],
 		)
