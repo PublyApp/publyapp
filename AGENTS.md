@@ -7,6 +7,27 @@ This file provides guidance to AI coding assistants when working with code in th
 For multi-task orchestration, follow `~/ai-orchestration-playbook/PLAYBOOK.md`
 and this repo's adapter at [`.ai/orchestration-adapter.md`](.ai/orchestration-adapter.md).
 
+## Code quality — palier 1 (HARD, owner decision 2026-11-18)
+
+These numbers are a **first step**: each later palier makes them stricter, never looser.
+
+- Every function you **add or modify** (C#, TypeScript; product, tooling and tests) has a
+  cognitive complexity of **15 or less**. Split it otherwise.
+- A change must **not raise** the complexity or the duplication per 1,000 lines of any zone:
+  `api`, `front`, API tests (`*.Spec.cs`), front tests, tooling (guards, `lint-*`, `scripts-*`).
+  Reuse an existing helper instead of copying code, in tests too.
+- A PR stays at **600 changed lines or fewer**, excluding tests, generated files, migrations and
+  lockfiles. Split larger work into several PRs unless the owner grants an exception.
+- Targets for palier 1 (end of January 2027) and the 2026-11-18 baseline: issue
+  [#2438](https://github.com/PublyApp/publyapp/issues/2438) and its comments. Work items:
+  [#2439](https://github.com/PublyApp/publyapp/issues/2439) (front),
+  [#2440](https://github.com/PublyApp/publyapp/issues/2440) (tooling),
+  [#2441](https://github.com/PublyApp/publyapp/issues/2441) (tests).
+- Measured with `npx @coderot-ai/cli@1.5.0 analyze --since 12m --out <dir outside the repo>`
+  (local only; never run its `ci` mode, which uploads metrics). The CI gate is being added by
+  [#2438](https://github.com/PublyApp/publyapp/issues/2438); until it lands, reviewers enforce
+  these rules by hand.
+
 ## Project Overview
 
 PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 10.0 and React 19. The monorepo architecture uses Turborepo and pnpm workspaces with three user scopes: Staff (platform administrators), Tenant (organization-level users), and Project (project-level users).
