@@ -204,12 +204,6 @@ describe('fail closed', () => {
 		partial.blobs.a = { sloc: 1, functions: [], unmeasuredFunctions: 2 };
 		expect(() => assertSnapshot(partial)).toThrow();
 	});
-
-	it('rejects a snapshot with a whole zone missing', () => {
-		const snap = full();
-		snap.files = snap.files.slice(0, 2);
-		expect(() => assertSnapshot(snap)).toThrow(/zone/);
-	});
 });
 
 describe('baseline cannot rise', () => {

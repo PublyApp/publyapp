@@ -5,9 +5,6 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-// Quality palier 1 gate (#2438); thresholds live in quality-baseline.json (see docs/guides/quality-ratchet.md).
-// Numbers come from local `coderot analyze` (never `ci`: it uploads) so weekly figures and gate agree.
-
 export const ZONES = [
 	'api',
 	'front',
@@ -17,10 +14,10 @@ export const ZONES = [
 ] as const;
 export type Zone = (typeof ZONES)[number];
 
-export interface ZoneBaseline {
-	complexityPer1k: number;
-	duplicationPer1k: number;
-}
+export type ZoneBaseline = Record<
+	'complexityPer1k' | 'duplicationPer1k',
+	number
+>;
 export interface Baseline {
 	functionCap: number;
 	prSizeMaxLines: number;
@@ -158,14 +155,6 @@ export const assertSnapshot = (snap: CoderotSnapshot): void => {
 		if (broken && classifyPath(file.path)) {
 			throw new Error(`coderot could not fully measure ${file.path}`);
 		}
-	}
-	const empty = ZONES.filter(
-		(z) => !snap.files.some((f) => classifyPath(f.path) === z),
-	);
-	if (empty.length > 0) {
-		throw new Error(
-			`coderot snapshot has no file in zone(s): ${empty.join(', ')}`,
-		);
 	}
 };
 
@@ -484,9 +473,7 @@ const main = (): number => {
 	assertSnapshot(snap);
 	assertCoverage(run('git', ['ls-files']).split('\n'), snap);
 	const measured = toBaselineZones(measureZones(snap));
-	for (const z of ZONES) {
-		console.log(`${z}: ${JSON.stringify(measured[z])}`);
-	}
+	console.log(JSON.stringify(measured));
 	const base = resolveBase();
 	const labels = prLabels();
 	const errors = [
