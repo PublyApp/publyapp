@@ -130,9 +130,7 @@ const unionLength = (ranges: [number, number][]): number => {
 	let total = 0;
 	let end = 0;
 	for (const [from, to] of [...ranges].sort((a, b) => a[0] - b[0])) {
-		if (to > end) {
-			total += to - Math.max(from, end + 1) + 1;
-		}
+		total += Math.max(0, to - Math.max(from - 1, end));
 		end = Math.max(end, to);
 	}
 	return total;
@@ -403,10 +401,10 @@ export const checkPrSize = (
 	labels: string[],
 	baseline: Baseline,
 ): string[] => {
-	if (lines <= baseline.prSizeMaxLines) {
-		return [];
-	}
-	if (labels.includes(baseline.sizeExceptionLabel)) {
+	if (
+		lines <= baseline.prSizeMaxLines ||
+		labels.includes(baseline.sizeExceptionLabel)
+	) {
 		return [];
 	}
 	return [
