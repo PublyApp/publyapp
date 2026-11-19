@@ -207,6 +207,34 @@ const loadManifests = async (): Promise<Record<string, unknown>[]> => {
 	return manifests;
 };
 
+const collectSpecs = (manifests: Record<string, unknown>[]) => {
+	const specs = new Map<string, string[]>();
+	for (const manifest of manifests) {
+		for (const group of dependencyGroups) {
+			const deps = (manifest[group] ?? {}) as Record<string, string>;
+			for (const [name, spec] of Object.entries(deps)) {
+				specs.set(name, [...(specs.get(name) ?? []), spec]);
+			}
+		}
+	}
+	return specs;
+};
+
+const isExactPin = (spec: string): boolean =>
+	/^\d+\.\d+\.\d+$/.test(spec) || /^\d+\.\d+\.\d+[-+][\w.+-]+$/.test(spec);
+
+// The override wins over a catalog entry: exact pin in every manifest, no catalog.
+const overriddenProblems = (
+	name: string,
+	raw: string[],
+	inCatalog: boolean,
+): string[] => [
+	...(inCatalog ? [`${name}: overridden, must not be in any catalog`] : []),
+	...raw
+		.filter((spec) => !isExactPin(spec))
+		.map((spec) => `${name}: overridden, must be exact-pinned, got ${spec}`),
+];
+
 test('every dependency shared by 2+ manifests is catalogued; shared overridden ones are exact pins outside any catalog', async () => {
 	const manifests = await loadManifests();
 	const workspace = parse(
@@ -222,31 +250,17 @@ test('every dependency shared by 2+ manifests is catalogued; shared overridden o
 	const rootPnpm = manifests[0].pnpm as { overrides?: Record<string, string> };
 	const overridden = new Set(Object.keys(rootPnpm.overrides ?? {}));
 
-	const specs = new Map<string, string[]>();
-	for (const manifest of manifests) {
-		for (const group of dependencyGroups) {
-			const deps = (manifest[group] ?? {}) as Record<string, string>;
-			for (const [name, spec] of Object.entries(deps)) {
-				specs.set(name, [...(specs.get(name) ?? []), spec]);
-			}
-		}
-	}
-
 	const problems: string[] = [];
-	for (const [name, list] of specs) {
+	for (const [name, list] of collectSpecs(manifests)) {
 		const raw = list.filter((spec) => !spec.startsWith('workspace:'));
 		if (overridden.has(name)) {
-			// The override wins over a catalog entry: exact pin in every manifest.
-			if (catalogued.has(name)) {
-				problems.push(`${name}: overridden, must not be in any catalog`);
-			}
-			for (const spec of list.length > 1 ? raw : []) {
-				if (!/^\d+\.\d+\.\d+/.test(spec) || /[\^~<>|*x\s]/.test(spec)) {
-					problems.push(
-						`${name}: overridden, must be exact-pinned, got ${spec}`,
-					);
-				}
-			}
+			problems.push(
+				...overriddenProblems(
+					name,
+					list.length > 1 ? raw : [],
+					catalogued.has(name),
+				),
+			);
 		} else if (list.length > 1 && raw.some((s) => !s.startsWith('catalog:'))) {
 			problems.push(`${name}: shared (${list.join(', ')}), use "catalog:"`);
 		}
