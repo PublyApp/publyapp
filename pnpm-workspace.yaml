@@ -2,7 +2,10 @@ packages:
   - "apps/*"
   - "packages/*"
 
-autoInstallPeers: true
+autoInstallPeers: false
+# Peers resolve per workspace project: no merging of peer variants across projects, so apps/front never inherits apps/mobile react-native (#2445).
+dedupePeerDependents: false
+
 
 # One exact version per dependency used by two or more workspaces (#2326).
 # Workspaces reference these as "<name>": "catalog:" instead of repeating a

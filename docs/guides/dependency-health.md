@@ -261,6 +261,20 @@ the bounded production and development audit gates stay green without it. Today
 the declared range: the lock resolving a patched `qs` proves nothing while the
 override is the only reason it does.
 
+## `apps/front` must not resolve `react-native` (#2445)
+
+pnpm used to hand `apps/front` the `react-native` that `apps/mobile` installs (an optional peer of
+`@radandevist/radan-ui` and `react-i18next`), so React Native tooling (metro, jest-worker) showed up
+under the web front in the audit. `pnpm-workspace.yaml` is now the only pnpm setting source
+(`.npmrc` removed) with `autoInstallPeers: false` and `dedupePeerDependents: false`; peers a
+workspace needs are declared in its own `package.json`. Both settings are needed: with either one
+alone the front resolves `react-native` again. This is a review-time check, not a bespoke guard
+(guard admission criteria are not met): after any lockfile change, run
+
+```bash
+awk '/^  apps\/front:/{f=1;next} /^  [a-z]/{f=0} f&&/react-native/' pnpm-lock.yaml  # expect no output
+```
+
 ## How to run locally
 
 ```bash
