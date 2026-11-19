@@ -229,6 +229,8 @@ const config: KnipConfig = {
 				'src/*.ts',
 			],
 			project: ['src/**/*.ts'],
+			// Run by path (node_modules/@coderot-ai/cli/dist/coderot.js) from check-quality-ratchet.ts.
+			ignoreDependencies: ['@coderot-ai/cli'],
 		},
 	},
 };

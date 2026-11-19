@@ -8,6 +8,7 @@
 		"test": "vitest run"
 	},
 	"devDependencies": {
+		"@coderot-ai/cli": "1.5.0",
 		"yaml": "2.9.1",
 		"@types/node": "catalog:",
 		"vite": "catalog:",

@@ -295,6 +295,10 @@ const baseJobLaneContracts = {
 			'guards.api-paths-tests',
 			'guards.api-paths',
 		]),
+		contract('guards', 'quality-ratchet', [
+			'guards.quality_ratchet_tests',
+			'guards.quality_ratchet',
+		]),
 	],
 	'docs-react': [
 		contract('docs-react', 'setup', [

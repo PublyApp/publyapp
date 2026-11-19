@@ -33,11 +33,10 @@ Precedence when a file matches two rows: `tooling` first, then the test zones, t
    allow more, by setting the `size-exception` label on the PR; an agent never sets it.
 
 **Enforcement.** The required CI gate, the committed baseline
-(a JSON file in `packages/scripts-ts`), the measurement procedure and the local command
-`pnpm check:quality` are described in the quality-ratchet guide added by PR [#2443](https://github.com/PublyApp/publyapp/pull/2443) (issue
+(`packages/scripts-ts/src/quality-baseline.json`), the measurement procedure and the local command
+`pnpm check:quality` are described in [the quality-ratchet guide](docs/guides/quality-ratchet.md) (issue
 [#2438](https://github.com/PublyApp/publyapp/issues/2438)). The measurement uses `@coderot-ai/cli`
-locally; its upload mode `ci` is never used. Until that gate is merged, reviewers check rules 1 and 3
-by hand; rule 2 is only checked by the gate.
+locally; its upload mode `ci` is never used. Run `pnpm check:quality` before pushing.
 
 **Admission.** This gate is an owner-mandated exception to the « Bespoke guard admission » hard rule
 below (owner decision 2026-11-18, palier 1): when the two conflict, this section wins for the quality

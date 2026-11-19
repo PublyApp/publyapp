@@ -941,6 +941,11 @@
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Check no ignored tracked files\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-no-ignored-tracked.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
+		"ci.yml::guards::Check quality ratchet": {
+			"hash": "569cedd537d1dc8c",
+			"mirror": "just ci-quality-ratchet",
+			"reason": "Local mirror just ci-quality-ratchet is derived from exact normalized workflow command match(es): [\"node packages/scripts-ts/src/check-quality-ratchet.ts\"]."
+		},
 		"ci.yml::guards::Checkout": {
 			"hash": "f6bbd86f711cad8c",
 			"mirror": null,
@@ -952,7 +957,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable (quality)\"; normalized workflow command(s): [\"echo 'quality verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::guards::Collect ci-lane-result": {
-			"hash": "0f70ac679346b7fa",
+			"hash": "0e5b504cdc2b6ad2",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -1285,6 +1290,11 @@
 			"hash": "0c3cb7cf41c4d15f",
 			"mirror": null,
 			"reason": "Hosted-only action step \"Set up Docker Buildx\" uses docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
+		},
+		"ci.yml::guards::Test quality ratchet": {
+			"hash": "6ef482029baec139",
+			"mirror": "just ci-quality-ratchet",
+			"reason": "Local mirror just ci-quality-ratchet is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-quality-ratchet.test.ts\"]."
 		}
 	}
 }

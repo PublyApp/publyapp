@@ -109,6 +109,7 @@ test('lane patterns cover the complete central trigger classes', () => {
 		['packages/scripts-ts/src/ci-e2e-cleanup.ts', 'e2e'],
 		['packages/scripts-ts/src/ci-e2e-cleanup.test.ts', 'e2e'],
 		['packages/scripts-ts/src/ci-e2e-rerun-guard.test.ts', 'e2e'],
+		['.github/CODEOWNERS', 'quality'],
 		['.oxlintrc.json', 'quality'],
 		['.oxfmtrc.json', 'quality'],
 		['.gitignore', 'quality'],
