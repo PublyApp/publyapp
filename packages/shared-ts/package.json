@@ -30,6 +30,7 @@
 	"devDependencies": {
 		"@types/lodash": "^4.17.27",
 		"@types/ms": "^0.7.34",
+		"vite": "catalog:",
 		"vitest": "catalog:"
 	}
 }

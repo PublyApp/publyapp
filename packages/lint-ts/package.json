@@ -17,6 +17,7 @@
 		"@oxlint/plugins": "1.90.0",
 		"oxlint": "catalog:",
 		"ts-morph": "catalog:",
+		"vite": "catalog:",
 		"vitest": "catalog:"
 	}
 }

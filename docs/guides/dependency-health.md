@@ -12,7 +12,7 @@ How we keep vulnerable dependencies from landing or staying on `develop`.
 
 The `groups.minor-and-patch` block is kept so that, if version updates are ever turned back on, minor/patch bumps arrive as one PR; major bumps stay separate. All ecosystems use `commit-message.prefix: chore` + `include: scope`.
 
-A dependency used by two or more workspaces is declared once, at its exact version, in the `catalog:` block of `pnpm-workspace.yaml` and referenced as `"<name>": "catalog:"` (AGENTS.md); Dependabot updates the catalog entry, so a bump is one line instead of one per workspace. A dependency pinned by `pnpm.overrides` (root `package.json`) stays there, not in the catalog: the override wins over any catalog entry, so a catalog bump for it would be inert — bump it in the override instead.
+A dependency used by two or more workspaces is declared once, at its exact version, in the `catalog:` block of `pnpm-workspace.yaml` and referenced as `"<name>": "catalog:"` (AGENTS.md; named catalogs such as `web`/`mobile` for platform-specific versions arrive with guard support in [#2447](https://github.com/PublyApp/publyapp/issues/2447)); Dependabot updates the catalog entry, so a bump is one line instead of one per workspace. A dependency pinned by `pnpm.overrides` (root `package.json`) stays there, not in the catalog: the override wins over any catalog entry, so a catalog bump for it would be inert — bump it in the override instead.
 
 ## When a Dependabot PR needs a human, and when it does not
 
@@ -270,6 +270,22 @@ the bounded production and development audit gates stay green without it. Today
 `^6.15.2`, so the override stays. Judge this on
 the declared range: the lock resolving a patched `qs` proves nothing while the
 override is the only reason it does.
+
+## `apps/front` must not declare or auto-install `react-native` (#2445)
+
+pnpm used to hand `apps/front` the `react-native` that `apps/mobile` installs (an optional peer of
+`@radandevist/radan-ui` and `react-i18next`), so React Native tooling (metro, jest-worker) showed up
+under the web front in the audit. `pnpm-workspace.yaml` is now the only workspace-level pnpm setting source
+(root `.npmrc` removed; `apps/front/.npmrc` stays, it only sets `prefer-frozen-lockfile`) with `autoInstallPeers: false` and `dedupePeerDependents: false`; peers a
+workspace needs are declared in its own `package.json`. Both settings are needed: with either one
+alone the front resolves `react-native` again. This is a review-time check, not a bespoke guard
+(guard admission criteria are not met): after any lockfile change, run
+
+```bash
+awk '/^  apps\/front:/{f=1;next} /^  [a-z]/{f=0} f&&/react-native/' pnpm-lock.yaml  # expect no output
+```
+
+This scans the `apps/front` importer block only (direct entries and their peer suffixes), not the full transitive closure. At the time of #2445 a walk of the front closure also found no `react-native`, metro or jest-worker; re-check that by hand if a new front dependency looks React Native related.
 
 ## How to run locally
 

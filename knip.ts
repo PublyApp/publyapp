@@ -64,6 +64,8 @@ const config: KnipConfig = {
 			ignoreDependencies: ['winston-transport-browserconsole', 'lint-staged'],
 		},
 		'apps/front': {
+			// Required peer of @tanstack/router-ssr-query-core (dependency of @tanstack/react-router-ssr-query), declared because peers are not auto-installed (#2445).
+			ignoreDependencies: ['@tanstack/router-core'],
 			entry: [
 				// Runtime-discovered files knip cannot trace. One line per file,
 				// never a blanket ignore of a whole app.
