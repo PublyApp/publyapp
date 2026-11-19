@@ -101,11 +101,19 @@ Same for NuGet: bump or override, never `ignore` without a note.
 | Alert | Package | Severity | Accepted | Review / expiry |
 |---|---|---|---|---|
 | GHSA-vfj7-8cjw-p6xm | `braces` <=3.0.3 (stack exhaustion on deeply nested patterns) | high | 2026-10-14 (owner) | 2027-01-14 |
+| GHSA-fc5q-39xc-vjpf | `picomatch` <=4.0.7 (ReDoS through single-branch repeated extglobs) | high | 2026-11-19 (owner) | 2027-01-19 |
 
 - **Mechanism:** `pnpm.auditConfig.ignoreGhsas` in the root `package.json`, keyed on this single GHSA id. Every other advisory still fails the audit.
 - **Impact:** dev-only. `braces` is reached solely via the `shadcn` CLI devDependency, then `fast-glob`, then `micromatch`. It is never in the production graph, and the prod audit stays strict.
 - **Reason:** no patched release upstream (`first_patched_version` is null; 3.0.3 is the latest).
 - **Removal condition:** drop the ignore as soon as `braces` ships a fix, or `shadcn` is removed or vendored. Re-check by the review date at the latest.
+
+GHSA-fc5q-39xc-vjpf (`picomatch`):
+
+- **Mechanism:** the same `pnpm.auditConfig.ignoreGhsas` list, keyed on this single GHSA id.
+- **Impact:** build tooling only. `picomatch` is reached through React Native's tooling (`metro`, `jest-worker`, `tinyglobby`), which pnpm links under `apps/front` because `@radandevist/radan-ui` and `react-i18next` declare `react-native` as an optional peer and `apps/mobile` brings it into the workspace. The shipped web front never imports or bundles that code; exploiting it needs an attacker-controlled glob pattern passed to the build tooling.
+- **Reason:** no patched release upstream (patched versions: none; 4.0.7 is the latest).
+- **Removal condition:** drop the ignore as soon as `picomatch` ships a fix, or once `apps/front` no longer resolves `react-native` as an optional peer. Re-check by the review date at the latest.
 
 ## How the #880 moderate advisories closed
 
