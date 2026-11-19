@@ -5,8 +5,8 @@
  * exists, so the catalog cannot be read with the `yaml` package — the hand
  * scanner stays (#2326, review E1/M1e: it must not mis-read valid YAML).
  *
- * Scope: the flat default catalog only (no named `catalogs:`) — the shape
- * this repo uses. Correct on valid YAML for that block:
+ * Scope: the default `catalog:` block and named `catalogs:` blocks (#2447),
+ * one level of nesting. Correct on valid YAML for that block:
  *   - an inline ` # comment` after a value;
  *   - single/double-quoted names and values;
  *   - indented comment lines and blank lines (neither closes the block);
@@ -37,37 +37,59 @@ const readValue = (raw: string): string => {
 	return value;
 };
 
-/** Parse the flat default `catalog:` block; throw on any unknown shape. */
-export const parseCatalog = (workspaceYaml: string): Map<string, string> => {
-	const catalog = new Map<string, string>();
-	let inCatalog = false;
+const ENTRY = /^\s+(?:"([^"]+)"|'([^']+)'|([^:\s][^:]*))\s*:\s*(.+)$/;
+
+/**
+ * Parse the default `catalog:` block AND the named `catalogs:` blocks
+ * (#2447) into `catalogName -> (dependency -> version)`; the default one is
+ * keyed `''`. Throws on any unknown shape.
+ */
+export const parseCatalogs = (
+	workspaceYaml: string,
+): Map<string, Map<string, string>> => {
+	const catalogs = new Map<string, Map<string, string>>();
+	let current: Map<string, string> | null = null;
+	let inNamed = false;
 
 	for (const rawLine of workspaceYaml.split('\n')) {
 		const line = rawLine.trimEnd();
-		if (!inCatalog) {
-			if (/^catalog:\s*$/.test(line)) {
-				inCatalog = true;
-			}
-			continue;
-		}
 		const trimmed = line.trim();
-		// Blank lines and comment lines (at any indent) never close the block.
+		// Blank lines and comment lines (at any indent) never close a block.
 		if (trimmed === '' || trimmed.startsWith('#')) {
 			continue;
 		}
-		// Only a non-indented, non-comment line (a new top-level key) closes it.
+		// Only a non-indented, non-comment line (a top-level key) closes a block.
 		if (!/^\s/.test(line)) {
-			inCatalog = false;
+			inNamed = /^catalogs:\s*$/.test(line);
+			current = null;
+			if (/^catalog:\s*$/.test(line)) {
+				current = new Map();
+				catalogs.set('', current);
+			}
 			continue;
 		}
-		const entry = /^\s+(?:"([^"]+)"|'([^']+)'|([^:\s][^:]*))\s*:\s*(.+)$/.exec(
-			line,
-		);
-		if (entry === null) {
+		if (current === null && !inNamed) {
+			continue;
+		}
+		// Inside `catalogs:`, a 2-space `name:` line opens a named catalog.
+		const header = inNamed
+			? /^ {2}(?:"([^"]+)"|'([^']+)'|([^\s:#]+)):\s*$/.exec(line)
+			: null;
+		if (header !== null) {
+			current = new Map();
+			catalogs.set(header[1] ?? header[2] ?? header[3], current);
+			continue;
+		}
+		const entry = current === null ? null : ENTRY.exec(line);
+		if (current === null || entry === null) {
 			throw new Error(`pnpm-workspace.yaml: unknown catalog line: ${line}`);
 		}
 		const name = (entry[1] ?? entry[2] ?? entry[3]).trim();
-		catalog.set(name, readValue(entry[4]));
+		current.set(name, readValue(entry[4]));
 	}
-	return catalog;
+	return catalogs;
 };
+
+/** The flat default `catalog:` block only. */
+export const parseCatalog = (workspaceYaml: string): Map<string, string> =>
+	parseCatalogs(workspaceYaml).get('') ?? new Map();

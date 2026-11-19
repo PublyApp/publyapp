@@ -16,10 +16,10 @@
  * in AGENTS.md / docs/guides/dependency-health.md).
  */
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { parseCatalog } from './assert-pinned-catalog.ts';
+import { parseCatalog, parseCatalogs } from './assert-pinned-catalog.ts';
 
 const doc = (body: string): string =>
 	`packages:\n  - "apps/*"\n\ncatalog:\n${body}\n`;
@@ -112,7 +112,10 @@ void test('the real pnpm-workspace.yaml: exact entries, nothing overridden catal
 	assert.ok(catalog.size > 0, 'the real catalog must not be empty');
 
 	const EXACT = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
-	for (const [name, version] of catalog) {
+	// Named catalogs: web is held to the same exact rule; mobile keeps
+	// Expo-compatible ranges (e.g. `~19.3.0`) and is not exactness-checked.
+	const web = parseCatalogs(workspaceYaml).get('web') ?? new Map();
+	for (const [name, version] of [...catalog, ...web]) {
 		assert.match(
 			version,
 			EXACT,
@@ -129,5 +132,63 @@ void test('the real pnpm-workspace.yaml: exact entries, nothing overridden catal
 		cataloguedOverrides,
 		[],
 		'a pnpm.overrides-pinned dependency stays in the override, not the catalog',
+	);
+});
+
+void test('parseCatalogs reads named catalogs next to the default one (#2447)', () => {
+	const catalogs = parseCatalogs(
+		doc('  zod: 4.6.7\n') +
+			'catalogs:\n  web:\n    react: 19.3.1\n    "@types/react": 19.3.0\n' +
+			'  # comment\n  mobile:\n    react: 19.3.0\n',
+	);
+	assert.deepEqual([...catalogs.keys()], ['', 'web', 'mobile']);
+	assert.equal(catalogs.get('')?.get('zod'), '4.6.7');
+	assert.equal(catalogs.get('web')?.get('@types/react'), '19.3.0');
+	assert.equal(catalogs.get('mobile')?.get('react'), '19.3.0');
+});
+
+// Enforcement (#2447): a dependency declared in two or more manifests must
+// route through a catalog in every one of them. pnpm 10's `catalogMode:
+// strict` cannot do this — it also forbids single-workspace deps.
+void test('every dependency shared by 2+ package.json goes through a catalog', () => {
+	const root = new URL('../../../../', import.meta.url);
+	const manifests = [
+		'package.json',
+		...['apps', 'packages'].flatMap((dir) =>
+			readdirSync(new URL(dir, root)).map((d) => `${dir}/${d}/package.json`),
+		),
+	].filter((path) => existsSync(new URL(path, root)));
+	const rootPkg: { pnpm?: { overrides?: Record<string, string> } } = JSON.parse(
+		readFileSync(new URL('package.json', root), 'utf8'),
+	);
+	// An override wins over any catalog entry, so those stay exact pins.
+	const overridden = new Set(Object.keys(rootPkg.pnpm?.overrides ?? {}));
+	const specs = new Map<string, string[]>();
+	for (const path of manifests) {
+		const pkg: Record<string, Record<string, string> | undefined> = JSON.parse(
+			readFileSync(new URL(path, root), 'utf8'),
+		);
+		for (const group of [
+			'dependencies',
+			'devDependencies',
+			'optionalDependencies',
+		]) {
+			for (const [name, spec] of Object.entries(pkg[group] ?? {})) {
+				specs.set(name, [...(specs.get(name) ?? []), spec]);
+			}
+		}
+	}
+	const offenders = [...specs]
+		.filter(([name, list]) => list.length > 1 && !overridden.has(name))
+		.filter(([, list]) =>
+			list.some(
+				(s) => !s.startsWith('catalog:') && !s.startsWith('workspace:'),
+			),
+		)
+		.map(([name, list]) => `${name} (${list.join(', ')})`);
+	assert.deepEqual(
+		offenders,
+		[],
+		'declare these once in pnpm-workspace.yaml and reference them as "catalog:" / "catalog:<name>"',
 	);
 });

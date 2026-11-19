@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-import { parseCatalog } from './assert-pinned-catalog.ts';
+import { parseCatalogs } from './assert-pinned-catalog.ts';
 
 // Local exact-version regex is the validator used here today.
 // `semver` is optional and used only when available as an installed dependency
@@ -37,7 +37,7 @@ type DependencyGroup = Record<string, string>;
 // The hand reader lives next door (`assert-pinned-catalog.ts`): pure, unit
 // tested, no dependency — this runs before node_modules exists — and it
 // throws loudly on any catalog shape it does not understand.
-const catalog = parseCatalog(
+const catalogs = parseCatalogs(
 	readFileSync(
 		new URL('../../../../pnpm-workspace.yaml', import.meta.url),
 		'utf8',
@@ -55,12 +55,16 @@ const pkg: {
 );
 const bad = [];
 
+// `catalog:` is the default catalog, `catalog:<name>` a named one (#2447).
 const resolveRange = (name: string, rawRange: unknown): string | null => {
 	if (rawRange == null) {
 		return null;
 	}
 	const range = String(rawRange);
-	return range === 'catalog:' ? (catalog.get(name) ?? null) : range;
+	if (!range.startsWith('catalog:')) {
+		return range;
+	}
+	return catalogs.get(range.slice('catalog:'.length))?.get(name) ?? null;
 };
 
 for (const group of [
