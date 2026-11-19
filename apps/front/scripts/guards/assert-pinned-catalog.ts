@@ -37,19 +37,34 @@ const readValue = (raw: string): string => {
 	return value;
 };
 
-const ENTRY = /^\s+(?:"([^"]+)"|'([^']+)'|([^:\s][^:]*))\s*:\s*(.+)$/;
+const NAME = String.raw`(?:"([^"]+)"|'([^']+)'|([^:\s#][^:\s]*))`;
+const ENTRY = new RegExp(String.raw`^\s+${NAME}\s*:\s*(\S.*)$`);
+// A `name:` line with no value (optional trailing comment) opens a block.
+const HEADER = new RegExp(String.raw`^\s+${NAME}\s*:\s*(?:#.*)?$`);
+const TOP_KEY = /^(catalogs?):\s*(?:#.*)?$/;
+
+type Catalogs = Map<string, Map<string, string>>;
+
+const nameOf = (m: RegExpExecArray): string => (m[1] ?? m[2] ?? m[3]).trim();
+
+const addEntry = (current: Map<string, string> | null, line: string): void => {
+	const entry = ENTRY.exec(line);
+	if (current === null || entry === null) {
+		throw new Error(`pnpm-workspace.yaml: unknown catalog line: ${line}`);
+	}
+	current.set(nameOf(entry), readValue(entry[4]));
+};
 
 /**
  * Parse the default `catalog:` block AND the named `catalogs:` blocks
  * (#2447) into `catalogName -> (dependency -> version)`; the default one is
- * keyed `''`. Throws on any unknown shape.
+ * keyed `''`. Any indentation width and trailing comments are accepted;
+ * throws on any unknown shape.
  */
-export const parseCatalogs = (
-	workspaceYaml: string,
-): Map<string, Map<string, string>> => {
-	const catalogs = new Map<string, Map<string, string>>();
+export const parseCatalogs = (workspaceYaml: string): Catalogs => {
+	const catalogs: Catalogs = new Map();
 	let current: Map<string, string> | null = null;
-	let inNamed = false;
+	let section: string | null = null;
 
 	for (const rawLine of workspaceYaml.split('\n')) {
 		const line = rawLine.trimEnd();
@@ -60,32 +75,21 @@ export const parseCatalogs = (
 		}
 		// Only a non-indented, non-comment line (a top-level key) closes a block.
 		if (!/^\s/.test(line)) {
-			inNamed = /^catalogs:\s*$/.test(line);
+			section = TOP_KEY.exec(line)?.[1] ?? null;
 			current = null;
-			if (/^catalog:\s*$/.test(line)) {
+			if (section === 'catalog') {
 				current = new Map();
 				catalogs.set('', current);
 			}
 			continue;
 		}
-		if (current === null && !inNamed) {
-			continue;
-		}
-		// Inside `catalogs:`, a 2-space `name:` line opens a named catalog.
-		const header = inNamed
-			? /^ {2}(?:"([^"]+)"|'([^']+)'|([^\s:#]+)):\s*$/.exec(line)
-			: null;
+		const header = section === 'catalogs' ? HEADER.exec(line) : null;
 		if (header !== null) {
 			current = new Map();
-			catalogs.set(header[1] ?? header[2] ?? header[3], current);
-			continue;
+			catalogs.set(nameOf(header), current);
+		} else if (section !== null) {
+			addEntry(current, line);
 		}
-		const entry = current === null ? null : ENTRY.exec(line);
-		if (current === null || entry === null) {
-			throw new Error(`pnpm-workspace.yaml: unknown catalog line: ${line}`);
-		}
-		const name = (entry[1] ?? entry[2] ?? entry[3]).trim();
-		current.set(name, readValue(entry[4]));
 	}
 	return catalogs;
 };

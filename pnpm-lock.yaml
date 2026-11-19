@@ -41,7 +41,7 @@ catalogs:
       version: 4.6.7
   mobile:
     '@types/react':
-      specifier: ~19.3.0
+      specifier: 19.3.0
       version: 19.3.0
     react:
       specifier: 19.3.0

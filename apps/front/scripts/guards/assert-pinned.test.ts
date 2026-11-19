@@ -16,7 +16,7 @@
  * in AGENTS.md / docs/guides/dependency-health.md).
  */
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { parseCatalog, parseCatalogs } from './assert-pinned-catalog.ts';
@@ -103,7 +103,7 @@ void test('an unknown indented shape fails loud instead of dropping entries', ()
 	assert.throws(() => parseCatalog(doc('  a:\n')), /unknown catalog line/);
 });
 
-void test('the real pnpm-workspace.yaml: exact entries, nothing overridden catalogued', () => {
+void test('the real pnpm-workspace.yaml: every catalog entry exact', () => {
 	const workspaceYaml = readFileSync(
 		new URL('../../../../pnpm-workspace.yaml', import.meta.url),
 		'utf8',
@@ -112,27 +112,16 @@ void test('the real pnpm-workspace.yaml: exact entries, nothing overridden catal
 	assert.ok(catalog.size > 0, 'the real catalog must not be empty');
 
 	const EXACT = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
-	// Named catalogs: web is held to the same exact rule; mobile keeps
-	// Expo-compatible ranges (e.g. `~19.3.0`) and is not exactness-checked.
-	const web = parseCatalogs(workspaceYaml).get('web') ?? new Map();
-	for (const [name, version] of [...catalog, ...web]) {
+	const named = [...parseCatalogs(workspaceYaml).values()].flatMap((c) => [
+		...c,
+	]);
+	for (const [name, version] of named) {
 		assert.match(
 			version,
 			EXACT,
 			`catalog entry ${name} must be one exact version, got ${version}`,
 		);
 	}
-
-	const rootPkg: { pnpm?: { overrides?: Record<string, string> } } = JSON.parse(
-		readFileSync(new URL('../../../../package.json', import.meta.url), 'utf8'),
-	);
-	const overrides = Object.keys(rootPkg.pnpm?.overrides ?? {});
-	const cataloguedOverrides = overrides.filter((name) => catalog.has(name));
-	assert.deepEqual(
-		cataloguedOverrides,
-		[],
-		'a pnpm.overrides-pinned dependency stays in the override, not the catalog',
-	);
 });
 
 void test('parseCatalogs reads named catalogs next to the default one (#2447)', () => {
@@ -147,48 +136,10 @@ void test('parseCatalogs reads named catalogs next to the default one (#2447)', 
 	assert.equal(catalogs.get('mobile')?.get('react'), '19.3.0');
 });
 
-// Enforcement (#2447): a dependency declared in two or more manifests must
-// route through a catalog in every one of them. pnpm 10's `catalogMode:
-// strict` cannot do this — it also forbids single-workspace deps.
-void test('every dependency shared by 2+ package.json goes through a catalog', () => {
-	const root = new URL('../../../../', import.meta.url);
-	const manifests = [
-		'package.json',
-		...['apps', 'packages'].flatMap((dir) =>
-			readdirSync(new URL(dir, root)).map((d) => `${dir}/${d}/package.json`),
-		),
-	].filter((path) => existsSync(new URL(path, root)));
-	const rootPkg: { pnpm?: { overrides?: Record<string, string> } } = JSON.parse(
-		readFileSync(new URL('package.json', root), 'utf8'),
+void test('parseCatalogs accepts 4-space indentation and trailing comments', () => {
+	const catalogs = parseCatalogs(
+		'catalog: # shared\n    zod: 4.6.7\ncatalogs: # platform\n    web: # web\n        react: 19.3.1\n',
 	);
-	// An override wins over any catalog entry, so those stay exact pins.
-	const overridden = new Set(Object.keys(rootPkg.pnpm?.overrides ?? {}));
-	const specs = new Map<string, string[]>();
-	for (const path of manifests) {
-		const pkg: Record<string, Record<string, string> | undefined> = JSON.parse(
-			readFileSync(new URL(path, root), 'utf8'),
-		);
-		for (const group of [
-			'dependencies',
-			'devDependencies',
-			'optionalDependencies',
-		]) {
-			for (const [name, spec] of Object.entries(pkg[group] ?? {})) {
-				specs.set(name, [...(specs.get(name) ?? []), spec]);
-			}
-		}
-	}
-	const offenders = [...specs]
-		.filter(([name, list]) => list.length > 1 && !overridden.has(name))
-		.filter(([, list]) =>
-			list.some(
-				(s) => !s.startsWith('catalog:') && !s.startsWith('workspace:'),
-			),
-		)
-		.map(([name, list]) => `${name} (${list.join(', ')})`);
-	assert.deepEqual(
-		offenders,
-		[],
-		'declare these once in pnpm-workspace.yaml and reference them as "catalog:" / "catalog:<name>"',
-	);
+	assert.equal(catalogs.get('')?.get('zod'), '4.6.7');
+	assert.equal(catalogs.get('web')?.get('react'), '19.3.1');
 });

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 
 import { test } from 'vitest';
+import { parse } from 'yaml';
 
 // Contract test for docs/guides/dependency-health.md (#1334): the runbook's
 // "#880 moderate advisories" section claims WHERE the patched
@@ -173,4 +174,82 @@ test('dependency-health.md attributes the fetch-library pin to apps/front/packag
 			`a #880-record sentence naming ${clientTsPackagePath} must explicitly exclude it from carrying the fetch-library pin (e.g. "…but not this fetch library"), never attribute the pin to it: ${sentence}`,
 		);
 	}
+});
+
+// Workspace-wide catalog contract (#2447). Owner-mandated enforcement of the
+// AGENTS.md catalog rule (see « Bespoke guard admission » exception there).
+// Recorded red/green proof: on origin/develop (8bef72c82) this test is RED
+// (react, react-dom, @types/react, tailwindcss shared outside a catalog);
+// after the migration it is GREEN.
+const repoRoot = new URL('../../../', import.meta.url);
+const dependencyGroups = [
+	'dependencies',
+	'devDependencies',
+	'optionalDependencies',
+	'peerDependencies',
+];
+
+const loadManifests = async (): Promise<Record<string, unknown>[]> => {
+	const paths = [new URL('package.json', repoRoot)];
+	for (const dir of ['apps', 'packages']) {
+		for (const entry of await readdir(new URL(`${dir}/`, repoRoot))) {
+			paths.push(new URL(`${dir}/${entry}/package.json`, repoRoot));
+		}
+	}
+	const manifests: Record<string, unknown>[] = [];
+	for (const path of paths) {
+		try {
+			manifests.push(await readJson(path));
+		} catch {
+			// not a package directory
+		}
+	}
+	return manifests;
+};
+
+test('every dependency shared by 2+ manifests is catalogued; shared overridden ones are exact pins outside any catalog', async () => {
+	const manifests = await loadManifests();
+	const workspace = parse(
+		await readFile(new URL('pnpm-workspace.yaml', repoRoot), 'utf8'),
+	) as {
+		catalog?: Record<string, string>;
+		catalogs?: Record<string, Record<string, string>>;
+	};
+	const catalogued = new Set([
+		...Object.keys(workspace.catalog ?? {}),
+		...Object.values(workspace.catalogs ?? {}).flatMap(Object.keys),
+	]);
+	const rootPnpm = manifests[0].pnpm as { overrides?: Record<string, string> };
+	const overridden = new Set(Object.keys(rootPnpm.overrides ?? {}));
+
+	const specs = new Map<string, string[]>();
+	for (const manifest of manifests) {
+		for (const group of dependencyGroups) {
+			const deps = (manifest[group] ?? {}) as Record<string, string>;
+			for (const [name, spec] of Object.entries(deps)) {
+				specs.set(name, [...(specs.get(name) ?? []), spec]);
+			}
+		}
+	}
+
+	const problems: string[] = [];
+	for (const [name, list] of specs) {
+		const raw = list.filter((spec) => !spec.startsWith('workspace:'));
+		if (overridden.has(name)) {
+			// The override wins over a catalog entry: exact pin in every manifest.
+			if (catalogued.has(name)) {
+				problems.push(`${name}: overridden, must not be in any catalog`);
+			}
+			for (const spec of list.length > 1 ? raw : []) {
+				if (!/^\d+\.\d+\.\d+/.test(spec) || /[\^~<>|*x\s]/.test(spec)) {
+					problems.push(
+						`${name}: overridden, must be exact-pinned, got ${spec}`,
+					);
+				}
+			}
+		} else if (list.length > 1 && raw.some((s) => !s.startsWith('catalog:'))) {
+			problems.push(`${name}: shared (${list.join(', ')}), use "catalog:"`);
+		}
+	}
+	assert.deepEqual(problems, []);
 });
