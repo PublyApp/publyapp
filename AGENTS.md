@@ -400,6 +400,7 @@ For the complete list of custom lint rules with severity and source, see [`docs/
 
 - Prefer targeted `lodash/*` helpers over built-in JavaScript methods when the lodash helper provides safer runtime handling for nullish or invalid inputs
 - Import specific helpers such as `lodash/map`, `lodash/trim`, `lodash/isEqual`, and `lodash/capitalize` instead of the full `lodash` package (enforced by `publy/prefer-specific-lodash-imports`)
+- **HARD rule:** every dependency declared in two or more `package.json` files goes through a pnpm catalog in `pnpm-workspace.yaml` (named catalogs, e.g. `web`/`mobile`, when versions differ by platform); `package.json` files carry only the `catalog:` / `catalog:<name>` label. Enforcement and migration: issue [#2447](https://github.com/PublyApp/publyapp/issues/2447).
 - A dependency used by two or more workspaces is declared once, at its exact version, in the `catalog:` block of `pnpm-workspace.yaml`; every consuming workspace writes `"<name>": "catalog:"` (never a repeated specifier). A dependency used by a single workspace stays in that workspace's `package.json`. A dependency pinned by root `pnpm.overrides` stays there, not in the catalog — the override wins, so it is written as its exact version directly in each manifest that uses it.
 
 ## C# Coding Standards

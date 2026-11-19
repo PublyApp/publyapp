@@ -265,8 +265,8 @@ override is the only reason it does.
 
 pnpm used to hand `apps/front` the `react-native` that `apps/mobile` installs (an optional peer of
 `@radandevist/radan-ui` and `react-i18next`), so React Native tooling (metro, jest-worker) showed up
-under the web front in the audit. `pnpm-workspace.yaml` is now the only pnpm setting source
-(`.npmrc` removed) with `autoInstallPeers: false` and `dedupePeerDependents: false`; peers a
+under the web front in the audit. `pnpm-workspace.yaml` is now the only workspace-level pnpm setting source
+(root `.npmrc` removed; `apps/front/.npmrc` stays, it only sets `prefer-frozen-lockfile`) with `autoInstallPeers: false` and `dedupePeerDependents: false`; peers a
 workspace needs are declared in its own `package.json`. Both settings are needed: with either one
 alone the front resolves `react-native` again. This is a review-time check, not a bespoke guard
 (guard admission criteria are not met): after any lockfile change, run
