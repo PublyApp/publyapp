@@ -7,6 +7,52 @@ This file provides guidance to AI coding assistants when working with code in th
 For multi-task orchestration, follow `~/ai-orchestration-playbook/PLAYBOOK.md`
 and this repo's adapter at [`.ai/orchestration-adapter.md`](.ai/orchestration-adapter.md).
 
+## Code quality — palier 1 (HARD, owner decision 2026-11-18)
+
+These numbers are a **first step**: each later palier makes them stricter, never looser.
+
+**Scope.** C# and TypeScript files in the zones below. Generated files (`*.g.cs`, `routeTree.gen.ts`,
+`packages/client-ts`, `generated/`), EF migrations and vendored code are out of scope everywhere.
+
+| Zone | Paths |
+|---|---|
+| `api` | `apps/api`, excluding `tests-api` |
+| `front` | `apps/front/src`, `packages/shared-ts`, excluding tests |
+| `tests-api` | `*.Spec.cs` under `apps/api`, `apps/api/Lib/Testing/**`, `apps/api/Tests/**` |
+| `tests-front` | `*.test.*` and `*.spec.*` under `apps/front/src` and `packages/shared-ts`; `apps/front/e2e`; `apps/front/tests` |
+| `tooling` | `packages/scripts-ts`, `packages/scripts-cs`, `packages/lint-ts`, `packages/lint-cs` (their specs included), `apps/front/scripts`, `apps/front/tools` |
+
+Precedence when a file matches two rows: `tooling` first, then the test zones, then `api`/`front`. Anything else (`apps/mobile`, `apps/apphost`) is not judged in palier 1.
+
+1. **Function cap.** Every function you add, or modify (the PR diff touches a line in its own body,
+   not only in a nested function), has a cognitive complexity of **15 or less**. Split it otherwise.
+2. **No zone may rise.** Complexity and duplicated lines per 1,000 source lines (SLOC) of each zone stay
+   at or below the committed baseline. Reuse an existing helper instead of copying code, in tests too.
+3. **PR size.** At most **600 changed lines** (added + deleted), excluding tests, generated files,
+   migrations, lockfiles and snapshots. Larger work is split into several PRs. Only the owner can
+   allow more, by setting the `size-exception` label on the PR; an agent never sets it.
+
+**Enforcement.** The required CI gate, the committed baseline
+(a JSON file in `packages/scripts-ts`), the measurement procedure and the local command
+`pnpm check:quality` are described in the quality-ratchet guide added by PR [#2443](https://github.com/PublyApp/publyapp/pull/2443) (issue
+[#2438](https://github.com/PublyApp/publyapp/issues/2438)). The measurement uses `@coderot-ai/cli`
+locally; its upload mode `ci` is never used. Until that gate is merged, reviewers check rules 1 and 3
+by hand; rule 2 is only checked by the gate.
+
+**Admission.** This gate is an owner-mandated exception to the « Bespoke guard admission » hard rule
+below (owner decision 2026-11-18, palier 1): when the two conflict, this section wins for the quality
+gate only. Retirement condition: the gate is replaced if an off-the-shelf tool enforces the same three
+rules with the same numbers.
+
+**Review severity.** A breach of rules 1–3 is a **blocking QUALITY finding**, outside the usual
+CRITICAL/MAJOR/MEDIUM/MINOR user-scenario rubric: it blocks the merge and is never downgraded to MINOR.
+
+Palier 1 targets (end of January 2027) and the 2026-11-18 measurements: issue
+[#2438](https://github.com/PublyApp/publyapp/issues/2438). Work items:
+[#2439](https://github.com/PublyApp/publyapp/issues/2439) (front),
+[#2440](https://github.com/PublyApp/publyapp/issues/2440) (tooling),
+[#2441](https://github.com/PublyApp/publyapp/issues/2441) (tests).
+
 ## Project Overview
 
 PublyApp is a modern full-stack multi-tenant SaaS application built with .NET 10.0 and React 19. The monorepo architecture uses Turborepo and pnpm workspaces with three user scopes: Staff (platform administrators), Tenant (organization-level users), and Project (project-level users).
