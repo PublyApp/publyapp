@@ -36,7 +36,8 @@ export const toAggregatorRows = (
 		displayName: item.displayName ?? '',
 		keyHelpUrl: item.keyHelpUrl ?? '',
 		supportedPlatforms: item.supportedPlatforms ?? [],
-		connection: item.connection
+		// The generated client can hand back an empty object for `connection: null`.
+		connection: item.connection?.status
 			? {
 					isActive: item.connection.status === 'active',
 					keyHint: item.connection.keyHint ?? '',
