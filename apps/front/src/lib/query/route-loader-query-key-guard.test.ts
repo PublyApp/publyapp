@@ -42,7 +42,8 @@ const EXPECTED_EXEMPTION_FILES = {
 	'routes/authed/staff/tenant-users/$userId-organizations-drawer.tsx': 1,
 	'routes/authed/staff/tenants/$tenantId/roles/$roleId/_assign-members-state-hook.ts': 1,
 	'routes/authed/tenant/posts/_scheduled-rendition-editor.tsx': 1,
-	'routes/authed/tenant/settings/integrations.tsx': 2,
+	'routes/authed/tenant/settings/_integrations-with-publishing-services.tsx': 1,
+	'routes/authed/tenant/settings/integrations.tsx': 1,
 };
 
 // The route-keyed closed-drawer skips (`CLOSED_DRAWER_FILES`), one per named

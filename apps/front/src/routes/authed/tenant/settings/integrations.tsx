@@ -50,13 +50,13 @@ import {
 import { formatDateTime } from '~/utils/format-time';
 
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
-import { AggregatorsCard } from './_aggregators-card';
 import { BlueskyConnectDrawer } from './_bluesky-connect-drawer';
 import { DisconnectDialog } from './_disconnect-dialog';
 import { DiscordConnectDrawer } from './_discord-connect-drawer';
 import { ConnectButtons } from './_integrations-connect-buttons';
 import { IntegrationsStatusPill } from './_integrations-status-pill';
 import { IntegrationsVisibleIn } from './_integrations-visible-in';
+import { withPublishingServicesCard } from './_integrations-with-publishing-services';
 import { MastodonConnectDrawer } from './_mastodon-connect-drawer';
 import { ReconnectMismatchDialog } from './_reconnect-mismatch-dialog';
 import {
@@ -559,23 +559,6 @@ const TenantSettingsIntegrationsPage = () => {
 	);
 };
 
-/** The page plus the publishing-services card. A wrapper rather than a new
- * block inside the page function, which is already over the complexity cap. */
-const TenantSettingsIntegrationsRoutePage = () => {
-	// preload-exempt: session-stable permission gate mounted by the app shell, fetched once per workspace tenant
-	const canManage = useCanManageSocialAccounts();
-	const tenantId = useResolvedWorkspaceTenantId();
-
-	return (
-		<div className="space-y-5">
-			<TenantSettingsIntegrationsPage />
-			{tenantId === null ? null : (
-				<AggregatorsCard tenantId={tenantId} canManage={canManage} />
-			)}
-		</div>
-	);
-};
-
 export const Route = createFileRoute(
 	'/_authed-layout/tenant/settings/integrations',
 )({
@@ -597,5 +580,5 @@ export const Route = createFileRoute(
 			tenantIntegrationsQueries({ tenantId }),
 		);
 	},
-	component: TenantSettingsIntegrationsRoutePage,
+	component: withPublishingServicesCard(TenantSettingsIntegrationsPage),
 });
