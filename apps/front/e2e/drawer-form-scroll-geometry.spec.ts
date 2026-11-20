@@ -765,6 +765,8 @@ const openMastodonConnectDrawer = (page: Page) =>
 	openConnectDrawer(page, 'Connect Mastodon', 'mastodon-connect-drawer');
 const openDiscordConnectDrawer = (page: Page) =>
 	openConnectDrawer(page, 'Connect Discord', 'discord-connect-drawer');
+const openAggregatorKeyDrawer = (page: Page) =>
+	openConnectDrawer(page, 'Connect Zernio', 'aggregator-key-drawer');
 
 /** The e2e seed has no Mastodon account, so the integrations list is answered
  * with one: the visibility action only exists on a fediverse row. */
@@ -819,6 +821,7 @@ const openDrawerByCallSiteId = {
 	'bluesky-connect': openBlueskyConnectDrawer,
 	'mastodon-connect': openMastodonConnectDrawer,
 	'discord-connect': openDiscordConnectDrawer,
+	'aggregator-key': openAggregatorKeyDrawer,
 	'social-account-visibility': openVisibilityDrawer,
 } satisfies Record<DrawerFormCallSiteId, (page: Page) => Promise<void>>;
 

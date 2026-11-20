@@ -72,7 +72,7 @@ export const useAggregatorsQuery = (variables: { tenantId: string }) =>
 		queryFn: () => aggregatorsQueryOptions.fetcher(variables),
 	});
 
-const invalidateAggregators = (
+export const invalidateAggregators = (
 	queryClient: QueryClient,
 	tenantId: string,
 ): void => {

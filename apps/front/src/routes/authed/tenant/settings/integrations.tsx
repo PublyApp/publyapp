@@ -465,10 +465,6 @@ const TenantSettingsIntegrationsPage = () => {
 				</CardContent>
 			</Card>
 
-			{tenantId === null ? null : (
-				<AggregatorsCard tenantId={tenantId} canManage={canManage} />
-			)}
-
 			<Card>
 				<CardHeader>
 					<CardTitle>{t('common:available-integrations')}</CardTitle>
@@ -563,6 +559,23 @@ const TenantSettingsIntegrationsPage = () => {
 	);
 };
 
+/** The page plus the publishing-services card. A wrapper rather than a new
+ * block inside the page function, which is already over the complexity cap. */
+const TenantSettingsIntegrationsRoutePage = () => {
+	// preload-exempt: session-stable permission gate mounted by the app shell, fetched once per workspace tenant
+	const canManage = useCanManageSocialAccounts();
+	const tenantId = useResolvedWorkspaceTenantId();
+
+	return (
+		<div className="space-y-5">
+			<TenantSettingsIntegrationsPage />
+			{tenantId === null ? null : (
+				<AggregatorsCard tenantId={tenantId} canManage={canManage} />
+			)}
+		</div>
+	);
+};
+
 export const Route = createFileRoute(
 	'/_authed-layout/tenant/settings/integrations',
 )({
@@ -584,5 +597,5 @@ export const Route = createFileRoute(
 			tenantIntegrationsQueries({ tenantId }),
 		);
 	},
-	component: TenantSettingsIntegrationsPage,
+	component: TenantSettingsIntegrationsRoutePage,
 });

@@ -66,6 +66,12 @@ export const DRAWER_FORM_CALL_SITES = [
 		drawerTestId: 'discord-connect-drawer',
 	},
 	{
+		id: 'aggregator-key',
+		name: 'aggregator-key',
+		sourceFile: 'src/routes/authed/tenant/settings/_aggregator-key-drawer.tsx',
+		drawerTestId: 'aggregator-key-drawer',
+	},
+	{
 		id: 'social-account-visibility',
 		name: 'social-account-visibility',
 		sourceFile: 'src/routes/authed/tenant/settings/_visibility-drawer.tsx',

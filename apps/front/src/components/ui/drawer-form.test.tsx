@@ -436,6 +436,7 @@ import {
 	type RoleFormValues,
 } from '../../routes/authed/staff/tenants/$tenantId/roles/_role-form-schema';
 import { CreatePostDrawer } from '../../routes/authed/tenant/posts/_create-post-drawer';
+import { AggregatorKeyDrawer } from '../../routes/authed/tenant/settings/_aggregator-key-drawer';
 import { BlueskyConnectDrawer } from '../../routes/authed/tenant/settings/_bluesky-connect-drawer';
 import { DiscordConnectDrawer } from '../../routes/authed/tenant/settings/_discord-connect-drawer';
 import { MastodonConnectDrawer } from '../../routes/authed/tenant/settings/_mastodon-connect-drawer';
@@ -9613,6 +9614,21 @@ const renderDrawerByCallSiteId = {
 	'discord-connect': () => {
 		render(
 			<DiscordConnectDrawer open tenantId="tenant-1" onOpenChange={noop} />,
+		);
+	},
+	'aggregator-key': () => {
+		render(
+			<AggregatorKeyDrawer
+				aggregator={{
+					kind: 'partner',
+					displayName: 'Partner',
+					keyHelpUrl: 'https://example.com/help',
+					supportedPlatforms: ['facebook'],
+					connection: null,
+				}}
+				tenantId="tenant-1"
+				onOpenChange={noop}
+			/>,
 		);
 	},
 	'social-account-visibility': () => {
