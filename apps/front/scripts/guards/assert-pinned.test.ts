@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { parseCatalog } from './assert-pinned-catalog.ts';
+import { parseCatalog, parseCatalogs } from './assert-pinned-catalog.ts';
 
 const doc = (body: string): string =>
 	`packages:\n  - "apps/*"\n\ncatalog:\n${body}\n`;
@@ -103,7 +103,7 @@ void test('an unknown indented shape fails loud instead of dropping entries', ()
 	assert.throws(() => parseCatalog(doc('  a:\n')), /unknown catalog line/);
 });
 
-void test('the real pnpm-workspace.yaml: exact entries, nothing overridden catalogued', () => {
+void test('the real pnpm-workspace.yaml: every catalog entry exact', () => {
 	const workspaceYaml = readFileSync(
 		new URL('../../../../pnpm-workspace.yaml', import.meta.url),
 		'utf8',
@@ -112,22 +112,34 @@ void test('the real pnpm-workspace.yaml: exact entries, nothing overridden catal
 	assert.ok(catalog.size > 0, 'the real catalog must not be empty');
 
 	const EXACT = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
-	for (const [name, version] of catalog) {
+	const named = [...parseCatalogs(workspaceYaml).values()].flatMap((c) => [
+		...c,
+	]);
+	for (const [name, version] of named) {
 		assert.match(
 			version,
 			EXACT,
 			`catalog entry ${name} must be one exact version, got ${version}`,
 		);
 	}
+});
 
-	const rootPkg: { pnpm?: { overrides?: Record<string, string> } } = JSON.parse(
-		readFileSync(new URL('../../../../package.json', import.meta.url), 'utf8'),
+void test('parseCatalogs reads named catalogs next to the default one (#2447)', () => {
+	const catalogs = parseCatalogs(
+		doc('  zod: 4.6.7\n') +
+			'catalogs:\n  web:\n    react: 19.3.1\n    "@types/react": 19.3.0\n' +
+			'  # comment\n  mobile:\n    react: 19.3.0\n',
 	);
-	const overrides = Object.keys(rootPkg.pnpm?.overrides ?? {});
-	const cataloguedOverrides = overrides.filter((name) => catalog.has(name));
-	assert.deepEqual(
-		cataloguedOverrides,
-		[],
-		'a pnpm.overrides-pinned dependency stays in the override, not the catalog',
+	assert.deepEqual([...catalogs.keys()], ['', 'web', 'mobile']);
+	assert.equal(catalogs.get('')?.get('zod'), '4.6.7');
+	assert.equal(catalogs.get('web')?.get('@types/react'), '19.3.0');
+	assert.equal(catalogs.get('mobile')?.get('react'), '19.3.0');
+});
+
+void test('parseCatalogs accepts 4-space indentation and trailing comments', () => {
+	const catalogs = parseCatalogs(
+		'catalog: # shared\n    zod: 4.6.7\ncatalogs: # platform\n    web: # web\n        react: 19.3.1\n',
 	);
+	assert.equal(catalogs.get('')?.get('zod'), '4.6.7');
+	assert.equal(catalogs.get('web')?.get('react'), '19.3.1');
 });
