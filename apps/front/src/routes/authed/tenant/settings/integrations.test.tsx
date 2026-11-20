@@ -116,6 +116,10 @@ vi.mock('~/lib/permissions/use-has-tenant-permission', () => ({
 
 // Wiring tests stop at this seam: the drawer/dialog own their behaviour in
 // dedicated suites (they need a QueryClient for their mutations).
+vi.mock('./_aggregators-card', () => ({
+	AggregatorsCard: () => <div data-testid="aggregators-card-stub" />,
+}));
+
 vi.mock('./_bluesky-connect-drawer', () => ({
 	BlueskyConnectDrawer: ({ mode, open }: { mode: string; open: boolean }) =>
 		open

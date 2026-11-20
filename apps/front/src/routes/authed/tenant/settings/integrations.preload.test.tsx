@@ -64,6 +64,7 @@ const NEEDS_RECONNECT = [
 const ACCOUNTS = ['socialAccounts', 'get'] as const;
 const PROJECTS = ['projects', 'get'] as const;
 const CAPABILITIES = ['publishing', 'capabilities', 'get'] as const;
+const AGGREGATORS = ['aggregators', 'get'] as const;
 
 const destination = widenOptions<PreloadDestination>({
 	linkTo: '/tenant/settings/integrations',
@@ -79,12 +80,18 @@ describe('#2340 tenant integrations route preload', () => {
 		window.localStorage.clear();
 	});
 
-	test('hovering with the workspace picker warm fetches the reconnect list, the accounts, the projects and the provider capabilities once, each scoped to the resolved tenant, and the click reuses them', async () => {
+	test('hovering with the workspace picker warm fetches the reconnect list, the accounts, the projects, the provider capabilities and the aggregators once, each scoped to the resolved tenant, and the click reuses them', async () => {
 		await expectWarmPickerHoverThenClick({
 			destination,
 			linkLabel: LINK_LABEL,
 			pageTestId: 'tenant-settings-integrations-page',
-			endpoints: [NEEDS_RECONNECT, ACCOUNTS, PROJECTS, CAPABILITIES],
+			endpoints: [
+				NEEDS_RECONNECT,
+				ACCOUNTS,
+				PROJECTS,
+				CAPABILITIES,
+				AGGREGATORS,
+			],
 			respond: mocks.respond,
 			assertRequests: () => {
 				for (const endpoint of [
@@ -92,6 +99,7 @@ describe('#2340 tenant integrations route preload', () => {
 					ACCOUNTS,
 					PROJECTS,
 					CAPABILITIES,
+					AGGREGATORS,
 				]) {
 					expect(requestTenantIds(mocks.respond, ...endpoint)).toEqual([
 						TENANT_ID,

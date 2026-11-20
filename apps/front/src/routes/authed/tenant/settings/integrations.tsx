@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StateSurface } from '~/components/ui/state-surface';
 import { useCanManageSocialAccounts } from '~/lib/permissions/use-has-tenant-permission';
+import { aggregatorsQueryOptions } from '~/lib/query/aggregators';
 import type { FediverseProvider } from '~/lib/query/mastodon-connect';
 import {
 	needsReconnectAccountsQueryOptions,
@@ -49,6 +50,7 @@ import {
 import { formatDateTime } from '~/utils/format-time';
 
 import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
+import { AggregatorsCard } from './_aggregators-card';
 import { BlueskyConnectDrawer } from './_bluesky-connect-drawer';
 import { DisconnectDialog } from './_disconnect-dialog';
 import { DiscordConnectDrawer } from './_discord-connect-drawer';
@@ -312,6 +314,7 @@ const tenantIntegrationsQueries = ({ tenantId }: { tenantId: string }) => ({
 		variables: { tenantId },
 	},
 	picker: { options: tenantsForPickerQueryOptions, variables: {} },
+	aggregators: { options: aggregatorsQueryOptions, variables: { tenantId } },
 });
 
 const TenantSettingsIntegrationsPage = () => {
@@ -461,6 +464,10 @@ const TenantSettingsIntegrationsPage = () => {
 					)}
 				</CardContent>
 			</Card>
+
+			{tenantId === null ? null : (
+				<AggregatorsCard tenantId={tenantId} canManage={canManage} />
+			)}
 
 			<Card>
 				<CardHeader>
