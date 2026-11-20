@@ -1,6 +1,5 @@
 
 using System.Net;
-using System.Net.Http.Json;
 
 using FluentAssertions;
 
@@ -102,17 +101,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 			tenantId, permissionCount: 0, isFullAccess: false
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "limit=100&is_full_access=true")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindTenantRolesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRolesResponse>(FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "limit=100&is_full_access=true"), token);
 
 		result.Data.Should().Contain(p => p.Id == fullAccessRoleId);
 		result.Data.Should().NotContain(p => p.Id == customRoleId);
@@ -130,17 +119,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 			tenantId, permissionCount: 0, isFullAccess: false
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "limit=100&is_full_access=false")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindTenantRolesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRolesResponse>(FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "limit=100&is_full_access=false"), token);
 
 		result.Data.Should().Contain(p => p.Id == customRoleId);
 		result.Data.Should().NotContain(p => p.Id == fullAccessRoleId);
@@ -158,17 +137,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 			tenantId, permissionCount: 0, isFullAccess: false
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "limit=100")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindTenantRolesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRolesResponse>(FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "limit=100"), token);
 
 		result.Data.Should().Contain(p => p.Id == fullAccessRoleId);
 		result.Data.Should().Contain(p => p.Id == customRoleId);
@@ -185,20 +154,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 			tenantId, permissionCount: 0, isFullAccess: false
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRolesAsStaffSpec._GetUrl(
-				tenantId.ToString(),
-				$"limit=100&is_full_access={Uri.EscapeDataString(" ")}"
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindTenantRolesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRolesResponse>(FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), $"limit=100&is_full_access={Uri.EscapeDataString(" ")}"), token);
 
 		result.Data.Should().Contain(p => p.Id == fullAccessRoleId);
 		result.Data.Should().Contain(p => p.Id == customRoleId);
@@ -212,17 +168,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		var withPercentId = await this._SeedTenantRoleWithNameAsync(tenantId, $"Has%Percent{marker}");
 		var withoutPercentId = await this._SeedTenantRoleWithNameAsync(tenantId, $"NoPercentAtAll{marker}");
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), $"limit=100&q={Uri.EscapeDataString("%")}")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindTenantRolesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRolesResponse>(FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), $"limit=100&q={Uri.EscapeDataString("%")}"), token);
 
 		// If '%' were interpolated unescaped into the ILIKE pattern, "%%%"
 		// collapses to a bare wildcard matching every row. Escaped, only the
@@ -323,17 +269,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		Guid tenantId,
 		Guid roleId
 	) {
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "limit=100")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindTenantRolesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRolesResponse>(FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "limit=100"), token);
 
 		var role = result.Data.FirstOrDefault(p => p.Id == roleId);
 		role.Should().NotBeNull(

@@ -70,17 +70,7 @@ public sealed class FindStaffRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				FindStaffRolesCursorBehaviorSpec._GetUrl(query)
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindStaffRolesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindStaffRolesResponse>(FindStaffRolesCursorBehaviorSpec._GetUrl(query), token);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);
@@ -128,17 +118,7 @@ public sealed class FindStaffRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				FindStaffRolesCursorBehaviorSpec._GetUrl(query)
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindStaffRolesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindStaffRolesResponse>(FindStaffRolesCursorBehaviorSpec._GetUrl(query), token);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);
@@ -197,17 +177,7 @@ public sealed class FindStaffRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				FindStaffRolesCursorBehaviorSpec._GetUrl(query)
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindStaffRolesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindStaffRolesResponse>(FindStaffRolesCursorBehaviorSpec._GetUrl(query), token);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);
@@ -257,17 +227,7 @@ public sealed class FindStaffRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				FindStaffRolesCursorBehaviorSpec._GetUrl(query)
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindStaffRolesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindStaffRolesResponse>(FindStaffRolesCursorBehaviorSpec._GetUrl(query), token);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);

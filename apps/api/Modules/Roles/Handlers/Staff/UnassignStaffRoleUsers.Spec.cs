@@ -490,13 +490,7 @@ public sealed class UnassignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 
 	private async Task<List<string>> _FindUserIdsAsync(string token, string roleId) {
 		var url = UnassignStaffRoleUsersSpec._GetFindUsersUrl(roleId) + "?page=1&limit=50&sort_id=created_at&sort_order=desc";
-		using var request = new HttpRequestMessage(HttpMethod.Get, url).WithSessionToken(token);
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindStaffRoleUsersResult>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindStaffRoleUsersResult>(url, token);
 		return result.Users.Select(u => u.Id.ToString()).ToList();
 	}
 

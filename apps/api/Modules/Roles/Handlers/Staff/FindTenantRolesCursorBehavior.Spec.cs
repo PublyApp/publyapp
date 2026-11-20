@@ -71,17 +71,7 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query)
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindTenantRolesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindTenantRolesResponse>(FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query), token);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);
@@ -130,17 +120,7 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query)
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindTenantRolesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindTenantRolesResponse>(FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query), token);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);
@@ -200,17 +180,7 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query)
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindTenantRolesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindTenantRolesResponse>(FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query), token);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);

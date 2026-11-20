@@ -58,24 +58,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		string? cursor = null;
 		var pages = 0;
 		do {
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				FindTenantUserCompaniesForStaffSpec._GetUrl(
-					userId,
-					cursor: cursor,
-					limit: 1,
-					sortId: "created_at",
-					sortOrder: "asc"
-				)
-			).WithSessionToken(staffToken);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content
-				.ReadFromJsonAsync<FindCompaniesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId, cursor: cursor, limit: 1, sortId: "created_at", sortOrder: "asc"), staffToken);
 			pages++;
 			visitedTenantIds.AddRange(
 				page.Data.Select(c => c.TenantId)
@@ -147,24 +130,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		string? cursor = null;
 		var pages = 0;
 		do {
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				FindTenantUserCompaniesForStaffSpec._GetUrl(
-					userId,
-					cursor: cursor,
-					limit: 1,
-					sortId: "tenant_name",
-					sortOrder: "asc"
-				)
-			).WithSessionToken(staffToken);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content
-				.ReadFromJsonAsync<FindCompaniesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId, cursor: cursor, limit: 1, sortId: "tenant_name", sortOrder: "asc"), staffToken);
 			pages++;
 			visitedTenantIds.AddRange(
 				page.Data.Select(c => c.TenantId)
@@ -223,24 +189,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		string? cursor = null;
 		var pages = 0;
 		do {
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				FindTenantUserCompaniesForStaffSpec._GetUrl(
-					userId,
-					cursor: cursor,
-					limit: 1,
-					sortId: "status",
-					sortOrder: "asc"
-				)
-			).WithSessionToken(staffToken);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content
-				.ReadFromJsonAsync<FindCompaniesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId, cursor: cursor, limit: 1, sortId: "status", sortOrder: "asc"), staffToken);
 			pages++;
 			visitedTenantIds.AddRange(
 				page.Data.Select(c => c.TenantId)
@@ -349,24 +298,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			SeedConstants.CrossTenant.AliceEmail
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantUserCompaniesForStaffSpec._GetUrl(
-				userId,
-				limit: 10,
-				sortId: "tenant_name",
-				sortOrder: "asc",
-				q: SeedConstants.Tenants.TechStartCode
-			)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var result = await response.Content
-			.ReadFromJsonAsync<FindCompaniesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId, limit: 10, sortId: "tenant_name", sortOrder: "asc", q: SeedConstants.Tenants.TechStartCode), staffToken);
 		result.Data.Should().ContainSingle(company =>
 					company.TenantName == SeedConstants.Tenants.TechStartName
 				);
@@ -388,24 +320,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			SeedConstants.CrossTenant.AliceEmail
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantUserCompaniesForStaffSpec._GetUrl(
-				userId,
-				limit: 10,
-				sortId: "tenant_name",
-				sortOrder: "asc",
-				q: "%"
-			)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var result = await response.Content
-			.ReadFromJsonAsync<FindCompaniesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId, limit: 10, sortId: "tenant_name", sortOrder: "asc", q: "%"), staffToken);
 
 		// Alice's companies (Acme, TechStart) contain no literal '%' in name or
 		// code. If '%' were interpolated unescaped into the ILIKE pattern, it
@@ -448,18 +363,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			userId
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantUserCompaniesForStaffSpec._GetUrl(userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var result = await response.Content
-			.ReadFromJsonAsync<FindCompaniesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId), staffToken);
 		result.Data.Should().BeEmpty();
 		result.NextCursor.Should().BeNull();
 	}
@@ -573,18 +477,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			SeedConstants.CrossTenant.AliceEmail
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantUserCompaniesForStaffSpec._GetUrl(userId, limit: 10, sortId: sortId, sortOrder: "asc")
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var result = await response.Content
-			.ReadFromJsonAsync<FindCompaniesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId, limit: 10, sortId: sortId, sortOrder: "asc"), staffToken);
 		result.Data.Should().NotBeEmpty();
 	}
 

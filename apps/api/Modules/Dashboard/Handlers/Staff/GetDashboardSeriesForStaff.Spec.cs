@@ -79,25 +79,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 		var token =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetDashboardSeriesForStaffSpec._GetUrl(
-				"audit_events",
-				"2020-03-01",
-				"2020-03-03"
-			)
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<SeriesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<SeriesResponse>(GetDashboardSeriesForStaffSpec._GetUrl("audit_events", "2020-03-01", "2020-03-03"), token);
 
 		result.Metric.Should().Be("audit_events");
 		result.StartDate.Should().Be("2020-03-01");
@@ -173,25 +155,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 			)
 		);
 
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetDashboardSeriesForStaffSpec._GetUrl(
-				"audit_events",
-				"2020-04-01",
-				"2020-04-03"
-			)
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<SeriesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<SeriesResponse>(GetDashboardSeriesForStaffSpec._GetUrl("audit_events", "2020-04-01", "2020-04-03"), token);
 
 		result.Points.Select(point => point.Value)
 			.Should()
@@ -231,25 +195,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 			)
 		);
 
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetDashboardSeriesForStaffSpec._GetUrl(
-				"sign_ins",
-				"2020-10-01",
-				"2020-10-02"
-			)
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<SeriesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<SeriesResponse>(GetDashboardSeriesForStaffSpec._GetUrl("sign_ins", "2020-10-01", "2020-10-02"), token);
 
 		result.Metric.Should().Be("sign_ins");
 		result.Points.Select(point => point.Value)
@@ -282,25 +228,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 			)
 		);
 
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetDashboardSeriesForStaffSpec._GetUrl(
-				"failed_sign_ins",
-				"2020-11-05",
-				"2020-11-06"
-			)
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<SeriesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<SeriesResponse>(GetDashboardSeriesForStaffSpec._GetUrl("failed_sign_ins", "2020-11-05", "2020-11-06"), token);
 
 		result.Metric.Should().Be("failed_sign_ins");
 		result.Points.Select(point => point.Value)
@@ -316,25 +244,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 
 		// 2020-01-01 → 2021-01-01 is 366 elapsed days (leap year), which is
 		// what the 12-month preset can legitimately ask for.
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetDashboardSeriesForStaffSpec._GetUrl(
-				"audit_events",
-				"2020-01-01",
-				"2021-01-01"
-			)
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<SeriesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<SeriesResponse>(GetDashboardSeriesForStaffSpec._GetUrl("audit_events", "2020-01-01", "2021-01-01"), token);
 		result.Points.Should().HaveCount(367);
 	}
 
@@ -1282,22 +1192,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 		string startDate,
 		string endDate
 	) {
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetDashboardSeriesForStaffSpec._GetUrl(
-				metric,
-				startDate,
-				endDate
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<SeriesResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<SeriesResponse>(GetDashboardSeriesForStaffSpec._GetUrl(metric, startDate, endDate), token);
 		return result;
 	}
 

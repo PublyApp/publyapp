@@ -44,20 +44,7 @@ public sealed class GetRedirectCodeSpec
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			Routes.Auth.GetRedirectCode
-		).WithSessionToken(aliceToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<RedirectCodeResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<RedirectCodeResponse>(Routes.Auth.GetRedirectCode, aliceToken);
 		result.HasSuspendedTenants.Should().BeFalse();
 		result.RedirectCode.Should().Be("tenant-picker");
 	}
@@ -81,20 +68,7 @@ public sealed class GetRedirectCodeSpec
 
 		var url = $"{Routes.Auth.GetRedirectCode}"
 			+ $"?tenant_id={acmeId}";
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			url
-		).WithSessionToken(aliceToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<RedirectCodeResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<RedirectCodeResponse>(url, aliceToken);
 		result.RedirectCode.Should()
 					.Be(acmeId.ToString());
 		result.HasSuspendedTenants.Should().BeFalse();
@@ -156,21 +130,7 @@ public sealed class GetRedirectCodeSpec
 				TestConstants.SeedPassword
 			);
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				Routes.Auth.GetRedirectCode
-			).WithSessionToken(aliceToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<RedirectCodeResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<RedirectCodeResponse>(Routes.Auth.GetRedirectCode, aliceToken);
 			result.HasSuspendedTenants.Should().BeTrue();
 			// 1 active tenant left -> direct redirect
 			var techStartId =
@@ -289,21 +249,7 @@ public sealed class GetRedirectCodeSpec
 			// Hint to the active tenant
 			var url = $"{Routes.Auth.GetRedirectCode}"
 				+ $"?tenant_id={techStartId}";
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				url
-			).WithSessionToken(aliceToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<RedirectCodeResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<RedirectCodeResponse>(url, aliceToken);
 			result.RedirectCode.Should()
 							.Be(techStartId.ToString());
 			result.HasSuspendedTenants.Should().BeTrue();
@@ -353,21 +299,7 @@ public sealed class GetRedirectCodeSpec
 					TestConstants.SeedPassword
 				);
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				Routes.Auth.GetRedirectCode
-			).WithSessionToken(aliceToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<RedirectCodeResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<RedirectCodeResponse>(Routes.Auth.GetRedirectCode, aliceToken);
 			result.RedirectCode.Should()
 							.Be("tenant-picker");
 			result.HasSuspendedTenants.Should().BeTrue();
@@ -395,18 +327,7 @@ public sealed class GetRedirectCodeSpec
 				TestConstants.SeedPassword
 			);
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				Routes.Auth.GetRedirectCode
-			).WithSessionToken(token);
-			using var response = await this._Http.SendAsync(request);
-
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<RedirectCodeResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<RedirectCodeResponse>(Routes.Auth.GetRedirectCode, token);
 			result.RedirectCode.Should().Be("unauthorized");
 		} finally {
 			await this._DeleteSeededRedirectCodeUserAsync(seeded);
@@ -475,20 +396,7 @@ public sealed class GetRedirectCodeSpec
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			Routes.Auth.GetRedirectCode
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<RedirectCodeResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<RedirectCodeResponse>(Routes.Auth.GetRedirectCode, staffToken);
 		result.RedirectCode.Should().Be("staff");
 	}
 
@@ -510,20 +418,7 @@ public sealed class GetRedirectCodeSpec
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			Routes.Auth.GetRedirectCode
-		).WithSessionToken(acmeAdminToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<RedirectCodeResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<RedirectCodeResponse>(Routes.Auth.GetRedirectCode, acmeAdminToken);
 		result.RedirectCode.Should()
 					.Be(acmeId.ToString());
 		result.HasSuspendedTenants.Should().BeFalse();

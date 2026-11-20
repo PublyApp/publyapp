@@ -407,17 +407,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 			AppPermissions.Tenant.Modules.ACCESS_SETTINGS.Key
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			TenantRolePermissionsAsStaffSpec._GetListUrl(tenantId.ToString(), roleId)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var payload = await response.Content.ReadFromJsonAsync<ListPermissionsResponse>();
-		payload.Should().NotBeNull();
-		Assert.NotNull(payload);
+		var payload = await this._Http.GetOkAsync<ListPermissionsResponse>(TenantRolePermissionsAsStaffSpec._GetListUrl(tenantId.ToString(), roleId), token);
 		payload.PermissionKeys.Should().BeInAscendingOrder();
 	}
 

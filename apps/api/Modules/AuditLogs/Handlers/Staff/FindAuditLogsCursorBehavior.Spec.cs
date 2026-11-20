@@ -88,17 +88,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 				sortOrder: "asc",
 				cursor: cursor
 			);
-			var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content
-				.ReadFromJsonAsync<FindAuditLogsResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindAuditLogsResponse>(url, token);
 			pages++;
 			visitedIds.AddRange(page.Data.Select(log => log.Id));
 			visitedCreatedAtOrder.AddRange(page.Data.Select(log => log.CreatedAt));

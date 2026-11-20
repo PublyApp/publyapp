@@ -132,17 +132,7 @@ public sealed class StaffRolePermissionsSpec
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var roleId = await this._CreateStaffRoleAsync(token);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			StaffRolePermissionsSpec._GetListPermissionsUrl(roleId)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var payload = await response.Content.ReadFromJsonAsync<ListPermissionsResponse>();
-		payload.Should().NotBeNull();
-		Assert.NotNull(payload);
+		var payload = await this._Http.GetOkAsync<ListPermissionsResponse>(StaffRolePermissionsSpec._GetListPermissionsUrl(roleId), token);
 		payload.PermissionKeys.Should().NotBeEmpty();
 		payload.PermissionKeys.Should().BeInAscendingOrder();
 	}

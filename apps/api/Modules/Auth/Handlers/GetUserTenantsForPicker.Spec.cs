@@ -45,20 +45,7 @@ public sealed class GetUserTenantsForPickerSpec
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			Routes.Auth.GetUserTenantsForPicker
-		).WithSessionToken(aliceToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<PickerResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<PickerResponse>(Routes.Auth.GetUserTenantsForPicker, aliceToken);
 		result.HasDeletedTenants.Should().BeFalse();
 		result.HasSuspendedTenants.Should().BeFalse();
 		result.TotalCount.Should().Be(2);
@@ -95,21 +82,7 @@ public sealed class GetUserTenantsForPickerSpec
 					TestConstants.SeedPassword
 				);
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				Routes.Auth.GetUserTenantsForPicker
-			).WithSessionToken(aliceToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<PickerResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<PickerResponse>(Routes.Auth.GetUserTenantsForPicker, aliceToken);
 			result.HasSuspendedTenants.Should().BeTrue();
 			// No tenant was soft-deleted in this arm, only suspended — the
 			// deletion signal must stay false.
@@ -173,21 +146,7 @@ public sealed class GetUserTenantsForPickerSpec
 					TestConstants.SeedPassword
 				);
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				Routes.Auth.GetUserTenantsForPicker
-			).WithSessionToken(aliceToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<PickerResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<PickerResponse>(Routes.Auth.GetUserTenantsForPicker, aliceToken);
 			result.HasSuspendedTenants.Should()
 							.BeFalse();
 			result.HasDeletedTenants.Should().BeFalse();
@@ -219,20 +178,7 @@ public sealed class GetUserTenantsForPickerSpec
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			Routes.Auth.GetUserTenantsForPicker
-		).WithSessionToken(acmeAdminToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<PickerResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<PickerResponse>(Routes.Auth.GetUserTenantsForPicker, acmeAdminToken);
 		result.TotalCount.Should().Be(1);
 		result.ActiveCount.Should().Be(1);
 		// Acme admin has exactly one live tenant: no suspended and no
@@ -395,20 +341,7 @@ public sealed class GetUserTenantsForPickerSpec
 				TestConstants.SeedPassword
 			);
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				Routes.Auth.GetUserTenantsForPicker
-			).WithSessionToken(token);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<PickerResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<PickerResponse>(Routes.Auth.GetUserTenantsForPicker, token);
 			result.TotalCount.Should().Be(0);
 			result.ActiveCount.Should().Be(0);
 			// #258 round 2: the picker must expose WHY the list is empty. A user
@@ -496,20 +429,7 @@ public sealed class GetUserTenantsForPickerSpec
 				TestConstants.SeedPassword
 			);
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				Routes.Auth.GetUserTenantsForPicker
-			).WithSessionToken(token);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<PickerResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<PickerResponse>(Routes.Auth.GetUserTenantsForPicker, token);
 			result.TotalCount.Should().Be(0);
 			result.ActiveCount.Should().Be(0);
 			result.HasDeletedTenants.Should().BeFalse();
@@ -590,20 +510,7 @@ public sealed class GetUserTenantsForPickerSpec
 				TestConstants.SeedPassword
 			);
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				Routes.Auth.GetUserTenantsForPicker
-			).WithSessionToken(token);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<PickerResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<PickerResponse>(Routes.Auth.GetUserTenantsForPicker, token);
 			// The live tenant is listed and counted…
 			result.TotalCount.Should().Be(1);
 			result.ActiveCount.Should().Be(1);

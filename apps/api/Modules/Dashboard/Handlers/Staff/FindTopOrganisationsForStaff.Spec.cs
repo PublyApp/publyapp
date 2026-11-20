@@ -204,24 +204,7 @@ public sealed class FindTopOrganisationsForStaffSpec
 			)
 		);
 
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTopOrganisationsForStaffSpec._GetUrl(
-				"2020-06-01",
-				"2020-06-03"
-			)
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<TopOrganisationsResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<TopOrganisationsResponse>(FindTopOrganisationsForStaffSpec._GetUrl("2020-06-01", "2020-06-03"), token);
 
 		result.Items.Should().HaveCount(2);
 		result.Items[0].Id.Should().Be(tenantAlpha);

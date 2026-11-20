@@ -1,6 +1,5 @@
 
 using System.Net;
-using System.Net.Http.Json;
 
 using FluentAssertions;
 
@@ -43,20 +42,7 @@ public sealed class FindSystemNoticesSpec
 			);
 
 		try {
-			var request = new HttpRequestMessage(
-				HttpMethod.Get, FindSystemNoticesSpec._FindUrl
-			).WithSessionToken(token);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(FindSystemNoticesSpec._FindUrl, token);
 			result.Data.Should().NotBeNull();
 			result.Data.Should().Contain(
 				n => n.Id == noticeId
@@ -126,20 +112,7 @@ public sealed class FindSystemNoticesSpec
 
 			// Fetch with limit=2 to force pagination
 			var url = FindSystemNoticesSpec._FindUrl + "?limit=2";
-			var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, token);
 			result.Data.Count.Should().Be(2);
 			result.NextCursor.Should()
 				.NotBeNullOrEmpty();
@@ -190,21 +163,7 @@ public sealed class FindSystemNoticesSpec
 
 			var url = FindSystemNoticesSpec._FindUrl
 				+ "?sort_id=starts_at&sort_order=asc";
-			var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			result.Should().NotBeNull();
-
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, token);
 			var earlyIdx = result.Data
 							.FindIndex(n => n.Id == earlyId);
 			var lateIdx = result.Data
