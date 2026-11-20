@@ -10,7 +10,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Fakes;
 /// The e2e stack boots with an empty key ring that already holds the master-key canary
 /// row, and Data Protection cannot create its first key beside it, so a real
 /// <see cref="CredentialProtector"/> answers 500 there. Registered ONLY when
-/// PUBLISHING_FAKE_PROVIDER=1 on a Development/Testing host, like every other fake.
+/// PUBLISHING_FAKE_PROVIDER=true on a Development/Testing host, like every other fake.
 /// </summary>
 public sealed class FakeCredentialProtector : ICredentialProtector {
 	public string Protect(string plaintext, SocialProvider provider) {

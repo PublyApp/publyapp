@@ -148,7 +148,7 @@
 	"social-account-discord-webhook-connected": "Webhook Discord connecté",
 	"aggregator-not-found": "Agrégateur introuvable",
 	"aggregator-connection-not-found": "Aucune clé enregistrée pour cet agrégateur",
-	"aggregator-key-refused": "Cette clé a été refusée",
+	"aggregator-key-refused": "Cette clé a été refusée. Vérifiez-la et collez-la de nouveau.",
 	"aggregator-connection-removed-success": "Clé de l'agrégateur supprimée",
 	"aggregator-key-saved": "Clé enregistrée",
 	"aggregator-key-checked": "Clé vérifiée",

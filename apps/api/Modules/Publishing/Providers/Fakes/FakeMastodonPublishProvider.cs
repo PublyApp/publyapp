@@ -15,7 +15,7 @@ namespace PublyApp.Api.Modules.Publishing.Providers.Fakes;
 /// It records what the real provider would have put on the wire (visibility, images,
 /// segment texts) so an e2e or spec can assert on it. Selected by
 /// <see cref="FakeRoutingPublishProvider"/> under the same
-/// <c>PUBLISHING_FAKE_PROVIDER=1</c> gate as the Bluesky fake (Development/Testing hosts
+/// <c>PUBLISHING_FAKE_PROVIDER=true</c> gate as the Bluesky fake (Development/Testing hosts
 /// only); never contacts an instance.
 /// </summary>
 public sealed class FakeMastodonPublishProvider : IPublishProvider {
@@ -102,7 +102,7 @@ public sealed class FakeMastodonPublishProvider : IPublishProvider {
 }
 
 /// <summary>
-/// The delivery registered when <c>PUBLISHING_FAKE_PROVIDER=1</c>: a Mastodon or Pixelfed
+/// The delivery registered when <c>PUBLISHING_FAKE_PROVIDER=true</c>: a Mastodon or Pixelfed
 /// target goes to <see cref="FakeMastodonPublishProvider"/>, everything else keeps going
 /// to <see cref="FakeBlueskyPublishProvider"/> exactly as before (#2186). Same gate, same
 /// fail-closed rule: <see cref="FakePublishingProviderEnabled.IsEnabled"/>.

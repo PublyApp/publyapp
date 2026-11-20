@@ -323,7 +323,7 @@ public static class ServiceRegistration {
 		builder.Services.AddSingleton<IPublishProvider, RoutingPublishProvider>();
 
 		// E2E publish-now seam (plan D2 reconciliation 4, round-2 blocker fix): ONLY
-		// when PUBLISHING_FAKE_PROVIDER=1 on a Development/Testing host do BOTH
+		// when PUBLISHING_FAKE_PROVIDER=true on a Development/Testing host do BOTH
 		// delivery and session-open resolve to deterministic fakes, so the front-e2e
 		// stack runs the full publish → history pipeline without any network. Real
 		// deployments (and every spec host) keep the real providers; Production

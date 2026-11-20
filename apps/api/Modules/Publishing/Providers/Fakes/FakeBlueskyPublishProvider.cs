@@ -5,7 +5,7 @@ namespace PublyApp.Api.Modules.Publishing.Providers.Fakes;
 /// answers every publish with success and a DETERMINISTIC record identity derived
 /// from the publication's idempotency key — the same key contract production uses —
 /// so a retried job recomputes the same record/URL instead of minting a second one.
-/// Registered ONLY when PUBLISHING_FAKE_PROVIDER=1 on a Development/Testing host;
+/// Registered ONLY when PUBLISHING_FAKE_PROVIDER=true on a Development/Testing host;
 /// Production refuses the flag entirely (fail closed in
 /// <see cref="FakePublishingProviderEnabled.IsEnabled"/>). Never ships fixture data,
 /// never contacts a PDS.
