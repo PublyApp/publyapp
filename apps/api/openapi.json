@@ -15386,6 +15386,388 @@
         }
       }
     },
+    "/aggregators": {
+      "get": {
+        "tags": [
+          "Aggregators"
+        ],
+        "summary": "List the aggregators the organisation can connect, with its key status",
+        "operationId": "FindAggregatorsForTenant",
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FindAggregatorsForTenantResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/aggregators/{kind}/connection": {
+      "put": {
+        "tags": [
+          "Aggregators"
+        ],
+        "summary": "Check, then save or rotate the organisation's key for an aggregator",
+        "operationId": "SaveAggregatorConnectionForTenant",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveAggregatorConnectionBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AggregatorConnectionItem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Aggregators"
+        ],
+        "summary": "Remove the saved key and erase it",
+        "operationId": "DeleteAggregatorConnectionForTenant",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/aggregators/{kind}/connection/test": {
+      "post": {
+        "tags": [
+          "Aggregators"
+        ],
+        "summary": "Re-check the saved key with the aggregator",
+        "operationId": "TestAggregatorConnectionForTenant",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AggregatorConnectionItem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/publishing/publications": {
       "get": {
         "tags": [
@@ -16813,6 +17195,76 @@
               "string"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "AggregatorConnectionItem": {
+        "required": [
+          "status",
+          "keyHint",
+          "lastCheckedAt",
+          "lastError"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "keyHint": {
+            "type": "string"
+          },
+          "lastCheckedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The caller's key for one aggregator: only the last 4 characters, never the key."
+      },
+      "AggregatorItem": {
+        "required": [
+          "kind",
+          "displayName",
+          "keyHelpUrl",
+          "supportedPlatforms",
+          "connection"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "keyHelpUrl": {
+            "type": "string"
+          },
+          "supportedPlatforms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "connection": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "allOf": [
+              {
+                "description": "The caller's key for one aggregator: only the last 4 characters, never the key.",
+                "$ref": "#/components/schemas/AggregatorConnectionItem"
+              }
+            ]
           }
         }
       },
@@ -18373,6 +18825,20 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SchedulePostCreatedItem"
+            }
+          }
+        }
+      },
+      "FindAggregatorsForTenantResponse": {
+        "required": [
+          "aggregators"
+        ],
+        "type": "object",
+        "properties": {
+          "aggregators": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AggregatorItem"
             }
           }
         }
@@ -20987,6 +21453,17 @@
           }
         }
       },
+      "SaveAggregatorConnectionBody": {
+        "required": [
+          "apiKey"
+        ],
+        "type": "object",
+        "properties": {
+          "apiKey": {
+            "$ref": "#/components/schemas/JsonElement"
+          }
+        }
+      },
       "ScheduledPublicationItem": {
         "required": [
           "publicationId",
@@ -23553,6 +24030,9 @@
     },
     {
       "name": "SocialAccounts"
+    },
+    {
+      "name": "Aggregators"
     },
     {
       "name": "Publishing"

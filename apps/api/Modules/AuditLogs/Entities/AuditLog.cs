@@ -174,4 +174,9 @@ public static class AuditActions {
 	public const string SocialAccountProjectsSet = "socialaccount.projects.set";
 	// #2186: the default visibility of a Mastodon / Pixelfed account changed — the word only.
 	public const string SocialAccountVisibilitySet = "socialaccount.visibility.set";
+
+	// Aggregator key lifecycle: ids and the kind only, never the key.
+	public const string AggregatorConnectionSaved = "aggregator.connection.saved";
+	public const string AggregatorConnectionTested = "aggregator.connection.tested";
+	public const string AggregatorConnectionRemoved = "aggregator.connection.removed";
 }

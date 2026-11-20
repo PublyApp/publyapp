@@ -13,6 +13,7 @@ using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.Testing.Fakes;
+using PublyApp.Api.Modules.Aggregators.Adapters.Zernio;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 
 namespace PublyApp.Api.Lib.Testing.Fixtures;
@@ -108,6 +109,15 @@ public sealed class ApiFactory
 			services.AddSingleton<IBlueskyClient>(
 				sp => sp.GetRequiredService<FakeBlueskyClient>()
 			);
+
+			// 2c) The aggregator HTTP client talks to an in-process fake, never to the
+			//     real aggregator.
+			services.AddSingleton<FakeAggregatorServer>();
+			services
+				.AddHttpClient(ZernioAdapter.HttpClientName)
+				.ConfigurePrimaryHttpMessageHandler(
+					sp => sp.GetRequiredService<FakeAggregatorServer>()
+				);
 
 			// 3) Register ILogger for handlers that use non-generic ILogger
 			//    (needed because Serilog doesn't register ILogger by default)
