@@ -19,6 +19,8 @@ const AS_INFORMATIVE_AS_DETAIL: ReadonlySet<string> = new Set([
 	'post-segments-locked',
 	'provider-disabled',
 	'post-segment-not-found',
+	'aggregator-key-refused',
+	'provider-unreachable',
 ]);
 
 const RENDITION_INVALID_PROBLEM = 'publish-rendition-invalid';

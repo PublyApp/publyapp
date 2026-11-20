@@ -7,17 +7,18 @@ import type { AggregatorRow } from '~/lib/query/aggregators';
 
 const mocks = vi.hoisted(() => ({
 	data: { aggregators: [] as unknown[] },
+	error: null as Error | null,
 }));
 
 vi.mock('~/lib/query/aggregators', async (importOriginal) => ({
 	...(await importOriginal<object>()),
 	useAggregatorsQuery: () => ({
-		data: mocks.data,
+		data: mocks.error ? undefined : mocks.data,
 		isPending: false,
 		isLoading: false,
 		isFetching: false,
-		isError: false,
-		error: null,
+		isError: mocks.error !== null,
+		error: mocks.error,
 		refetch: vi.fn(),
 	}),
 	useTestAggregatorKeyMutation: () => ({ mutate: vi.fn(), isPending: false }),
@@ -57,7 +58,10 @@ const WIRE = {
 	connection: null,
 } satisfies Partial<AggregatorRow>;
 
-afterEach(cleanup);
+afterEach(() => {
+	cleanup();
+	mocks.error = null;
+});
 
 describe('aggregators card', () => {
 	test('ItShouldOfferToConnectWhenNoKeyIsSaved', () => {
@@ -120,5 +124,15 @@ describe('aggregators card', () => {
 		fireEvent.click(screen.getByText('aggregator-remove-key'));
 
 		expect(screen.getByTestId('remove-dialog').textContent).toBe('Partner');
+	});
+
+	test('ItShouldRenderNothingForAMemberRefusedTheList', () => {
+		mocks.error = Object.assign(new Error('forbidden'), { status: 403 });
+
+		const { container } = render(
+			<AggregatorsCard tenantId="t1" canManage={false} />,
+		);
+
+		expect(container.innerHTML).toBe('');
 	});
 });

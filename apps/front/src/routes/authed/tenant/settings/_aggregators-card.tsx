@@ -1,10 +1,13 @@
 import { IconPlugConnected } from '@tabler/icons-react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import QueryDisplay from '~/components/query-display';
+import QueryDisplay, {
+	type QueryDisplayQuery,
+} from '~/components/query-display';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { StatusPill } from '~/components/ui/product-page';
+import { classifyError } from '~/lib/error-kind';
 import {
 	type AggregatorRow,
 	toAggregatorRows,
@@ -96,6 +99,35 @@ const AggregatorRowView = ({
 	);
 };
 
+const AggregatorsShell = ({ children }: { children: ReactNode }) => {
+	const { t } = useTranslation(['settings']);
+
+	return (
+		<Card data-testid="tenant-settings-aggregators">
+			<CardHeader>
+				<CardTitle>{t('aggregators-title')}</CardTitle>
+			</CardHeader>
+			<CardContent>{children}</CardContent>
+		</Card>
+	);
+};
+
+/** Loading and error states keep the card's chrome, except for a member refused
+ * the list (no social-accounts verb): for them the card is simply absent, like
+ * the actions of a read-only holder. */
+const AggregatorsError = ({
+	error,
+	query,
+}: {
+	error: unknown;
+	query: QueryDisplayQuery;
+}) =>
+	classifyError(error, true) === 'forbidden' ? null : (
+		<AggregatorsShell>
+			<QueryDisplay query={query} forceRender="error" />
+		</AggregatorsShell>
+	);
+
 /** Aggregator keys on Integrations: generic, one row per aggregator the API
  * lists, key hint only. Nothing here names a specific aggregator. */
 export const AggregatorsCard = ({
@@ -105,52 +137,54 @@ export const AggregatorsCard = ({
 	tenantId: string;
 	canManage: boolean;
 }) => {
-	const { t } = useTranslation(['settings']);
 	const query = useAggregatorsQuery({ tenantId });
 	const [editing, setEditing] = useState<AggregatorRow | null>(null);
 	const [removing, setRemoving] = useState<AggregatorRow | null>(null);
 
 	return (
-		<Card data-testid="tenant-settings-aggregators">
-			<CardHeader>
-				<CardTitle>{t('aggregators-title')}</CardTitle>
-			</CardHeader>
-			<CardContent>
-				<QueryDisplay query={query}>
-					{({ data }) => (
-						<ul className="space-y-4">
-							{toAggregatorRows(data).map((row) => (
-								<AggregatorRowView
-									key={row.kind}
-									row={row}
-									canManage={canManage}
-									tenantId={tenantId}
-									onSetKey={setEditing}
-									onRemoveKey={setRemoving}
-								/>
-							))}
-						</ul>
-					)}
-				</QueryDisplay>
-			</CardContent>
-			<AggregatorKeyDrawer
-				aggregator={editing}
-				tenantId={tenantId}
-				onOpenChange={(open) => {
-					if (!open) {
-						setEditing(null);
-					}
-				}}
-			/>
-			<RemoveAggregatorKeyDialog
-				aggregator={removing}
-				tenantId={tenantId}
-				onOpenChange={(open) => {
-					if (!open) {
-						setRemoving(null);
-					}
-				}}
-			/>
-		</Card>
+		<QueryDisplay
+			query={query}
+			ErrorSlot={AggregatorsError}
+			LoadingSlot={
+				<AggregatorsShell>
+					<QueryDisplay query={query} forceRender="loading" />
+				</AggregatorsShell>
+			}
+		>
+			{({ data }) => (
+				<AggregatorsShell>
+					<ul className="space-y-4">
+						{toAggregatorRows(data).map((row) => (
+							<AggregatorRowView
+								key={row.kind}
+								row={row}
+								canManage={canManage}
+								tenantId={tenantId}
+								onSetKey={setEditing}
+								onRemoveKey={setRemoving}
+							/>
+						))}
+					</ul>
+					<AggregatorKeyDrawer
+						aggregator={editing}
+						tenantId={tenantId}
+						onOpenChange={(open) => {
+							if (!open) {
+								setEditing(null);
+							}
+						}}
+					/>
+					<RemoveAggregatorKeyDialog
+						aggregator={removing}
+						tenantId={tenantId}
+						onOpenChange={(open) => {
+							if (!open) {
+								setRemoving(null);
+							}
+						}}
+					/>
+				</AggregatorsShell>
+			)}
+		</QueryDisplay>
 	);
 };

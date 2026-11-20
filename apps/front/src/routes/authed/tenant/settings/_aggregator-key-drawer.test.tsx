@@ -26,13 +26,14 @@ const EN_LABELS = {
 	'aggregator-key-help': 'Paste your key',
 	'aggregator-key-submit': 'Save key',
 	'aggregator-key-too-short': 'Too short',
+	'aggregator-key-refused': 'Localised: this key was refused.',
 	'common:an-error-occurred': 'Something went wrong',
 } as const satisfies Record<string, string>;
 
 vi.mock('react-i18next', () => ({
 	useTranslation: () => ({
 		t: (key: string) => EN_LABELS[key as keyof typeof EN_LABELS] ?? key,
-		i18n: { resolvedLanguage: 'en', language: 'en' },
+		i18n: { resolvedLanguage: 'fr', language: 'fr' },
 	}),
 }));
 
@@ -92,11 +93,11 @@ describe('aggregator key drawer', () => {
 		).toBe('password');
 	});
 
-	test('ItShouldShowTheServersReasonOnTheKeyFieldAndStayOpenWhenRefused', async () => {
+	test('ItShouldShowTheLocalisedRefusalOnTheKeyFieldNotTheRawServerSentence', async () => {
 		saveImpl = vi.fn().mockRejectedValue({
 			status: 422,
 			translationKey: 'aggregator-key-refused',
-			errors: { apiKey: ['Partner refused this key.'] },
+			errors: { apiKey: ['Raw English sentence from the server.'] },
 		});
 		const onOpenChange = vi.fn();
 
@@ -113,8 +114,9 @@ describe('aggregator key drawer', () => {
 			.click(screen.getByRole('button', { name: /save key/i }));
 
 		await waitFor(() =>
-			expect(screen.getByText(/partner refused this key/i)).toBeTruthy(),
+			expect(screen.getByText('Localised: this key was refused.')).toBeTruthy(),
 		);
+		expect(screen.queryByText(/raw english sentence/i)).toBeNull();
 		expect(onOpenChange).not.toHaveBeenCalledWith(false);
 	});
 

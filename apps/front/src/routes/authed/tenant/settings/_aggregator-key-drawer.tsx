@@ -71,20 +71,16 @@ export const AggregatorKeyDrawer = ({
 			onOpenChange(false);
 		} catch (error) {
 			const failure = toApiFailure(error);
-			const keyError =
-				failure.kind === 'validation'
-					? failure.fieldErrors['apiKey']?.[0]
-					: undefined;
-			if (keyError !== undefined) {
-				methods.setError('apiKey', { message: keyError });
-				return;
-			}
-			methods.setError('root', {
-				message: getFailureMessage(failure, {
-					translate: translateResponseMessage,
-					fallback: t('common:an-error-occurred'),
-				}),
+			// The localised message of the problem's translationKey, never the raw
+			// server sentence; a refused key belongs on the key field.
+			const message = getFailureMessage(failure, {
+				translate: translateResponseMessage,
+				fallback: t('common:an-error-occurred'),
 			});
+			const isKeyRefusal =
+				failure.kind === 'validation' &&
+				failure.fieldErrors['apiKey'] !== undefined;
+			methods.setError(isKeyRefusal ? 'apiKey' : 'root', { message });
 		}
 	});
 
