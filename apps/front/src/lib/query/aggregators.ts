@@ -115,7 +115,7 @@ export const useTestAggregatorKeyMutation = () => {
 		mutationKey: [...AGGREGATORS_QUERY_KEY, 'test'],
 		mutationFn: async ({ tenantId, kind }: KeyInput) => {
 			const client = getClientManager().getOrCreateClient(tenantId);
-			await client.aggregators.byKind(kind).connection.test.post();
+			await client.aggregators.byKind(kind).connection.check.post();
 		},
 		onSuccess: (_data, variables) =>
 			invalidateAggregators(queryClient, variables.tenantId),
