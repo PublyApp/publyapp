@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace PublyApp.Api.Lib.Testing.Fakes;
+namespace PublyApp.Api.Modules.Aggregators.Fakes;
 
 /// <summary>
 /// In-process stand-in for the aggregator's HTTP API (the Zernio subset slice 1 uses):
@@ -8,6 +8,9 @@ namespace PublyApp.Api.Lib.Testing.Fakes;
 /// <see cref="ValidKeys"/>, 401 otherwise, and records every request's path and key.
 /// </summary>
 public sealed class FakeAggregatorServer : HttpMessageHandler {
+	/// <summary>The one key the e2e stack's fake aggregator accepts (never a real key).</summary>
+	public const string E2eValidKey = "sk_e2e_valid_0123456789abcdef";
+
 	public System.Collections.Concurrent.ConcurrentBag<string> ValidKeys { get; } = [];
 
 	public System.Collections.Concurrent.ConcurrentQueue<(string Path, string? Key)> Requests { get; } = new();

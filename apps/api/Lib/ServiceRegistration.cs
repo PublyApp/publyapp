@@ -15,6 +15,7 @@ using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Modules.Aggregators.Adapters.Zernio;
+using PublyApp.Api.Modules.Aggregators.Fakes;
 using PublyApp.Api.Modules.Aggregators.Ports;
 using PublyApp.Api.Modules.Aggregators.Services;
 using PublyApp.Api.Modules.Publishing.Providers;
@@ -210,12 +211,21 @@ public static class ServiceRegistration {
 		builder.Services.AddScoped<DiscordWebhookConnectService>();
 		// Aggregators (#2343): fixed host from code; the key rides in a header, so no
 		// request/response log lines for this client.
-		builder.Services
+		var aggregatorHttp = builder.Services
 			.AddHttpClient(ZernioAdapter.HttpClientName, client => {
 				client.Timeout = TimeSpan.FromSeconds(30);
 				client.MaxResponseContentBufferSize = 1024 * 1024;
 			})
 			.RemoveAllLoggers();
+		// E2E seam: with PUBLISHING_FAKE_PROVIDER on a Development/Testing host the
+		// aggregator answers from an in-process fake and never reaches the network.
+		if (Modules.Publishing.Providers.Fakes.FakePublishingProviderEnabled.IsEnabled()) {
+			aggregatorHttp.ConfigurePrimaryHttpMessageHandler(() => {
+				var fake = new FakeAggregatorServer();
+				fake.ValidKeys.Add(FakeAggregatorServer.E2eValidKey);
+				return fake;
+			});
+		}
 		builder.Services.AddScoped<IAggregatorAdapter, ZernioAdapter>();
 		builder.Services.AddScoped<AggregatorConnectionService>();
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();

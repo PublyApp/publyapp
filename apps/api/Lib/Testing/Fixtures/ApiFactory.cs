@@ -14,6 +14,7 @@ using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Modules.Aggregators.Adapters.Zernio;
+using PublyApp.Api.Modules.Aggregators.Fakes;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 
 namespace PublyApp.Api.Lib.Testing.Fixtures;

@@ -8,9 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
-using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.Aggregators.Fakes;
 using PublyApp.Api.Modules.Aggregators.Ports;
 using PublyApp.Api.Modules.Aggregators.Services;
 using PublyApp.Api.Modules.Auth.Utils;
