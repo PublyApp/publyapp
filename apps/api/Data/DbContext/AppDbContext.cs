@@ -168,6 +168,11 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		get { return this.Set<DataProtectionKey>(); }
 	}
 
+	// Aggregator keys (#2343)
+	public DbSet<Modules.Aggregators.Entities.AggregatorConnection> AggregatorConnection {
+		get { return this.Set<Modules.Aggregators.Entities.AggregatorConnection>(); }
+	}
+
 	// Social accounts (C1-bis)
 	public DbSet<Modules.SocialAccounts.Entities.SocialAccount> SocialAccount {
 		get { return this.Set<Modules.SocialAccounts.Entities.SocialAccount>(); }

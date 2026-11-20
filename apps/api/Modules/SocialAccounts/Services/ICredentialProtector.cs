@@ -12,4 +12,10 @@ public interface ICredentialProtector {
 	/// corrupted payloads and cross-purpose blobs (GCM auth failure either way).
 	/// </summary>
 	UnprotectResult Unprotect(string? protectedText, SocialProvider provider);
+
+	// String-purpose overloads for secrets that are not a social-provider credential
+	// (an aggregator API key): same ring, a purpose of the caller's own.
+	string Protect(string plaintext, string purpose);
+
+	UnprotectResult Unprotect(string? protectedText, string purpose);
 }

@@ -28,6 +28,17 @@ public sealed class CredentialProtectorSpec {
 	}
 
 	[Fact]
+	public void ItShouldRoundTripUnderAStringPurposeAndNotCrossPurposes() {
+		var protector = CredentialProtectorSpec._Provider();
+
+		var protectedValue = protector.Protect("api-key", "aggregator-zernio-v1");
+
+		protector.Unprotect(protectedValue, "aggregator-zernio-v1").Plaintext.Should().Be("api-key");
+		protector.Unprotect(protectedValue, "aggregator-other-v1").Outcome.Should().Be(UnprotectOutcome.Tampered);
+		protector.Unprotect(protectedValue, SocialProvider.Bluesky).Outcome.Should().Be(UnprotectOutcome.Tampered);
+	}
+
+	[Fact]
 	public void ItShouldReportAbsentWithoutThrowingWhenTheInputIsNullOrEmpty() {
 		var protector = CredentialProtectorSpec._Provider();
 
