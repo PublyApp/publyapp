@@ -273,7 +273,10 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _AssertFindStaffUsersDoesNotContainAsync(string staffToken, string userId) {
-		var result = await this._Http.GetOkAsync<FindStaffUsersResponse>(DeleteStaffUserSpec._GetFindUrl(), staffToken);
+		var result = await this._Http.GetOkAsync<FindStaffUsersResponse>(
+			DeleteStaffUserSpec._GetFindUrl(),
+			staffToken
+		);
 		result.Data.Should().NotContain(x => x.Id == Guid.Parse(userId));
 	}
 

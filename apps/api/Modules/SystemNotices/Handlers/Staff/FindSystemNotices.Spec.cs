@@ -42,7 +42,10 @@ public sealed class FindSystemNoticesSpec
 			);
 
 		try {
-			var result = await this._Http.GetOkAsync<FindResponse>(FindSystemNoticesSpec._FindUrl, token);
+			var result = await this._Http.GetOkAsync<FindResponse>(
+				FindSystemNoticesSpec._FindUrl,
+				token
+			);
 			result.Data.Should().NotBeNull();
 			result.Data.Should().Contain(
 				n => n.Id == noticeId

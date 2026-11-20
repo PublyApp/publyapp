@@ -44,7 +44,10 @@ public sealed class GetRedirectCodeSpec
 			TestConstants.SeedPassword
 		);
 
-		var result = await this._Http.GetOkAsync<RedirectCodeResponse>(Routes.Auth.GetRedirectCode, aliceToken);
+		var result = await this._Http.GetOkAsync<RedirectCodeResponse>(
+			Routes.Auth.GetRedirectCode,
+			aliceToken
+		);
 		result.HasSuspendedTenants.Should().BeFalse();
 		result.RedirectCode.Should().Be("tenant-picker");
 	}
@@ -130,7 +133,10 @@ public sealed class GetRedirectCodeSpec
 				TestConstants.SeedPassword
 			);
 
-			var result = await this._Http.GetOkAsync<RedirectCodeResponse>(Routes.Auth.GetRedirectCode, aliceToken);
+			var result = await this._Http.GetOkAsync<RedirectCodeResponse>(
+				Routes.Auth.GetRedirectCode,
+				aliceToken
+			);
 			result.HasSuspendedTenants.Should().BeTrue();
 			// 1 active tenant left -> direct redirect
 			var techStartId =
@@ -299,7 +305,10 @@ public sealed class GetRedirectCodeSpec
 					TestConstants.SeedPassword
 				);
 
-			var result = await this._Http.GetOkAsync<RedirectCodeResponse>(Routes.Auth.GetRedirectCode, aliceToken);
+			var result = await this._Http.GetOkAsync<RedirectCodeResponse>(
+				Routes.Auth.GetRedirectCode,
+				aliceToken
+			);
 			result.RedirectCode.Should()
 							.Be("tenant-picker");
 			result.HasSuspendedTenants.Should().BeTrue();
@@ -327,7 +336,10 @@ public sealed class GetRedirectCodeSpec
 				TestConstants.SeedPassword
 			);
 
-			var result = await this._Http.GetOkAsync<RedirectCodeResponse>(Routes.Auth.GetRedirectCode, token);
+			var result = await this._Http.GetOkAsync<RedirectCodeResponse>(
+				Routes.Auth.GetRedirectCode,
+				token
+			);
 			result.RedirectCode.Should().Be("unauthorized");
 		} finally {
 			await this._DeleteSeededRedirectCodeUserAsync(seeded);
@@ -396,7 +408,10 @@ public sealed class GetRedirectCodeSpec
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var result = await this._Http.GetOkAsync<RedirectCodeResponse>(Routes.Auth.GetRedirectCode, staffToken);
+		var result = await this._Http.GetOkAsync<RedirectCodeResponse>(
+			Routes.Auth.GetRedirectCode,
+			staffToken
+		);
 		result.RedirectCode.Should().Be("staff");
 	}
 
@@ -418,7 +433,10 @@ public sealed class GetRedirectCodeSpec
 			TestConstants.SeedPassword
 		);
 
-		var result = await this._Http.GetOkAsync<RedirectCodeResponse>(Routes.Auth.GetRedirectCode, acmeAdminToken);
+		var result = await this._Http.GetOkAsync<RedirectCodeResponse>(
+			Routes.Auth.GetRedirectCode,
+			acmeAdminToken
+		);
 		result.RedirectCode.Should()
 					.Be(acmeId.ToString());
 		result.HasSuspendedTenants.Should().BeFalse();

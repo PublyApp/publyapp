@@ -79,7 +79,10 @@ public sealed class GetDashboardSeriesForStaffSpec
 		var token =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		var result = await this._Http.GetOkAsync<SeriesResponse>(GetDashboardSeriesForStaffSpec._GetUrl("audit_events", "2020-03-01", "2020-03-03"), token);
+		var result = await this._Http.GetOkAsync<SeriesResponse>(
+			GetDashboardSeriesForStaffSpec._GetUrl("audit_events", "2020-03-01", "2020-03-03"),
+			token
+		);
 
 		result.Metric.Should().Be("audit_events");
 		result.StartDate.Should().Be("2020-03-01");
@@ -155,7 +158,10 @@ public sealed class GetDashboardSeriesForStaffSpec
 			)
 		);
 
-		var result = await this._Http.GetOkAsync<SeriesResponse>(GetDashboardSeriesForStaffSpec._GetUrl("audit_events", "2020-04-01", "2020-04-03"), token);
+		var result = await this._Http.GetOkAsync<SeriesResponse>(
+			GetDashboardSeriesForStaffSpec._GetUrl("audit_events", "2020-04-01", "2020-04-03"),
+			token
+		);
 
 		result.Points.Select(point => point.Value)
 			.Should()
@@ -195,7 +201,10 @@ public sealed class GetDashboardSeriesForStaffSpec
 			)
 		);
 
-		var result = await this._Http.GetOkAsync<SeriesResponse>(GetDashboardSeriesForStaffSpec._GetUrl("sign_ins", "2020-10-01", "2020-10-02"), token);
+		var result = await this._Http.GetOkAsync<SeriesResponse>(
+			GetDashboardSeriesForStaffSpec._GetUrl("sign_ins", "2020-10-01", "2020-10-02"),
+			token
+		);
 
 		result.Metric.Should().Be("sign_ins");
 		result.Points.Select(point => point.Value)
@@ -228,7 +237,10 @@ public sealed class GetDashboardSeriesForStaffSpec
 			)
 		);
 
-		var result = await this._Http.GetOkAsync<SeriesResponse>(GetDashboardSeriesForStaffSpec._GetUrl("failed_sign_ins", "2020-11-05", "2020-11-06"), token);
+		var result = await this._Http.GetOkAsync<SeriesResponse>(
+			GetDashboardSeriesForStaffSpec._GetUrl("failed_sign_ins", "2020-11-05", "2020-11-06"),
+			token
+		);
 
 		result.Metric.Should().Be("failed_sign_ins");
 		result.Points.Select(point => point.Value)
@@ -244,7 +256,10 @@ public sealed class GetDashboardSeriesForStaffSpec
 
 		// 2020-01-01 → 2021-01-01 is 366 elapsed days (leap year), which is
 		// what the 12-month preset can legitimately ask for.
-		var result = await this._Http.GetOkAsync<SeriesResponse>(GetDashboardSeriesForStaffSpec._GetUrl("audit_events", "2020-01-01", "2021-01-01"), token);
+		var result = await this._Http.GetOkAsync<SeriesResponse>(
+			GetDashboardSeriesForStaffSpec._GetUrl("audit_events", "2020-01-01", "2021-01-01"),
+			token
+		);
 		result.Points.Should().HaveCount(367);
 	}
 
@@ -1192,7 +1207,10 @@ public sealed class GetDashboardSeriesForStaffSpec
 		string startDate,
 		string endDate
 	) {
-		var result = await this._Http.GetOkAsync<SeriesResponse>(GetDashboardSeriesForStaffSpec._GetUrl(metric, startDate, endDate), token);
+		var result = await this._Http.GetOkAsync<SeriesResponse>(
+			GetDashboardSeriesForStaffSpec._GetUrl(metric, startDate, endDate),
+			token
+		);
 		return result;
 	}
 

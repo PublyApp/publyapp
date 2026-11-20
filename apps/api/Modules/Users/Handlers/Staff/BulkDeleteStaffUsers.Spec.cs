@@ -476,7 +476,10 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		string staffToken,
 		string userId
 	) {
-		var result = await this._Http.GetOkAsync<FindStaffUsersResponse>(BulkDeleteStaffUsersSpec._GetFindUrl(), staffToken);
+		var result = await this._Http.GetOkAsync<FindStaffUsersResponse>(
+			BulkDeleteStaffUsersSpec._GetFindUrl(),
+			staffToken
+		);
 		result.Data.Should().NotContain(x => x.Id == Guid.Parse(userId));
 	}
 

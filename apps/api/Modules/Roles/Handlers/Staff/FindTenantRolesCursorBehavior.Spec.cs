@@ -71,7 +71,10 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			var page = await this._Http.GetOkAsync<FindTenantRolesResponse>(FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query), token);
+			var page = await this._Http.GetOkAsync<FindTenantRolesResponse>(
+				FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query),
+				token
+			);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);
@@ -120,7 +123,10 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			var page = await this._Http.GetOkAsync<FindTenantRolesResponse>(FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query), token);
+			var page = await this._Http.GetOkAsync<FindTenantRolesResponse>(
+				FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query),
+				token
+			);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);
@@ -180,7 +186,10 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			var page = await this._Http.GetOkAsync<FindTenantRolesResponse>(FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query), token);
+			var page = await this._Http.GetOkAsync<FindTenantRolesResponse>(
+				FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), query),
+				token
+			);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);
@@ -229,7 +238,10 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindTenantRolesCursorBehaviorSpec._GetUrl(tenantId.ToString(), $"cursor={Guid.NewGuid()}")
+			FindTenantRolesCursorBehaviorSpec._GetUrl(
+				tenantId.ToString(),
+				$"cursor={Guid.NewGuid()}"
+			)
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);

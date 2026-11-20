@@ -43,7 +43,10 @@ public sealed class GetStaffUserByIdSpec
 			TestConstants.StaffAdminEmail
 		);
 
-		var details = await this._Http.GetOkAsync<GetStaffUserByIdResult>(GetStaffUserByIdSpec._GetUrl(userId.ToString()), token);
+		var details = await this._Http.GetOkAsync<GetStaffUserByIdResult>(
+			GetStaffUserByIdSpec._GetUrl(userId.ToString()),
+			token
+		);
 		details.Id.Should().Be(userId);
 		details.Email.Should().Be(TestConstants.StaffAdminEmail);
 		details.IsFullAccess.Should().BeTrue();

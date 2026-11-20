@@ -17,15 +17,16 @@ internal static class HttpClientExtensions {
 	public static async Task<T> GetOkAsync<T>(
 		this HttpClient http,
 		string url,
-		string sessionToken
+		string sessionToken,
+		CancellationToken cancellationToken = default
 	) where T : class {
 		using var request = new HttpRequestMessage(HttpMethod.Get, url)
 			.WithSessionToken(sessionToken);
-		using var response = await http.SendAsync(request);
+		using var response = await http.SendAsync(request, cancellationToken);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		var body = await response.Content.ReadFromJsonAsync<T>();
+		var body = await response.Content.ReadFromJsonAsync<T>(cancellationToken);
 		Assert.NotNull(body);
 		return body;
 	}

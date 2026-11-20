@@ -137,7 +137,10 @@ public sealed class GetTenantUserByIdForStaffSpec
 			userId
 		);
 
-		var result = await this._Http.GetOkAsync<TenantUserDetailsResponse>(GetTenantUserByIdForStaffSpec._GetUrl(userId), staffToken);
+		var result = await this._Http.GetOkAsync<TenantUserDetailsResponse>(
+			GetTenantUserByIdForStaffSpec._GetUrl(userId),
+			staffToken
+		);
 		result.Id.ToString().Should().Be(userId);
 		result.Email.Should().Be(SeedConstants.CrossTenant.BobEmail);
 		result.CompanyCount.Should().Be(0);

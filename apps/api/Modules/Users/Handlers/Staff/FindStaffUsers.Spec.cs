@@ -87,7 +87,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		_ = await this._CreateStaffUserAsync(token, alphaEmail);
 		_ = await this._CreateStaffUserAsync(token, betaEmail);
 
-		var result = await this._Http.GetOkAsync<FindResponse>(FindStaffUserSpec._GetFindUrl(limit: 20, q: "alpha"), token);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 20, q: "alpha"),
+			token
+		);
 		result.Data.Should().Contain(user =>
 					string.Equals(user.Email, alphaEmail, StringComparison.OrdinalIgnoreCase)
 				);
@@ -114,7 +117,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			lastName: "Staff"
 		);
 
-		var result = await this._Http.GetOkAsync<FindResponse>(FindStaffUserSpec._GetFindUrl(limit: 100, q: "%"), token);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 100, q: "%"),
+			token
+		);
 
 		// If '%' were interpolated unescaped into the ILIKE pattern, "%%%"
 		// collapses to a bare wildcard matching every row. Escaped, only the
@@ -138,7 +144,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await this._SetStaffUserStatusAsync(activeId, UserStatus.Active);
 		await this._SetStaffUserStatusAsync(suspendedId, UserStatus.Suspended);
 
-		var result = await this._Http.GetOkAsync<FindResponse>(FindStaffUserSpec._GetFindUrl(limit: 50, status: "suspended"), token);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 50, status: "suspended"),
+			token
+		);
 		result.Data.Should().ContainSingle(user => user.Id == suspendedId);
 		result.Data.Should().NotContain(user => user.Id == activeId);
 	}
@@ -365,7 +374,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		await this._SetStaffUserStatusAsync(userId, UserStatus.Suspended);
 
-		var result = await this._Http.GetOkAsync<FindResponse>(FindStaffUserSpec._GetFindUrl(limit: 50), token);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 50),
+			token
+		);
 		result.Data.Should().Contain(user =>
 					string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase)
 					&& user.Status == "Suspended"
@@ -384,7 +396,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await this._SetStaffUserDeletedStateAsync(deletedUserId, deleteUser: true);
 		await this._SetStaffUserDeletedStateAsync(deletedAccountId, deleteAccount: true);
 
-		var result = await this._Http.GetOkAsync<FindResponse>(FindStaffUserSpec._GetFindUrl(limit: 50), token);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 50),
+			token
+		);
 		result.Data.Should().NotContain(user =>
 					string.Equals(user.Email, deletedUserEmail, StringComparison.OrdinalIgnoreCase)
 				);
@@ -893,7 +908,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			status: UserStatus.Suspended
 		);
 
-		var result = await this._Http.GetOkAsync<FindResponse>(FindStaffUserSpec._GetFindUrl(limit: 1, q: marker), token);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 1, q: marker),
+			token
+		);
 
 		// limit=1 proves the counts are not the page length.
 		result.Data.Should().HaveCount(1);
@@ -1040,7 +1058,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var roleName = $"Support-{marker}";
 		await this._AttachStaffRoleAsync(userId, roleName);
 
-		var result = await this._Http.GetOkAsync<FindResponse>(FindStaffUserSpec._GetFindUrl(limit: 20, q: marker), token);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 20, q: marker),
+			token
+		);
 
 		var row = result.Data.Should()
 			.ContainSingle(user => user.Email == $"{marker}@example.com")
@@ -1373,7 +1394,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<FindResponse> _FindAsync(string token, string marker, int limit = 50) {
-		var result = await this._Http.GetOkAsync<FindResponse>(FindStaffUserSpec._GetFindUrl(limit: limit, q: marker), token);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: limit, q: marker),
+			token
+		);
 		return result;
 	}
 
@@ -1540,7 +1564,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<StaffUserCountsDto> _ReadCountsAsync(string token) {
-		var result = await this._Http.GetOkAsync<FindResponse>(FindStaffUserSpec._GetFindUrl(limit: 1), token);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 1),
+			token
+		);
 		return result.Counts;
 	}
 

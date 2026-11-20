@@ -70,7 +70,10 @@ public sealed class FindStaffRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			var page = await this._Http.GetOkAsync<FindStaffRolesResponse>(FindStaffRolesCursorBehaviorSpec._GetUrl(query), token);
+			var page = await this._Http.GetOkAsync<FindStaffRolesResponse>(
+				FindStaffRolesCursorBehaviorSpec._GetUrl(query),
+				token
+			);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);
@@ -118,7 +121,10 @@ public sealed class FindStaffRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			var page = await this._Http.GetOkAsync<FindStaffRolesResponse>(FindStaffRolesCursorBehaviorSpec._GetUrl(query), token);
+			var page = await this._Http.GetOkAsync<FindStaffRolesResponse>(
+				FindStaffRolesCursorBehaviorSpec._GetUrl(query),
+				token
+			);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);
@@ -177,7 +183,10 @@ public sealed class FindStaffRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			var page = await this._Http.GetOkAsync<FindStaffRolesResponse>(FindStaffRolesCursorBehaviorSpec._GetUrl(query), token);
+			var page = await this._Http.GetOkAsync<FindStaffRolesResponse>(
+				FindStaffRolesCursorBehaviorSpec._GetUrl(query),
+				token
+			);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);
@@ -227,7 +236,10 @@ public sealed class FindStaffRolesCursorBehaviorSpec
 				query += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			var page = await this._Http.GetOkAsync<FindStaffRolesResponse>(FindStaffRolesCursorBehaviorSpec._GetUrl(query), token);
+			var page = await this._Http.GetOkAsync<FindStaffRolesResponse>(
+				FindStaffRolesCursorBehaviorSpec._GetUrl(query),
+				token
+			);
 			pages++;
 			foreach (var item in page.Data) {
 				visitedIds.Add(item.Id);

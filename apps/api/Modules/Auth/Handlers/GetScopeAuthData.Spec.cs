@@ -227,7 +227,10 @@ public sealed class GetScopeAuthDataSpec
 
 			var url = $"{Routes.Auth.GetScopeAuthData}"
 				+ $"?scope={acmeId}";
-			var result = await this._Http.GetOkAsync<TenantScopeAuthDataResponse>(url, acmeMemberToken);
+			var result = await this._Http.GetOkAsync<TenantScopeAuthDataResponse>(
+				url,
+				acmeMemberToken
+			);
 			result.Permissions.Should().BeEquivalentTo(
 							[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
 						);
@@ -279,7 +282,10 @@ public sealed class GetScopeAuthDataSpec
 
 			var url = $"{Routes.Auth.GetScopeAuthData}"
 				+ $"?scope={acmeId}";
-			var result = await this._Http.GetOkAsync<TenantScopeAuthDataResponse>(url, acmeMemberToken);
+			var result = await this._Http.GetOkAsync<TenantScopeAuthDataResponse>(
+				url,
+				acmeMemberToken
+			);
 			result.Roles.Should().HaveCount(requestedRoleCount);
 			result.Roles.Select(role => role.Id)
 				.Should()

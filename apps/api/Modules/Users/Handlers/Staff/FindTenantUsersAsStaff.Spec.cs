@@ -795,7 +795,10 @@ public sealed class FindTenantUsersAsStaffSpec
 					SeedConstants.Tenants.AcmeName
 				);
 
-		var result = await this._Http.GetOkAsync<FindResponse>(FindTenantUsersAsStaffSpec._GetFindUrl(tenantId, sortId: "status", sortOrder: "desc"), staffToken);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindTenantUsersAsStaffSpec._GetFindUrl(tenantId, sortId: "status", sortOrder: "desc"),
+			staffToken
+		);
 		result.Data.Should().NotBeEmpty();
 	}
 

@@ -152,7 +152,10 @@ public sealed class FindAuditLogsSpec
 			);
 		}
 
-		var result = await this._Http.GetOkAsync<FindResponse>(AuditLogTestHelper.GetFindUrl(limit: 1), token);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			AuditLogTestHelper.GetFindUrl(limit: 1),
+			token
+		);
 
 		// The figures are whole-history facets, not the page's own length.
 		result.Data.Should().HaveCount(1);
@@ -201,7 +204,10 @@ public sealed class FindAuditLogsSpec
 				AuditActions.LoginFailed
 			);
 
-		var result = await this._Http.GetOkAsync<FindResponse>(AuditLogTestHelper.GetFindUrl(unknownActor: true), token);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			AuditLogTestHelper.GetFindUrl(unknownActor: true),
+			token
+		);
 
 		result.Data.Should()
 			.Contain(row => row.Id == unknownActorRowId);

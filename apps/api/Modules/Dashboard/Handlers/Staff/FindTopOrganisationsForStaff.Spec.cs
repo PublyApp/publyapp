@@ -204,7 +204,10 @@ public sealed class FindTopOrganisationsForStaffSpec
 			)
 		);
 
-		var result = await this._Http.GetOkAsync<TopOrganisationsResponse>(FindTopOrganisationsForStaffSpec._GetUrl("2020-06-01", "2020-06-03"), token);
+		var result = await this._Http.GetOkAsync<TopOrganisationsResponse>(
+			FindTopOrganisationsForStaffSpec._GetUrl("2020-06-01", "2020-06-03"),
+			token
+		);
 
 		result.Items.Should().HaveCount(2);
 		result.Items[0].Id.Should().Be(tenantAlpha);

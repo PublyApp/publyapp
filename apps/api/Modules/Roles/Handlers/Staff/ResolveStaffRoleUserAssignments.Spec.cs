@@ -183,7 +183,10 @@ public sealed class ResolveStaffRoleUserAssignmentsSpec
 		string email,
 		string staffToken
 	) {
-		var result = await this._Http.GetOkAsync<FindStaffUsersResponse>(ResolveStaffRoleUserAssignmentsSpec._GetFindStaffUsersUrl(email), staffToken);
+		var result = await this._Http.GetOkAsync<FindStaffUsersResponse>(
+			ResolveStaffRoleUserAssignmentsSpec._GetFindStaffUsersUrl(email),
+			staffToken
+		);
 		var user = result.Data.FirstOrDefault(u =>
 					string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase)
 				);

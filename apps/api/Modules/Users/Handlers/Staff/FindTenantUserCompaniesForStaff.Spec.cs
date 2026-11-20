@@ -58,7 +58,16 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var page = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId, cursor: cursor, limit: 1, sortId: "created_at", sortOrder: "asc"), staffToken);
+			var page = await this._Http.GetOkAsync<FindCompaniesResponse>(
+				FindTenantUserCompaniesForStaffSpec._GetUrl(
+					userId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "created_at",
+					sortOrder: "asc"
+				),
+				staffToken
+			);
 			pages++;
 			visitedTenantIds.AddRange(
 				page.Data.Select(c => c.TenantId)
@@ -130,7 +139,16 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var page = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId, cursor: cursor, limit: 1, sortId: "tenant_name", sortOrder: "asc"), staffToken);
+			var page = await this._Http.GetOkAsync<FindCompaniesResponse>(
+				FindTenantUserCompaniesForStaffSpec._GetUrl(
+					userId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "tenant_name",
+					sortOrder: "asc"
+				),
+				staffToken
+			);
 			pages++;
 			visitedTenantIds.AddRange(
 				page.Data.Select(c => c.TenantId)
@@ -189,7 +207,16 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		string? cursor = null;
 		var pages = 0;
 		do {
-			var page = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId, cursor: cursor, limit: 1, sortId: "status", sortOrder: "asc"), staffToken);
+			var page = await this._Http.GetOkAsync<FindCompaniesResponse>(
+				FindTenantUserCompaniesForStaffSpec._GetUrl(
+					userId,
+					cursor: cursor,
+					limit: 1,
+					sortId: "status",
+					sortOrder: "asc"
+				),
+				staffToken
+			);
 			pages++;
 			visitedTenantIds.AddRange(
 				page.Data.Select(c => c.TenantId)
@@ -298,7 +325,16 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			SeedConstants.CrossTenant.AliceEmail
 		);
 
-		var result = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId, limit: 10, sortId: "tenant_name", sortOrder: "asc", q: SeedConstants.Tenants.TechStartCode), staffToken);
+		var result = await this._Http.GetOkAsync<FindCompaniesResponse>(
+			FindTenantUserCompaniesForStaffSpec._GetUrl(
+				userId,
+				limit: 10,
+				sortId: "tenant_name",
+				sortOrder: "asc",
+				q: SeedConstants.Tenants.TechStartCode
+			),
+			staffToken
+		);
 		result.Data.Should().ContainSingle(company =>
 					company.TenantName == SeedConstants.Tenants.TechStartName
 				);
@@ -320,7 +356,16 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			SeedConstants.CrossTenant.AliceEmail
 		);
 
-		var result = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId, limit: 10, sortId: "tenant_name", sortOrder: "asc", q: "%"), staffToken);
+		var result = await this._Http.GetOkAsync<FindCompaniesResponse>(
+			FindTenantUserCompaniesForStaffSpec._GetUrl(
+				userId,
+				limit: 10,
+				sortId: "tenant_name",
+				sortOrder: "asc",
+				q: "%"
+			),
+			staffToken
+		);
 
 		// Alice's companies (Acme, TechStart) contain no literal '%' in name or
 		// code. If '%' were interpolated unescaped into the ILIKE pattern, it
@@ -363,7 +408,10 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			userId
 		);
 
-		var result = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId), staffToken);
+		var result = await this._Http.GetOkAsync<FindCompaniesResponse>(
+			FindTenantUserCompaniesForStaffSpec._GetUrl(userId),
+			staffToken
+		);
 		result.Data.Should().BeEmpty();
 		result.NextCursor.Should().BeNull();
 	}
@@ -420,7 +468,10 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindTenantUserCompaniesForStaffSpec._GetUrl(Guid.NewGuid().ToString(), cursor: Guid.NewGuid().ToString())
+			FindTenantUserCompaniesForStaffSpec._GetUrl(
+				Guid.NewGuid().ToString(),
+				cursor: Guid.NewGuid().ToString()
+			)
 		).WithSessionToken(staffToken);
 
 		using var response = await this._Http.SendAsync(request);
@@ -477,7 +528,15 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			SeedConstants.CrossTenant.AliceEmail
 		);
 
-		var result = await this._Http.GetOkAsync<FindCompaniesResponse>(FindTenantUserCompaniesForStaffSpec._GetUrl(userId, limit: 10, sortId: sortId, sortOrder: "asc"), staffToken);
+		var result = await this._Http.GetOkAsync<FindCompaniesResponse>(
+			FindTenantUserCompaniesForStaffSpec._GetUrl(
+				userId,
+				limit: 10,
+				sortId: sortId,
+				sortOrder: "asc"
+			),
+			staffToken
+		);
 		result.Data.Should().NotBeEmpty();
 	}
 

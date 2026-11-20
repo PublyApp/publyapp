@@ -54,7 +54,10 @@ public sealed class GetTenantUserAsStaffSpec
 			TestConstants.AcmeUserEmail
 		);
 
-		var result = await this._Http.GetOkAsync<TenantUserDetailsResponse>(GetTenantUserAsStaffSpec._GetUrl(tenantId.ToString(), userId), staffToken);
+		var result = await this._Http.GetOkAsync<TenantUserDetailsResponse>(
+			GetTenantUserAsStaffSpec._GetUrl(tenantId.ToString(), userId),
+			staffToken
+		);
 		result.Id.ToString().Should().Be(userId);
 		result.TenantId.Should().Be(tenantId);
 		result.Email.Should().Be(TestConstants.AcmeUserEmail);

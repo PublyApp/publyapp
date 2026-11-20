@@ -59,7 +59,10 @@ public sealed class FindStaffRolesSpec : IClassFixture<ApiFixture> {
 		var withPercentId = await this._SeedStaffRoleAsync($"Has%Percent{marker}");
 		var withoutPercentId = await this._SeedStaffRoleAsync($"NoPercentAtAll{marker}");
 
-		var result = await this._Http.GetOkAsync<FindStaffRolesResponse>(FindStaffRolesSpec._GetUrl($"limit=100&q={Uri.EscapeDataString("%")}"), token);
+		var result = await this._Http.GetOkAsync<FindStaffRolesResponse>(
+			FindStaffRolesSpec._GetUrl($"limit=100&q={Uri.EscapeDataString("%")}"),
+			token
+		);
 
 		// If '%' were interpolated unescaped into the ILIKE pattern, "%%%"
 		// collapses to a bare wildcard matching every row. Escaped, only the
@@ -79,7 +82,10 @@ public sealed class FindStaffRolesSpec : IClassFixture<ApiFixture> {
 		);
 		var bareId = await this._SeedStaffRoleAsync($"Bare{marker}");
 
-		var result = await this._Http.GetOkAsync<FindStaffRolesResponse>(FindStaffRolesSpec._GetUrl($"limit=100&q={Uri.EscapeDataString(marker)}"), token);
+		var result = await this._Http.GetOkAsync<FindStaffRolesResponse>(
+			FindStaffRolesSpec._GetUrl($"limit=100&q={Uri.EscapeDataString(marker)}"),
+			token
+		);
 
 		var styled = result.Data.Single(p => p.Id == roleId);
 		styled.Icon.Should().Be("star");
@@ -118,7 +124,10 @@ public sealed class FindStaffRolesSpec : IClassFixture<ApiFixture> {
 		_ = await this._SeedStaffRoleAsync($"{marker}-a");
 		_ = await this._SeedStaffRoleAsync($"{marker}-b");
 
-		var result = await this._Http.GetOkAsync<FindStaffRolesResponse>(FindStaffRolesSpec._GetUrl($"limit=1&q={marker}"), token);
+		var result = await this._Http.GetOkAsync<FindStaffRolesResponse>(
+			FindStaffRolesSpec._GetUrl($"limit=1&q={marker}"),
+			token
+		);
 		result.Data.Should().HaveCount(1);
 		result.TotalCount.Should().Be(2);
 	}
