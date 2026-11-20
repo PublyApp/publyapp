@@ -25,7 +25,7 @@ public static partial class ResponseKeys {
 	public static readonly TranslationKey AggregatorKeyChecked = new("aggregator-key-checked");
 
 	/// <summary>
-	/// This key was refused
+	/// This key was refused. Check it and paste it again.
 	/// </summary>
 	public static readonly TranslationKey AggregatorKeyRefused = new("aggregator-key-refused");
 
