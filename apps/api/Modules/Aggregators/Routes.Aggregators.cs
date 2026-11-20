@@ -9,7 +9,7 @@ public static partial class Routes {
 			public const string Root = "/aggregators";
 			public const string Find = "/";
 			public const string Connection = "/{kind}/connection";
-			public const string TestConnection = "/{kind}/connection/test";
+			public const string TestConnection = "/{kind}/connection/check";
 		}
 	}
 }

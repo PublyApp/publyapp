@@ -4,7 +4,7 @@
 // @ts-ignore
 import { createAggregatorConnectionItemFromDiscriminatorValue, createApiResponseFromDiscriminatorValue, createAppProblemDetailsFromDiscriminatorValue, createValidationProblemDetailsFromDiscriminatorValue, serializeAggregatorConnectionItem, serializeSaveAggregatorConnectionBody, type AggregatorConnectionItem, type ApiResponse, type AppProblemDetails, type SaveAggregatorConnectionBody, type ValidationProblemDetails } from '../../../models/index.js';
 // @ts-ignore
-import { TestRequestBuilderRequestsMetadata, type TestRequestBuilder } from './test/index.js';
+import { CheckRequestBuilderRequestsMetadata, type CheckRequestBuilder } from './check/index.js';
 // @ts-ignore
 import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type NavigationMetadata, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
@@ -13,9 +13,9 @@ import { type BaseRequestBuilder, type KeysToExcludeForNavigationMetadata, type 
  */
 export interface ConnectionRequestBuilder extends BaseRequestBuilder<ConnectionRequestBuilder> {
     /**
-     * The test property
+     * The check property
      */
-    get test(): TestRequestBuilder;
+    get check(): CheckRequestBuilder;
     /**
      * Remove the saved key and erase it
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -65,8 +65,8 @@ export const ConnectionRequestBuilderUriTemplate = "{+baseurl}/aggregators/{kind
  * Metadata for all the navigation properties in the request builder.
  */
 export const ConnectionRequestBuilderNavigationMetadata: Record<Exclude<keyof ConnectionRequestBuilder, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
-    test: {
-        requestsMetadata: TestRequestBuilderRequestsMetadata,
+    check: {
+        requestsMetadata: CheckRequestBuilderRequestsMetadata,
     },
 };
 /**

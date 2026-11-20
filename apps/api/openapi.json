@@ -15667,7 +15667,7 @@
         }
       }
     },
-    "/aggregators/{kind}/connection/test": {
+    "/aggregators/{kind}/connection/check": {
       "post": {
         "tags": [
           "Aggregators"

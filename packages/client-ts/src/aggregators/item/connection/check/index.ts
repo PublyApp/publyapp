@@ -7,9 +7,9 @@ import { createAggregatorConnectionItemFromDiscriminatorValue, createAppProblemD
 import { type BaseRequestBuilder, type Parsable, type ParsableFactory, type RequestConfiguration, type RequestInformation, type RequestsMetadata } from '@microsoft/kiota-abstractions';
 
 /**
- * Builds and executes requests for operations under /aggregators/{kind}/connection/test
+ * Builds and executes requests for operations under /aggregators/{kind}/connection/check
  */
-export interface TestRequestBuilder extends BaseRequestBuilder<TestRequestBuilder> {
+export interface CheckRequestBuilder extends BaseRequestBuilder<CheckRequestBuilder> {
     /**
      * Re-check the saved key with the aggregator
      * @param requestConfiguration Configuration for the request such as headers, query parameters, and middleware options.
@@ -33,13 +33,13 @@ export interface TestRequestBuilder extends BaseRequestBuilder<TestRequestBuilde
 /**
  * Uri template for the request builder.
  */
-export const TestRequestBuilderUriTemplate = "{+baseurl}/aggregators/{kind}/connection/test";
+export const CheckRequestBuilderUriTemplate = "{+baseurl}/aggregators/{kind}/connection/check";
 /**
  * Metadata for all the requests in the request builder.
  */
-export const TestRequestBuilderRequestsMetadata: RequestsMetadata = {
+export const CheckRequestBuilderRequestsMetadata: RequestsMetadata = {
     post: {
-        uriTemplate: TestRequestBuilderUriTemplate,
+        uriTemplate: CheckRequestBuilderUriTemplate,
         responseBodyContentType: "application/json",
         errorMappings: {
             400: createAppProblemDetailsFromDiscriminatorValue as ParsableFactory<Parsable>,

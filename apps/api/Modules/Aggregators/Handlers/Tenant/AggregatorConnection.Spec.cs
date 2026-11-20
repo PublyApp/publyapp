@@ -67,11 +67,11 @@ public sealed class AggregatorConnectionSpec : IClassFixture<ApiFixture> {
 		using var saved = await this._SendAsync(HttpMethod.Put, AggregatorConnectionSpec._Url, tenantId, token, new { apiKey = key });
 		saved.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		using var ok = await this._SendAsync(HttpMethod.Post, $"{AggregatorConnectionSpec._Url}/test", tenantId, token);
+		using var ok = await this._SendAsync(HttpMethod.Post, $"{AggregatorConnectionSpec._Url}/check", tenantId, token);
 		(await ok.Content.ReadAsStringAsync()).Should().Contain("\"status\":\"active\"");
 
 		this._Fake().ValidKeys.Clear();
-		using var revoked = await this._SendAsync(HttpMethod.Post, $"{AggregatorConnectionSpec._Url}/test", tenantId, token);
+		using var revoked = await this._SendAsync(HttpMethod.Post, $"{AggregatorConnectionSpec._Url}/check", tenantId, token);
 		revoked.StatusCode.Should().Be(HttpStatusCode.OK);
 		var text = await revoked.Content.ReadAsStringAsync();
 		text.Should().Contain("\"status\":\"invalid\"").And.Contain("Zernio refused this key").And.NotContain(key);
@@ -110,7 +110,7 @@ public sealed class AggregatorConnectionSpec : IClassFixture<ApiFixture> {
 
 		using var list = await this._SendAsync(HttpMethod.Get, "/aggregators/", tenantB, tokenB);
 		(await list.Content.ReadAsStringAsync()).Should().NotContain(key[^4..]).And.Contain("\"connection\":null");
-		(await this._SendAsync(HttpMethod.Post, $"{AggregatorConnectionSpec._Url}/test", tenantB, tokenB))
+		(await this._SendAsync(HttpMethod.Post, $"{AggregatorConnectionSpec._Url}/check", tenantB, tokenB))
 			.StatusCode.Should().Be(HttpStatusCode.NotFound);
 		(await this._SendAsync(HttpMethod.Delete, AggregatorConnectionSpec._Url, tenantB, tokenB))
 			.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -126,7 +126,7 @@ public sealed class AggregatorConnectionSpec : IClassFixture<ApiFixture> {
 		foreach (var (method, url) in new[] {
 			(HttpMethod.Get, "/aggregators/"),
 			(HttpMethod.Put, AggregatorConnectionSpec._Url),
-			(HttpMethod.Post, $"{AggregatorConnectionSpec._Url}/test"),
+			(HttpMethod.Post, $"{AggregatorConnectionSpec._Url}/check"),
 			(HttpMethod.Delete, AggregatorConnectionSpec._Url),
 		}) {
 			using var response = await this._SendAsync(method, url, tenantId, token, new { apiKey = "sk_12345678" });
