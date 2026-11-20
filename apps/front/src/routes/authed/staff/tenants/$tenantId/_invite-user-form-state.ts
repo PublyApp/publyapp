@@ -496,9 +496,13 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 		decodeXmlEntities(textContents(entry, 't').join('')),
 	);
 
-	const rawRecords = textContents(sheetXml, 'row')
-		.map((rowXml) => readXmlRow(rowXml, sharedStrings))
-		.filter((cells) => cells.size > 0);
+	const rawRecords = [];
+	for (const rowXml of textContents(sheetXml, 'row')) {
+		const cells = readXmlRow(rowXml, sharedStrings);
+		if (cells.size > 0) {
+			rawRecords.push(cells);
+		}
+	}
 
 	// Columns are located through the header row's own positions so sparse
 	// sheets (blank columns between email/roles) stay aligned.
