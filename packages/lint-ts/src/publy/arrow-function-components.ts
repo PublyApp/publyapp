@@ -266,6 +266,291 @@ const buildImportInfo = (programNode: ESTree.Program): ImportInfo => {
 	};
 };
 
+// State of one `analyseBody` call. `result` is mutated as statements are
+// scanned; `localJsxVars` (#1293) holds the names of local variables whose
+// initializer carries JSX in THIS function body (fresh per call).
+interface BodyScan {
+	result: BodyAnalysis;
+	localJsxVars: Set<string>;
+	importInfo: ImportInfo;
+	recursingFor: Set<string>;
+	visiting: Set<string>;
+}
+
+/**
+ * Whether a CallExpression callee is a known renderer function
+ * (useRender, createElement, jsx, jsxs) — bare identifier or React
+ * namespace member expression.
+ */
+const isKnownRendererCallee = (
+	scan: BodyScan,
+	callee: ESTree.Expression | undefined,
+): boolean => {
+	if (!callee) {
+		return false;
+	}
+
+	if (callee.type === 'Identifier') {
+		return KNOWN_RENDERERS.has(callee.name);
+	}
+
+	return (
+		callee.type === 'MemberExpression' &&
+		callee.object.type === 'Identifier' &&
+		scan.importInfo.reactNamespaces.has(callee.object.name) &&
+		callee.property.type === 'Identifier' &&
+		KNOWN_RENDERERS.has(callee.property.name)
+	);
+};
+
+// A hook-like identifier call resolved through a local function declaration:
+// analyse the declaration's body (block) or walk it (concise arrow).
+const isLocalHookCall = (scan: BodyScan, name: string): boolean => {
+	if (scan.recursingFor.has(name)) {
+		return false;
+	}
+	const fnBody = scan.importInfo.localFunctionDecls.get(name)?.body;
+	if (!fnBody) {
+		return false;
+	}
+	if (fnBody.type === 'BlockStatement') {
+		const next = new Set(scan.recursingFor).add(name);
+		return analyseBody(fnBody, scan.importInfo, next).callsHook;
+	}
+	// Arrow function expression body — check the expression directly
+	walkExprForHooks(scan, fnBody);
+	return scan.result.callsHook;
+};
+
+const isHookIdentifierCall = (scan: BodyScan, name: string): boolean => {
+	const { reactImportedNameToImported, importedNames, localFunctionDecls } =
+		scan.importInfo;
+	const importedName = reactImportedNameToImported.get(name);
+	if (importedName && isHookLike(importedName)) {
+		return true;
+	}
+	if (!isHookLike(name)) {
+		return false;
+	}
+	if (importedNames.has(name)) {
+		return true;
+	}
+	if (localFunctionDecls.has(name)) {
+		return isLocalHookCall(scan, name);
+	}
+	return true;
+};
+
+const isHookCallee = (
+	scan: BodyScan,
+	callee: ESTree.Expression | undefined,
+): boolean => {
+	if (!callee) {
+		return false;
+	}
+
+	if (
+		callee.type === 'MemberExpression' &&
+		callee.object.type === 'Identifier' &&
+		scan.importInfo.reactNamespaces.has(callee.object.name) &&
+		callee.property.type === 'Identifier' &&
+		isHookLike(callee.property.name)
+	) {
+		return true;
+	}
+
+	return (
+		callee.type === 'Identifier' && isHookIdentifierCall(scan, callee.name)
+	);
+};
+
+const walkExprForHooks = (
+	scan: BodyScan,
+	expr: ESTree.Expression | null | undefined,
+): void => {
+	if (!expr) {
+		return;
+	}
+	if (expr.type === 'CallExpression') {
+		const callee = expr.callee;
+		if (isHookCallee(scan, callee)) {
+			scan.result.callsHook = true;
+		}
+		for (const arg of expr.arguments) {
+			if (arg.type !== 'SpreadElement') {
+				walkExprForHooks(scan, arg);
+			}
+		}
+		if (callee.type === 'MemberExpression') {
+			walkExprForHooks(scan, callee.object);
+		}
+	}
+	if (expr.type === 'MemberExpression') {
+		walkExprForHooks(scan, expr.object);
+	}
+};
+
+const scanVariableDeclaration = (
+	scan: BodyScan,
+	stmt: ESTree.VariableDeclaration,
+): void => {
+	for (const decl of stmt.declarations) {
+		walkExprForHooks(scan, decl.init);
+		// #1293: remember JSX-carrying local variables so a later
+		// `return el;` counts as a JSX return.
+		if (
+			decl.id.type === 'Identifier' &&
+			decl.init &&
+			expressionContainsJsx(decl.init)
+		) {
+			scan.localJsxVars.add(decl.id.name);
+		}
+	}
+};
+
+const scanExpressionStatement = (
+	scan: BodyScan,
+	stmt: ESTree.ExpressionStatement,
+): void => {
+	walkExprForHooks(scan, stmt.expression);
+	// #1322: an AssignmentExpression whose LHS is a plain LOCAL
+	// identifier and whose RHS carries JSX marks that variable the
+	// same way a JSX-carrying initializer does. Only `=` compounds
+	// re-assign the variable itself; member targets are never locals.
+	const expr = stmt.expression;
+	if (
+		expr.type === 'AssignmentExpression' &&
+		expr.operator === '=' &&
+		expr.left.type === 'Identifier' &&
+		expressionContainsJsx(expr.right)
+	) {
+		scan.localJsxVars.add(expr.left.name);
+	}
+};
+
+// Whether a `return <call>(...)` delegates to a local helper / local object
+// member whose own body yields JSX (#1283, #1293).
+const isLocalDelegateCall = (
+	scan: BodyScan,
+	arg: ESTree.CallExpression,
+): boolean => {
+	const { callee } = arg;
+	const { importInfo, visiting } = scan;
+	if (callee.type === 'Identifier') {
+		// #1283: `return someLocalHelper(...)` where the helper's own body
+		// yields JSX (directly, through further such helpers, or through a
+		// known renderer). The declaration shape is the signal, so a
+		// non-allowlisted render wrapper cannot hide the component.
+		return isLocalRenderDelegate(callee.name, importInfo, visiting);
+	}
+	// #1293: `return someLocalObject.member(...)` where the member is a
+	// function on a top-level LOCAL object literal and its own body
+	// yields JSX the same way.
+	return (
+		callee.type === 'MemberExpression' &&
+		callee.property.type === 'Identifier' &&
+		isLocalMemberRenderDelegate(
+			callee.object,
+			callee.property,
+			importInfo,
+			visiting,
+		)
+	);
+};
+
+const scanReturnArgument = (scan: BodyScan, arg: ESTree.Expression): void => {
+	const { result } = scan;
+	if (expressionContainsJsx(arg)) {
+		result.returnsJsx = true;
+	} else if (
+		arg.type === 'CallExpression' &&
+		(isKnownRendererCallee(scan, arg.callee) || isLocalDelegateCall(scan, arg))
+	) {
+		// PascalCase function returning useRender(...), createElement(...),
+		// jsx(...), or jsxs(...) — component even without direct JSX.
+		result.returnsRendererCall = true;
+	} else if (arg.type === 'Identifier' && scan.localJsxVars.has(arg.name)) {
+		// #1293: `return el;` where `el` was initialized (earlier in this
+		// body) with an expression carrying JSX.
+		result.returnsJsx = true;
+	} else {
+		const isNullLike =
+			(arg.type === 'Literal' && arg.value === null) ||
+			(arg.type === 'Identifier' && arg.name === 'undefined');
+		if (!isNullLike) {
+			result.returnsOnlyNullOrJsx = false;
+		}
+	}
+};
+
+const scanTryStatement = (scan: BodyScan, stmt: ESTree.TryStatement): void => {
+	scanStatements(scan, stmt.block.body);
+	if (stmt.handler) {
+		scanStatements(scan, stmt.handler.body.body);
+	}
+	if (stmt.finalizer) {
+		scanStatements(scan, stmt.finalizer.body);
+	}
+};
+
+const scanStatement = (scan: BodyScan, stmt: ESTree.Statement): void => {
+	switch (stmt.type) {
+		case 'VariableDeclaration':
+			scanVariableDeclaration(scan, stmt);
+			break;
+		case 'ExpressionStatement':
+			scanExpressionStatement(scan, stmt);
+			break;
+		case 'ReturnStatement':
+			if (stmt.argument !== null && stmt.argument !== undefined) {
+				scanReturnArgument(scan, stmt.argument);
+			}
+			break;
+		case 'IfStatement':
+			walkExprForHooks(scan, stmt.test);
+			scanStatements(scan, [stmt.consequent]);
+			if (stmt.alternate) {
+				scanStatements(scan, [stmt.alternate]);
+			}
+			break;
+		case 'BlockStatement':
+			scanStatements(scan, stmt.body);
+			break;
+		case 'WhileStatement':
+		case 'DoWhileStatement':
+		case 'ForStatement':
+			walkExprForHooks(scan, stmt.test);
+			scanStatements(scan, [stmt.body]);
+			break;
+		case 'ForInStatement':
+		case 'ForOfStatement':
+			scanStatements(scan, [stmt.body]);
+			break;
+		case 'SwitchStatement':
+			walkExprForHooks(scan, stmt.discriminant);
+			for (const c of stmt.cases) {
+				scanStatements(scan, c.consequent);
+			}
+			break;
+		case 'TryStatement':
+			scanTryStatement(scan, stmt);
+			break;
+		default:
+			break;
+	}
+};
+
+const scanStatements = (
+	scan: BodyScan,
+	statements: ESTree.Statement[],
+): void => {
+	for (const stmt of statements) {
+		if (stmt) {
+			scanStatement(scan, stmt);
+		}
+	}
+};
+
 const analyseBody = (
 	body: ESTree.FunctionBody | null | undefined,
 	importInfo: ImportInfo,
@@ -281,266 +566,16 @@ const analyseBody = (
 	if (!body) {
 		return result;
 	}
-
-	// #1293: names of local variables whose (statement-order) initializer
-	// carries JSX in THIS function body. Fresh per analyseBody call, so each
-	// analysed function resolves only its own locals.
-	const localJsxVars = new Set<string>();
-
-	const {
-		reactNamespaces,
-		reactImportedNameToImported,
-		importedNames,
-		localFunctionDecls,
-	} = importInfo;
-
-	/**
-	 * Whether a CallExpression callee is a known renderer function
-	 * (useRender, createElement, jsx, jsxs) — bare identifier or React
-	 * namespace member expression.
-	 */
-	const isKnownRendererCallee = (
-		callee: ESTree.Expression | undefined,
-	): boolean => {
-		if (!callee) {
-			return false;
-		}
-
-		if (callee.type === 'Identifier' && KNOWN_RENDERERS.has(callee.name)) {
-			return true;
-		}
-
-		if (
-			callee.type === 'MemberExpression' &&
-			callee.object.type === 'Identifier' &&
-			reactNamespaces.has(callee.object.name) &&
-			callee.property.type === 'Identifier' &&
-			KNOWN_RENDERERS.has(callee.property.name)
-		) {
-			return true;
-		}
-
-		return false;
-	};
-
-	const isHookCallee = (callee: ESTree.Expression | undefined): boolean => {
-		if (!callee) {
-			return false;
-		}
-
-		if (
-			callee.type === 'MemberExpression' &&
-			callee.object.type === 'Identifier' &&
-			reactNamespaces.has(callee.object.name) &&
-			callee.property.type === 'Identifier' &&
-			isHookLike(callee.property.name)
-		) {
-			return true;
-		}
-
-		if (callee.type === 'Identifier') {
-			const name = callee.name;
-			if (reactImportedNameToImported.has(name)) {
-				const importedName = reactImportedNameToImported.get(name);
-				if (importedName && isHookLike(importedName)) {
-					return true;
-				}
-			}
-			if (!isHookLike(name)) {
-				return false;
-			}
-			if (importedNames.has(name)) {
-				return true;
-			}
-			if (localFunctionDecls.has(name)) {
-				if (recursingFor.has(name)) {
-					return false;
-				}
-				const localFn = localFunctionDecls.get(name);
-				const fnBody = localFn?.body;
-				if (!fnBody) {
-					return false;
-				}
-				const next = new Set(recursingFor).add(name);
-				if (fnBody.type === 'BlockStatement') {
-					return analyseBody(fnBody, importInfo, next).callsHook;
-				}
-				// Arrow function expression body — check the expression directly
-				walkExprForHooks(fnBody);
-				return result.callsHook;
-			}
-			return true;
-		}
-		return false;
-	};
-
-	const walkExprForHooks = (
-		expr: ESTree.Expression | null | undefined,
-	): void => {
-		if (!expr) {
-			return;
-		}
-		if (expr.type === 'CallExpression') {
-			const callee = expr.callee;
-			if (isHookCallee(callee)) {
-				result.callsHook = true;
-			}
-			for (const arg of expr.arguments) {
-				if (arg.type !== 'SpreadElement') {
-					walkExprForHooks(arg);
-				}
-			}
-			if (callee.type === 'MemberExpression') {
-				walkExprForHooks(callee.object);
-			}
-		}
-		if (expr.type === 'MemberExpression') {
-			walkExprForHooks(expr.object);
-		}
-	};
-
-	const scanStatements = (statements: ESTree.Statement[]): void => {
-		for (const stmt of statements) {
-			if (!stmt) {
-				continue;
-			}
-			if (stmt.type === 'FunctionDeclaration') {
-				continue;
-			}
-
-			if (stmt.type === 'VariableDeclaration') {
-				for (const decl of stmt.declarations) {
-					walkExprForHooks(decl.init);
-					// #1293: remember JSX-carrying local variables so a later
-					// `return el;` counts as a JSX return.
-					if (
-						decl.id.type === 'Identifier' &&
-						decl.init &&
-						expressionContainsJsx(decl.init)
-					) {
-						localJsxVars.add(decl.id.name);
-					}
-				}
-				continue;
-			}
-			if (stmt.type === 'ExpressionStatement') {
-				walkExprForHooks(stmt.expression);
-				// #1322: an AssignmentExpression whose LHS is a plain LOCAL
-				// identifier and whose RHS carries JSX marks that variable the
-				// same way a JSX-carrying initializer does. Only `=` compounds
-				// re-assign the variable itself; member targets are never locals.
-				const expr = stmt.expression;
-				if (
-					expr.type === 'AssignmentExpression' &&
-					expr.operator === '=' &&
-					expr.left.type === 'Identifier' &&
-					expressionContainsJsx(expr.right)
-				) {
-					localJsxVars.add(expr.left.name);
-				}
-				continue;
-			}
-			if (stmt.type === 'ReturnStatement') {
-				const arg = stmt.argument;
-				if (arg === null || arg === undefined) {
-					continue;
-				}
-				if (expressionContainsJsx(arg)) {
-					result.returnsJsx = true;
-				} else if (
-					arg.type === 'CallExpression' &&
-					isKnownRendererCallee(arg.callee)
-				) {
-					// PascalCase function returning useRender(...), createElement(...),
-					// jsx(...), or jsxs(...) — component even without direct JSX.
-					result.returnsRendererCall = true;
-				} else if (
-					arg.type === 'CallExpression' &&
-					arg.callee.type === 'Identifier' &&
-					isLocalRenderDelegate(arg.callee.name, importInfo, visiting)
-				) {
-					// #1283: `return someLocalHelper(...)` where the helper's own body
-					// yields JSX (directly, through further such helpers, or through a
-					// known renderer). The declaration shape is the signal, so a
-					// non-allowlisted render wrapper cannot hide the component.
-					result.returnsRendererCall = true;
-				} else if (
-					arg.type === 'CallExpression' &&
-					arg.callee.type === 'MemberExpression' &&
-					arg.callee.property.type === 'Identifier' &&
-					isLocalMemberRenderDelegate(
-						arg.callee.object,
-						arg.callee.property,
-						importInfo,
-						visiting,
-					)
-				) {
-					// #1293: `return someLocalObject.member(...)` where the member is a
-					// function on a top-level LOCAL object literal and its own body
-					// yields JSX the same way.
-					result.returnsRendererCall = true;
-				} else if (arg.type === 'Identifier' && localJsxVars.has(arg.name)) {
-					// #1293: `return el;` where `el` was initialized (earlier in this
-					// body) with an expression carrying JSX.
-					result.returnsJsx = true;
-				} else {
-					const isNullLike =
-						(arg.type === 'Literal' && arg.value === null) ||
-						(arg.type === 'Identifier' && arg.name === 'undefined');
-					if (!isNullLike) {
-						result.returnsOnlyNullOrJsx = false;
-					}
-				}
-				continue;
-			}
-			if (stmt.type === 'IfStatement') {
-				walkExprForHooks(stmt.test);
-				scanStatements([stmt.consequent]);
-				if (stmt.alternate) {
-					scanStatements([stmt.alternate]);
-				}
-				continue;
-			}
-			if (stmt.type === 'BlockStatement') {
-				scanStatements(stmt.body);
-				continue;
-			}
-			if (stmt.type === 'WhileStatement' || stmt.type === 'DoWhileStatement') {
-				walkExprForHooks(stmt.test);
-				scanStatements([stmt.body]);
-				continue;
-			}
-			if (stmt.type === 'ForStatement') {
-				walkExprForHooks(stmt.test);
-				scanStatements([stmt.body]);
-				continue;
-			}
-			if (stmt.type === 'ForInStatement' || stmt.type === 'ForOfStatement') {
-				scanStatements([stmt.body]);
-				continue;
-			}
-			if (stmt.type === 'SwitchStatement') {
-				walkExprForHooks(stmt.discriminant);
-				for (const c of stmt.cases) {
-					scanStatements(c.consequent);
-				}
-				continue;
-			}
-			if (stmt.type === 'TryStatement') {
-				scanStatements(stmt.block.body);
-				const handler = stmt.handler;
-				if (handler) {
-					scanStatements(handler.body.body);
-				}
-				const finalizer = stmt.finalizer;
-				if (finalizer) {
-					scanStatements(finalizer.body);
-				}
-			}
-		}
-	};
-
-	scanStatements(body.body);
+	scanStatements(
+		{
+			result,
+			localJsxVars: new Set(),
+			importInfo,
+			recursingFor,
+			visiting,
+		},
+		body.body,
+	);
 	return result;
 };
 
