@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AggregatorRow } from '~/lib/query/aggregators';
 
@@ -21,10 +21,17 @@ vi.mock('~/lib/query/aggregators', async (importOriginal) => ({
 		refetch: vi.fn(),
 	}),
 	useTestAggregatorKeyMutation: () => ({ mutate: vi.fn(), isPending: false }),
-	useRemoveAggregatorKeyMutation: () => ({
-		mutate: vi.fn(),
-		isPending: false,
-	}),
+}));
+
+vi.mock('./_remove-aggregator-key-dialog', () => ({
+	RemoveAggregatorKeyDialog: ({
+		aggregator,
+	}: {
+		aggregator: { displayName: string } | null;
+	}) =>
+		aggregator ? (
+			<div data-testid="remove-dialog">{aggregator.displayName}</div>
+		) : null,
 }));
 
 vi.mock('./_aggregator-key-drawer', () => ({
@@ -91,5 +98,27 @@ describe('aggregators card', () => {
 		render(<AggregatorsCard tenantId="t1" canManage={false} />);
 
 		expect(screen.queryByText('aggregator-connect')).toBeNull();
+	});
+
+	test('ItShouldAskForConfirmationInsteadOfRemovingTheKeyOnClick', () => {
+		mocks.data = {
+			aggregators: [
+				{
+					...WIRE,
+					connection: {
+						status: 'active',
+						keyHint: 'a1b2',
+						lastCheckedAt: null,
+						lastError: null,
+					},
+				},
+			],
+		};
+
+		render(<AggregatorsCard tenantId="t1" canManage />);
+		expect(screen.queryByTestId('remove-dialog')).toBeNull();
+		fireEvent.click(screen.getByText('aggregator-remove-key'));
+
+		expect(screen.getByTestId('remove-dialog').textContent).toBe('Partner');
 	});
 });

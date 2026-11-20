@@ -96,6 +96,8 @@
 	"aggregator-connect": "Connecter {{name}}",
 	"aggregator-update-key": "Changer la clé",
 	"aggregator-test-key": "Tester la clé",
+	"aggregator-remove-title": "Supprimer la clé {{name}} ?",
+	"aggregator-remove-consequences": "Cela efface la clé {{name}} enregistrée pour votre organisation. Vous devrez la coller de nouveau pour utiliser {{name}}, et la publication via {{name}} s'arrêtera tant que vous ne l'aurez pas fait.",
 	"aggregator-remove-key": "Supprimer la clé",
 	"aggregator-drawer-title": "Clé d'API {{name}}",
 	"aggregator-key-label": "Clé d'API {{name}}",

@@ -96,6 +96,8 @@
 	"aggregator-connect": "Connect {{name}}",
 	"aggregator-update-key": "Update key",
 	"aggregator-test-key": "Test key",
+	"aggregator-remove-title": "Remove the {{name}} key?",
+	"aggregator-remove-consequences": "This erases the {{name}} key stored for your organisation. You will have to paste it again to use {{name}}, and publishing through {{name}} will stop until you do.",
 	"aggregator-remove-key": "Remove key",
 	"aggregator-drawer-title": "{{name}} API key",
 	"aggregator-key-label": "{{name}} API key",

@@ -9,26 +9,27 @@ import {
 	type AggregatorRow,
 	toAggregatorRows,
 	useAggregatorsQuery,
-	useRemoveAggregatorKeyMutation,
 	useTestAggregatorKeyMutation,
 } from '~/lib/query/aggregators';
 
 import { AggregatorKeyDrawer } from './_aggregator-key-drawer';
+import { RemoveAggregatorKeyDialog } from './_remove-aggregator-key-dialog';
 
 const AggregatorRowView = ({
 	row,
 	canManage,
 	tenantId,
 	onSetKey,
+	onRemoveKey,
 }: {
 	row: AggregatorRow;
 	canManage: boolean;
 	tenantId: string;
 	onSetKey: (row: AggregatorRow) => void;
+	onRemoveKey: (row: AggregatorRow) => void;
 }) => {
 	const { t } = useTranslation(['settings']);
 	const testMutation = useTestAggregatorKeyMutation();
-	const removeMutation = useRemoveAggregatorKeyMutation();
 	const { connection } = row;
 
 	return (
@@ -84,13 +85,7 @@ const AggregatorRowView = ({
 							>
 								{t('aggregator-test-key')}
 							</Button>
-							<Button
-								variant="outline"
-								disabled={removeMutation.isPending}
-								onClick={() =>
-									removeMutation.mutate({ tenantId, kind: row.kind })
-								}
-							>
+							<Button variant="outline" onClick={() => onRemoveKey(row)}>
 								{t('aggregator-remove-key')}
 							</Button>
 						</>
@@ -113,6 +108,7 @@ export const AggregatorsCard = ({
 	const { t } = useTranslation(['settings']);
 	const query = useAggregatorsQuery({ tenantId });
 	const [editing, setEditing] = useState<AggregatorRow | null>(null);
+	const [removing, setRemoving] = useState<AggregatorRow | null>(null);
 
 	return (
 		<Card data-testid="tenant-settings-aggregators">
@@ -130,6 +126,7 @@ export const AggregatorsCard = ({
 									canManage={canManage}
 									tenantId={tenantId}
 									onSetKey={setEditing}
+									onRemoveKey={setRemoving}
 								/>
 							))}
 						</ul>
@@ -142,6 +139,15 @@ export const AggregatorsCard = ({
 				onOpenChange={(open) => {
 					if (!open) {
 						setEditing(null);
+					}
+				}}
+			/>
+			<RemoveAggregatorKeyDialog
+				aggregator={removing}
+				tenantId={tenantId}
+				onOpenChange={(open) => {
+					if (!open) {
+						setRemoving(null);
 					}
 				}}
 			/>
