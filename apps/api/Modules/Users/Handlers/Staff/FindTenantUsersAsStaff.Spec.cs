@@ -49,20 +49,7 @@ public sealed class FindTenantUsersAsStaffSpec
 				);
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 		result.Data.Should().NotBeEmpty();
 	}
 
@@ -80,20 +67,7 @@ public sealed class FindTenantUsersAsStaffSpec
 				);
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId, limit: 1);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 		result.Data.Count.Should().Be(1);
 		result.NextCursor.Should()
 			.NotBeNullOrEmpty();
@@ -108,20 +82,7 @@ public sealed class FindTenantUsersAsStaffSpec
 		var tenantId = await this._SeedTenantWithSearchFixtureAsync(marker);
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId, search: "%");
-		var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 
 		// If '%' were interpolated unescaped into the ILIKE pattern, "%%%"
 		// collapses to a bare wildcard matching every row. Escaped, only the
@@ -175,16 +136,7 @@ public sealed class FindTenantUsersAsStaffSpec
 		var userAccountId = account.GetRequiredId();
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 
 		var item = result.Data.Should()
 			.ContainSingle(u => u.Id == userId.ToString())
@@ -516,21 +468,7 @@ public sealed class FindTenantUsersAsStaffSpec
 			tenantId,
 			status: "active,suspended"
 		);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			url
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 		result.Data.Should().NotBeEmpty();
 		result.Data.Select(user => user.Status)
 			.Should()
@@ -581,21 +519,7 @@ public sealed class FindTenantUsersAsStaffSpec
 		}
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			url
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 		result.Data.Should().Contain(user =>
 					string.Equals(
 						user.Email,
@@ -629,21 +553,7 @@ public sealed class FindTenantUsersAsStaffSpec
 
 		try {
 			var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId);
-			var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				url
-			).WithSessionToken(staffToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			result.Data.Should().Contain(user =>
 							string.Equals(
 								user.Email,
@@ -685,21 +595,7 @@ public sealed class FindTenantUsersAsStaffSpec
 
 		try {
 			var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId);
-			var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				url
-			).WithSessionToken(staffToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			result.Data.Should().Contain(user =>
 							string.Equals(
 								user.Email,
@@ -823,21 +719,7 @@ public sealed class FindTenantUsersAsStaffSpec
 				tenantId,
 				status: "globally_suspended"
 			);
-			var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				url
-			).WithSessionToken(staffToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			result.Data.Should().NotBeEmpty();
 			result.Data.Should().OnlyContain(user =>
 				user.Status == "GloballySuspended"
@@ -874,21 +756,7 @@ public sealed class FindTenantUsersAsStaffSpec
 				);
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId, limit: 100);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			url
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 
 		var owner = result.Data.Should()
 			.ContainSingle(user =>
@@ -927,25 +795,7 @@ public sealed class FindTenantUsersAsStaffSpec
 					SeedConstants.Tenants.AcmeName
 				);
 
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantUsersAsStaffSpec._GetFindUrl(
-				tenantId,
-				sortId: "status",
-				sortOrder: "desc"
-			)
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(FindTenantUsersAsStaffSpec._GetFindUrl(tenantId, sortId: "status", sortOrder: "desc"), staffToken);
 		result.Data.Should().NotBeEmpty();
 	}
 
@@ -1096,20 +946,7 @@ public sealed class FindTenantUsersAsStaffSpec
 				sortId: "created_at",
 				sortOrder: "asc"
 			);
-			var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var page =
-				await response.Content
-					.ReadFromJsonAsync<FindResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			pages++;
 			visitedIds.AddRange(
 				page.Data.Select(u => u.Id)
@@ -1194,20 +1031,7 @@ public sealed class FindTenantUsersAsStaffSpec
 				sortId: "id",
 				sortOrder: "asc"
 			);
-			var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var page =
-				await response.Content
-					.ReadFromJsonAsync<FindResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			pages++;
 			visitedIds.AddRange(
 				page.Data.Select(u => u.Id)
@@ -1272,20 +1096,7 @@ public sealed class FindTenantUsersAsStaffSpec
 				sortId: "email",
 				sortOrder: "asc"
 			);
-			var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var page =
-				await response.Content
-					.ReadFromJsonAsync<FindResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			pages++;
 			visitedIds.AddRange(
 				page.Data.Select(u => u.Id)
@@ -1347,20 +1158,7 @@ public sealed class FindTenantUsersAsStaffSpec
 				sortId: "status",
 				sortOrder: "asc"
 			);
-			var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-			response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			var page =
-				await response.Content
-					.ReadFromJsonAsync<FindResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			pages++;
 			visitedIds.AddRange(
 				page.Data.Select(u => u.Id)
@@ -1426,19 +1224,7 @@ public sealed class FindTenantUsersAsStaffSpec
 			sortId: "is_full_access",
 			sortOrder: "asc"
 		);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 
 		var visitedOrder = result.Data
 			.Select(user => user.Id)
