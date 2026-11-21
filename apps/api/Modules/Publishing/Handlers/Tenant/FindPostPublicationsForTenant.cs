@@ -26,6 +26,7 @@ public sealed class FindPostPublicationsForTenant {
 		[FromServices] IPublicationService publicationService,
 		CancellationToken cancellationToken = default
 	) {
+		// Rejects a malformed tenant id so no query runs on an unscoped context.
 		if (!Guid.TryParse(authContext.TenantId, out _)) {
 			throw new InvalidOperationException(
 				$"{nameof(authContext.TenantId)} is not a GUID"
