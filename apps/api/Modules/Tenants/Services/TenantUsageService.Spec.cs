@@ -46,7 +46,7 @@ public sealed class TenantUsageServiceSpec
 	public async Task ItShouldCountActiveAndTotalUsersProjectsAndScheduledPublications() {
 		var tenantId = await this._SeedRichTenantAsync();
 
-		var result = await this._NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService(tenantId).GetTenantUsageAsync(tenantId);
 		result.Should().NotBeNull();
 		if (result is null) {
 			throw new InvalidOperationException(
@@ -64,7 +64,7 @@ public sealed class TenantUsageServiceSpec
 	public async Task ItShouldExcludeSoftDeletedAndForeignTenantRowsFromCounts() {
 		var (tenantId, _) = await this._SeedTwoTenantsWithNoiseAsync();
 
-		var result = await this._NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService(tenantId).GetTenantUsageAsync(tenantId);
 		result.Should().NotBeNull();
 		if (result is null) {
 			throw new InvalidOperationException(
@@ -85,7 +85,7 @@ public sealed class TenantUsageServiceSpec
 		var lastActivity = new DateTime(2026, 8, 1, 9, 30, 0, DateTimeKind.Utc);
 		var tenantId = await this._SeedTenantWithLastActivityAsync(lastActivity);
 
-		var result = await this._NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService(tenantId).GetTenantUsageAsync(tenantId);
 		result.Should().NotBeNull();
 		if (result is null) {
 			throw new InvalidOperationException(
@@ -100,7 +100,7 @@ public sealed class TenantUsageServiceSpec
 	public async Task ItShouldReturnZeroesForATenantWithoutAnyActivity() {
 		var tenantId = await this._SeedBareTenantAsync("usage empty");
 
-		var result = await this._NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService(tenantId).GetTenantUsageAsync(tenantId);
 		result.Should().NotBeNull();
 		if (result is null) {
 			throw new InvalidOperationException(
@@ -117,8 +117,9 @@ public sealed class TenantUsageServiceSpec
 
 	[Fact]
 	public async Task ItShouldReturnNullForAnUnknownTenant() {
-		var result = await this._NewService()
-			.GetTenantUsageAsync(Guid.NewGuid());
+		var unknownId = Guid.NewGuid();
+		var result = await this._NewService(unknownId)
+			.GetTenantUsageAsync(unknownId);
 
 		result.Should().BeNull();
 	}
@@ -130,7 +131,7 @@ public sealed class TenantUsageServiceSpec
 		// empty-but-existing one instead of returning null.
 		var tenantId = await this._SeedSoftDeletedTenantAsync();
 
-		var result = await this._NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService(tenantId).GetTenantUsageAsync(tenantId);
 
 		result.Should().BeNull(
 			"a soft-deleted tenant must be treated as non-existent — otherwise "
@@ -150,7 +151,7 @@ public sealed class TenantUsageServiceSpec
 		// status to keep un-derivable from the previous fixture.
 		var tenantId = await this._SeedLiveTenantWithStatusAsync(TenantStatus.Pending);
 
-		var result = await this._NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService(tenantId).GetTenantUsageAsync(tenantId);
 
 		result.Should().NotBeNull(
 			"a non-deleted Pending tenant exists and must surface — the existence "
@@ -169,7 +170,7 @@ public sealed class TenantUsageServiceSpec
 		// wrongly return null under that guard, so the assertion catches it.
 		var tenantId = await this._SeedLiveTenantWithStatusAsync(TenantStatus.Suspended);
 
-		var result = await this._NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService(tenantId).GetTenantUsageAsync(tenantId);
 
 		result.Should().NotBeNull(
 			"a non-deleted Suspended tenant exists and must surface — soft "
@@ -192,7 +193,7 @@ public sealed class TenantUsageServiceSpec
 		// spec asserts the opposite, so the mutation fails this test.
 		var tenantId = await this._SeedSoftDeletedTenantWithStatusAsync(TenantStatus.Suspended);
 
-		var result = await this._NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService(tenantId).GetTenantUsageAsync(tenantId);
 
 		result.Should().BeNull(
 			"a soft-deleted tenant must be treated as non-existent regardless "
@@ -213,7 +214,7 @@ public sealed class TenantUsageServiceSpec
 		// refactor defaulted a soft-deleted tenant to Pending.
 		var tenantId = await this._SeedSoftDeletedTenantWithStatusAsync(TenantStatus.Pending);
 
-		var result = await this._NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService(tenantId).GetTenantUsageAsync(tenantId);
 
 		result.Should().BeNull(
 			"a soft-deleted tenant must be treated as non-existent regardless "
@@ -289,12 +290,12 @@ public sealed class TenantUsageServiceSpec
 	public async Task ItShouldGuardProjectsCountQueryWithIsDeletedFilter() {
 		// #1839 r4 — ProjectsCountQuery must negate IsDeleted on the project
 		// row. Without it, a soft-deleted project would leak into the count.
-		var tenantId = await this._SeedTenantWithLastActivityAsync(
+		_ = await this._SeedTenantWithLastActivityAsync(
 			new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc)
 		);
 		var service = this._NewServiceWithContext();
 
-		var query = service.ProjectsCountQuery(tenantId);
+		var query = service.ProjectsCountQuery();
 
 		TenantUsageServiceSpec._AssertIsDeletedNegated(
 			query.Expression,
@@ -307,12 +308,12 @@ public sealed class TenantUsageServiceSpec
 		// #1839 r4 — ScheduledPublicationsCountQuery must negate IsDeleted on
 		// the publication row. Without it, a soft-deleted publication would
 		// leak into the count.
-		var tenantId = await this._SeedTenantWithLastActivityAsync(
+		_ = await this._SeedTenantWithLastActivityAsync(
 			new DateTime(2026, 8, 15, 12, 0, 0, DateTimeKind.Utc)
 		);
 		var service = this._NewServiceWithContext();
 
-		var query = service.ScheduledPublicationsCountQuery(tenantId);
+		var query = service.ScheduledPublicationsCountQuery();
 
 		TenantUsageServiceSpec._AssertIsDeletedNegated(
 			query.Expression,
@@ -472,6 +473,7 @@ public sealed class TenantUsageServiceSpec
 				.Options
 		);
 
+		serviceDbContext.ScopeToTenant(tenantId);
 		var service = new TenantUsageService(
 			serviceDbContext,
 			NullLogger<TenantUsageService>.Instance
@@ -533,9 +535,13 @@ public sealed class TenantUsageServiceSpec
 		);
 	}
 
-	private TenantUsageService _NewService() {
+	// The staff usage route runs on a context scoped to the requested tenant (#2460):
+	// the service relies on that filter instead of a hand-written predicate.
+	private TenantUsageService _NewService(Guid tenantId) {
+		var db = this._CreateServiceDbContext().GetAwaiter().GetResult();
+		db.ScopeToTenant(tenantId);
 		return new TenantUsageService(
-			this._CreateServiceDbContext().GetAwaiter().GetResult(),
+			db,
 			NullLogger<TenantUsageService>.Instance
 		);
 	}
@@ -578,7 +584,7 @@ public sealed class TenantUsageServiceSpec
 		// This spec proves the filter distinguishes scope, not just tenant id.
 		var tenantId = await this._SeedTenantWithAProjectAccountAsync();
 
-		var result = await this._NewService().GetTenantUsageAsync(tenantId);
+		var result = await this._NewService(tenantId).GetTenantUsageAsync(tenantId);
 		result.Should().NotBeNull();
 		if (result is null) {
 			throw new InvalidOperationException(

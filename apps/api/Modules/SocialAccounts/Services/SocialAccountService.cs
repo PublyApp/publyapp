@@ -187,14 +187,12 @@ public sealed class SocialAccountService {
 	}
 
 	public async Task<SocialAccount?> FindByExternalAccountAsync(
-		Guid tenantId,
 		SocialProvider provider,
 		string externalAccountId,
 		CancellationToken ct = default
 	) {
 		return await this._Db.SocialAccount
-			.Where(a => a.TenantId == tenantId
-				&& a.Provider == provider
+			.Where(a => a.Provider == provider
 				&& a.ExternalAccountId == externalAccountId
 				&& !a.IsDeleted)
 			.FirstOrDefaultAsync(ct);
@@ -203,7 +201,6 @@ public sealed class SocialAccountService {
 	// ── Find (keyset list with optional project visibility filter) ────────────
 
 	public async Task<FindSocialAccountsResult> FindForTenantAsync(
-		Guid tenantId,
 		FindSocialAccountsArgs args,
 		CancellationToken cancellationToken = default
 	) {
@@ -220,7 +217,7 @@ public sealed class SocialAccountService {
 				["created_at"] = CursorSortFieldHandlerFactory.Create<SocialAccount, DateTime, Guid?>(
 					cursorLookupQuery: () => this._Db.SocialAccount
 						.AsNoTracking()
-						.Where(a => a.TenantId == tenantId && !a.IsDeleted),
+						.Where(a => !a.IsDeleted),
 					keySelector: a => a.CreatedAt,
 					idSelector: a => a.Id,
 					cancellationToken
@@ -228,7 +225,7 @@ public sealed class SocialAccountService {
 				["updated_at"] = CursorSortFieldHandlerFactory.Create<SocialAccount, DateTime, Guid?>(
 					cursorLookupQuery: () => this._Db.SocialAccount
 						.AsNoTracking()
-						.Where(a => a.TenantId == tenantId && !a.IsDeleted),
+						.Where(a => !a.IsDeleted),
 					keySelector: a => a.UpdatedAt,
 					idSelector: a => a.Id,
 					cancellationToken
@@ -243,7 +240,7 @@ public sealed class SocialAccountService {
 
 		IQueryable<SocialAccount> query =
 			from a in this._Db.SocialAccount.AsNoTracking()
-			where a.TenantId == tenantId && !a.IsDeleted
+			where !a.IsDeleted
 			select a;
 
 		if (cursor != Guid.Empty) {
@@ -307,13 +304,12 @@ public sealed class SocialAccountService {
 	}
 
 	public async Task<SocialAccount?> GetByIdForTenantAsync(
-		Guid tenantId,
 		Guid id,
 		CancellationToken cancellationToken = default
 	) {
 		return await (
 			from a in this._Db.SocialAccount.AsNoTracking()
-			where a.Id == id && a.TenantId == tenantId && !a.IsDeleted
+			where a.Id == id && !a.IsDeleted
 			select a
 		).FirstOrDefaultAsync(cancellationToken);
 	}
@@ -321,11 +317,10 @@ public sealed class SocialAccountService {
 	// ── Needs-reconnect listing (C4 banner data path) ─────────────────────────
 
 	public async Task<IReadOnlyList<SocialAccountNeedsReconnectItem>>
-		FindNeedsReconnectAccountsAsync(Guid tenantId, CancellationToken cancellationToken) {
+		FindNeedsReconnectAccountsAsync(CancellationToken cancellationToken) {
 		var accounts = await (
 			from a in this._Db.SocialAccount.AsNoTracking()
-			where a.TenantId == tenantId
-				&& !a.IsDeleted
+			where !a.IsDeleted
 				&& a.Status == SocialAccountStatus.NeedsReconnect
 			orderby a.DisplayHandle
 			select a
@@ -368,7 +363,7 @@ public sealed class SocialAccountService {
 		var handle = success.Identity.Handle;
 
 		var existing = await this.FindByExternalAccountAsync(
-			tenantId, SocialProvider.Bluesky, did, cancellationToken
+			SocialProvider.Bluesky, did, cancellationToken
 		);
 
 		if (existing is not null && existing.Status == SocialAccountStatus.Active) {
@@ -408,7 +403,6 @@ public sealed class SocialAccountService {
 	}
 
 	public async Task<ReconnectSocialAccountResult> ReconnectForTenantAsync(
-		Guid tenantId,
 		Guid socialAccountId,
 		string appPassword,
 		CancellationToken cancellationToken = default
@@ -416,7 +410,6 @@ public sealed class SocialAccountService {
 		var account = await (
 			from a in this._Db.SocialAccount
 			where a.Id == socialAccountId
-				&& a.TenantId == tenantId
 				&& !a.IsDeleted
 			select a
 		).FirstOrDefaultAsync(cancellationToken);
@@ -464,14 +457,12 @@ public sealed class SocialAccountService {
 	}
 
 	public async Task<DisconnectSocialAccountResult> DisconnectForTenantAsync(
-		Guid tenantId,
 		Guid socialAccountId,
 		CancellationToken cancellationToken = default
 	) {
 		var account = await (
 			from a in this._Db.SocialAccount
 			where a.Id == socialAccountId
-				&& a.TenantId == tenantId
 				&& !a.IsDeleted
 			select a
 		).FirstOrDefaultAsync(cancellationToken);
@@ -492,7 +483,6 @@ public sealed class SocialAccountService {
 	// ── Project attachments (replace-all, empty set = visible everywhere) ─────
 
 	public async Task<SetSocialAccountProjectsResult> SetProjectsForTenantAsync(
-		Guid tenantId,
 		Guid socialAccountId,
 		IReadOnlyList<Guid> projectIds,
 		CancellationToken cancellationToken = default
@@ -500,7 +490,6 @@ public sealed class SocialAccountService {
 		var account = await (
 			from a in this._Db.SocialAccount
 			where a.Id == socialAccountId
-				&& a.TenantId == tenantId
 				&& !a.IsDeleted
 			select a
 		).FirstOrDefaultAsync(cancellationToken);
@@ -514,7 +503,7 @@ public sealed class SocialAccountService {
 		// Every requested id must be one of this tenant's live projects.
 		var tenantProjectIds = await (
 			from p in this._Db.Project.AsNoTracking()
-			where p.TenantId == tenantId && !p.IsDeleted
+			where !p.IsDeleted
 			select p.Id
 		).ToListAsync(cancellationToken);
 		var knownProjectIds = tenantProjectIds.ToHashSet();
@@ -554,7 +543,6 @@ public sealed class SocialAccountService {
 	// ── Default visibility (Mastodon / Pixelfed, #2186) ───────────────────────
 
 	public async Task<SetSocialAccountVisibilityResult> SetDefaultVisibilityForTenantAsync(
-		Guid tenantId,
 		Guid socialAccountId,
 		SocialPostVisibility visibility,
 		CancellationToken cancellationToken = default
@@ -562,7 +550,6 @@ public sealed class SocialAccountService {
 		var account = await (
 			from a in this._Db.SocialAccount
 			where a.Id == socialAccountId
-				&& a.TenantId == tenantId
 				&& !a.IsDeleted
 			select a
 		).FirstOrDefaultAsync(cancellationToken);

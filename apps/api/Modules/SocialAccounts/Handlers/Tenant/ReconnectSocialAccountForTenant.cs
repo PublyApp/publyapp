@@ -80,7 +80,6 @@ public sealed class ReconnectSocialAccountForTenant {
 		var appPassword = body.GetAppPassword();
 
 		var serviceResult = await socialAccountService.ReconnectForTenantAsync(
-			tenantId,
 			accountId,
 			appPassword,
 			cancellationToken

@@ -154,11 +154,12 @@ public sealed class SocialAccountServiceDisconnectSpec : IClassFixture<ApiFixtur
 		var db = sp.GetRequiredService<AppDbContext>();
 		var tenantId = await SocialAccountServiceDisconnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
+		db.ScopeToTenant(tenantId);
 		var connected = (ConnectSocialAccountResult.Connected)await service
 			.ConnectForTenantAsync(tenantId, "bye@example.com", "app-password");
 		var accountId = connected.Account.GetRequiredId();
 
-		var result = await service.DisconnectForTenantAsync(tenantId, accountId);
+		var result = await service.DisconnectForTenantAsync(accountId);
 
 		var disconnected = result.Should()
 			.BeOfType<DisconnectSocialAccountResult.Disconnected>().Subject;
@@ -183,10 +184,12 @@ public sealed class SocialAccountServiceDisconnectSpec : IClassFixture<ApiFixtur
 			.ConnectForTenantAsync(tenantA, "mine@example.com", "app-password");
 		var accountId = connected.Account.GetRequiredId();
 
-		var result = await service.DisconnectForTenantAsync(tenantB, accountId);
+		db.ScopeToTenant(tenantB);
+		var result = await service.DisconnectForTenantAsync(accountId);
 
 		result.Should().BeOfType<DisconnectSocialAccountResult.NotFound>();
-		var row = await db.SocialAccount.SingleAsync(a => a.Id == accountId);
+		await using var verify = SocialAccountServiceDisconnectSpec._CreateFreshDbContext(db);
+		var row = await verify.SocialAccount.SingleAsync(a => a.Id == accountId);
 		row.Status.Should().Be(SocialAccountStatus.Active);
 		row.ProtectedCredentials.Should().NotBeEmpty();
 	}
@@ -227,6 +230,7 @@ public sealed class SocialAccountServiceReconnectSpec : IClassFixture<ApiFixture
 		var db = sp.GetRequiredService<AppDbContext>();
 		var tenantId = await SocialAccountServiceReconnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
+		db.ScopeToTenant(tenantId);
 		var connected = (ConnectSocialAccountResult.Connected)await service
 			.ConnectForTenantAsync(tenantId, "flaky@example.com", "old-password");
 		var accountId = connected.Account.GetRequiredId();
@@ -238,8 +242,7 @@ public sealed class SocialAccountServiceReconnectSpec : IClassFixture<ApiFixture
 		// so reading rowBefore afterwards would silently observe the new secret.
 		var secretBefore = rowBefore.ProtectedCredentials;
 
-		var result = await service.ReconnectForTenantAsync(
-			tenantId, accountId, "new-password"
+		var result = await service.ReconnectForTenantAsync(accountId, "new-password"
 		);
 
 		var reconnected = result.Should()
@@ -263,6 +266,7 @@ public sealed class SocialAccountServiceReconnectSpec : IClassFixture<ApiFixture
 		var db = sp.GetRequiredService<AppDbContext>();
 		var tenantId = await SocialAccountServiceReconnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
+		db.ScopeToTenant(tenantId);
 		var connected = (ConnectSocialAccountResult.Connected)await service
 			.ConnectForTenantAsync(tenantId, "locked@example.com", "good-password");
 		var accountId = connected.Account.GetRequiredId();
@@ -272,8 +276,7 @@ public sealed class SocialAccountServiceReconnectSpec : IClassFixture<ApiFixture
 		sp.GetRequiredService<FakeBlueskyClient>().NextResult =
 			new BlueskySessionResult.AccountFailure("Credentials were refused.");
 
-		var result = await service.ReconnectForTenantAsync(
-			tenantId, accountId, "bad-password"
+		var result = await service.ReconnectForTenantAsync(accountId, "bad-password"
 		);
 
 		result.Should().BeOfType<ReconnectSocialAccountResult.Refused>();
@@ -290,13 +293,13 @@ public sealed class SocialAccountServiceReconnectSpec : IClassFixture<ApiFixture
 		var db = sp.GetRequiredService<AppDbContext>();
 		var tenantId = await SocialAccountServiceReconnectSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
+		db.ScopeToTenant(tenantId);
 		var connected = (ConnectSocialAccountResult.Connected)await service
 			.ConnectForTenantAsync(tenantId, "gone@example.com", "password");
 		var accountId = connected.Account.GetRequiredId();
-		await service.DisconnectForTenantAsync(tenantId, accountId);
+		await service.DisconnectForTenantAsync(accountId);
 
-		var result = await service.ReconnectForTenantAsync(
-			tenantId, accountId, "password"
+		var result = await service.ReconnectForTenantAsync(accountId, "password"
 		);
 
 		result.Should().BeOfType<ReconnectSocialAccountResult.NotFound>();
@@ -338,6 +341,7 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 		var db = sp.GetRequiredService<AppDbContext>();
 		var tenantId = await SocialAccountServiceFindSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
+		db.ScopeToTenant(tenantId);
 		var ids = new List<Guid>();
 		for (var i = 0; i < 3; i++) {
 			var connected = (ConnectSocialAccountResult.Connected)await service
@@ -345,16 +349,12 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 			ids.Add(connected.Account.GetRequiredId());
 		}
 
-		var page1 = (FindSocialAccountsResult.Success)await service.FindForTenantAsync(
-			tenantId,
-			new FindSocialAccountsArgs(Guid.Empty, 2, null, null, null)
+		var page1 = (FindSocialAccountsResult.Success)await service.FindForTenantAsync(new FindSocialAccountsArgs(Guid.Empty, 2, null, null, null)
 		);
 		page1.Data.Data.Should().HaveCount(2);
 		page1.Data.NextCursor.Should().NotBeNull();
 
-		var page2 = (FindSocialAccountsResult.Success)await service.FindForTenantAsync(
-			tenantId,
-			new FindSocialAccountsArgs(
+		var page2 = (FindSocialAccountsResult.Success)await service.FindForTenantAsync(new FindSocialAccountsArgs(
 				Guid.Parse(page1.Data.NextCursor.Required()), 2, null, null, null
 			)
 		);
@@ -371,6 +371,7 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 		var db = sp.GetRequiredService<AppDbContext>();
 		var tenantId = await SocialAccountServiceFindSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
+		db.ScopeToTenant(tenantId);
 		var projectA = new Project {
 			TenantId = tenantId,
 			Name = "Alpha",
@@ -387,16 +388,13 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 			.ConnectForTenantAsync(tenantId, "attached@example.com", "pw");
 		var unattached = (ConnectSocialAccountResult.Connected)await service
 			.ConnectForTenantAsync(tenantId, "roaming@example.com", "pw");
-		await service.SetProjectsForTenantAsync(
-			tenantId, attached.Account.GetRequiredId(), [projectA.GetRequiredId()]
+		await service.SetProjectsForTenantAsync(attached.Account.GetRequiredId(), [projectA.GetRequiredId()]
 		);
 
 		// Visibility (spec §2): unattached accounts are visible everywhere, attached
 		// ones only in their projects. Alpha sees BOTH; Beta sees only the unattached.
 		var forAlpha = (FindSocialAccountsResult.Success)await service
-			.FindForTenantAsync(
-				tenantId,
-				new FindSocialAccountsArgs(
+			.FindForTenantAsync(new FindSocialAccountsArgs(
 					Guid.Empty, 50, null, null, projectA.GetRequiredId()
 				)
 			);
@@ -406,9 +404,7 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 		]);
 
 		var forBeta = (FindSocialAccountsResult.Success)await service
-			.FindForTenantAsync(
-				tenantId,
-				new FindSocialAccountsArgs(
+			.FindForTenantAsync(new FindSocialAccountsArgs(
 					Guid.Empty, 50, null, null, projectB.GetRequiredId()
 				)
 			);
@@ -417,8 +413,7 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 		);
 
 		var unfiltered = (FindSocialAccountsResult.Success)await service
-			.FindForTenantAsync(
-				tenantId, new FindSocialAccountsArgs(Guid.Empty, 50, null, null, null)
+			.FindForTenantAsync(new FindSocialAccountsArgs(Guid.Empty, 50, null, null, null)
 			);
 		unfiltered.Data.Data.Should().HaveCount(2);
 	}
@@ -431,11 +426,11 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 		var tenantA = await SocialAccountServiceFindSpec._SeedTenantAsync(db);
 		var tenantB = await SocialAccountServiceFindSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
+		db.ScopeToTenant(tenantA);
 		await service.ConnectForTenantAsync(tenantA, "a@example.com", "pw");
 		await service.ConnectForTenantAsync(tenantB, "b@example.com", "pw");
 
-		var forA = (FindSocialAccountsResult.Success)await service.FindForTenantAsync(
-			tenantA, new FindSocialAccountsArgs(Guid.Empty, 50, null, null, null)
+		var forA = (FindSocialAccountsResult.Success)await service.FindForTenantAsync(new FindSocialAccountsArgs(Guid.Empty, 50, null, null, null)
 		);
 
 		forA.Data.Data.Should().ContainSingle();
@@ -449,10 +444,9 @@ public sealed class SocialAccountServiceFindSpec : IClassFixture<ApiFixture> {
 		var db = sp.GetRequiredService<AppDbContext>();
 		var tenantId = await SocialAccountServiceFindSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
+		db.ScopeToTenant(tenantId);
 
-		var result = await service.FindForTenantAsync(
-			tenantId,
-			new FindSocialAccountsArgs(Guid.Empty, 50, "handle", null, null)
+		var result = await service.FindForTenantAsync(new FindSocialAccountsArgs(Guid.Empty, 50, "handle", null, null)
 		);
 
 		result.Should().BeOfType<FindSocialAccountsResult.InvalidSortId>();
@@ -485,6 +479,7 @@ public sealed class SocialAccountServiceSetProjectsSpec : IClassFixture<ApiFixtu
 		var db = sp.GetRequiredService<AppDbContext>();
 		var tenantId = await SocialAccountServiceSetProjectsSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
+		db.ScopeToTenant(tenantId);
 		var p1 = new Project { TenantId = tenantId, Name = "One" };
 		var p2 = new Project { TenantId = tenantId, Name = "Two" };
 		db.Project.AddRange(p1, p2);
@@ -493,12 +488,10 @@ public sealed class SocialAccountServiceSetProjectsSpec : IClassFixture<ApiFixtu
 			.ConnectForTenantAsync(tenantId, "projects@example.com", "pw");
 		var accountId = connected.Account.GetRequiredId();
 
-		await service.SetProjectsForTenantAsync(
-			tenantId, accountId, [p1.GetRequiredId(), p2.GetRequiredId()]
+		await service.SetProjectsForTenantAsync(accountId, [p1.GetRequiredId(), p2.GetRequiredId()]
 		);
 		var applied = (SetSocialAccountProjectsResult.Applied)await service
-			.SetProjectsForTenantAsync(
-				tenantId, accountId, [p2.GetRequiredId()]
+			.SetProjectsForTenantAsync(accountId, [p2.GetRequiredId()]
 			);
 
 		applied.AttachedCount.Should().Be(0);
@@ -516,6 +509,7 @@ public sealed class SocialAccountServiceSetProjectsSpec : IClassFixture<ApiFixtu
 		var tenantA = await SocialAccountServiceSetProjectsSpec._SeedTenantAsync(db);
 		var tenantB = await SocialAccountServiceSetProjectsSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
+		db.ScopeToTenant(tenantA);
 		var foreignProject = new Project { TenantId = tenantB, Name = "Foreign" };
 		db.Project.Add(foreignProject);
 		await db.SaveChangesAsync();
@@ -523,8 +517,7 @@ public sealed class SocialAccountServiceSetProjectsSpec : IClassFixture<ApiFixtu
 			.ConnectForTenantAsync(tenantA, "guard@example.com", "pw");
 		var accountId = connected.Account.GetRequiredId();
 
-		var result = await service.SetProjectsForTenantAsync(
-			tenantA, accountId, [foreignProject.GetRequiredId()]
+		var result = await service.SetProjectsForTenantAsync(accountId, [foreignProject.GetRequiredId()]
 		);
 
 		var invalid = result.Should()
@@ -541,18 +534,18 @@ public sealed class SocialAccountServiceSetProjectsSpec : IClassFixture<ApiFixtu
 		var db = sp.GetRequiredService<AppDbContext>();
 		var tenantId = await SocialAccountServiceSetProjectsSpec._SeedTenantAsync(db);
 		var service = sp.GetRequiredService<SocialAccountService>();
+		db.ScopeToTenant(tenantId);
 		var project = new Project { TenantId = tenantId, Name = "Solo" };
 		db.Project.Add(project);
 		await db.SaveChangesAsync();
 		var connected = (ConnectSocialAccountResult.Connected)await service
 			.ConnectForTenantAsync(tenantId, "everywhere@example.com", "pw");
 		var accountId = connected.Account.GetRequiredId();
-		await service.SetProjectsForTenantAsync(
-			tenantId, accountId, [project.GetRequiredId()]
+		await service.SetProjectsForTenantAsync(accountId, [project.GetRequiredId()]
 		);
 
 		var applied = (SetSocialAccountProjectsResult.Applied)await service
-			.SetProjectsForTenantAsync(tenantId, accountId, []);
+			.SetProjectsForTenantAsync(accountId, []);
 
 		applied.DetachedCount.Should().Be(1);
 		db.SocialAccountProject.Where(l => l.SocialAccountId == accountId)

@@ -136,7 +136,6 @@ public sealed class MastodonOAuthService {
 				.AsNoTracking()
 				.AnyAsync(
 					account => account.Id == target
-						&& account.TenantId == tenantId
 						&& account.Provider == provider
 						&& !account.IsDeleted
 						&& account.ExternalAccountId.EndsWith("@" + host),
@@ -166,7 +165,7 @@ public sealed class MastodonOAuthService {
 		// Pending flows older than a day are dead weight; sweep them opportunistically.
 		var cutoff = DateTime.UtcNow.AddDays(-1);
 		await this._Db.OAuthState
-			.Where(state => state.TenantId == tenantId && state.ExpiresAt < cutoff)
+			.Where(state => state.ExpiresAt < cutoff)
 			.ExecuteDeleteAsync(cancellationToken);
 
 		// PKCE (RFC 7636, S256) when the instance advertises it; an instance that does not
@@ -221,7 +220,6 @@ public sealed class MastodonOAuthService {
 		var pending = await this._Db.OAuthState
 			.AsNoTracking()
 			.Where(row => row.StateHash == hash
-				&& row.TenantId == tenantId
 				&& row.UserId == userId
 				&& row.ConsumedAt == null
 				&& row.ExpiresAt > now)
@@ -299,7 +297,7 @@ public sealed class MastodonOAuthService {
 		if (pending.ReconnectSocialAccountId is { } reconnecting) {
 			var expected = await this._Db.SocialAccount
 				.AsNoTracking()
-				.Where(row => row.Id == reconnecting && row.TenantId == tenantId && !row.IsDeleted)
+				.Where(row => row.Id == reconnecting && !row.IsDeleted)
 				.Select(row => new { row.ExternalAccountId, row.DisplayHandle })
 				.FirstOrDefaultAsync(cancellationToken);
 			if (expected is not null && expected.ExternalAccountId != $"{account.Value.Id}@{host}") {
@@ -327,14 +325,12 @@ public sealed class MastodonOAuthService {
 	/// (null when the account is not a usable Mastodon account).
 	/// </summary>
 	public async Task<MastodonRevocation?> PrepareRevocationAsync(
-		Guid tenantId,
 		Guid socialAccountId,
 		CancellationToken cancellationToken
 	) {
 		var stored = await this._Db.SocialAccount
 			.AsNoTracking()
 			.Where(account => account.Id == socialAccountId
-				&& account.TenantId == tenantId
 				&& (account.Provider == SocialProvider.Mastodon || account.Provider == SocialProvider.Pixelfed)
 				&& !account.IsDeleted)
 			.Select(account => new { account.Provider, account.ProtectedCredentials })
@@ -559,8 +555,7 @@ public sealed class MastodonOAuthService {
 		var handle = $"{identity.Acct}@{host}";
 		var protectedCredentials = new MastodonCredentials(host, accessToken).Protect(this._Protector, provider);
 		var existing = await this._Db.SocialAccount.FirstOrDefaultAsync(
-			account => account.TenantId == tenantId
-				&& account.Provider == provider
+			account => account.Provider == provider
 				&& account.ExternalAccountId == externalId
 				&& !account.IsDeleted,
 			cancellationToken

@@ -44,10 +44,10 @@ public sealed class DisconnectSocialAccountForTenant {
 
 		// Captured while the token still exists; the revoke itself runs AFTER the
 		// local disconnect (below), so a dead instance never blocks it.
-		var revocation = await mastodonOAuthService.PrepareRevocationAsync(tenantId, accountId, cancellationToken);
+		var revocation = await mastodonOAuthService.PrepareRevocationAsync(accountId, cancellationToken);
 
 		var serviceResult = await socialAccountService.DisconnectForTenantAsync(
-			tenantId, accountId, cancellationToken
+			accountId, cancellationToken
 		);
 
 		if (serviceResult is DisconnectSocialAccountResult.NotFound) {

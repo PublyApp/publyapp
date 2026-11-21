@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Handlers.Tenant;
@@ -24,18 +23,10 @@ public sealed record AccountItem(
 /// </summary>
 public sealed class FindNeedsReconnectAccountsForTenant {
 	public static async Task<Ok<FindNeedsReconnectAccountsForTenantResponse>> Handle(
-		[FromServices] IRequestAuthContext authContext,
 		[FromServices] SocialAccountService socialAccountService,
 		CancellationToken cancellationToken = default
 	) {
-		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
-			throw new InvalidOperationException(
-				$"{nameof(authContext.TenantId)} is not a GUID"
-			);
-		}
-
 		var accounts = await socialAccountService.FindNeedsReconnectAccountsAsync(
-			tenantId,
 			cancellationToken
 		);
 

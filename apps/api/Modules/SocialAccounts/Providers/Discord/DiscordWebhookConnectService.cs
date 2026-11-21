@@ -74,8 +74,7 @@ public sealed class DiscordWebhookConnectService {
 			.Protect(this._Protector);
 		var handle = ok.Info.Name.Length > 100 ? ok.Info.Name[..100] : ok.Info.Name;
 		var sameWebhook = await this._Db.SocialAccount.FirstOrDefaultAsync(
-			account => account.TenantId == tenantId
-				&& account.Provider == SocialProvider.DiscordWebhook
+			account => account.Provider == SocialProvider.DiscordWebhook
 				&& account.ExternalAccountId == webhook.Id
 				&& !account.IsDeleted,
 			cancellationToken
@@ -84,7 +83,6 @@ public sealed class DiscordWebhookConnectService {
 		if (replaceAccountId is { } replaceId) {
 			existing = await this._Db.SocialAccount.FirstOrDefaultAsync(
 				account => account.Id == replaceId
-					&& account.TenantId == tenantId
 					&& account.Provider == SocialProvider.DiscordWebhook
 					&& account.Status != SocialAccountStatus.Revoked
 					&& !account.IsDeleted,

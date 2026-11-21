@@ -45,12 +45,6 @@ public sealed class FindSocialAccountsForTenant {
 		[FromServices] SocialAccountService socialAccountService,
 		CancellationToken cancellationToken = default
 	) {
-		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
-			throw new InvalidOperationException(
-				$"{nameof(authContext.TenantId)} is not a GUID"
-			);
-		}
-
 		// Guard: this endpoint must stay behind .WithTenantPermission(...).
 		_ = authContext.GetRequiredTenantAccount();
 
@@ -78,7 +72,6 @@ public sealed class FindSocialAccountsForTenant {
 		}
 
 		var serviceResult = await socialAccountService.FindForTenantAsync(
-			tenantId,
 			new FindSocialAccountsArgs(
 				Cursor: cursorGuid,
 				Limit: query.GetLimit(),
