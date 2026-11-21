@@ -75,10 +75,6 @@ vi.mock('~/components/error-views/View404', () => ({
 	View404: () => <div data-testid="view-404-stub" />,
 }));
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 // eslint-disable-next-line import/first -- must follow the vi.mock calls above
 import { Route } from './layout';
 

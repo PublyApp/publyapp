@@ -2,6 +2,8 @@
 import { cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+vi.unmock('~/components/error-views/LogoutRedirect');
+
 const mocks = vi.hoisted(() => ({
 	logout: vi.fn(),
 	location: { pathname: '/staff/tenants/1', searchStr: '?q=alice' },

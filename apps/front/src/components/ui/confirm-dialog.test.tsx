@@ -6,10 +6,6 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { ConfirmDialog } from './confirm-dialog';
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 const noop = () => undefined;
 
 const baseProps = {

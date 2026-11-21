@@ -10,7 +10,9 @@ import { renderHook } from '@testing-library/react';
 import { createElement } from 'react';
 import type { ReactNode } from 'react';
 import { I18nextProvider } from 'react-i18next';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+
+vi.unmock('react-i18next');
 import resourceEN from '~/i18n/locales/en';
 import resourceFR from '~/i18n/locales/fr';
 import { createI18nFromResources } from '~/lib/i18n/react-i18n';

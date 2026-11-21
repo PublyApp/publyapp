@@ -3,14 +3,7 @@
  */
 import { cleanup, render, screen } from '@testing-library/react';
 import type { ReactElement } from 'react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
-
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({
-		t: (key: string) => key,
-		i18n: { resolvedLanguage: 'en', language: 'en' },
-	}),
-}));
+import { afterEach, describe, expect, test } from 'vitest';
 
 // eslint-disable-next-line import/first -- must follow the vi.mock call above
 import {

@@ -5,6 +5,8 @@ import type { ReactNode } from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+vi.unmock('react-i18next');
+
 import enResource from '@org/shared-ts/lib/i18n/locales/en';
 import frResource from '@org/shared-ts/lib/i18n/locales/fr';
 

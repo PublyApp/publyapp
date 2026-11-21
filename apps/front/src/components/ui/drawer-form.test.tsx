@@ -228,13 +228,6 @@ import {
 } from '../../../e2e/helpers/drawer-form-call-sites';
 import { createGuardTempDir } from './drawer-guard-tmp-dir.ts';
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({
-		t: (key: string) => key,
-		i18n: { language: 'en' },
-	}),
-}));
-
 vi.mock('@tanstack/react-query', () => ({
 	useQueryClient: () => ({}),
 	// The create-post drawer's image hooks call useMutation; without it the
