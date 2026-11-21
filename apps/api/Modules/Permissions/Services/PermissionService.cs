@@ -8,7 +8,6 @@ using PublyApp.Api.Modules.Users.Entities;
 namespace PublyApp.Api.Modules.Permissions.Services;
 
 public interface IPermissionService {
-	Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null, Guid? projectId = null);
 	Task<HashSet<string>> GetPermissionsAsync(Guid userId);
 	Task<HashSet<string>> GetTenantPermissionsAsync(Guid userId, Guid tenantId);
 	Task<HashSet<string>> GetPermissionsForRolesAsync(List<Guid> roleIds);
@@ -30,49 +29,6 @@ public class PermissionService : IPermissionService {
 	}
 
 	/// <summary>
-	/// Gets all effective permissions for a user across all their roles.
-	/// This method works seamlessly with the existing PermissionFilter.
-	/// Optimized query that uses proper indexing for better performance.
-	/// </summary>
-	/// <param name="userId">The user ID</param>
-	/// <param name="tenantId">Optional tenant ID for tenant-scoped permissions</param>
-	/// <param name="projectId">Optional project ID for project-scoped permissions</param>
-	/// <returns>HashSet of permission keys</returns>
-	public async Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null, Guid? projectId = null) {
-		if (await this._HasFullAccessRoleAsync(userId, tenantId, projectId)) {
-			return [PermissionService.WildcardPermission];
-		}
-
-		// Join tables are active-state only. Do not add IsDeleted filters here:
-		// removing a role or permission assignment physically removes the row.
-		var userPermissions = await this._Context.Set<RolePermission>()
-			.Join(this._Context.Set<UserAccountRole>(),
-				pp => pp.RoleId,
-				uap => uap.RoleId,
-				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId })
-			.Join(this._Context.Set<UserAccount>()
-				.Where(ua => !ua.IsDeleted && ua.Status != AccountStatus.Suspended),
-				joined => joined.UserAccountId,
-				ua => ua.Id,
-				(joined, ua) => new {
-					joined.PermissionKey,
-					ua.UserId,
-					ua.TenantId,
-					ua.ProjectId,
-					ua.Scope
-				})
-			.Where(x => x.UserId == userId)
-			// Apply scope filtering if provided
-			.Where(x => tenantId == null || x.TenantId == tenantId)
-			.Where(x => projectId == null || x.ProjectId == projectId)
-			.Select(x => x.PermissionKey)
-			.Distinct() // Remove duplicates
-			.ToHashSetAsync();
-
-		return userPermissions;
-	}
-
-	/// <summary>
 	/// Gets staff permissions for a user (from staff roles)
 	/// </summary>
 	public async Task<HashSet<string>> GetPermissionsAsync(Guid userId) {
@@ -82,9 +38,11 @@ public class PermissionService : IPermissionService {
 
 		// Important: respect soft-deletes on user/account entities. Junction rows are hard
 		// deleted when unassigned, so row existence is the active membership state.
+		// JUSTIFIED cross-tenant: staff roles carry no tenant, so the staff actor's own roles
+		// must stay visible on a context scoped to a tenant by a staff route.
 		return await this._Context.Set<RolePermission>()
 			.Join(
-				this._Context.Set<UserAccountRole>(),
+				this._Context.Set<UserAccountRole>().IgnoreQueryFilters([AppDbContext.TenantFilterName]),
 				pp => pp.RoleId,
 				uap => uap.RoleId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId }
@@ -179,7 +137,9 @@ public class PermissionService : IPermissionService {
 		// Same liveness contract as every effective-permission read: the junction row means
 		// "assigned", while the account and role must be live and the account active.
 		var query =
-			from uap in this._Context.Set<UserAccountRole>()
+			// JUSTIFIED cross-tenant: staff full-access roles carry no tenant, and the account
+			// scope/tenant is narrowed explicitly below.
+			from uap in this._Context.Set<UserAccountRole>().IgnoreQueryFilters([AppDbContext.TenantFilterName])
 			join ua in this._Context.Set<UserAccount>() on uap.UserAccountId equals ua.Id
 			join p in this._Context.Set<Role>() on uap.RoleId equals p.Id
 			where ua.UserId == userId

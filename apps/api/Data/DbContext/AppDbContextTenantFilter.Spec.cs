@@ -40,7 +40,7 @@ public sealed class AppDbContextTenantFilterSpec : IClassFixture<ApiFixture> {
 		return new AppDbContext(builder.Options);
 	}
 
-	private static async Task<(Guid TenantId, Guid PostId)> _SeedAsync(AppDbContext db) {
+	internal static async Task<(Guid TenantId, Guid PostId)> SeedAsync(AppDbContext db) {
 		var tenant = new Tenant {
 			Name = $"tenant-filter-{Guid.NewGuid():N}",
 			Code = Guid.NewGuid().ToString("N")[..10],
@@ -71,8 +71,8 @@ public sealed class AppDbContextTenantFilterSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldFilterByEachContextsOwnTenantWhenContextsShareOneModel() {
 		// No-tenant context first: it must not decide the filter for later contexts.
 		await using var seedDb = await this._NewDbAsync(null);
-		var (tenantA, postA) = await AppDbContextTenantFilterSpec._SeedAsync(seedDb);
-		var (tenantB, postB) = await AppDbContextTenantFilterSpec._SeedAsync(seedDb);
+		var (tenantA, postA) = await AppDbContextTenantFilterSpec.SeedAsync(seedDb);
+		var (tenantB, postB) = await AppDbContextTenantFilterSpec.SeedAsync(seedDb);
 
 		await using var dbA = await this._NewDbAsync(tenantA);
 		await using var dbB = await this._NewDbAsync(tenantB);
@@ -87,8 +87,8 @@ public sealed class AppDbContextTenantFilterSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldNotFilterWhenTheContextHasNoTenant() {
 		await using var seedDb = await this._NewDbAsync(null);
-		var (_, postA) = await AppDbContextTenantFilterSpec._SeedAsync(seedDb);
-		var (tenantB, postB) = await AppDbContextTenantFilterSpec._SeedAsync(seedDb);
+		var (_, postA) = await AppDbContextTenantFilterSpec.SeedAsync(seedDb);
+		var (tenantB, postB) = await AppDbContextTenantFilterSpec.SeedAsync(seedDb);
 
 		// Tenant context created before the no-tenant read.
 		await using var dbB = await this._NewDbAsync(tenantB);
@@ -99,7 +99,7 @@ public sealed class AppDbContextTenantFilterSpec : IClassFixture<ApiFixture> {
 	}
 
 	private static async Task<(Guid TenantId, Guid RoleId)> _SeedMembershipAsync(AppDbContext db) {
-		var (tenantId, _) = await AppDbContextTenantFilterSpec._SeedAsync(db);
+		var (tenantId, _) = await AppDbContextTenantFilterSpec.SeedAsync(db);
 		var user = new User {
 			Email = $"tenant-filter-{Guid.NewGuid():N}@example.com",
 			Password = "unused",

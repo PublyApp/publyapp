@@ -31,10 +31,17 @@ using Resend;
 namespace PublyApp.Api.Lib;
 
 public static class ServiceRegistration {
-	// Helper method to get current tenant ID
-	private static Guid? _GetCurrentTenantId(IHttpContextAccessor httpContextAccessor) {
+	// The request's tenant from the header; the one place that rule lives (the test factory
+	// calls it too). Staff routes are always unscoped here.
+	public static Guid? GetCurrentTenantId(IHttpContextAccessor httpContextAccessor) {
 		var httpContext = httpContextAccessor.HttpContext;
 		if (httpContext is null) {
+			return null;
+		}
+
+		// Staff routes never take their tenant from the header: they start unscoped, and
+		// PermissionFilter scopes them from the {tenantId} route value after authorization.
+		if (httpContext.Request.Path.StartsWithSegments(Routes.Routes.Staff.Root)) {
 			return null;
 		}
 
@@ -175,7 +182,7 @@ public static class ServiceRegistration {
 		// Register scoped DbContext (for per-request instances)
 		builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) => {
 			var httpContextAccessor = serviceProvider.GetRequiredService<IHttpContextAccessor>();
-			var tenantId = ServiceRegistration._GetCurrentTenantId(httpContextAccessor);
+			var tenantId = ServiceRegistration.GetCurrentTenantId(httpContextAccessor);
 
 			options.UseNpgsql(AppEnvironment.Instance.POSTGRES_CONNECTION_STRING);
 

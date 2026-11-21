@@ -44,6 +44,9 @@ public sealed class DispatchDuePostsJob : IJobHandler {
 	) {
 		var scheduledStatus = (int)PublicationStatus.Scheduled;
 
+		// JUSTIFIED cross-tenant: a platform job. This context carries no tenant, so the scan
+		// below sees every tenant's due publications on purpose.
+
 		// One transaction spans the whole claim -> keyed-enqueue -> InProgress
 		// sequence: the FOR UPDATE row locks live exactly as long as the dedup
 		// inserts, so a competing scan either SKIPS the still-locked row or
@@ -66,21 +69,20 @@ public sealed class DispatchDuePostsJob : IJobHandler {
 			cancellationToken.ThrowIfCancellationRequested();
 
 			var key = PublicationIdempotencyKey.For(publicationId);
+			var tenantId = await this._TenantOfAsync(publicationId, cancellationToken);
 			_ = await this._JobEnqueuer.EnqueueAsync(
 				PublishingJobs.PublishPublicationV1,
 				new PublishPublicationPayload {
 					PublicationId = publicationId,
 					IdempotencyKey = key,
 				},
-				new EnqueueOptions { IdempotencyKey = key },
+				// The publish job works on this one tenant's data: its worker context is scoped to it.
+				new EnqueueOptions { IdempotencyKey = key, TenantId = tenantId },
 				cancellationToken
 			);
 
 			_ = await this._Transitions.MarkInProgressAsync(
-				new MarkPublicationInProgressArgs(
-					publicationId,
-					await this._TenantOfAsync(publicationId, cancellationToken)
-				),
+				new MarkPublicationInProgressArgs(publicationId, tenantId),
 				cancellationToken
 			);
 		}

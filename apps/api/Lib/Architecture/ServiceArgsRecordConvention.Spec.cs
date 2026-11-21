@@ -42,11 +42,6 @@ public sealed class ServiceArgsRecordConventionSpec {
 	private static readonly HashSet<string> _AllowedMultiParamMethods = new(
 		StringComparer.Ordinal
 	) {
-		// Optional permission-scope discriminators on a hot read path; folding three
-		// IDs into an args record here buys little and would churn every caller of
-		// the PermissionFilter. Ratchet target.
-		"IPermissionService.GetEffectivePermissionsAsync(Guid, Guid?, Guid?)",
-
 		// (tenantId, userId, document) tenant-user update; should adopt an
 		// UpdateTenantUserArgs record like its siblings. Ratchet target.
 		"ITenantUserMembershipService.UpdateTenantUserAsync"

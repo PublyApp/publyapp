@@ -337,6 +337,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 		return await query.CountAsync(cancellationToken);
 	}
 
+	// JUSTIFIED cross-tenant: the staff tenant list counts projects across all tenants.
 	public async Task<FindTenantsAsStaffServiceResult> FindTenantsAsStaffAsync(
 		FindTenantsAsStaffArgs args,
 		CancellationToken cancellationToken = default

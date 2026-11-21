@@ -584,6 +584,12 @@ public sealed class JobQueueProcessor : BackgroundService {
 			);
 		}
 
+		// A job that works on one tenant's data runs on a context scoped to that tenant, set
+		// before the handler is built so its AppDbContext (same scoped instance) is filtered.
+		if (context.TenantId is Guid jobTenantId) {
+			scopedProvider.GetRequiredService<AppDbContext>().ScopeToTenant(jobTenantId);
+		}
+
 		var handler = registration.Factory(scopedProvider);
 
 		if (!string.Equals(handler.JobType, context.JobType, StringComparison.Ordinal)) {

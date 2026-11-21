@@ -33,9 +33,10 @@ public sealed class JobEnqueuer : IJobEnqueuer {
 			Priority = definition.Priority,
 			MaxAttempts = definition.MaxAttempts,
 			IdempotencyKey = options?.IdempotencyKey,
-			// Provenance envelope (F15): trusted request identity when present,
-			// current trace id for correlation. All null for system-originated work.
-			TenantId = JobEnqueuer._ParseTenantId(this._AuthContext.TenantId),
+			// Provenance envelope (F15): the tenant is the trusted request identity, or the
+			// explicit option for platform jobs that have no request tenant; the current
+			// trace id is the correlation. Null for system-originated work without a tenant.
+			TenantId = this._ResolveTenantId(options),
 			ActorUserId = this._AuthContext.UserId,
 			CorrelationId = Activity.Current?.Id
 		};
@@ -95,6 +96,23 @@ public sealed class JobEnqueuer : IJobEnqueuer {
 				$"Job '{definition.JobType}' Priority must be between 0 and 1000."
 			);
 		}
+	}
+
+	// The option may only name a tenant when the request has none: a request tenant that
+	// differs would scope the job to another tenant's data.
+	private Guid? _ResolveTenantId(EnqueueOptions? options) {
+		var requestTenantId = JobEnqueuer._ParseTenantId(this._AuthContext.TenantId);
+		if (options?.TenantId is not Guid optionTenantId) {
+			return requestTenantId;
+		}
+
+		if (requestTenantId is Guid current && current != optionTenantId) {
+			throw new InvalidOperationException(
+				"EnqueueOptions.TenantId differs from the request's tenant."
+			);
+		}
+
+		return optionTenantId;
 	}
 
 	private static Guid? _ParseTenantId(string? tenantId) {
