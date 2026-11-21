@@ -202,7 +202,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		get { return this.Set<Modules.Publishing.Entities.Publication>(); }
 	}
 
-	public Guid? TenantId { get; set; }
+	public Guid? TenantId { get; }
 
 	public AppDbContext(DbContextOptions options) : base(options) {
 		var extension = options.FindExtension<TenantExtension>();
@@ -428,6 +428,8 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 			.IsUnique()
 			.HasFilter("\"FriendlyName\" = 'social-accounts-master-key-canary'");
 
+		// A raw FromSql on a filtered set is wrapped by this filter: non-composable SQL
+		// (UPDATE ... RETURNING, FOR UPDATE CTE) needs IgnoreQueryFilters() + an explicit tenant predicate.
 		// Query filters read this context's TenantId per query (EF parameterizes the
 		// context member): the model is built once per process, so nothing about the
 		// current tenant may be captured here. No tenant on the context = no filter.

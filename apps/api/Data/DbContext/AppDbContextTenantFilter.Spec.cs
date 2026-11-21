@@ -3,15 +3,15 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Posts.Entities;
+using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
-namespace PublyApp.Api.Tests.Data.DbContext;
+namespace PublyApp.Api.Data.DbContext;
 
 // EF builds the model once per process, so the tenant query filter must read
 // the context's tenant per query instead of capturing it at model build time.
@@ -68,7 +68,7 @@ public sealed class AppDbContextTenantFilterSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldFilterByEachContextsOwnTenantWithinOneProcess() {
+	public async Task ItShouldFilterByEachContextsOwnTenantWhenContextsShareOneModel() {
 		// No-tenant context first: it must not decide the filter for later contexts.
 		await using var seedDb = await this._NewDbAsync(null);
 		var (tenantA, postA) = await AppDbContextTenantFilterSpec._SeedAsync(seedDb);
@@ -96,5 +96,51 @@ public sealed class AppDbContextTenantFilterSpec : IClassFixture<ApiFixture> {
 
 		var seenByNone = await seedDb.Post.Select(p => p.Id).ToListAsync();
 		seenByNone.Should().Contain([postA, postB]);
+	}
+
+	private static async Task<(Guid TenantId, Guid RoleId)> _SeedMembershipAsync(AppDbContext db) {
+		var (tenantId, _) = await AppDbContextTenantFilterSpec._SeedAsync(db);
+		var user = new User {
+			Email = $"tenant-filter-{Guid.NewGuid():N}@example.com",
+			Password = "unused",
+			IsVerified = true,
+		};
+		db.User.Add(user);
+		await db.SaveChangesAsync();
+
+		var account = new UserAccount {
+			UserId = user.GetRequiredId(),
+			TenantId = tenantId,
+			Scope = AccountScope.Tenant,
+			Status = AccountStatus.Active,
+		};
+		var role = Role.CreateTenantRole(tenantId, $"tenant-filter-{Guid.NewGuid():N}"[..24], "spec");
+		db.UserAccount.Add(account);
+		db.Role.Add(role);
+		await db.SaveChangesAsync();
+
+		db.UserAccountRole.Add(new UserAccountRole {
+			UserAccountId = account.GetRequiredId(),
+			RoleId = role.GetRequiredId(),
+		});
+		await db.SaveChangesAsync();
+
+		return (tenantId, role.GetRequiredId());
+	}
+
+	[Fact]
+	public async Task ItShouldFilterRoleLinksByEachContextsOwnTenantWhenContextsShareOneModel() {
+		await using var seedDb = await this._NewDbAsync(null);
+		var (tenantA, roleA) = await AppDbContextTenantFilterSpec._SeedMembershipAsync(seedDb);
+		var (tenantB, roleB) = await AppDbContextTenantFilterSpec._SeedMembershipAsync(seedDb);
+
+		await using var dbA = await this._NewDbAsync(tenantA);
+		await using var dbB = await this._NewDbAsync(tenantB);
+
+		var seenByA = await dbA.UserAccountRole.Select(l => l.RoleId).ToListAsync();
+		var seenByB = await dbB.UserAccountRole.Select(l => l.RoleId).ToListAsync();
+
+		seenByA.Should().Contain(roleA).And.NotContain(roleB);
+		seenByB.Should().Contain(roleB).And.NotContain(roleA);
 	}
 }
