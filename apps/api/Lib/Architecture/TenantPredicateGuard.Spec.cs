@@ -38,7 +38,7 @@ public sealed partial class TenantPredicateGuardSpec {
 
 	private sealed record Hit(string File, string Predicate);
 
-	// Every kept predicate the scan sees carries a one-line comment in the code saying why (#2460).
+	// Every kept predicate the scan sees carries a one-line comment in the code saying why (#2460), except TenantAsStaffService (its function is over the complexity cap, so it stays untouched): its why is the allow-list reason.
 	private static readonly Allowed[] _AllowList = [
 		new(
 			"Modules/Publishing/Services/PublicationStatusTransitionService.cs",
@@ -62,7 +62,7 @@ public sealed partial class TenantPredicateGuardSpec {
 			"Modules/Aggregators/Services/AggregatorConnectionService.cs",
 			"c.TenantId == tenantId",
 			2,
-			"aggregators module not migrated yet (#2460 step 2); remove with its predicates"
+			"aggregators module not migrated yet (#2460 follow-up); remove with its predicates"
 		),
 	];
 
