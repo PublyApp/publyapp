@@ -6,9 +6,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -76,10 +74,7 @@ internal static class TenantBulkActionSpecSupport {
 		string namePrefix,
 		TenantStatus status
 	) {
-		await using var scope =
-			fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"{namePrefix} {Guid.NewGuid():N}",
@@ -88,8 +83,8 @@ internal static class TenantBulkActionSpecSupport {
 			MaxUsers = 10,
 		};
 
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		return new SeededTenantSnapshot(
 			TenantId: tenant.GetRequiredId(),
@@ -101,13 +96,10 @@ internal static class TenantBulkActionSpecSupport {
 		ApiFixture fixture,
 		Guid tenantId
 	) {
-		await using var scope =
-			fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = fixture.OpenDb();
 
 		var query =
-			from tenant in dbContext.Tenant.IgnoreQueryFilters()
+			from tenant in db.Context.Tenant.IgnoreQueryFilters()
 			where tenant.Id == tenantId
 			select tenant;
 
@@ -120,13 +112,10 @@ internal static class TenantBulkActionSpecSupport {
 		Guid actorUserId,
 		DateTime startedAt
 	) {
-		await using var scope =
-			fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = fixture.OpenDb();
 
 		var query =
-			from log in dbContext.AuditLog
+			from log in db.Context.AuditLog
 			where log.Action == action
 				&& log.UserId == actorUserId
 				&& log.CreatedAt >= startedAt
@@ -165,13 +154,10 @@ internal static class TenantBulkActionSpecSupport {
 			email
 		);
 
-		await using var scope =
-			fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = fixture.OpenDb();
 
 		var staffAccountQuery =
-			from account in dbContext.UserAccount
+			from account in db.Context.UserAccount
 			where account.UserId == userId
 				&& account.Scope == AccountScope.Staff
 				&& !account.IsDeleted
@@ -184,22 +170,22 @@ internal static class TenantBulkActionSpecSupport {
 			"Test-only staff role for tenant bulk action permissions"
 		);
 
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
-		await dbContext.RolePermission.AddAsync(
+		await db.Context.RolePermission.AddAsync(
 			new RolePermission {
 				RoleId = role.GetRequiredId(),
 				PermissionKey = permissionKey,
 			}
 		);
-		await dbContext.UserAccountRole.AddAsync(
+		await db.Context.UserAccountRole.AddAsync(
 			new UserAccountRole {
 				UserAccountId = staffAccount.GetRequiredId(),
 				RoleId = role.GetRequiredId(),
 			}
 		);
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return await authClient.LoginAsync(
 			email,

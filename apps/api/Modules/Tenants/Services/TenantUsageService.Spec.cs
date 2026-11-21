@@ -563,11 +563,9 @@ public sealed class TenantUsageServiceSpec
 	}
 
 	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var connectionString = dbContext.Database.GetConnectionString();
+		var connectionString = db.Context.Database.GetConnectionString();
 		if (connectionString is null) {
 			throw new InvalidOperationException(
 				"Test database connection string was unexpectedly null."
@@ -651,8 +649,7 @@ public sealed class TenantUsageServiceSpec
 	}
 
 	private async Task<Guid> _SeedBareTenantAsync(string namePrefix) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"{namePrefix} {Guid.NewGuid():N}",
@@ -660,15 +657,14 @@ public sealed class TenantUsageServiceSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
 	}
 
 	private async Task<Guid> _SeedSoftDeletedTenantAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"usage-deleted {Guid.NewGuid():N}",
@@ -676,13 +672,13 @@ public sealed class TenantUsageServiceSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		// Soft-delete AFTER insert: SaveChanges forces IsDeleted=false on Added
 		// rows (audit interceptor), matching the existing specs' seeding note.
 		tenant.IsDeleted = true;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
 	}
@@ -695,8 +691,7 @@ public sealed class TenantUsageServiceSpec
 		// quadrant. The r1 seed used Status=Active, which made the reviewer
 		// mutation `!IsDeleted || Status != Active` indistinguishable from
 		// the real `!IsDeleted` guard on that single fixture.
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"usage-deleted-{status} {Guid.NewGuid():N}",
@@ -704,13 +699,13 @@ public sealed class TenantUsageServiceSpec
 			Status = status,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		// Soft-delete AFTER insert: SaveChanges forces IsDeleted=false on Added
 		// rows (audit interceptor), matching the existing specs' seeding note.
 		tenant.IsDeleted = true;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
 	}
@@ -722,8 +717,7 @@ public sealed class TenantUsageServiceSpec
 		// (Tenant.Status defaults to Pending — Pending and Suspended are
 		// covered by the two callers, and a future Active caller is one
 		// parameter away).
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"usage-live-{status} {Guid.NewGuid():N}",
@@ -731,8 +725,8 @@ public sealed class TenantUsageServiceSpec
 			Status = status,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
 	}
@@ -740,8 +734,7 @@ public sealed class TenantUsageServiceSpec
 	private async Task<Guid> _SeedTenantWithLastActivityAsync(
 		DateTime lastActivityAt
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"usage activity {Guid.NewGuid():N}",
@@ -750,15 +743,14 @@ public sealed class TenantUsageServiceSpec
 			MaxUsers = 10,
 			LastActivityAt = lastActivityAt,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
 	}
 
 	private async Task<Guid> _SeedRichTenantAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"usage rich {Guid.NewGuid():N}",
@@ -766,8 +758,8 @@ public sealed class TenantUsageServiceSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 20,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		var tenantId = tenant.GetRequiredId();
 
 		async Task<User> AddUserAsync(bool fullAccess, bool suspendAccount) {
@@ -777,8 +769,8 @@ public sealed class TenantUsageServiceSpec
 				Status = UserStatus.Active,
 				IsVerified = true,
 			};
-			await dbContext.User.AddAsync(user);
-			await dbContext.SaveChangesAsync();
+			await db.Context.User.AddAsync(user);
+			await db.Context.SaveChangesAsync();
 
 			var account = UserAccount.CreateTenantAccount(
 				user.GetRequiredId(), tenantId
@@ -786,12 +778,12 @@ public sealed class TenantUsageServiceSpec
 			if (suspendAccount) {
 				account.Status = AccountStatus.Suspended;
 			}
-			await dbContext.UserAccount.AddAsync(account);
-			await dbContext.SaveChangesAsync();
+			await db.Context.UserAccount.AddAsync(account);
+			await db.Context.SaveChangesAsync();
 
 			if (fullAccess) {
 				await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
-					dbContext, tenantId, account.GetRequiredId()
+					db.Context, tenantId, account.GetRequiredId()
 				);
 			}
 
@@ -811,8 +803,8 @@ public sealed class TenantUsageServiceSpec
 			Name = $"usage-project-inactive-{Guid.NewGuid():N}",
 			Status = ProjectStatus.Inactive,
 		};
-		dbContext.Project.AddRange(activeProject, inactiveProject);
-		await dbContext.SaveChangesAsync();
+		db.Context.Project.AddRange(activeProject, inactiveProject);
+		await db.Context.SaveChangesAsync();
 
 		var postA = new Post {
 			TenantId = tenantId,
@@ -836,13 +828,13 @@ public sealed class TenantUsageServiceSpec
 			DisplayHandle = "@usage-two.bsky.social",
 			ProtectedCredentials = "enc-spec-blob",
 		};
-		dbContext.Post.AddRange(postA, postB);
-		dbContext.SocialAccount.AddRange(accountOne, accountTwo);
-		await dbContext.SaveChangesAsync();
+		db.Context.Post.AddRange(postA, postB);
+		db.Context.SocialAccount.AddRange(accountOne, accountTwo);
+		await db.Context.SaveChangesAsync();
 
 		// ux_publications_post_account allows one publication per (post,
 		// account) pair, so spread the rows over distinct pairs.
-		dbContext.Publication.AddRange(
+		db.Context.Publication.AddRange(
 			new Publication {
 				TenantId = tenantId,
 				PostId = postA.GetRequiredId(),
@@ -871,15 +863,14 @@ public sealed class TenantUsageServiceSpec
 				IdempotencyKey = $"usage-pub-1-{Guid.NewGuid():N}",
 			}
 		);
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return tenantId;
 	}
 
 	private async Task<(Guid TenantId, Guid OtherTenantId)>
 	_SeedTwoTenantsWithNoiseAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"usage noise {Guid.NewGuid():N}",
@@ -893,8 +884,8 @@ public sealed class TenantUsageServiceSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		dbContext.Tenant.AddRange(tenant, otherTenant);
-		await dbContext.SaveChangesAsync();
+		db.Context.Tenant.AddRange(tenant, otherTenant);
+		await db.Context.SaveChangesAsync();
 		var tenantId = tenant.GetRequiredId();
 		var otherTenantId = otherTenant.GetRequiredId();
 
@@ -910,29 +901,29 @@ public sealed class TenantUsageServiceSpec
 			Status = UserStatus.Active,
 			IsVerified = true,
 		};
-		dbContext.User.AddRange(keptUser, deletedUser);
-		await dbContext.SaveChangesAsync();
+		db.Context.User.AddRange(keptUser, deletedUser);
+		await db.Context.SaveChangesAsync();
 
-		dbContext.UserAccount.Add(
+		db.Context.UserAccount.Add(
 			UserAccount.CreateTenantAccount(keptUser.GetRequiredId(), tenantId)
 		);
 		var doomedAccount = UserAccount.CreateTenantAccount(
 			deletedUser.GetRequiredId(), tenantId
 		);
-		dbContext.UserAccount.Add(doomedAccount);
+		db.Context.UserAccount.Add(doomedAccount);
 		// Foreign-tenant membership: must never appear in this tenant's counts.
-		dbContext.UserAccount.Add(
+		db.Context.UserAccount.Add(
 			UserAccount.CreateTenantAccount(
 				keptUser.GetRequiredId(), otherTenantId
 			)
 		);
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		// Soft-delete AFTER insert: SaveChanges forces IsDeleted=false on Added
 		// rows (audit interceptor), matching the existing specs' seeding note.
 		doomedAccount.IsDeleted = true;
 		deletedUser.IsDeleted = true;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		var keptProject = new Project {
 			TenantId = tenantId,
@@ -946,11 +937,11 @@ public sealed class TenantUsageServiceSpec
 			TenantId = otherTenantId,
 			Name = $"usage-other-project-{Guid.NewGuid():N}",
 		};
-		dbContext.Project.AddRange(keptProject, doomedProject, otherProject);
-		await dbContext.SaveChangesAsync();
+		db.Context.Project.AddRange(keptProject, doomedProject, otherProject);
+		await db.Context.SaveChangesAsync();
 
 		doomedProject.IsDeleted = true;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		var user = new User {
 			Email = $"usage-other-owner-{Guid.NewGuid():N}@example.com",
@@ -958,8 +949,8 @@ public sealed class TenantUsageServiceSpec
 			Status = UserStatus.Active,
 			IsVerified = true,
 		};
-		dbContext.User.Add(user);
-		await dbContext.SaveChangesAsync();
+		db.Context.User.Add(user);
+		await db.Context.SaveChangesAsync();
 
 		var otherPost = new Post {
 			TenantId = otherTenantId,
@@ -972,11 +963,11 @@ public sealed class TenantUsageServiceSpec
 			DisplayHandle = "@other.bsky.social",
 			ProtectedCredentials = "enc-spec-blob",
 		};
-		dbContext.Post.Add(otherPost);
-		dbContext.SocialAccount.Add(otherAccount);
-		await dbContext.SaveChangesAsync();
+		db.Context.Post.Add(otherPost);
+		db.Context.SocialAccount.Add(otherAccount);
+		await db.Context.SaveChangesAsync();
 
-		dbContext.Publication.Add(new Publication {
+		db.Context.Publication.Add(new Publication {
 			TenantId = otherTenantId,
 			PostId = otherPost.GetRequiredId(),
 			SocialAccountId = otherAccount.GetRequiredId(),
@@ -985,7 +976,7 @@ public sealed class TenantUsageServiceSpec
 			ScheduledTimeZone = "Etc/UTC",
 			IdempotencyKey = $"usage-other-{Guid.NewGuid():N}",
 		});
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return (tenantId, otherTenantId);
 	}

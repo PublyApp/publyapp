@@ -241,10 +241,7 @@ public sealed class BulkSuspendTenantsAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var tenant = await this._SeedTenantAsync(
 			"Bulk Suspend Tenant User",
 			TenantStatus.Active

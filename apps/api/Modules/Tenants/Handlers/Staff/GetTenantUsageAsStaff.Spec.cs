@@ -3,9 +3,6 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using Microsoft.Extensions.DependencyInjection;
-
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -141,10 +138,7 @@ public sealed class GetTenantUsageAsStaffSpec
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
 		var token =
-			await this._AuthClient.LoginAsync(
-				TestConstants.AcmeAdminEmail,
-				TestConstants.SeedPassword
-			);
+			await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url = GetTenantUsageAsStaffSpec._GetUrl(Guid.NewGuid().ToString());
 		var request = new HttpRequestMessage(
@@ -189,10 +183,7 @@ public sealed class GetTenantUsageAsStaffSpec
 	}
 
 	private async Task<Guid> _SeedTenantWithUsageRowsAsync() {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"usage-endpoint {Guid.NewGuid():N}",
@@ -201,8 +192,8 @@ public sealed class GetTenantUsageAsStaffSpec
 			MaxUsers = 20,
 			LastActivityAt = DateTime.UtcNow.AddMinutes(-30),
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		var tenantId = tenant.GetRequiredId();
 
 		async Task AddUserAsync(bool suspendAccount) {
@@ -216,8 +207,8 @@ public sealed class GetTenantUsageAsStaffSpec
 				Status = UserStatus.Active,
 				IsVerified = true,
 			};
-			await dbContext.User.AddAsync(user);
-			await dbContext.SaveChangesAsync();
+			await db.Context.User.AddAsync(user);
+			await db.Context.SaveChangesAsync();
 
 			var account = UserAccount.CreateTenantAccount(
 				user.GetRequiredId(), tenantId
@@ -225,19 +216,19 @@ public sealed class GetTenantUsageAsStaffSpec
 			if (suspendAccount) {
 				account.Status = AccountStatus.Suspended;
 			}
-			await dbContext.UserAccount.AddAsync(account);
-			await dbContext.SaveChangesAsync();
+			await db.Context.UserAccount.AddAsync(account);
+			await db.Context.SaveChangesAsync();
 		}
 
 		await AddUserAsync(suspendAccount: false);
 		await AddUserAsync(suspendAccount: false);
 		await AddUserAsync(suspendAccount: true);
 
-		dbContext.Project.Add(new Project {
+		db.Context.Project.Add(new Project {
 			TenantId = tenantId,
 			Name = $"usage-endpoint-project-{Guid.NewGuid():N}",
 		});
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return tenantId;
 	}

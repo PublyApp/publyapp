@@ -9,10 +9,8 @@ using FluentAssertions;
 
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -71,12 +69,9 @@ public sealed class CreateTenantAsStaffSpec
 			}
 		);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var tenant = await dbContext.Tenant
+		var tenant = await db.Context.Tenant
 			.Where(t => t.Id == created.Id)
 			.SingleAsync();
 		tenant.Code.Should().Be(customCode.ToLowerInvariant());
@@ -196,12 +191,9 @@ public sealed class CreateTenantAsStaffSpec
 			}
 		);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var nonFullAccessRoleCount = await dbContext.Role
+		var nonFullAccessRoleCount = await db.Context.Role
 			.Where(p =>
 				p.TenantId == created.Id
 				&& p.Scope == RoleScope.Tenant
@@ -211,11 +203,11 @@ public sealed class CreateTenantAsStaffSpec
 		nonFullAccessRoleCount.Should().Be(0);
 
 		var ownerRoleCount = await FullAccessRoleQueries
-			.FullAccessRoles(dbContext)
+			.FullAccessRoles(db.Context)
 			.CountAsync(p => p.TenantId == created.Id);
 		ownerRoleCount.Should().Be(1);
 
-		var userInvitation = await dbContext.Invitation
+		var userInvitation = await db.Context.Invitation
 			.Where(invitation =>
 				invitation.TenantId == created.Id
 				&& invitation.Email == userEmail
@@ -256,12 +248,9 @@ public sealed class CreateTenantAsStaffSpec
 			}
 		);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var tenant = await dbContext.Tenant
+		var tenant = await db.Context.Tenant
 			.Where(t => t.Id == created.Id)
 			.SingleAsync();
 
@@ -298,12 +287,9 @@ public sealed class CreateTenantAsStaffSpec
 			}
 		);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var tenant = await dbContext.Tenant
+		var tenant = await db.Context.Tenant
 			.Where(t => t.Id == created.Id)
 			.SingleAsync();
 
@@ -342,12 +328,9 @@ public sealed class CreateTenantAsStaffSpec
 			}
 		);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var tenant = await dbContext.Tenant
+		var tenant = await db.Context.Tenant
 			.Where(t => t.Id == created.Id)
 			.SingleAsync();
 
@@ -650,12 +633,7 @@ public sealed class CreateTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-			.Be(ResponseKeys.Forbidden.Value);
+		await response.ShouldBeProblemAsync(ResponseKeys.Forbidden.Value);
 	}
 
 	[Fact]
@@ -675,10 +653,7 @@ public sealed class CreateTenantAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var response = await this._Http.SendAsync(
 			CreateTenantAsStaffSpec._CreateTenantRequest(
@@ -1132,12 +1107,9 @@ public sealed class CreateTenantAsStaffSpec
 		Guid tenantId,
 		int expectedMaxUsers
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var tenant = await dbContext.Tenant
+		var tenant = await db.Context.Tenant
 			.Where(t => t.Id == tenantId)
 			.SingleAsync();
 		tenant.MaxUsers.Should().Be(expectedMaxUsers);
@@ -1168,12 +1140,9 @@ public sealed class CreateTenantAsStaffSpec
 			email
 		);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var staffAccount = await dbContext.UserAccount
+		var staffAccount = await db.Context.UserAccount
 			.Where(account =>
 				account.UserId == userId
 				&& account.Scope == AccountScope.Staff
@@ -1186,18 +1155,18 @@ public sealed class CreateTenantAsStaffSpec
 			"Test-only staff role for tenant creation permission"
 		);
 
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
-		await dbContext.RolePermission.AddAsync(new RolePermission {
+		await db.Context.RolePermission.AddAsync(new RolePermission {
 			RoleId = role.GetRequiredId(),
 			PermissionKey = permissionKey,
 		});
-		await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
+		await db.Context.UserAccountRole.AddAsync(new UserAccountRole {
 			UserAccountId = staffAccount.GetRequiredId(),
 			RoleId = role.GetRequiredId(),
 		});
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return await this._AuthClient.LoginAsync(
 			email,

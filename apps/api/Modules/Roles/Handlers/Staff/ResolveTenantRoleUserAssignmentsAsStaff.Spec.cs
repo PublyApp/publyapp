@@ -5,9 +5,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -397,8 +395,7 @@ public sealed class ResolveTenantRoleUserAssignmentsAsStaffSpec : IClassFixture<
 	}
 
 	private async Task<Guid> _CreateTenantRoleAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(
 			tenantId,
@@ -407,15 +404,14 @@ public sealed class ResolveTenantRoleUserAssignmentsAsStaffSpec : IClassFixture<
 		);
 		role.ValidateRoleType();
 
-		_ = dbContext.Role.Add(role);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.Role.Add(role);
+		_ = await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId();
 	}
 
 	private async Task<Guid> _CreateTenantMemberAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var suffix = Guid.NewGuid().ToString("N")[..8];
 		var user = new User {
@@ -427,29 +423,28 @@ public sealed class ResolveTenantRoleUserAssignmentsAsStaffSpec : IClassFixture<
 			IsVerified = true
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
 		account.ValidateAccountType();
 
-		_ = dbContext.UserAccount.Add(account);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(account);
+		_ = await db.Context.SaveChangesAsync();
 
 		return account.GetRequiredId();
 	}
 
 	private async Task _SetMemberAccountStatusAsync(Guid userAccountId, AccountStatus status) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var account = await dbContext.UserAccount.FindAsync(userAccountId);
+		var account = await db.Context.UserAccount.FindAsync(userAccountId);
 		if (account is null) {
 			throw new InvalidOperationException("UserAccount not found for status update");
 		}
 
 		account.Status = status;
-		_ = await dbContext.SaveChangesAsync();
+		_ = await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _AssignAsync(
@@ -458,12 +453,11 @@ public sealed class ResolveTenantRoleUserAssignmentsAsStaffSpec : IClassFixture<
 		Guid roleId,
 		Guid userAccountId
 	) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			ResolveTenantRoleUserAssignmentsAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString())
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			ResolveTenantRoleUserAssignmentsAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString()),
+			staffToken
+		);
 		response.EnsureSuccessStatusCode();
 	}
 
@@ -474,13 +468,12 @@ public sealed class ResolveTenantRoleUserAssignmentsAsStaffSpec : IClassFixture<
 	/// predicate rather than relying on an otherwise-empty join.
 	/// </summary>
 	private async Task _CreateCorruptCrossTenantJunctionRowAsync(Guid userAccountId, Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		_ = dbContext.UserAccountRole.Add(new UserAccountRole {
+		_ = db.Context.UserAccountRole.Add(new UserAccountRole {
 			UserAccountId = userAccountId,
 			RoleId = roleId,
 		});
-		_ = await dbContext.SaveChangesAsync();
+		_ = await db.Context.SaveChangesAsync();
 	}
 }

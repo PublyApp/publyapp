@@ -85,10 +85,7 @@ public sealed class BulkAssignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUser() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var response = await this._AssignAsync(token, Guid.NewGuid().ToString(), Guid.NewGuid());
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -367,19 +364,17 @@ public sealed class BulkAssignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetFullAccessRoleIdAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await FullAccessRoleTestHelper.EnsureStaffRoleAsync(dbContext);
+		await using var db = this._Fixture.OpenDb();
+		return await FullAccessRoleTestHelper.EnsureStaffRoleAsync(db.Context);
 	}
 
 	private async Task<Guid> _SeedStaffRoleAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateStaffRole($"Bulk Assign {Guid.NewGuid():N}");
 		role.ValidateRoleType();
-		_ = dbContext.Role.Add(role);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.Role.Add(role);
+		_ = await db.Context.SaveChangesAsync();
 		return role.GetRequiredId();
 	}
 
@@ -392,36 +387,33 @@ public sealed class BulkAssignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _AttachAsync(Guid userId, Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var account = await dbContext.UserAccount.FirstAsync(a =>
+		var account = await db.Context.UserAccount.FirstAsync(a =>
 			a.UserId == userId && a.Scope == AccountScope.Staff
 		);
-		_ = dbContext.UserAccountRole.Add(new UserAccountRole {
+		_ = db.Context.UserAccountRole.Add(new UserAccountRole {
 			UserAccountId = account.GetRequiredId(),
 			RoleId = roleId,
 		});
-		_ = await dbContext.SaveChangesAsync();
+		_ = await db.Context.SaveChangesAsync();
 	}
 
 	private async Task<int> _CountLinksAsync(Guid userId, Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		return await (
-			from uap in dbContext.UserAccountRole
-			join ua in dbContext.UserAccount on uap.UserAccountId equals ua.Id
+			from uap in db.Context.UserAccountRole
+			join ua in db.Context.UserAccount on uap.UserAccountId equals ua.Id
 			where ua.UserId == userId && uap.RoleId == roleId
 			select uap
 		).CountAsync();
 	}
 
 	private async Task<int> _CountAuditRowsAsync(Guid userId, Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.AuditLog
+		return await db.Context.AuditLog
 			.Where(log =>
 				log.TargetId == userId
 				&& log.Action == BulkAssignStaffRoleUsersSpec._StaffRoleUserAssignedAuditAction
@@ -434,8 +426,11 @@ public sealed class BulkAssignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 	private async Task<List<string>> _FindUserIdsAsync(string token, string roleId) {
 		var url = BulkAssignStaffRoleUsersSpec._GetFindUsersUrl(roleId)
 			+ "?page=1&limit=50&sort_id=created_at&sort_order=desc";
-		using var request = new HttpRequestMessage(HttpMethod.Get, url).WithSessionToken(token);
-		using var response = await this._Http.SendAsync(request);
+		using var response = await this._Http.SendWithSessionAsync(
+			HttpMethod.Get,
+			url,
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindRoleUsersResponse>();
@@ -446,8 +441,7 @@ public sealed class BulkAssignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 	private async Task<(string Token, Guid UserId)> _SeedActorAsync(params Permission[] permissions) {
 		var email = $"bulk-assign-actor-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -457,31 +451,31 @@ public sealed class BulkAssignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 			IsVerified = true,
 			Status = UserStatus.Active,
 		};
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var account = UserAccount.CreateStaffAccount(user.GetRequiredId());
 		account.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(account);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(account);
+		_ = await db.Context.SaveChangesAsync();
 
 		if (permissions.Length > 0) {
 			var role = Role.CreateStaffRole($"bulk-assign-actor-role-{Guid.NewGuid():N}");
 			role.ValidateRoleType();
-			_ = dbContext.Role.Add(role);
-			_ = await dbContext.SaveChangesAsync();
+			_ = db.Context.Role.Add(role);
+			_ = await db.Context.SaveChangesAsync();
 
 			foreach (var permission in permissions) {
-				_ = dbContext.RolePermission.Add(new RolePermission {
+				_ = db.Context.RolePermission.Add(new RolePermission {
 					RoleId = role.GetRequiredId(),
 					PermissionKey = permission.Key,
 				});
 			}
-			_ = dbContext.UserAccountRole.Add(new UserAccountRole {
+			_ = db.Context.UserAccountRole.Add(new UserAccountRole {
 				UserAccountId = account.GetRequiredId(),
 				RoleId = role.GetRequiredId(),
 			});
-			_ = await dbContext.SaveChangesAsync();
+			_ = await db.Context.SaveChangesAsync();
 		}
 
 		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);

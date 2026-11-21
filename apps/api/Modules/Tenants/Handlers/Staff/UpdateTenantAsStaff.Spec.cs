@@ -844,11 +844,8 @@ public sealed class UpdateTenantAsStaffSpec
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-		var persisted = await dbContext.Tenant
+		await using var db = this._Fixture.OpenDb();
+		var persisted = await db.Context.Tenant
 			.Where(t => t.Id == seededTenant.TenantId)
 			.SingleAsync();
 		persisted.Name.Should().Be(name);
@@ -899,12 +896,7 @@ public sealed class UpdateTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be(ResponseKeys.TenantMaxUsersBelowCount);
+		await response.ShouldBeProblemAsync(ResponseKeys.TenantMaxUsersBelowCount);
 	}
 
 	[Fact]
@@ -978,12 +970,7 @@ public sealed class UpdateTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be("malformed-id");
+		await response.ShouldBeProblemAsync("malformed-id");
 	}
 
 	[Fact]
@@ -1080,10 +1067,7 @@ public sealed class UpdateTenantAsStaffSpec
 			);
 
 		// Login as tenant admin (not staff)
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url = UpdateTenantAsStaffSpec._GetUrl(tenantId.ToString());
 		var request = new HttpRequestMessage(
@@ -1234,10 +1218,7 @@ public sealed class UpdateTenantAsStaffSpec
 		TenantStatus status = TenantStatus.Active,
 		int maxUsers = 10
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"{namePrefix} {Guid.NewGuid():N}",
@@ -1246,8 +1227,8 @@ public sealed class UpdateTenantAsStaffSpec
 			MaxUsers = maxUsers,
 		};
 
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		return new SeededTenantSnapshot(
 			TenantId: tenant.GetRequiredId(),
@@ -1268,10 +1249,7 @@ public sealed class UpdateTenantAsStaffSpec
 			maxUsers: maxUsers
 		);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		for (var i = 0; i < usersCount; i++) {
 			var user = new User {
@@ -1285,10 +1263,10 @@ public sealed class UpdateTenantAsStaffSpec
 				IsVerified = true,
 			};
 
-			await dbContext.User.AddAsync(user);
-			await dbContext.SaveChangesAsync();
+			await db.Context.User.AddAsync(user);
+			await db.Context.SaveChangesAsync();
 
-			await dbContext.UserAccount.AddAsync(
+			await db.Context.UserAccount.AddAsync(
 				UserAccount.CreateTenantAccount(
 					user.GetRequiredId(),
 					seededTenant.TenantId
@@ -1296,7 +1274,7 @@ public sealed class UpdateTenantAsStaffSpec
 			);
 		}
 
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return seededTenant;
 	}
@@ -1346,13 +1324,10 @@ public sealed class UpdateTenantAsStaffSpec
 		string action,
 		Guid targetId
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var query =
-			from log in dbContext.AuditLog
+			from log in db.Context.AuditLog
 			where log.Action == action
 				&& log.TargetId == targetId
 			orderby log.CreatedAt descending

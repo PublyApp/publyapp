@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -133,9 +131,11 @@ public sealed class RoleFullAccessFlagSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<T> _GetAsync<T>(string token, string url) {
-		using var request = new HttpRequestMessage(HttpMethod.Get, url)
-			.WithSessionToken(token);
-		using var response = await this._Http.SendAsync(request);
+		using var response = await this._Http.SendWithSessionAsync(
+			HttpMethod.Get,
+			url,
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content.ReadFromJsonAsync<T>();
@@ -149,19 +149,17 @@ public sealed class RoleFullAccessFlagSpec : IClassFixture<ApiFixture> {
 		string name,
 		bool isFullAccess
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateStaffRole(name, isFullAccess: isFullAccess);
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId();
 	}
 
 	private async Task<Guid> _SeedFreshTenantAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"Role flag {Guid.NewGuid():N}",
@@ -169,8 +167,8 @@ public sealed class RoleFullAccessFlagSpec : IClassFixture<ApiFixture> {
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
 	}
@@ -179,16 +177,15 @@ public sealed class RoleFullAccessFlagSpec : IClassFixture<ApiFixture> {
 		Guid tenantId,
 		bool isFullAccess
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(
 			tenantId,
 			"Role " + Guid.NewGuid().ToString("N")[..8],
 			isFullAccess: isFullAccess
 		);
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId();
 	}

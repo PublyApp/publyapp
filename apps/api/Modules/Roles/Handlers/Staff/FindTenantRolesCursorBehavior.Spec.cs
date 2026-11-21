@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -214,19 +212,18 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 	}
 
 	private async Task<Guid> _SeedTenantRoleAtAsync(Guid tenantId, string name, DateTime createdAt) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(tenantId, name, isDefault: false);
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		var id = role.GetRequiredId();
-		var tracked = await dbContext.Role
+		var tracked = await db.Context.Role
 			.Where(p => p.Id == id)
 			.FirstAsync();
 		tracked.CreatedAt = createdAt;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return id;
 	}
@@ -275,12 +272,11 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 	}
 
 	private async Task<Guid> _SeedTenantRoleWithNameAsync(Guid tenantId, string name) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(tenantId, name, isDefault: false);
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId();
 	}
@@ -296,16 +292,15 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 	}
 
 	private async Task _SwapTenantRoleIdsAsync(Guid idA, Guid idB) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var temp = Guid.NewGuid();
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE roles SET id = {0} WHERE id = {1}",
 			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE roles SET id = {0} WHERE id = {1}",
 			idA, idB);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE roles SET id = {0} WHERE id = {1}",
 			idB, temp);
 	}

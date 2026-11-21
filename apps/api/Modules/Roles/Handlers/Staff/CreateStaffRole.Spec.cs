@@ -10,7 +10,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -75,13 +74,12 @@ public sealed class CreateStaffRoleSpec : IClassFixture<ApiFixture> {
 		Assert.NotNull(result);
 		result.InvitationsSent.Should().Be(1);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var invitation = await dbContext.Invitation
+		var invitation = await db.Context.Invitation
 			.SingleAsync(i => i.Email == invitedEmail);
 
-		var outboxRow = await dbContext.InvitationEmailOutbox
+		var outboxRow = await db.Context.InvitationEmailOutbox
 			.SingleAsync(o => o.Email == invitedEmail);
 
 		outboxRow.InvitationId.Should().Be(invitation.Id);
@@ -136,10 +134,9 @@ public sealed class CreateStaffRoleSpec : IClassFixture<ApiFixture> {
 		Assert.NotNull(result);
 		result.UsersAssigned.Should().Be(1);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var joinedJobs = await dbContext.JobQueue.AsNoTracking()
+		var joinedJobs = await db.Context.JobQueue.AsNoTracking()
 			.Where(j => j.JobType == StaffRoleEmailJobs.StaffJoinedNotificationV1.JobType)
 			.ToListAsync();
 
@@ -257,10 +254,7 @@ public sealed class CreateStaffRoleSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Icon");
+		await response.ShouldHaveValidationErrorAsync("Icon");
 	}
 
 	[Fact]
@@ -282,17 +276,13 @@ public sealed class CreateStaffRoleSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Tone");
+		await response.ShouldHaveValidationErrorAsync("Tone");
 	}
 
 	private async Task<Role?> _GetRoleByNameAsync(string name) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.Role
+		return await db.Context.Role
 			.AsNoTracking()
 			.FirstOrDefaultAsync(role =>
 				role.Scope == RoleScope.Staff

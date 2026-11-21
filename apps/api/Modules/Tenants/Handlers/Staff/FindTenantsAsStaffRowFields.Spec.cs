@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Auth.Utils;
@@ -180,9 +178,11 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 		int limit = 100
 	) {
 		var url = TenantTestHelper.GetFindUrl(q: q, limit: limit, status: status);
-		using var request = new HttpRequestMessage(HttpMethod.Get, url)
-			.WithSessionToken(token);
-		using var response = await this._Http.SendAsync(request);
+		using var response = await this._Http.SendWithSessionAsync(
+			HttpMethod.Get,
+			url,
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
 		Assert.NotNull(result);
@@ -195,8 +195,7 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 		int maxUsers,
 		string? locale
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var tenant = new Tenant {
 			Name = name,
 			Code = Guid.NewGuid().ToString("N")[..10],
@@ -207,14 +206,13 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 			WebsiteUrl = "https://example.com",
 			BillingEmail = "billing@example.com",
 		};
-		await db.Tenant.AddAsync(tenant);
-		await db.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		return tenant.GetRequiredId();
 	}
 
 	private async Task<Guid> _AddMemberAsync(Guid tenantId, bool isOwner) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var user = new User {
 			Email = $"row-fields-{Guid.NewGuid():N}@example.com",
 			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
@@ -223,35 +221,33 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 			Status = UserStatus.Active,
 			IsVerified = true,
 		};
-		await db.User.AddAsync(user);
-		await db.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 		var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
-		await db.UserAccount.AddAsync(account);
-		await db.SaveChangesAsync();
+		await db.Context.UserAccount.AddAsync(account);
+		await db.Context.SaveChangesAsync();
 		if (isOwner) {
 			await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
-				db, tenantId, account.GetRequiredId()
+				db.Context, tenantId, account.GetRequiredId()
 			);
 		}
 		return account.GetRequiredId();
 	}
 
 	private async Task<Guid> _GetUserIdAsync(Guid accountId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.UserAccount
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.UserAccount
 			.Where(ua => ua.Id == accountId)
 			.Select(ua => ua.UserId)
 			.FirstAsync();
 	}
 
 	private async Task _AddRoleAsync(Guid tenantId, string name, bool isDeleted = false) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var role = Role.CreateTenantRole(tenantId, name, "row fields", isFullAccess: false);
 		role.IsDeleted = isDeleted;
-		await db.Role.AddAsync(role);
-		await db.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _AddSocialAccountAsync(
@@ -259,9 +255,8 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 		SocialAccountStatus status,
 		bool isDeleted = false
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await db.SocialAccount.AddAsync(new SocialAccount {
+		await using var db = this._Fixture.OpenDb();
+		await db.Context.SocialAccount.AddAsync(new SocialAccount {
 			TenantId = tenantId,
 			ExternalAccountId = $"did:plc:{Guid.NewGuid():N}",
 			DisplayHandle = "@row.bsky.social",
@@ -269,7 +264,7 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 			Status = status,
 			IsDeleted = isDeleted,
 		});
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _AddPostAsync(
@@ -278,29 +273,27 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 		DateTime createdAt,
 		bool isDeleted = false
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var post = new Post {
 			TenantId = tenantId,
 			Body = "row fields",
 			CreatedByUserId = userId,
 			IsDeleted = isDeleted,
 		};
-		await db.Post.AddAsync(post);
-		await db.SaveChangesAsync();
+		await db.Context.Post.AddAsync(post);
+		await db.Context.SaveChangesAsync();
 		var id = post.GetRequiredId();
-		var tracked = await db.Post.Where(p => p.Id == id).FirstAsync();
+		var tracked = await db.Context.Post.Where(p => p.Id == id).FirstAsync();
 		tracked.CreatedAt = createdAt;
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _AddPendingInvitationAsync(Guid tenantId, DateTime expiresAt) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var inviter = await db.User
+		await using var db = this._Fixture.OpenDb();
+		var inviter = await db.Context.User
 			.Where(user => user.Email == TestConstants.StaffAdminEmail)
 			.FirstAsync();
-		await db.Invitation.AddAsync(
+		await db.Context.Invitation.AddAsync(
 			Invitation.CreateTenantInvitationWithRoles(
 				$"row-fields-{Guid.NewGuid():N}@example.com",
 				tenantId,
@@ -310,7 +303,7 @@ public sealed class FindTenantsAsStaffRowFieldsSpec
 				Guid.NewGuid().ToString("N")[..32]
 			)
 		);
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private record FindResponse {

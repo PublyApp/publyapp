@@ -105,10 +105,7 @@ public sealed class UnassignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUser() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -193,10 +190,7 @@ public sealed class UnassignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.RequestBodyValidationFailed);
+		await response.ShouldBeValidationProblemAsync(ResponseKeys.RequestBodyValidationFailed);
 	}
 
 	// Round-2 hardening (PR #1413 review MEDIUM): one malformed element must
@@ -420,17 +414,15 @@ public sealed class UnassignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetStaffUserIdFromDbAsync(string email) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var user = await dbContext.User
+		await using var db = this._Fixture.OpenDb();
+		var user = await db.Context.User
 			.Where(u => u.Email == email)
 			.FirstAsync();
 		return user.GetRequiredId();
 	}
 
 	private async Task<Guid> _SeedActiveStaffUserAsync(string email) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -440,47 +432,44 @@ public sealed class UnassignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 			IsVerified = true,
 			Status = UserStatus.Active,
 		};
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var staffAccount = UserAccount.CreateStaffAccount(user.GetRequiredId());
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(staffAccount);
+		_ = await db.Context.SaveChangesAsync();
 
 		return user.GetRequiredId();
 	}
 
 	private async Task _AttachStaffUserToRoleAsync(Guid roleId, Guid userId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var staffAccount = await dbContext.UserAccount
+		var staffAccount = await db.Context.UserAccount
 			.Where(a => a.UserId == userId)
 			.FirstAsync();
 
-		await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
+		await db.Context.UserAccountRole.AddAsync(new UserAccountRole {
 			UserAccountId = staffAccount.GetRequiredId(),
 			RoleId = roleId,
 		});
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task<bool> _HasAuditRowAsync(Guid userId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.AuditLog.AnyAsync(log =>
+		return await db.Context.AuditLog.AnyAsync(log =>
 			log.TargetId == userId
 			&& log.Action == UnassignStaffRoleUsersSpec._StaffRoleUserUnassignedAuditAction
 		);
 	}
 
 	private async Task<int> _CountAuditRowsAsync(Guid userId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.AuditLog
+		return await db.Context.AuditLog
 			.Where(log =>
 				log.TargetId == userId
 				&& log.Action == UnassignStaffRoleUsersSpec._StaffRoleUserUnassignedAuditAction
@@ -497,8 +486,7 @@ public sealed class UnassignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
 		var email = $"no-perms-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -509,14 +497,14 @@ public sealed class UnassignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 			Status = UserStatus.Active,
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(staffAccount);
+		_ = await db.Context.SaveChangesAsync();
 
 		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 	}

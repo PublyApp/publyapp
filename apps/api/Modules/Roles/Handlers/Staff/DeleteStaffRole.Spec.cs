@@ -4,9 +4,6 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using Microsoft.Extensions.DependencyInjection;
-
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -79,17 +76,13 @@ public sealed class DeleteStaffRoleSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUser() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			DeleteStaffRoleSpec._GetDeleteRoleUrl(Guid.NewGuid().ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteStaffRoleSpec._GetDeleteRoleUrl(Guid.NewGuid().ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -97,12 +90,11 @@ public sealed class DeleteStaffRoleSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			DeleteStaffRoleSpec._GetDeleteRoleUrl(Guid.NewGuid().ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteStaffRoleSpec._GetDeleteRoleUrl(Guid.NewGuid().ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -110,12 +102,11 @@ public sealed class DeleteStaffRoleSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnBadRequestForMalformedRoleId() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			DeleteStaffRoleSpec._GetDeleteRoleUrl("not-a-guid")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteStaffRoleSpec._GetDeleteRoleUrl("not-a-guid"),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -126,12 +117,11 @@ public sealed class DeleteStaffRoleSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnNotFoundForMissingRole() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			DeleteStaffRoleSpec._GetDeleteRoleUrl(Guid.NewGuid().ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteStaffRoleSpec._GetDeleteRoleUrl(Guid.NewGuid().ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -184,8 +174,7 @@ public sealed class DeleteStaffRoleSpec : IClassFixture<ApiFixture> {
 	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
 		var email = $"no-perms-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -196,14 +185,14 @@ public sealed class DeleteStaffRoleSpec : IClassFixture<ApiFixture> {
 			Status = UserStatus.Active,
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(staffAccount);
+		_ = await db.Context.SaveChangesAsync();
 
 		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 	}

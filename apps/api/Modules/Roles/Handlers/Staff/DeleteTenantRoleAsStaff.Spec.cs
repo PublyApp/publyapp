@@ -8,7 +8,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -57,17 +56,13 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
 		var tenantId = await this._GetTenantIdAsync();
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			DeleteTenantRoleAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteTenantRoleAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -79,12 +74,11 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			DeleteTenantRoleAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteTenantRoleAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -92,18 +86,14 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnBadRequestForMalformedTenantId() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			DeleteTenantRoleAsStaffSpec._GetUrl("not-a-guid", Guid.NewGuid().ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteTenantRoleAsStaffSpec._GetUrl("not-a-guid", Guid.NewGuid().ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -111,18 +101,14 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			DeleteTenantRoleAsStaffSpec._GetUrl(tenantId.ToString(), "not-a-guid")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteTenantRoleAsStaffSpec._GetUrl(tenantId.ToString(), "not-a-guid"),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -130,12 +116,11 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			DeleteTenantRoleAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteTenantRoleAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -152,12 +137,11 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		);
 		auditLogBefore.Should().BeNull();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			DeleteTenantRoleAsStaffSpec._GetUrl(tenantId.ToString(), defaultRoleId.ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteTenantRoleAsStaffSpec._GetUrl(tenantId.ToString(), defaultRoleId.ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -273,10 +257,9 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		string action,
 		Guid targetId
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.AuditLog
+		return await db.Context.AuditLog
 			.Where(log => log.Action == action && log.TargetId == targetId)
 			.OrderByDescending(log => log.CreatedAt)
 			.FirstOrDefaultAsync();

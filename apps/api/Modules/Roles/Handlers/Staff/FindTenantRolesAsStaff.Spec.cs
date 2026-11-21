@@ -4,9 +4,7 @@ using System.Net;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Routes;
@@ -209,12 +207,11 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "is_full_access=not-a-bool")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			FindTenantRolesAsStaffSpec._GetUrl(tenantId.ToString(), "is_full_access=not-a-bool"),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
@@ -228,8 +225,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _SeedFreshTenantAsync(string namePrefix) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"{namePrefix} {Guid.NewGuid():N}",
@@ -237,19 +233,18 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
 	}
 
 	private async Task<Guid> _SeedTenantRoleWithNameAsync(Guid tenantId, string name) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(tenantId, name, isDefault: false);
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId();
 	}
@@ -260,8 +255,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		bool isDefault = false,
 		bool isFullAccess = false
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(
 			tenantId,
@@ -270,8 +264,8 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 			isFullAccess: isFullAccess
 		);
 
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		var roleId = role.GetRequiredId();
 		var availablePermissionKeys = new[] {
@@ -281,12 +275,12 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		};
 
 		for (var i = 0; i < permissionCount; i++) {
-			await dbContext.RolePermission.AddAsync(new RolePermission {
+			await db.Context.RolePermission.AddAsync(new RolePermission {
 				RoleId = roleId,
 				PermissionKey = availablePermissionKeys[i % availablePermissionKeys.Length],
 			});
 		}
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return roleId;
 	}

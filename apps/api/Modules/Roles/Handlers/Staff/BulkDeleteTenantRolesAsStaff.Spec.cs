@@ -86,10 +86,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
 
 		using var response = await this._BulkDeleteAsync(
@@ -160,10 +157,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -514,15 +508,14 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 	}
 
 	private async Task<Guid> _SeedTenantRoleAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var role = Role.CreateTenantRole(
 			tenantId,
 			"Cross Tenant Bulk Delete " + Guid.NewGuid().ToString("N")[..8]
 		);
 
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId();
 	}
@@ -531,25 +524,24 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 		Guid tenantId,
 		Guid roleId
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var userAccountId = await BulkDeleteTenantRolesAsStaffSpec._GetTenantAccountIdByEmailAsync(
-			dbContext,
+			db.Context,
 			tenantId,
 			TestConstants.AcmeAdminEmail
 		);
 
 		// Add both relation types so the successful bulk-delete path proves it cleans
 		// joins in the same transaction as the role soft delete.
-		await dbContext.RolePermission.AddAsync(new RolePermission {
+		await db.Context.RolePermission.AddAsync(new RolePermission {
 			RoleId = roleId,
 			PermissionKey = AppPermissions.Tenant.Modules.ACCESS_USERS.Key,
 		});
-		await dbContext.UserAccountRole.AddAsync(new UserAccountRole {
+		await db.Context.UserAccountRole.AddAsync(new UserAccountRole {
 			UserAccountId = userAccountId,
 			RoleId = roleId,
 		});
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task<Guid> _GetDefaultTenantRoleIdAsync(Guid tenantId) {
@@ -636,18 +628,17 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 	}
 
 	private async Task _AssertRoleRelationsRemovedAsync(Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		// Joins are hard-deleted on role removal, so ignore query filters to catch
 		// both leftover active rows and accidental soft-deleted leftovers.
 		var permissionCount = await (
-			from permission in dbContext.RolePermission.IgnoreQueryFilters()
+			from permission in db.Context.RolePermission.IgnoreQueryFilters()
 			where permission.RoleId == roleId
 			select permission
 		).CountAsync();
 		var userAccountRoleCount = await (
-			from link in dbContext.UserAccountRole.IgnoreQueryFilters()
+			from link in db.Context.UserAccountRole.IgnoreQueryFilters()
 			where link.RoleId == roleId
 			select link
 		).CountAsync();
@@ -657,11 +648,10 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 	}
 
 	private async Task<Role?> _GetRoleIgnoringFiltersAsync(Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		return await (
-			from role in dbContext.Role.IgnoreQueryFilters()
+			from role in db.Context.Role.IgnoreQueryFilters()
 			where role.Id == roleId
 			select role
 		).FirstOrDefaultAsync();
@@ -676,11 +666,10 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 		IReadOnlyCollection<Guid>? expectedRoleIds = null,
 		IReadOnlyDictionary<Guid, string>? expectedFailedItems = null
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var auditLog = await (
-			from log in dbContext.AuditLog
+			from log in db.Context.AuditLog
 			where log.Action == AuditActions.TenantRoleBulkDeleted
 				&& log.CreatedAt >= startedAt
 			orderby log.CreatedAt descending
@@ -693,7 +682,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 		}
 
 		var expectedUserId = await BulkDeleteTenantRolesAsStaffSpec._GetUserIdByEmailAsync(
-			dbContext,
+			db.Context,
 			TestConstants.StaffAdminEmail
 		);
 		auditLog.UserId.Should().Be(expectedUserId);

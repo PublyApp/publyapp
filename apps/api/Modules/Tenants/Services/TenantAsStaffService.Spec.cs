@@ -11,6 +11,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Uploads.Services;
 using PublyApp.Api.Modules.Users.Entities;
@@ -102,11 +103,9 @@ public sealed class TenantAsStaffServiceSpec
 	}
 
 	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var connectionString = dbContext.Database.GetConnectionString();
+		var connectionString = db.Context.Database.GetConnectionString();
 		if (connectionString is null) {
 			throw new InvalidOperationException(
 				"Test database connection string was unexpectedly null."

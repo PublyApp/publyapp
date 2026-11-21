@@ -5,9 +5,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -145,9 +143,8 @@ public sealed class ResolveStaffRoleUserAssignmentsSpec
 	}
 
 	private async Task<Guid> _GetStaffFullAccessRoleIdAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await FullAccessRoleTestHelper.EnsureStaffRoleAsync(dbContext);
+		await using var db = this._Fixture.OpenDb();
+		return await FullAccessRoleTestHelper.EnsureStaffRoleAsync(db.Context);
 	}
 
 	private async Task<string> _CreateStaffRoleAsync(string staffToken) {
