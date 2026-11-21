@@ -10,7 +10,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Fakes;
 /// which the production <see cref="PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky.BlueskySessionProvider"/> would rightly refuse as
 /// "no usable stored credential".
 ///
-/// Registered ONLY when PUBLISHING_FAKE_PROVIDER=1 on a Development/Testing host
+/// Registered ONLY when PUBLISHING_FAKE_PROVIDER=true on a Development/Testing host
 /// (<see cref="PublyApp.Api.Modules.Publishing.Providers.Fakes.FakePublishingProviderEnabled.IsEnabled"/>); real deployments keep
 /// credential validation and needs-reconnect semantics untouched. The identity is
 /// derived deterministically from the account id so distinct accounts keep distinct

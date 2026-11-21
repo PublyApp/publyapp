@@ -58,7 +58,7 @@ public static class SeedConstants {
 	// Demo social accounts (SocialAccountSeeder): one Active Bluesky account
 	// per demo tenant so publish-target lists are never empty in dev/test.
 	// Handles are pinned so specs and e2e suites can assert on them; the
-	// credentials blob is a placeholder — only the PUBLISHING_FAKE_PROVIDER=1
+	// credentials blob is a placeholder — only the PUBLISHING_FAKE_PROVIDER=true
 	// session seam ever reads it, and it never touches a real network.
 	public static class SocialAccounts {
 		public const string AcmeBlueskyHandle =

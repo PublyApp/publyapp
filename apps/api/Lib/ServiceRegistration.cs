@@ -15,6 +15,7 @@ using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Modules.Aggregators.Adapters.Zernio;
+using PublyApp.Api.Modules.Aggregators.Fakes;
 using PublyApp.Api.Modules.Aggregators.Ports;
 using PublyApp.Api.Modules.Aggregators.Services;
 using PublyApp.Api.Modules.Publishing.Providers;
@@ -210,12 +211,21 @@ public static class ServiceRegistration {
 		builder.Services.AddScoped<DiscordWebhookConnectService>();
 		// Aggregators (#2343): fixed host from code; the key rides in a header, so no
 		// request/response log lines for this client.
-		builder.Services
+		var aggregatorHttp = builder.Services
 			.AddHttpClient(ZernioAdapter.HttpClientName, client => {
 				client.Timeout = TimeSpan.FromSeconds(30);
 				client.MaxResponseContentBufferSize = 1024 * 1024;
 			})
 			.RemoveAllLoggers();
+		// E2E seam: with PUBLISHING_FAKE_PROVIDER on a Development/Testing host the
+		// aggregator answers from an in-process fake and never reaches the network.
+		if (Modules.Publishing.Providers.Fakes.FakePublishingProviderEnabled.IsEnabled()) {
+			aggregatorHttp.ConfigurePrimaryHttpMessageHandler(() => {
+				var fake = new FakeAggregatorServer();
+				fake.ValidKeys.Add(FakeAggregatorServer.E2eValidKey);
+				return fake;
+			});
+		}
 		builder.Services.AddScoped<IAggregatorAdapter, ZernioAdapter>();
 		builder.Services.AddScoped<AggregatorConnectionService>();
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
@@ -251,6 +261,9 @@ public static class ServiceRegistration {
 		builder.Services.AddSingleton<Microsoft.AspNetCore.DataProtection.XmlEncryption.IXmlEncryptor, MasterKeyXmlEncryptor>();
 		builder.Services.AddSingleton<Microsoft.AspNetCore.DataProtection.XmlEncryption.IXmlDecryptor, MasterKeyXmlDecryptor>();
 		builder.Services.AddSingleton<ICredentialProtector, CredentialProtector>();
+		if (Modules.Publishing.Providers.Fakes.FakePublishingProviderEnabled.IsEnabled()) {
+			builder.Services.AddSingleton<ICredentialProtector, Modules.SocialAccounts.Providers.Fakes.FakeCredentialProtector>();
+		}
 		builder.Services.AddScoped<SocialAccountService>();
 
 		return builder;
@@ -310,7 +323,7 @@ public static class ServiceRegistration {
 		builder.Services.AddSingleton<IPublishProvider, RoutingPublishProvider>();
 
 		// E2E publish-now seam (plan D2 reconciliation 4, round-2 blocker fix): ONLY
-		// when PUBLISHING_FAKE_PROVIDER=1 on a Development/Testing host do BOTH
+		// when PUBLISHING_FAKE_PROVIDER=true on a Development/Testing host do BOTH
 		// delivery and session-open resolve to deterministic fakes, so the front-e2e
 		// stack runs the full publish → history pipeline without any network. Real
 		// deployments (and every spec host) keep the real providers; Production

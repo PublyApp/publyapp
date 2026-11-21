@@ -14,6 +14,7 @@ using PublyApp.Api.Lib.RateLimiting;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Seeding;
 using PublyApp.Api.Modules.Account.Endpoints;
+using PublyApp.Api.Modules.Aggregators.Endpoints;
 using PublyApp.Api.Modules.AuditLogs.Endpoints;
 using PublyApp.Api.Modules.Auth.Endpoints;
 using PublyApp.Api.Modules.Dashboard.Endpoints;
@@ -348,6 +349,7 @@ public class Program {
 		tenantGroup.MapPostEndpointsForTenant();
 		tenantGroup.MapProjectEndpointsForTenant();
 		tenantGroup.MapSocialAccountEndpointsForTenant();
+		tenantGroup.MapAggregatorEndpointsForTenant();
 		tenantGroup.MapPublishingEndpointsForTenant();
 		tenantGroup.MapPostPublishingEndpointsForTenant();
 

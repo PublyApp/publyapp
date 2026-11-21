@@ -10,6 +10,36 @@ namespace PublyApp.Api.Localization;
 /// </summary>
 public static partial class ResponseKeys {
 	/// <summary>
+	/// No key saved for this aggregator
+	/// </summary>
+	public static readonly TranslationKey AggregatorConnectionNotFound = new("aggregator-connection-not-found");
+
+	/// <summary>
+	/// Aggregator key removed
+	/// </summary>
+	public static readonly TranslationKey AggregatorConnectionRemovedSuccess = new("aggregator-connection-removed-success");
+
+	/// <summary>
+	/// Key checked
+	/// </summary>
+	public static readonly TranslationKey AggregatorKeyChecked = new("aggregator-key-checked");
+
+	/// <summary>
+	/// This key was refused. Check it and paste it again.
+	/// </summary>
+	public static readonly TranslationKey AggregatorKeyRefused = new("aggregator-key-refused");
+
+	/// <summary>
+	/// Key saved
+	/// </summary>
+	public static readonly TranslationKey AggregatorKeySaved = new("aggregator-key-saved");
+
+	/// <summary>
+	/// Aggregator not found
+	/// </summary>
+	public static readonly TranslationKey AggregatorNotFound = new("aggregator-not-found");
+
+	/// <summary>
 	/// Bad request
 	/// </summary>
 	public static readonly TranslationKey BadRequest = new("bad-request");

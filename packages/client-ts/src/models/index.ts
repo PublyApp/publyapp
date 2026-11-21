@@ -85,6 +85,51 @@ export interface ActiveSystemNotice extends AdditionalDataHolder, Parsable {
     title?: string | null;
 }
 /**
+ * The caller's key for one aggregator: only the last 4 characters, never the key.
+ */
+export interface AggregatorConnectionItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The keyHint property
+     */
+    keyHint?: string | null;
+    /**
+     * The lastCheckedAt property
+     */
+    lastCheckedAt?: Date | null;
+    /**
+     * The lastError property
+     */
+    lastError?: string | null;
+    /**
+     * The status property
+     */
+    status?: string | null;
+}
+export interface AggregatorItem extends AdditionalDataHolder, Parsable {
+    /**
+     * The connection property
+     */
+    connection?: AggregatorItem_connection | null;
+    /**
+     * The displayName property
+     */
+    displayName?: string | null;
+    /**
+     * The keyHelpUrl property
+     */
+    keyHelpUrl?: string | null;
+    /**
+     * The kind property
+     */
+    kind?: string | null;
+    /**
+     * The supportedPlatforms property
+     */
+    supportedPlatforms?: string[] | null;
+}
+export interface AggregatorItem_connection extends AggregatorConnectionItem, Parsable {
+}
+/**
  * Represents an API response with a message and a type-safe translation key
  */
 export interface ApiResponse extends AdditionalDataHolder, Parsable {
@@ -689,6 +734,33 @@ export function createActiveSystemNoticeFromDiscriminatorValue(parseNode: ParseN
 /**
  * Creates a new instance of the appropriate class based on discriminator value
  * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AggregatorConnectionItem}
+ */
+// @ts-ignore
+export function createAggregatorConnectionItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAggregatorConnectionItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AggregatorItem_connection}
+ */
+// @ts-ignore
+export function createAggregatorItem_connectionFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAggregatorItem_connection;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {AggregatorItem}
+ */
+// @ts-ignore
+export function createAggregatorItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoAggregatorItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
  * @returns {ApiResponse}
  */
 // @ts-ignore
@@ -1270,6 +1342,15 @@ export function createEditPostScheduleBodyFromDiscriminatorValue(parseNode: Pars
 // @ts-ignore
 export function createEditPostScheduleResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoEditPostScheduleResponse;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {FindAggregatorsForTenantResponse}
+ */
+// @ts-ignore
+export function createFindAggregatorsForTenantResponseFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoFindAggregatorsForTenantResponse;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -2212,6 +2293,15 @@ export function createResolveTenantRoleUserAssignmentsAsStaffResultFromDiscrimin
 // @ts-ignore
 export function createRoleItemFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
     return deserializeIntoRoleItem;
+}
+/**
+ * Creates a new instance of the appropriate class based on discriminator value
+ * @param parseNode The parse node to use to read the discriminator value and create the object
+ * @returns {SaveAggregatorConnectionBody}
+ */
+// @ts-ignore
+export function createSaveAggregatorConnectionBodyFromDiscriminatorValue(parseNode: ParseNode | undefined) : ((instance?: Parsable) => Record<string, (node: ParseNode) => void>) {
+    return deserializeIntoSaveAggregatorConnectionBody;
 }
 /**
  * Creates a new instance of the appropriate class based on discriminator value
@@ -3438,6 +3528,46 @@ export function deserializeIntoActiveSystemNotice(activeSystemNotice: Partial<Ac
 }
 /**
  * The deserialization information for the current model
+ * @param AggregatorConnectionItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAggregatorConnectionItem(aggregatorConnectionItem: Partial<AggregatorConnectionItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "keyHint": n => { aggregatorConnectionItem.keyHint = n.getStringValue(); },
+        "lastCheckedAt": n => { aggregatorConnectionItem.lastCheckedAt = n.getDateValue(); },
+        "lastError": n => { aggregatorConnectionItem.lastError = n.getStringValue(); },
+        "status": n => { aggregatorConnectionItem.status = n.getStringValue(); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param AggregatorItem The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAggregatorItem(aggregatorItem: Partial<AggregatorItem> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "connection": n => { aggregatorItem.connection = n.getObjectValue<AggregatorItem_connection>(createAggregatorItem_connectionFromDiscriminatorValue); },
+        "displayName": n => { aggregatorItem.displayName = n.getStringValue(); },
+        "keyHelpUrl": n => { aggregatorItem.keyHelpUrl = n.getStringValue(); },
+        "kind": n => { aggregatorItem.kind = n.getStringValue(); },
+        "supportedPlatforms": n => { aggregatorItem.supportedPlatforms = n.getCollectionOfPrimitiveValues<string>("string"); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param AggregatorItem_connection The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoAggregatorItem_connection(aggregatorItem_connection: Partial<AggregatorItem_connection> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        ...deserializeIntoAggregatorConnectionItem(aggregatorItem_connection),
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param ApiResponse The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -4305,6 +4435,17 @@ export function deserializeIntoEditPostScheduleResponse(editPostScheduleResponse
     return {
         "postId": n => { editPostScheduleResponse.postId = n.getGuidValue(); },
         "publications": n => { editPostScheduleResponse.publications = n.getCollectionOfObjectValues<SchedulePostCreatedItem>(createSchedulePostCreatedItemFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
+ * @param FindAggregatorsForTenantResponse The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoFindAggregatorsForTenantResponse(findAggregatorsForTenantResponse: Partial<FindAggregatorsForTenantResponse> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "aggregators": n => { findAggregatorsForTenantResponse.aggregators = n.getCollectionOfObjectValues<AggregatorItem>(createAggregatorItemFromDiscriminatorValue); },
     }
 }
 /**
@@ -5706,6 +5847,17 @@ export function deserializeIntoRoleItem(roleItem: Partial<RoleItem> | undefined 
 }
 /**
  * The deserialization information for the current model
+ * @param SaveAggregatorConnectionBody The instance to deserialize into.
+ * @returns {Record<string, (node: ParseNode) => void>}
+ */
+// @ts-ignore
+export function deserializeIntoSaveAggregatorConnectionBody(saveAggregatorConnectionBody: Partial<SaveAggregatorConnectionBody> | undefined = {}) : Record<string, (node: ParseNode) => void> {
+    return {
+        "apiKey": n => { saveAggregatorConnectionBody.apiKey = n.getObjectValue<UntypedNode>(createUntypedNodeFromDiscriminatorValue); },
+    }
+}
+/**
+ * The deserialization information for the current model
  * @param ScheduledPublicationItem The instance to deserialize into.
  * @returns {Record<string, (node: ParseNode) => void>}
  */
@@ -6985,6 +7137,12 @@ export interface EditPostScheduleResponse extends AdditionalDataHolder, Parsable
      * The publications property
      */
     publications?: SchedulePostCreatedItem[] | null;
+}
+export interface FindAggregatorsForTenantResponse extends AdditionalDataHolder, Parsable {
+    /**
+     * The aggregators property
+     */
+    aggregators?: AggregatorItem[] | null;
 }
 export interface FindAuditLogsResponse extends AdditionalDataHolder, Parsable {
     /**
@@ -8720,6 +8878,12 @@ export interface RoleItem extends AdditionalDataHolder, Parsable {
      */
     permissions?: string[] | null;
 }
+export interface SaveAggregatorConnectionBody extends AdditionalDataHolder, Parsable {
+    /**
+     * The apiKey property
+     */
+    apiKey?: UntypedNode | null;
+}
 /**
  * One wire row of the scheduled-publications list (D3 Task 4): the publicationplus its account/post context and the DST-aware zone-local ISO string.
  */
@@ -8891,6 +9055,48 @@ export function serializeActiveSystemNotice(writer: SerializationWriter, activeS
     writer.writeStringValue("severity", activeSystemNotice.severity);
     writer.writeStringValue("title", activeSystemNotice.title);
     writer.writeAdditionalData(activeSystemNotice.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param AggregatorConnectionItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAggregatorConnectionItem(writer: SerializationWriter, aggregatorConnectionItem: Partial<AggregatorConnectionItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!aggregatorConnectionItem || isSerializingDerivedType) { return; }
+    writer.writeStringValue("keyHint", aggregatorConnectionItem.keyHint);
+    writer.writeDateValue("lastCheckedAt", aggregatorConnectionItem.lastCheckedAt);
+    writer.writeStringValue("lastError", aggregatorConnectionItem.lastError);
+    writer.writeStringValue("status", aggregatorConnectionItem.status);
+    writer.writeAdditionalData(aggregatorConnectionItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param AggregatorItem The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAggregatorItem(writer: SerializationWriter, aggregatorItem: Partial<AggregatorItem> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!aggregatorItem || isSerializingDerivedType) { return; }
+    writer.writeObjectValue<AggregatorItem_connection>("connection", aggregatorItem.connection, serializeAggregatorItem_connection);
+    writer.writeStringValue("displayName", aggregatorItem.displayName);
+    writer.writeStringValue("keyHelpUrl", aggregatorItem.keyHelpUrl);
+    writer.writeStringValue("kind", aggregatorItem.kind);
+    writer.writeCollectionOfPrimitiveValues<string>("supportedPlatforms", aggregatorItem.supportedPlatforms);
+    writer.writeAdditionalData(aggregatorItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param AggregatorItem_connection The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeAggregatorItem_connection(writer: SerializationWriter, aggregatorItem_connection: Partial<AggregatorItem_connection> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!aggregatorItem_connection || isSerializingDerivedType) { return; }
+    serializeAggregatorConnectionItem(writer, aggregatorItem_connection, isSerializingDerivedType)
 }
 /**
  * Serializes information the current object
@@ -9827,6 +10033,18 @@ export function serializeEditPostScheduleResponse(writer: SerializationWriter, e
     writer.writeGuidValue("postId", editPostScheduleResponse.postId);
     writer.writeCollectionOfObjectValues<SchedulePostCreatedItem>("publications", editPostScheduleResponse.publications, serializeSchedulePostCreatedItem);
     writer.writeAdditionalData(editPostScheduleResponse.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param FindAggregatorsForTenantResponse The instance to serialize from.
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeFindAggregatorsForTenantResponse(writer: SerializationWriter, findAggregatorsForTenantResponse: Partial<FindAggregatorsForTenantResponse> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!findAggregatorsForTenantResponse || isSerializingDerivedType) { return; }
+    writer.writeCollectionOfObjectValues<AggregatorItem>("aggregators", findAggregatorsForTenantResponse.aggregators, serializeAggregatorItem);
+    writer.writeAdditionalData(findAggregatorsForTenantResponse.additionalData);
 }
 /**
  * Serializes information the current object
@@ -11323,6 +11541,18 @@ export function serializeRoleItem(writer: SerializationWriter, roleItem: Partial
     writer.writeStringValue("name", roleItem.name);
     writer.writeCollectionOfPrimitiveValues<string>("permissions", roleItem.permissions);
     writer.writeAdditionalData(roleItem.additionalData);
+}
+/**
+ * Serializes information the current object
+ * @param isSerializingDerivedType A boolean indicating whether the serialization is for a derived type.
+ * @param SaveAggregatorConnectionBody The instance to serialize from.
+ * @param writer Serialization writer to use to serialize this model
+ */
+// @ts-ignore
+export function serializeSaveAggregatorConnectionBody(writer: SerializationWriter, saveAggregatorConnectionBody: Partial<SaveAggregatorConnectionBody> | undefined | null = {}, isSerializingDerivedType: boolean = false) : void {
+    if (!saveAggregatorConnectionBody || isSerializingDerivedType) { return; }
+    writer.writeObjectValue("apiKey", saveAggregatorConnectionBody.apiKey);
+    writer.writeAdditionalData(saveAggregatorConnectionBody.additionalData);
 }
 /**
  * Serializes information the current object

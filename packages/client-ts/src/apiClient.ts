@@ -4,6 +4,8 @@
 // @ts-ignore
 import { AccountRequestBuilderNavigationMetadata, type AccountRequestBuilder } from './account/index.js';
 // @ts-ignore
+import { AggregatorsRequestBuilderNavigationMetadata, AggregatorsRequestBuilderRequestsMetadata, type AggregatorsRequestBuilder } from './aggregators/index.js';
+// @ts-ignore
 import { AuthRequestBuilderNavigationMetadata, type AuthRequestBuilder } from './auth/index.js';
 // @ts-ignore
 import { InvitationsRequestBuilderNavigationMetadata, type InvitationsRequestBuilder } from './invitations/index.js';
@@ -40,6 +42,10 @@ export interface ApiClient extends BaseRequestBuilder<ApiClient> {
      * The account property
      */
     get account(): AccountRequestBuilder;
+    /**
+     * The aggregators property
+     */
+    get aggregators(): AggregatorsRequestBuilder;
     /**
      * The auth property
      */
@@ -118,6 +124,10 @@ export const ApiClientUriTemplate = "{+baseurl}";
 export const ApiClientNavigationMetadata: Record<Exclude<keyof ApiClient, KeysToExcludeForNavigationMetadata>, NavigationMetadata> = {
     account: {
         navigationMetadata: AccountRequestBuilderNavigationMetadata,
+    },
+    aggregators: {
+        requestsMetadata: AggregatorsRequestBuilderRequestsMetadata,
+        navigationMetadata: AggregatorsRequestBuilderNavigationMetadata,
     },
     auth: {
         navigationMetadata: AuthRequestBuilderNavigationMetadata,
