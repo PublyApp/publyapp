@@ -56,14 +56,11 @@ public sealed class AggregatorConnectionService {
 		return $"aggregator-{AggregatorKindWire.Format(kind)}-v1";
 	}
 
-	public async Task<IReadOnlyList<AggregatorListItem>> FindAsync(
-		Guid tenantId,
-		CancellationToken cancellationToken
-	) {
-		// Kept: aggregators are not migrated to the tenant filter yet (#2460 follow-up); drop with the allow-list entry.
+	public async Task<IReadOnlyList<AggregatorListItem>> FindAsync(CancellationToken cancellationToken) {
+		this._Db.RequireTenantScope();
 		var connections = await this._Db.AggregatorConnection
 			.AsNoTracking()
-			.Where(c => c.TenantId == tenantId && !c.IsDeleted)
+			.Where(c => !c.IsDeleted)
 			.ToListAsync(cancellationToken);
 		return [.. this._Adapters.Values
 			.OrderBy(adapter => adapter.Kind)
@@ -79,11 +76,11 @@ public sealed class AggregatorConnectionService {
 	}
 
 	public async Task<SaveAggregatorKeyResult> SaveAsync(
-		Guid tenantId,
 		AggregatorKind kind,
 		string apiKey,
 		CancellationToken cancellationToken
 	) {
+		var tenantId = this._ScopedTenantId();
 		var check = await this._Adapters[kind].CheckKeyAsync(apiKey, cancellationToken);
 		if (check is KeyCheck.Rejected rejected) {
 			return new SaveAggregatorKeyResult.Rejected(rejected.Cause);
@@ -93,7 +90,7 @@ public sealed class AggregatorConnectionService {
 			return new SaveAggregatorKeyResult.Unreachable(unreachable.Cause);
 		}
 
-		var connection = await this._FindAsync(tenantId, kind, cancellationToken);
+		var connection = await this._FindAsync(kind, cancellationToken);
 		if (connection is null) {
 			connection = new AggregatorConnection {
 				TenantId = tenantId,
@@ -114,11 +111,11 @@ public sealed class AggregatorConnectionService {
 	}
 
 	public async Task<TestAggregatorKeyResult> TestAsync(
-		Guid tenantId,
 		AggregatorKind kind,
 		CancellationToken cancellationToken
 	) {
-		var connection = await this._FindAsync(tenantId, kind, cancellationToken);
+		this._Db.RequireTenantScope();
+		var connection = await this._FindAsync(kind, cancellationToken);
 		if (connection is null) {
 			return new TestAggregatorKeyResult.NotFound();
 		}
@@ -142,11 +139,11 @@ public sealed class AggregatorConnectionService {
 
 	/// <summary>Soft-deletes the row and erases the encrypted key. False when there was none.</summary>
 	public async Task<bool> RemoveAsync(
-		Guid tenantId,
 		AggregatorKind kind,
 		CancellationToken cancellationToken
 	) {
-		var connection = await this._FindAsync(tenantId, kind, cancellationToken);
+		this._Db.RequireTenantScope();
+		var connection = await this._FindAsync(kind, cancellationToken);
 		if (connection is null) {
 			return false;
 		}
@@ -158,15 +155,16 @@ public sealed class AggregatorConnectionService {
 		return true;
 	}
 
-	private Task<AggregatorConnection?> _FindAsync(
-		Guid tenantId,
-		AggregatorKind kind,
-		CancellationToken cancellationToken
-	) {
-		// Kept: aggregators are not migrated to the tenant filter yet (#2460 follow-up); drop with the allow-list entry.
+	private Task<AggregatorConnection?> _FindAsync(AggregatorKind kind, CancellationToken cancellationToken) {
 		return this._Db.AggregatorConnection.FirstOrDefaultAsync(
-			c => c.TenantId == tenantId && c.Kind == kind && !c.IsDeleted,
+			c => c.Kind == kind && !c.IsDeleted,
 			cancellationToken
 		);
+	}
+
+	// RequireTenantScope throws when there is none, so the id is always set past it.
+	private Guid _ScopedTenantId() {
+		this._Db.RequireTenantScope();
+		return this._Db.TenantId.GetValueOrDefault();
 	}
 }

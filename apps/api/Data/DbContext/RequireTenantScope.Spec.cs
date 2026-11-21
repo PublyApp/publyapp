@@ -8,6 +8,8 @@ using Moq;
 
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
+using PublyApp.Api.Modules.Aggregators.Ports;
+using PublyApp.Api.Modules.Aggregators.Services;
 using PublyApp.Api.Modules.Posts.Services;
 using PublyApp.Api.Modules.Publishing.Services;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
@@ -34,6 +36,14 @@ public sealed class RequireTenantScopeSpec {
 		);
 	}
 
+	private static AggregatorConnectionService _Aggregators(AppDbContext db) {
+		return new AggregatorConnectionService(
+			db,
+			new Mock<ICredentialProtector>().Object,
+			[new Mock<IAggregatorAdapter>().Object]
+		);
+	}
+
 	// Delegates are not serializable, so the theory rows carry only the read name: xUnit then
 	// lists every row at discovery, which the CI shard count relies on.
 	private static Dictionary<string, Func<AppDbContext, Task>> _Reads() {
@@ -56,6 +66,10 @@ public sealed class RequireTenantScopeSpec {
 			["SocialAccountService.SetProjectsForTenantAsync"] = db => RequireTenantScopeSpec._Social(db).SetProjectsForTenantAsync(id, []),
 			["SocialAccountService.SetDefaultVisibilityForTenantAsync"] = db => RequireTenantScopeSpec._Social(db).SetDefaultVisibilityForTenantAsync(id, default),
 			["SocialAccountService.GetByIdForTenantAsync"] = db => RequireTenantScopeSpec._Social(db).GetByIdForTenantAsync(id),
+			["AggregatorConnectionService.FindAsync"] = db => RequireTenantScopeSpec._Aggregators(db).FindAsync(CancellationToken.None),
+			["AggregatorConnectionService.SaveAsync"] = db => RequireTenantScopeSpec._Aggregators(db).SaveAsync(AggregatorKind.Zernio, "key", CancellationToken.None),
+			["AggregatorConnectionService.TestAsync"] = db => RequireTenantScopeSpec._Aggregators(db).TestAsync(AggregatorKind.Zernio, CancellationToken.None),
+			["AggregatorConnectionService.RemoveAsync"] = db => RequireTenantScopeSpec._Aggregators(db).RemoveAsync(AggregatorKind.Zernio, CancellationToken.None),
 		};
 	}
 

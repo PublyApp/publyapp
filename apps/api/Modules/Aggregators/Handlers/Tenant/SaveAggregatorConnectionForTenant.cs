@@ -68,7 +68,7 @@ public sealed class SaveAggregatorConnectionForTenant {
 		}
 
 		var result = await connectionService.SaveAsync(
-			tenantId, aggregatorKind, body.GetApiKey().Trim(), cancellationToken
+			aggregatorKind, body.GetApiKey().Trim(), cancellationToken
 		);
 
 		if (result is SaveAggregatorKeyResult.Rejected rejected) {
