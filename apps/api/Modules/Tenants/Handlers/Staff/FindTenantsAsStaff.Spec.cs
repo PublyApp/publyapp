@@ -689,26 +689,9 @@ public sealed class FindTenantsAsStaffSpec
 		await this._SwapTenantIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
-		var visitedIds = new List<Guid>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = TenantTestHelper.GetFindUrl(
-				cursor: cursor,
-				limit: 1,
-				sortId: "created_at",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
-			pages++;
-			visitedIds.AddRange(
-				page.Data.Select(t => t.Id)
-			);
-			cursor = page.NextCursor;
-
-			// Guard against an infinite loop if the cursor filter regresses.
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(token, "created_at"))
+			.Select(t => t.Id)
+			.ToList();
 
 		// The walk covers exactly our rows, each once, in order.
 		visitedIds.Should().OnlyHaveUniqueItems();
@@ -778,26 +761,9 @@ public sealed class FindTenantsAsStaffSpec
 		// green. After the swap, the tiebreaker is actually exercised.
 		await this._SwapTenantIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
-		var visitedIds = new List<Guid>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = TenantTestHelper.GetFindUrl(
-				cursor: cursor,
-				limit: 1,
-				sortId: "updated_at",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
-			pages++;
-			visitedIds.AddRange(
-				page.Data.Select(t => t.Id)
-			);
-			cursor = page.NextCursor;
-
-			// Guard against an infinite loop if the cursor filter regresses.
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(token, "updated_at"))
+			.Select(t => t.Id)
+			.ToList();
 
 		// The walk covers exactly our rows, each once, in order.
 		visitedIds.Should().OnlyHaveUniqueItems();
@@ -866,26 +832,9 @@ public sealed class FindTenantsAsStaffSpec
 			.Select(x => x.id)
 			.ToList();
 
-		var visitedIds = new List<Guid>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = TenantTestHelper.GetFindUrl(
-				cursor: cursor,
-				limit: 1,
-				sortId: "name",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
-			pages++;
-			visitedIds.AddRange(
-				page.Data.Select(t => t.Id)
-			);
-			cursor = page.NextCursor;
-
-			// Guard against an infinite loop if the cursor filter regresses.
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(token, "name"))
+			.Select(t => t.Id)
+			.ToList();
 
 		// The walk covers exactly our rows, each once.
 		visitedIds.Should().OnlyHaveUniqueItems();
@@ -922,26 +871,9 @@ public sealed class FindTenantsAsStaffSpec
 			seededIds.Add(id);
 		}
 
-		var visitedIds = new List<Guid>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = TenantTestHelper.GetFindUrl(
-				cursor: cursor,
-				limit: 1,
-				sortId: "status",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
-			pages++;
-			visitedIds.AddRange(
-				page.Data.Select(t => t.Id)
-			);
-			cursor = page.NextCursor;
-
-			// Guard against an infinite loop if the cursor filter regresses.
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(token, "status"))
+			.Select(t => t.Id)
+			.ToList();
 
 		// The walk covers exactly our rows, each once.
 		visitedIds.Should().OnlyHaveUniqueItems();
@@ -971,6 +903,31 @@ public sealed class FindTenantsAsStaffSpec
 			"UPDATE tenants SET updated_at = {0} WHERE id = {1}",
 			updatedAt, tenantId
 		);
+	}
+
+	private async Task<List<TenantListItem>> _WalkAllPagesAsync(
+		string token, string sortId
+	) {
+		var items = new List<TenantListItem>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = TenantTestHelper.GetFindUrl(
+					cursor: cursor,
+				limit: 1,
+				sortId: sortId,
+				sortOrder: "asc"
+			);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
+			pages++;
+			items.AddRange(page.Data);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		return items;
 	}
 
 	private async Task<Guid> _SeedTenantAtAsync(

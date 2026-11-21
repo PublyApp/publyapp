@@ -480,25 +480,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		}
 		emails.Sort(StringComparer.OrdinalIgnoreCase);
 
-		var visitedEmails = new List<string>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = FindStaffUserSpec._GetFindUrl(
-				cursor: cursor,
-				limit: 1,
-				sortId: "email",
-				sortOrder: "asc"
-			);
-
-			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
-			pages++;
-			visitedEmails.AddRange(page.Data.Select(user => user.Email));
-			cursor = page.NextCursor;
-
-			// Guard against an infinite loop if the tie-breaker/cursor filter regresses.
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedEmails = (await this._WalkAllPagesAsync(token, "email"))
+			.Select(user => user.Email)
+			.ToList();
 
 		// The walk covers the whole list (seeded template users included):
 		// no row may repeat, and our three rows must come out once each,
@@ -538,24 +522,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await this._SwapStaffUserIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
-		var visitedIds = new List<Guid>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = FindStaffUserSpec._GetFindUrl(
-				cursor: cursor,
-				limit: 1,
-				sortId: "created_at",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
-			pages++;
-			visitedIds.AddRange(page.Data.Select(u => u.Id));
-			cursor = page.NextCursor;
-
-			// Guard against an infinite loop if the cursor filter regresses.
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(token, "created_at"))
+			.Select(u => u.Id)
+			.ToList();
 
 		// The walk covers exactly our rows, each once, in CreatedAt order.
 		visitedIds.Should().OnlyHaveUniqueItems();
@@ -621,23 +590,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		// green. After the swap, the tiebreaker is actually exercised.
 		await this._SwapStaffUserIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
-		var visitedIds = new List<Guid>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = FindStaffUserSpec._GetFindUrl(
-				cursor: cursor,
-				limit: 1,
-				sortId: "updated_at",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
-			pages++;
-			visitedIds.AddRange(page.Data.Select(u => u.Id));
-			cursor = page.NextCursor;
-
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(token, "updated_at"))
+			.Select(u => u.Id)
+			.ToList();
 
 		visitedIds.Should().OnlyHaveUniqueItems();
 		visitedIds.Should().Contain(seededIds);
@@ -696,23 +651,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			.Select(x => x.id)
 			.ToList();
 
-		var visitedIds = new List<Guid>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = FindStaffUserSpec._GetFindUrl(
-				cursor: cursor,
-				limit: 1,
-				sortId: "first_name",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
-			pages++;
-			visitedIds.AddRange(page.Data.Select(u => u.Id));
-			cursor = page.NextCursor;
-
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(token, "first_name"))
+			.Select(u => u.Id)
+			.ToList();
 
 		visitedIds.Should().OnlyHaveUniqueItems();
 		visitedIds.Should().Contain(seededIds);
@@ -750,23 +691,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			.Select(x => x.id)
 			.ToList();
 
-		var visitedIds = new List<Guid>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = FindStaffUserSpec._GetFindUrl(
-				cursor: cursor,
-				limit: 1,
-				sortId: "last_name",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
-			pages++;
-			visitedIds.AddRange(page.Data.Select(u => u.Id));
-			cursor = page.NextCursor;
-
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(token, "last_name"))
+			.Select(u => u.Id)
+			.ToList();
 
 		visitedIds.Should().OnlyHaveUniqueItems();
 		visitedIds.Should().Contain(seededIds);
@@ -794,23 +721,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			seededIds.Add(userId);
 		}
 
-		var visitedIds = new List<Guid>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = FindStaffUserSpec._GetFindUrl(
-				cursor: cursor,
-				limit: 1,
-				sortId: "status",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
-			pages++;
-			visitedIds.AddRange(page.Data.Select(u => u.Id));
-			cursor = page.NextCursor;
-
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(token, "status"))
+			.Select(u => u.Id)
+			.ToList();
 
 		visitedIds.Should().OnlyHaveUniqueItems();
 		visitedIds.Should().Contain(seededIds);
@@ -1451,6 +1364,31 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		_ = await dbContext.Invitation.AddAsync(invitation);
 		await dbContext.SaveChangesAsync();
+	}
+
+	private async Task<List<StaffUserItemDto>> _WalkAllPagesAsync(
+		string token, string sortId
+	) {
+		var items = new List<StaffUserItemDto>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = FindStaffUserSpec._GetFindUrl(
+					cursor: cursor,
+				limit: 1,
+				sortId: sortId,
+				sortOrder: "asc"
+			);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
+			pages++;
+			items.AddRange(page.Data);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		return items;
 	}
 
 	private static string _GetFindUrl(

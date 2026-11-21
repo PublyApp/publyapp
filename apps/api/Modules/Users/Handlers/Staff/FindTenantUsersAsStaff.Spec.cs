@@ -804,6 +804,32 @@ public sealed class FindTenantUsersAsStaffSpec
 
 	// -- URL builder --
 
+	private async Task<List<TenantUserItemDto>> _WalkAllPagesAsync(
+		Guid tenantId, string staffToken, string sortId
+	) {
+		var items = new List<TenantUserItemDto>();
+		string? cursor = null;
+		var pages = 0;
+		do {
+			var url = FindTenantUsersAsStaffSpec._GetFindUrl(
+					tenantId,
+					cursor: cursor,
+				limit: 1,
+				sortId: sortId,
+				sortOrder: "asc"
+			);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
+			pages++;
+			items.AddRange(page.Data);
+			cursor = page.NextCursor;
+
+			// Guard against an infinite loop if the cursor filter regresses.
+			pages.Should().BeLessOrEqualTo(100);
+		} while (cursor is not null);
+
+		return items;
+	}
+
 	private static string _GetFindUrl(
 		Guid tenantId,
 		string? cursor = null,
@@ -938,27 +964,9 @@ public sealed class FindTenantUsersAsStaffSpec
 		await this._SwapTenantUserIdsAsync(seededIds[0], seededIds[2]);
 		(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
-		var visitedIds = new List<string>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = FindTenantUsersAsStaffSpec._GetFindUrl(
-				tenantId,
-				cursor: cursor,
-				limit: 1,
-				sortId: "created_at",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
-			pages++;
-			visitedIds.AddRange(
-				page.Data.Select(u => u.Id)
-			);
-			cursor = page.NextCursor;
-
-			// Guard against an infinite loop if the cursor filter regresses.
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(tenantId, staffToken, "created_at"))
+			.Select(u => u.Id)
+			.ToList();
 
 		// The walk covers exactly our rows, each once, in order.
 		visitedIds.Should().OnlyHaveUniqueItems();
@@ -1023,26 +1031,9 @@ public sealed class FindTenantUsersAsStaffSpec
 			seededIds.Add(userId);
 		}
 
-		var visitedIds = new List<string>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = FindTenantUsersAsStaffSpec._GetFindUrl(
-				tenantId,
-				cursor: cursor,
-				limit: 1,
-				sortId: "id",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
-			pages++;
-			visitedIds.AddRange(
-				page.Data.Select(u => u.Id)
-			);
-			cursor = page.NextCursor;
-
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(tenantId, staffToken, "id"))
+			.Select(u => u.Id)
+			.ToList();
 
 		visitedIds.Should().OnlyHaveUniqueItems();
 		visitedIds.Should().Contain(seededIds);
@@ -1088,26 +1079,9 @@ public sealed class FindTenantUsersAsStaffSpec
 			.Select(x => x.id)
 			.ToList();
 
-		var visitedIds = new List<string>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = FindTenantUsersAsStaffSpec._GetFindUrl(
-				tenantId,
-				cursor: cursor,
-				limit: 1,
-				sortId: "email",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
-			pages++;
-			visitedIds.AddRange(
-				page.Data.Select(u => u.Id)
-			);
-			cursor = page.NextCursor;
-
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(tenantId, staffToken, "email"))
+			.Select(u => u.Id)
+			.ToList();
 
 		visitedIds.Should().OnlyHaveUniqueItems();
 		visitedIds.Should().Contain(seededIds);
@@ -1150,26 +1124,9 @@ public sealed class FindTenantUsersAsStaffSpec
 			seededIds.Add(userId);
 		}
 
-		var visitedIds = new List<string>();
-		string? cursor = null;
-		var pages = 0;
-		do {
-			var url = FindTenantUsersAsStaffSpec._GetFindUrl(
-				tenantId,
-				cursor: cursor,
-				limit: 1,
-				sortId: "status",
-				sortOrder: "asc"
-			);
-			var page = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
-			pages++;
-			visitedIds.AddRange(
-				page.Data.Select(u => u.Id)
-			);
-			cursor = page.NextCursor;
-
-			pages.Should().BeLessOrEqualTo(100);
-		} while (cursor is not null);
+		var visitedIds = (await this._WalkAllPagesAsync(tenantId, staffToken, "status"))
+			.Select(u => u.Id)
+			.ToList();
 
 		visitedIds.Should().OnlyHaveUniqueItems();
 		visitedIds.Should().Contain(seededIds);

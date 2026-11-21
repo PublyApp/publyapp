@@ -1404,27 +1404,9 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			await this._SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
 			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
 
-			var visitedIds = new List<Guid>();
-			string? cursor = null;
-			var pages = 0;
-			do {
-				var url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
-					acmeTenantId,
-					cursor: cursor,
-					limit: 1,
-					sortId: "accepted_at",
-					sortOrder: "asc"
-				);
-				var page = await this._Http.GetOkAsync<FindPageResponse>(url, staffToken);
-				pages++;
-				visitedIds.AddRange(
-					page.Data.Select(i => i.Id)
-				);
-				cursor = page.NextCursor;
-
-				// Guard against an infinite loop if the cursor filter regresses.
-				pages.Should().BeLessOrEqualTo(100);
-			} while (cursor is not null);
+			var visitedIds = (await this._WalkAllPagesAsync(acmeTenantId, staffToken, "accepted_at"))
+				.Select(i => i.Id)
+				.ToList();
 
 			// The walk covers exactly our rows, each once, in order.
 			visitedIds.Should().OnlyHaveUniqueItems();
@@ -1484,26 +1466,9 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			// green. After the swap, the tiebreaker is actually exercised.
 			await this._SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
 			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
-			var visitedIds = new List<Guid>();
-			string? cursor = null;
-			var pages = 0;
-			do {
-				var url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
-					acmeTenantId,
-					cursor: cursor,
-					limit: 1,
-					sortId: "created_at",
-					sortOrder: "asc"
-				);
-				var page = await this._Http.GetOkAsync<FindPageResponse>(url, staffToken);
-				pages++;
-				visitedIds.AddRange(
-					page.Data.Select(i => i.Id)
-				);
-				cursor = page.NextCursor;
-
-				pages.Should().BeLessOrEqualTo(100);
-			} while (cursor is not null);
+			var visitedIds = (await this._WalkAllPagesAsync(acmeTenantId, staffToken, "created_at"))
+				.Select(i => i.Id)
+				.ToList();
 
 			visitedIds.Should().OnlyHaveUniqueItems();
 			visitedIds.Should().Contain(seededIds);
@@ -1554,7 +1519,6 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				seededExpiresAt.Add(expiresAt);
 			}
 
-			var visitedIds = new List<Guid>();
 
 			// Swap the IDs of the two equal-key rows (i=0 and i=2) so the row
 			// inserted at i=2 has the smaller Id. Without this, UUID v7 IDs are
@@ -1563,25 +1527,9 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			// green. After the swap, the tiebreaker is actually exercised.
 			await this._SwapInvitationIdsAsync(seededIds[0], seededIds[2]);
 			(seededIds[0], seededIds[2]) = (seededIds[2], seededIds[0]);
-			string? cursor = null;
-			var pages = 0;
-			do {
-				var url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
-					acmeTenantId,
-					cursor: cursor,
-					limit: 1,
-					sortId: "expires_at",
-					sortOrder: "asc"
-				);
-				var page = await this._Http.GetOkAsync<FindPageResponse>(url, staffToken);
-				pages++;
-				visitedIds.AddRange(
-					page.Data.Select(i => i.Id)
-				);
-				cursor = page.NextCursor;
-
-				pages.Should().BeLessOrEqualTo(100);
-			} while (cursor is not null);
+			var visitedIds = (await this._WalkAllPagesAsync(acmeTenantId, staffToken, "expires_at"))
+				.Select(i => i.Id)
+				.ToList();
 
 			visitedIds.Should().OnlyHaveUniqueItems();
 			visitedIds.Should().Contain(seededIds);
@@ -1727,6 +1675,32 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 		private sealed record InvitationItem {
 			public Guid Id { get; init; }
+		}
+
+		private async Task<List<InvitationItem>> _WalkAllPagesAsync(
+			Guid tenantId, string staffToken, string sortId
+		) {
+			var items = new List<InvitationItem>();
+			string? cursor = null;
+			var pages = 0;
+			do {
+				var url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(
+						tenantId,
+						cursor: cursor,
+					limit: 1,
+					sortId: sortId,
+					sortOrder: "asc"
+				);
+				var page = await this._Http.GetOkAsync<FindPageResponse>(url, staffToken);
+				pages++;
+				items.AddRange(page.Data);
+				cursor = page.NextCursor;
+
+				// Guard against an infinite loop if the cursor filter regresses.
+				pages.Should().BeLessOrEqualTo(100);
+			} while (cursor is not null);
+
+			return items;
 		}
 
 		private static string _GetFindUrl(
