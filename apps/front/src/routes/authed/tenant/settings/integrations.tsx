@@ -2,7 +2,6 @@ import {
 	IconApi,
 	IconEye,
 	IconGridDots,
-	IconPlugConnected,
 	IconPlugOff,
 	IconRefresh,
 } from '@tabler/icons-react';
@@ -16,7 +15,6 @@ import { ReconnectBanner } from '~/components/social-accounts/reconnect-banner';
 import type { ColumnDef } from '~/components/table/column-type';
 import { DataTable } from '~/components/table/data-table';
 import { DataTableRowActions } from '~/components/table/row-actions';
-import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StateSurface } from '~/components/ui/state-surface';
@@ -54,6 +52,7 @@ import { WorkspacePageHeader, ReadOnlyBadge } from '../_workspace-page-parts';
 import { BlueskyConnectDrawer } from './_bluesky-connect-drawer';
 import { DisconnectDialog } from './_disconnect-dialog';
 import { DiscordConnectDrawer } from './_discord-connect-drawer';
+import { ConnectButtons } from './_integrations-connect-buttons';
 import { IntegrationsStatusPill } from './_integrations-status-pill';
 import { IntegrationsVisibleIn } from './_integrations-visible-in';
 import { MastodonConnectDrawer } from './_mastodon-connect-drawer';
@@ -271,72 +270,6 @@ const fediverseProviderOf = (
 		return 'pixelfed';
 	}
 	return ui.mastodonOpen ? 'mastodon' : null;
-};
-
-type ConnectDrawerKey =
-	| 'mastodonOpen'
-	| 'pixelfedOpen'
-	| 'discordOpen'
-	| 'connectOpen';
-
-/** The connect buttons of the providers the operator has not switched off: the
- * wire name the switch uses, the drawer each opens and its label. Bluesky is
- * the primary action. */
-const ConnectButtons = ({
-	disabledProviders,
-	disabled,
-	onOpen,
-}: {
-	disabledProviders: ReadonlySet<string>;
-	disabled: boolean;
-	onOpen: (key: ConnectDrawerKey) => void;
-}) => {
-	const { t } = useTranslation('settings');
-	const buttons = [
-		{
-			provider: 'mastodon',
-			drawer: 'mastodonOpen',
-			label: t('connect-mastodon'),
-			primary: false,
-		},
-		{
-			provider: 'pixelfed',
-			drawer: 'pixelfedOpen',
-			label: t('connect-pixelfed'),
-			primary: false,
-		},
-		{
-			provider: 'discord_webhook',
-			drawer: 'discordOpen',
-			label: t('connect-discord'),
-			primary: false,
-		},
-		{
-			provider: 'bluesky',
-			drawer: 'connectOpen',
-			label: t('connect-bluesky'),
-			primary: true,
-		},
-	] as const;
-
-	return (
-		<div className="flex flex-wrap justify-end gap-2">
-			{buttons
-				.filter((button) => !disabledProviders.has(button.provider))
-				.map((button) => (
-					<Button
-						key={button.provider}
-						type="button"
-						variant={button.primary ? 'default' : 'outline'}
-						disabled={disabled}
-						onClick={() => onOpen(button.drawer)}
-					>
-						<IconPlugConnected aria-hidden="true" className="size-4" />
-						{button.label}
-					</Button>
-				))}
-		</div>
-	);
 };
 
 /** ConfirmDialog requires a non-null account even when closed; this inert
