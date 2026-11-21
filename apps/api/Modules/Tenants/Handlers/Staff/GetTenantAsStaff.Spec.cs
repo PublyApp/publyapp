@@ -4,9 +4,6 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using Microsoft.Extensions.DependencyInjection;
-
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -109,10 +106,7 @@ public sealed class GetTenantAsStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForNonStaffUser() {
 		var token =
-			await this._AuthClient.LoginAsync(
-				TestConstants.AcmeAdminEmail,
-				TestConstants.SeedPassword
-			);
+			await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url = GetTenantAsStaffSpec._GetUrl(Guid.NewGuid().ToString());
 		var request = new HttpRequestMessage(
@@ -338,10 +332,7 @@ public sealed class GetTenantAsStaffSpec
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"Tenant Get Org Fields {Guid.NewGuid():N}",
@@ -358,8 +349,8 @@ public sealed class GetTenantAsStaffSpec
 			Notes = "internal staff note",
 			LastActivityAt = DateTime.UtcNow,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		var tenantId = tenant.GetRequiredId();
 
 		var url = GetTenantAsStaffSpec._GetUrl(tenantId.ToString());
@@ -398,10 +389,7 @@ public sealed class GetTenantAsStaffSpec
 	private async Task<Guid> _SeedTenantWithCountsFixtureAsync(
 		string namePrefix
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"{namePrefix} {Guid.NewGuid():N}",
@@ -409,8 +397,8 @@ public sealed class GetTenantAsStaffSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 20,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		var tenantId = tenant.GetRequiredId();
 
 		// NOTE: AppDbContext.SaveChangesAsync forces IsDeleted=false on newly-Added rows (its
@@ -428,24 +416,24 @@ public sealed class GetTenantAsStaffSpec
 				Status = UserStatus.Active,
 				IsVerified = true,
 			};
-			await dbContext.User.AddAsync(user);
-			await dbContext.SaveChangesAsync();
+			await db.Context.User.AddAsync(user);
+			await db.Context.SaveChangesAsync();
 
 			var account = UserAccount.CreateTenantAccount(
 				user.GetRequiredId(), tenantId
 			);
-			await dbContext.UserAccount.AddAsync(account);
-			await dbContext.SaveChangesAsync();
+			await db.Context.UserAccount.AddAsync(account);
+			await db.Context.SaveChangesAsync();
 
 			if (isOwner) {
 				await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
-					dbContext, tenantId, account.GetRequiredId()
+					db.Context, tenantId, account.GetRequiredId()
 				);
 			}
 
 			if (isDeleted) {
 				account.IsDeleted = true;
-				await dbContext.SaveChangesAsync();
+				await db.Context.SaveChangesAsync();
 			}
 
 			return user.GetRequiredId();
@@ -473,12 +461,12 @@ public sealed class GetTenantAsStaffSpec
 				CryptoUtils.RandomString(20)
 			);
 			invitation.Status = status;
-			dbContext.Invitation.Add(invitation);
-			await dbContext.SaveChangesAsync();
+			db.Context.Invitation.Add(invitation);
+			await db.Context.SaveChangesAsync();
 
 			if (isDeleted) {
 				invitation.IsDeleted = true;
-				await dbContext.SaveChangesAsync();
+				await db.Context.SaveChangesAsync();
 			}
 		}
 
@@ -489,19 +477,19 @@ public sealed class GetTenantAsStaffSpec
 		await AddInvitationAsync(InvitationStatus.Revoked, now.AddDays(10), isDeleted: false);
 		await AddInvitationAsync(InvitationStatus.Pending, now.AddHours(-1), isDeleted: false);
 
-		dbContext.Role.Add(
+		db.Context.Role.Add(
 			Role.CreateTenantRole(tenantId, "Counts Fixture Role A")
 		);
-		dbContext.Role.Add(
+		db.Context.Role.Add(
 			Role.CreateTenantRole(tenantId, "Counts Fixture Role B")
 		);
 		var deletedRole =
 			Role.CreateTenantRole(tenantId, "Counts Fixture Role C");
-		dbContext.Role.Add(deletedRole);
-		await dbContext.SaveChangesAsync();
+		db.Context.Role.Add(deletedRole);
+		await db.Context.SaveChangesAsync();
 
 		deletedRole.IsDeleted = true;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return tenantId;
 	}
@@ -509,10 +497,7 @@ public sealed class GetTenantAsStaffSpec
 	private async Task<Guid> _SeedTenantWithSoftDeletedUserFixtureAsync(
 		string namePrefix
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"{namePrefix} {Guid.NewGuid():N}",
@@ -520,8 +505,8 @@ public sealed class GetTenantAsStaffSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		var tenantId = tenant.GetRequiredId();
 
 		async Task AddUserAsync(bool isOwner, bool isUserDeleted) {
@@ -535,18 +520,18 @@ public sealed class GetTenantAsStaffSpec
 				Status = UserStatus.Active,
 				IsVerified = true,
 			};
-			await dbContext.User.AddAsync(user);
-			await dbContext.SaveChangesAsync();
+			await db.Context.User.AddAsync(user);
+			await db.Context.SaveChangesAsync();
 
 			var account = UserAccount.CreateTenantAccount(
 				user.GetRequiredId(), tenantId
 			);
-			await dbContext.UserAccount.AddAsync(account);
-			await dbContext.SaveChangesAsync();
+			await db.Context.UserAccount.AddAsync(account);
+			await db.Context.SaveChangesAsync();
 
 			if (isOwner) {
 				await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
-					dbContext, tenantId, account.GetRequiredId()
+					db.Context, tenantId, account.GetRequiredId()
 				);
 			}
 
@@ -554,7 +539,7 @@ public sealed class GetTenantAsStaffSpec
 			// F9 covers: UserAccount.IsDeleted stays false, only User.IsDeleted flips.
 			if (isUserDeleted) {
 				user.IsDeleted = true;
-				await dbContext.SaveChangesAsync();
+				await db.Context.SaveChangesAsync();
 			}
 		}
 
@@ -571,10 +556,7 @@ public sealed class GetTenantAsStaffSpec
 		string namePrefix,
 		int usersCount
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"{namePrefix} {Guid.NewGuid():N}",
@@ -584,8 +566,8 @@ public sealed class GetTenantAsStaffSpec
 			MaxUsers = usersCount + 5,
 		};
 
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		var tenantId = tenant.GetRequiredId();
 		for (var i = 0; i < usersCount; i++) {
@@ -600,10 +582,10 @@ public sealed class GetTenantAsStaffSpec
 				IsVerified = true,
 			};
 
-			await dbContext.User.AddAsync(user);
-			await dbContext.SaveChangesAsync();
+			await db.Context.User.AddAsync(user);
+			await db.Context.SaveChangesAsync();
 
-			await dbContext.UserAccount.AddAsync(
+			await db.Context.UserAccount.AddAsync(
 				UserAccount.CreateTenantAccount(
 					user.GetRequiredId(),
 					tenantId
@@ -611,7 +593,7 @@ public sealed class GetTenantAsStaffSpec
 			);
 		}
 
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return new SeededTenantSnapshot(
 			TenantId: tenantId,

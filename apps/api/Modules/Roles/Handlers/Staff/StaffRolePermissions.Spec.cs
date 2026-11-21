@@ -5,9 +5,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -68,17 +66,13 @@ public sealed class StaffRolePermissionsSpec
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			StaffRolePermissionsSpec._GetListPermissionsUrl(Guid.NewGuid().ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			StaffRolePermissionsSpec._GetListPermissionsUrl(Guid.NewGuid().ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -89,12 +83,11 @@ public sealed class StaffRolePermissionsSpec
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			StaffRolePermissionsSpec._GetListPermissionsUrl(Guid.NewGuid().ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			StaffRolePermissionsSpec._GetListPermissionsUrl(Guid.NewGuid().ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -102,12 +95,11 @@ public sealed class StaffRolePermissionsSpec
 	public async Task ItShouldReturnBadRequestForMalformedRoleId() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			StaffRolePermissionsSpec._GetListPermissionsUrl("not-a-guid")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			StaffRolePermissionsSpec._GetListPermissionsUrl("not-a-guid"),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
 		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
@@ -118,12 +110,11 @@ public sealed class StaffRolePermissionsSpec
 	public async Task ItShouldReturnNotFoundForNonExistentRole() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			StaffRolePermissionsSpec._GetListPermissionsUrl(Guid.NewGuid().ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			StaffRolePermissionsSpec._GetListPermissionsUrl(Guid.NewGuid().ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -219,12 +210,11 @@ public sealed class StaffRolePermissionsSpec
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var roleId = await this._CreateStaffRoleAsync(token);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			StaffRolePermissionsSpec._GetPermissionToggleUrl(roleId, "staff.this.does.not.exist")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			StaffRolePermissionsSpec._GetPermissionToggleUrl(roleId, "staff.this.does.not.exist"),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
@@ -233,12 +223,11 @@ public sealed class StaffRolePermissionsSpec
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var roleId = await this._CreateStaffRoleAsync(token);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			StaffRolePermissionsSpec._GetPermissionToggleUrl(roleId, "staff.this.does.not.exist")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			StaffRolePermissionsSpec._GetPermissionToggleUrl(roleId, "staff.this.does.not.exist"),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 	}
 
@@ -275,12 +264,11 @@ public sealed class StaffRolePermissionsSpec
 	}
 
 	private async Task<List<string>> _GetPermissionKeysAsync(string staffToken, string roleId) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			StaffRolePermissionsSpec._GetListPermissionsUrl(roleId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			StaffRolePermissionsSpec._GetListPermissionsUrl(roleId),
+			staffToken
+		);
 		response.EnsureSuccessStatusCode();
 
 		var payload = await response.Content.ReadFromJsonAsync<ListPermissionsResponse>();
@@ -295,10 +283,9 @@ public sealed class StaffRolePermissionsSpec
 		Guid roleId,
 		string permissionKey
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.RolePermission
+		return await db.Context.RolePermission
 			.IgnoreQueryFilters()
 			.CountAsync(pp =>
 				pp.RoleId == roleId

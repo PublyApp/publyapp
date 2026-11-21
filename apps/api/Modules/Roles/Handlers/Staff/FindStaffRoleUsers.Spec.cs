@@ -4,9 +4,6 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using Microsoft.Extensions.DependencyInjection;
-
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -68,10 +65,7 @@ public sealed class FindStaffRoleUsersSpec
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -234,12 +228,11 @@ public sealed class FindStaffRoleUsersSpec
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var roleId = await this._CreateStaffRoleAsync(token);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindStaffRoleUsersSpec._GetUrl(roleId) + "?limit=50&sort_id=not_real"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			FindStaffRoleUsersSpec._GetUrl(roleId) + "?limit=50&sort_id=not_real",
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 
@@ -286,12 +279,11 @@ public sealed class FindStaffRoleUsersSpec
 		await this._AssignRoleToStaffUserAsync(token, activeUserId, roleId);
 		await this._AssignRoleToStaffUserAsync(token, suspendedUserId, roleId);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindStaffRoleUsersSpec._GetUrl(roleId) + "?limit=50&sort_id=status&sort_order=asc"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			FindStaffRoleUsersSpec._GetUrl(roleId) + "?limit=50&sort_id=status&sort_order=asc",
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var result = await response.Content.ReadFromJsonAsync<FindStaffRoleUsersResponse>();
@@ -440,17 +432,16 @@ public sealed class FindStaffRoleUsersSpec
 	}
 
 	private async Task _SetStaffUserStatusAsync(string userId, UserStatus status) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var id = Guid.Parse(userId);
-		var user = await dbContext.User.FindAsync(id);
+		var user = await db.Context.User.FindAsync(id);
 		if (user is null) {
 			throw new InvalidOperationException("User not found for status update");
 		}
 
 		user.Status = status;
-		_ = await dbContext.SaveChangesAsync();
+		_ = await db.Context.SaveChangesAsync();
 	}
 
 	// -- Response DTOs --

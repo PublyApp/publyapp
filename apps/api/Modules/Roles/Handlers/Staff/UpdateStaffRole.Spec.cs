@@ -6,9 +6,7 @@ using System.Text;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -63,10 +61,7 @@ public sealed class UpdateStaffRoleSpec
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
@@ -141,10 +136,7 @@ public sealed class UpdateStaffRoleSpec
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Name");
+		await response.ShouldHaveValidationErrorAsync("Name");
 	}
 
 	[Fact]
@@ -165,10 +157,7 @@ public sealed class UpdateStaffRoleSpec
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be("role-name-already-exists");
+		await response.ShouldBeProblemAsync("role-name-already-exists");
 	}
 
 	[Fact]
@@ -312,10 +301,7 @@ public sealed class UpdateStaffRoleSpec
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Icon");
+		await response.ShouldHaveValidationErrorAsync("Icon");
 	}
 
 	[Fact]
@@ -332,10 +318,7 @@ public sealed class UpdateStaffRoleSpec
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Tone");
+		await response.ShouldHaveValidationErrorAsync("Tone");
 	}
 
 	// -- Helpers --
@@ -380,12 +363,11 @@ public sealed class UpdateStaffRoleSpec
 			Routes.Roles.ForStaff.GetFn(roleId)
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			url
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			url,
+			staffToken
+		);
 		response.EnsureSuccessStatusCode();
 
 		var payload = await response.Content.ReadFromJsonAsync<GetStaffRoleByIdResponse>();
@@ -397,10 +379,9 @@ public sealed class UpdateStaffRoleSpec
 	}
 
 	private async Task<Role> _GetRoleByIdAsync(Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.Role
+		return await db.Context.Role
 			.AsNoTracking()
 			.SingleAsync(role => role.Id == roleId);
 	}

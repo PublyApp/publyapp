@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -104,15 +102,14 @@ public sealed class FindStaffRolesSpec : IClassFixture<ApiFixture> {
 		string? tone = null,
 		bool isFullAccess = false
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateStaffRole(name);
 		role.Icon = icon;
 		role.Tone = tone;
 		role.IsFullAccess = isFullAccess;
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId();
 	}
@@ -209,8 +206,7 @@ public sealed class FindStaffRolesSpec : IClassFixture<ApiFixture> {
 	private async Task<string> _CreateUnprivilegedStaffTokenAsync() {
 		var email = $"no-perms-roles-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -220,13 +216,13 @@ public sealed class FindStaffRolesSpec : IClassFixture<ApiFixture> {
 			IsVerified = true,
 			Status = UserStatus.Active,
 		};
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var staffAccount = UserAccount.CreateStaffAccount(user.GetRequiredId());
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(staffAccount);
+		_ = await db.Context.SaveChangesAsync();
 
 		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 	}

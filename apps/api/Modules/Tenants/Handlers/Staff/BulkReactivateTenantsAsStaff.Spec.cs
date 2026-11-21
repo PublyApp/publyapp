@@ -229,10 +229,7 @@ public sealed class BulkReactivateTenantsAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var tenant = await this._SeedTenantAsync(
 			"Bulk Reactivate Tenant User",
 			TenantStatus.Suspended

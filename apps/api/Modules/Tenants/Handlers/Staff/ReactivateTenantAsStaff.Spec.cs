@@ -6,11 +6,8 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Localization;
@@ -150,12 +147,7 @@ ReactivateTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Conflict);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be("tenant-not-suspended");
+		await response.ShouldBeProblemAsync("tenant-not-suspended");
 	}
 
 	[Fact]
@@ -173,12 +165,7 @@ ReactivateTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be("tenant-not-found");
+		await response.ShouldBeProblemAsync("tenant-not-found");
 	}
 
 	[Fact]
@@ -227,10 +214,7 @@ ReactivateTenantAsStaffSpec
 		try {
 			// Login as tenant admin (not staff)
 			var tenantToken =
-				await this._AuthClient.LoginAsync(
-					TestConstants.AcmeAdminEmail,
-					TestConstants.SeedPassword
-				);
+				await this._AuthClient.LoginAsAcmeAdminAsync();
 
 			using var request = new HttpRequestMessage(
 				HttpMethod.Post,
@@ -307,12 +291,7 @@ ReactivateTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -372,10 +351,7 @@ ReactivateTenantAsStaffSpec
 		string namePrefix,
 		TenantStatus status
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"{namePrefix} {Guid.NewGuid():N}",
@@ -384,8 +360,8 @@ ReactivateTenantAsStaffSpec
 			MaxUsers = 10,
 		};
 
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		return new SeededTenantSnapshot(
 			TenantId: tenant.GetRequiredId(),
@@ -397,13 +373,10 @@ ReactivateTenantAsStaffSpec
 		string action,
 		Guid targetId
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var query =
-			from log in dbContext.AuditLog
+			from log in db.Context.AuditLog
 			where log.Action == action
 				&& log.TargetId == targetId
 			orderby log.CreatedAt descending

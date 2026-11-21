@@ -6,12 +6,9 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -72,20 +69,16 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
 		var tenantId = await this._GetTenantIdAsync();
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
 			TenantRolePermissionsAsStaffSpec._GetListUrl(
 				tenantId.ToString(),
 				Guid.NewGuid().ToString()
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -97,15 +90,14 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
 			TenantRolePermissionsAsStaffSpec._GetListUrl(
 				tenantId.ToString(),
 				Guid.NewGuid().ToString()
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -134,16 +126,15 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
 			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				Guid.NewGuid().ToString(),
 				AppPermissions.Tenant.Modules.ACCESS_USERS.Key
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -152,16 +143,15 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
 			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				Guid.NewGuid().ToString(),
 				AppPermissions.Tenant.Modules.ACCESS_USERS.Key
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -190,16 +180,15 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
 			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				Guid.NewGuid().ToString(),
 				AppPermissions.Tenant.Modules.ACCESS_USERS.Key
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -208,16 +197,15 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
 			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				Guid.NewGuid().ToString(),
 				AppPermissions.Tenant.Modules.ACCESS_USERS.Key
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -225,40 +213,32 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	public async Task ItShouldReturnBadRequestForMalformedTenantId() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			TenantRolePermissionsAsStaffSpec._GetListUrl("not-a-guid", Guid.NewGuid().ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			TenantRolePermissionsAsStaffSpec._GetListUrl("not-a-guid", Guid.NewGuid().ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedTenantIdOnAssign() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
 			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
 				"not-a-guid",
 				Guid.NewGuid().ToString(),
 				AppPermissions.Tenant.Modules.ACCESS_USERS.Key
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -272,22 +252,18 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		);
 		auditLogBefore.Should().BeNull();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
 			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				roleId,
 				"tenant.this.permission.does.not.exist"
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.BadRequest);
+		await response.ShouldBeProblemAsync(ResponseKeys.BadRequest);
 
 		var auditLogAfter = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantRolePermissionsAssigned,
@@ -301,44 +277,36 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
 			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				"not-a-guid",
 				AppPermissions.Tenant.Modules.ACCESS_USERS.Key
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedTenantIdOnUnassign() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
 			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
 				"not-a-guid",
 				Guid.NewGuid().ToString(),
 				AppPermissions.Tenant.Modules.ACCESS_USERS.Key
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -346,22 +314,18 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
 			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				"not-a-guid",
 				AppPermissions.Tenant.Modules.ACCESS_USERS.Key
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -369,18 +333,14 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			TenantRolePermissionsAsStaffSpec._GetListUrl(tenantId.ToString(), "not-a-guid")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			TenantRolePermissionsAsStaffSpec._GetListUrl(tenantId.ToString(), "not-a-guid"),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -388,15 +348,14 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
 			TenantRolePermissionsAsStaffSpec._GetListUrl(
 				tenantId.ToString(),
 				Guid.NewGuid().ToString()
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -508,16 +467,15 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		);
 		auditLogBefore.Should().BeNull();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
 			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				roleId,
 				"staff.this.does.not.exist"
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
 		var auditLogAfter = await this._GetLatestAuditLogAsync(
@@ -537,8 +495,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	}
 
 	private async Task<string> _CreateRoleAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(
 			tenantId,
@@ -547,17 +504,16 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		);
 		role.ValidateRoleType();
 
-		_ = dbContext.Role.Add(role);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.Role.Add(role);
+		_ = await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId().ToString();
 	}
 
 	private async Task<string> _GetRoleNameAsync(Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var role = await dbContext.Role
+		var role = await db.Context.Role
 			.Where(p => p.Id == roleId)
 			.Select(p => p.Name)
 			.FirstAsync();
@@ -571,16 +527,15 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		string roleId,
 		string permissionKey
 	) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
 			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				roleId,
 				permissionKey
-			)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			staffToken
+		);
 		response.EnsureSuccessStatusCode();
 	}
 
@@ -589,12 +544,11 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		Guid tenantId,
 		string roleId
 	) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			TenantRolePermissionsAsStaffSpec._GetListUrl(tenantId.ToString(), roleId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			TenantRolePermissionsAsStaffSpec._GetListUrl(tenantId.ToString(), roleId),
+			staffToken
+		);
 		response.EnsureSuccessStatusCode();
 
 		var payload = await response.Content.ReadFromJsonAsync<ListPermissionsResponse>();
@@ -609,10 +563,9 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		string action,
 		Guid targetId
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.AuditLog
+		return await db.Context.AuditLog
 			.Where(log => log.Action == action && log.TargetId == targetId)
 			.OrderByDescending(log => log.CreatedAt)
 			.FirstOrDefaultAsync();

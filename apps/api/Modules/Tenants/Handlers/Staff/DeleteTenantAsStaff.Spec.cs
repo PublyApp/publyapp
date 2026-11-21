@@ -6,9 +6,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
@@ -171,12 +169,7 @@ public sealed class DeleteTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be("tenant-not-suspended-cannot-delete");
+		await response.ShouldBeProblemAsync("tenant-not-suspended-cannot-delete");
 	}
 
 	[Fact]
@@ -218,12 +211,7 @@ public sealed class DeleteTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be("malformed-id");
+		await response.ShouldBeProblemAsync("malformed-id");
 	}
 
 	[Fact]
@@ -300,10 +288,7 @@ public sealed class DeleteTenantAsStaffSpec
 			);
 
 		// Login as tenant admin (not staff)
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url = DeleteTenantAsStaffSpec._GetUrl(tenantId.ToString());
 		var request = new HttpRequestMessage(
@@ -342,10 +327,7 @@ public sealed class DeleteTenantAsStaffSpec
 		string namePrefix,
 		TenantStatus status
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"{namePrefix} {Guid.NewGuid():N}",
@@ -354,8 +336,8 @@ public sealed class DeleteTenantAsStaffSpec
 			MaxUsers = 10,
 		};
 
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		return new SeededTenantSnapshot(
 			TenantId: tenant.GetRequiredId(),
@@ -366,13 +348,10 @@ public sealed class DeleteTenantAsStaffSpec
 	private async Task<Tenant?> _GetTenantIgnoringFiltersAsync(
 		Guid tenantId
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var query =
-			from tenant in dbContext.Tenant.IgnoreQueryFilters()
+			from tenant in db.Context.Tenant.IgnoreQueryFilters()
 			where tenant.Id == tenantId
 			select tenant;
 
@@ -383,13 +362,10 @@ public sealed class DeleteTenantAsStaffSpec
 		string action,
 		Guid targetId
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var query =
-			from log in dbContext.AuditLog
+			from log in db.Context.AuditLog
 			where log.Action == action
 				&& log.TargetId == targetId
 			orderby log.CreatedAt descending

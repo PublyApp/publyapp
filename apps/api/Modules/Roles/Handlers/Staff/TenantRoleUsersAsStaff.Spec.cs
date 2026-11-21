@@ -159,12 +159,11 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			AppPermissions.Staff.Users.UPDATE_FOR_TENANT.Key
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
 		(await this._CountAssignmentsAsync(userAccountId, roleId)).Should().Be(1);
@@ -263,12 +262,11 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			status: AccountStatus.Suspended
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
 		(await this._CountAssignmentsAsync(userAccountId, roleId)).Should().Be(1);
@@ -285,12 +283,11 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		var roleId = await this._CreateTenantRoleAsync(tenantId);
 		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
 		(await this._CountAssignmentsAsync(userAccountId, roleId)).Should().Be(1);
@@ -312,12 +309,11 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		await this._AssignAsync(token, tenantId, roleId, userAccountId);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
 		// One membership row, and exactly one audit entry: a no-op must not append history.
@@ -335,12 +331,11 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		await this._AssignAsync(token, tenantId, roleId, userAccountId);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
 		// Unassignment hard-deletes the junction row; the audit entry is the only history.
@@ -361,12 +356,11 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		var roleId = await this._CreateTenantRoleAsync(tenantId);
 		var userAccountId = await this._CreateTenantMemberAsync(tenantId);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
 		(await this._CountAssignmentsAsync(userAccountId, roleId)).Should().Be(0);
@@ -393,16 +387,15 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		await this._AssignAsync(token, tenantId, roleId, userAccountId);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var junctionXmin = await dbContext.Database
+		var junctionXmin = await db.Context.Database
 			.SqlQuery<string>($"""
 				SELECT xmin::text AS "Value" FROM user_account_roles
 				WHERE user_account_id = {userAccountId} AND role_id = {roleId}
 				""")
 			.FirstAsync();
-		var auditXmin = await dbContext.Database
+		var auditXmin = await db.Context.Database
 			.SqlQuery<string>($"""
 				SELECT xmin::text AS "Value" FROM audit_logs
 				WHERE target_id = {roleId}
@@ -503,16 +496,15 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var overflowRoleId = await this._CreateTenantRoleAsync(tenantId);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
 			TenantRoleUsersAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				overflowRoleId.ToString(),
 				userAccountId.ToString()
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
 		var problem = await response.Content
@@ -541,16 +533,15 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		// Re-asserting an assignment the member already holds must stay idempotent even though
 		// the member sits exactly at the cap.
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
 			TenantRoleUsersAsStaffSpec._GetToggleUrl(
 				tenantId.ToString(),
 				assignedRoleIds[0].ToString(),
 				userAccountId.ToString()
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
 		(await this._CountAssignmentsAsync(userAccountId, assignedRoleIds[0])).Should().Be(1);
@@ -581,12 +572,11 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var newRoleId = await this._CreateTenantRoleAsync(tenantId);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), newRoleId.ToString(), userAccountId.ToString())
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), newRoleId.ToString(), userAccountId.ToString()),
+			token
+		);
 		response.StatusCode.Should().Be(
 			HttpStatusCode.NoContent,
 			"the dead role's link must not occupy a quota slot"
@@ -641,16 +631,15 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var responseTask = Task.WhenAll(
 			contendedRoleIds.Select(async contendedRoleId => {
-				using var request = new HttpRequestMessage(
+				using var response = await this._Http.SendWithSessionAsync(
 					HttpMethod.Post,
 					TenantRoleUsersAsStaffSpec._GetToggleUrl(
 						tenantId.ToString(),
 						contendedRoleId.ToString(),
 						userAccountId.ToString()
-					)
-				).WithSessionToken(token);
-
-				using var response = await this._Http.SendAsync(request);
+					),
+					token
+				);
 				return response.StatusCode;
 			})
 		);
@@ -694,12 +683,11 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
 
 		var responseTask = Task.Run(async () => {
-			using var request = new HttpRequestMessage(
+			using var response = await this._Http.SendWithSessionAsync(
 				HttpMethod.Post,
-				TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString())
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
+				TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString()),
+				token
+			);
 			return response.StatusCode;
 		});
 
@@ -747,12 +735,11 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		var barrierPid = await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
 
 		var responseTask = Task.Run(async () => {
-			using var request = new HttpRequestMessage(
+			using var response = await this._Http.SendWithSessionAsync(
 				HttpMethod.Post,
-				TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString())
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
+				TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString()),
+				token
+			);
 			return response.StatusCode;
 		});
 
@@ -842,11 +829,10 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		var email = $"{emailPrefix}-{Guid.NewGuid():N}@example.com";
 		var userId = await StaffUserTestHelper.SeedStaffUserAsync(this._Fixture, email);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var staffAccount = await (
-			from account in dbContext.UserAccount
+			from account in db.Context.UserAccount
 			where account.UserId == userId
 				&& account.Scope == AccountScope.Staff
 				&& !account.IsDeleted
@@ -858,21 +844,21 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			"Test-only staff role for tenant role member assignment permissions"
 		);
 
-		_ = dbContext.Role.Add(role);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.Role.Add(role);
+		_ = await db.Context.SaveChangesAsync();
 
 		foreach (var permissionKey in permissionKeys) {
-			_ = dbContext.RolePermission.Add(new RolePermission {
+			_ = db.Context.RolePermission.Add(new RolePermission {
 				RoleId = role.GetRequiredId(),
 				PermissionKey = permissionKey,
 			});
 		}
 
-		_ = dbContext.UserAccountRole.Add(new UserAccountRole {
+		_ = db.Context.UserAccountRole.Add(new UserAccountRole {
 			UserAccountId = staffAccount.GetRequiredId(),
 			RoleId = role.GetRequiredId(),
 		});
-		_ = await dbContext.SaveChangesAsync();
+		_ = await db.Context.SaveChangesAsync();
 
 		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 	}
@@ -883,12 +869,11 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		Guid roleId,
 		Guid userAccountId
 	) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString())
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			TenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString()),
+			staffToken
+		);
 		response.EnsureSuccessStatusCode();
 	}
 
@@ -898,8 +883,7 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _CreateTenantRoleAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(
 			tenantId,
@@ -908,15 +892,14 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		);
 		role.ValidateRoleType();
 
-		_ = dbContext.Role.Add(role);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.Role.Add(role);
+		_ = await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId();
 	}
 
 	private async Task<Guid> _CreateStaffRoleAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateStaffRole(
 			name: "Staff Role " + Guid.NewGuid().ToString("N")[..8],
@@ -924,20 +907,19 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		);
 		role.ValidateRoleType();
 
-		_ = dbContext.Role.Add(role);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.Role.Add(role);
+		_ = await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId();
 	}
 
 	private async Task _SoftDeleteRoleLeavingLinksAsync(Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		// Raw SQL on purpose: the delete service would also purge the junction rows, and these
 		// specs need the "dead role, surviving link" state that quota and guard logic must
 		// tolerate.
-		_ = await dbContext.Database.ExecuteSqlAsync(
+		_ = await db.Context.Database.ExecuteSqlAsync(
 			$"""
 			UPDATE roles
 			SET is_deleted = TRUE, deleted_at = NOW(), updated_at = NOW()
@@ -950,11 +932,10 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		var email = $"staff-account-{Guid.NewGuid():N}@example.com";
 		var userId = await StaffUserTestHelper.SeedStaffUserAsync(this._Fixture, email);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var staffAccount = await (
-			from account in dbContext.UserAccount
+			from account in db.Context.UserAccount
 			where account.UserId == userId
 				&& account.Scope == AccountScope.Staff
 				&& !account.IsDeleted
@@ -973,8 +954,7 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		AccountStatus status = AccountStatus.Active,
 		bool isDeleted = false
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var suffix = Guid.NewGuid().ToString("N")[..8];
 		var user = new User {
@@ -986,41 +966,39 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			IsVerified = true
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
 		account.ValidateAccountType();
 		account.Status = status;
 
-		_ = dbContext.UserAccount.Add(account);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(account);
+		_ = await db.Context.SaveChangesAsync();
 
 		if (isDeleted) {
 			account.IsDeleted = true;
 			account.DeletedAt = DateTime.UtcNow;
-			_ = await dbContext.SaveChangesAsync();
+			_ = await db.Context.SaveChangesAsync();
 		}
 
 		return account.GetRequiredId();
 	}
 
 	private async Task<int> _CountAssignmentsAsync(Guid userAccountId, Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.UserAccountRole
+		return await db.Context.UserAccountRole
 			.Where(uap => uap.UserAccountId == userAccountId && uap.RoleId == roleId)
 			.CountAsync();
 	}
 
 	private async Task<int> _CountLiveRolesForMemberAsync(Guid userAccountId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		return await (
-			from uap in dbContext.UserAccountRole
-			from p in dbContext.Role
+			from uap in db.Context.UserAccountRole
+			from p in db.Context.Role
 			where p.Id == uap.RoleId
 				&& uap.UserAccountId == userAccountId
 				&& !p.IsDeleted
@@ -1029,10 +1007,9 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<int> _CountAuditLogsAsync(Guid targetId, string? action = null) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.AuditLog
+		return await db.Context.AuditLog
 			.Where(log =>
 				log.TargetId == targetId
 				&& (action == null || log.Action == action)
@@ -1041,10 +1018,9 @@ public sealed class TenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<AuditLog?> _GetLatestAuditLogAsync(string action, Guid targetId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.AuditLog
+		return await db.Context.AuditLog
 			.Where(log => log.Action == action && log.TargetId == targetId)
 			.OrderByDescending(log => log.CreatedAt)
 			.FirstOrDefaultAsync();

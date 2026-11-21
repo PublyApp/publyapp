@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Tenants.Services;
 
 using Xunit;
@@ -100,10 +101,9 @@ public sealed class TenantStatusHistorySpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldHaveTheStatusHistoryTriggerInstalled() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var trigger = await dbContext.Database
+		var trigger = await db.Context.Database
 			.SqlQuery<TriggerRow>(
 				$"""
 				SELECT t.tgenabled::text AS "Enabled",
@@ -136,33 +136,32 @@ public sealed class TenantStatusHistorySpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRecordEveryTransitionKind() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var tenantId = Guid.NewGuid();
 
 		try {
 			// 1) INSERT: the creation transition is recorded.
-			await TenantStatusHistorySpec._InsertActiveTenantAsync(dbContext, tenantId);
-			(await TenantStatusHistorySpec._StatusesAsync(dbContext, tenantId))
+			await TenantStatusHistorySpec._InsertActiveTenantAsync(db.Context, tenantId);
+			(await TenantStatusHistorySpec._StatusesAsync(db.Context, tenantId))
 				.Should()
 				.Equal(TenantLifecycleStatus.Active);
 
 			// 2) No-op UPDATE: an update that does not name the watched columns
 			//    does not fire the trigger...
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"""
 				UPDATE tenants SET name = 'renamed' WHERE id = {tenantId}
 				"""
 			);
 			// ...and an update that names them with the same values is
 			// short-circuited by the function's guard.
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"""
 				UPDATE tenants SET status = {(int)TenantStatus.Active}
 				WHERE id = {tenantId}
 				"""
 			);
-			(await TenantStatusHistorySpec._StatusesAsync(dbContext, tenantId))
+			(await TenantStatusHistorySpec._StatusesAsync(db.Context, tenantId))
 				.Should()
 				.Equal(
 					[TenantLifecycleStatus.Active],
@@ -170,46 +169,46 @@ public sealed class TenantStatusHistorySpec : IClassFixture<ApiFixture> {
 				);
 
 			// 3) Status change.
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"""
 				UPDATE tenants SET status = {(int)TenantStatus.Suspended}
 				WHERE id = {tenantId}
 				"""
 			);
-			(await TenantStatusHistorySpec._LastRowAsync(dbContext, tenantId))
+			(await TenantStatusHistorySpec._LastRowAsync(db.Context, tenantId))
 				.Status.Should().Be(TenantLifecycleStatus.Suspended);
 
 			// 4) Soft delete: the tenant leaves the active curve.
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"""
 				UPDATE tenants SET is_deleted = true, deleted_at = now()
 				WHERE id = {tenantId}
 				"""
 			);
-			(await TenantStatusHistorySpec._LastRowAsync(dbContext, tenantId))
+			(await TenantStatusHistorySpec._LastRowAsync(db.Context, tenantId))
 				.Status.Should().Be(TenantLifecycleStatus.Deleted);
 
 			// 5) Restore: the tenant comes back with the status it held.
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"""
 				UPDATE tenants SET is_deleted = false, deleted_at = NULL
 				WHERE id = {tenantId}
 				"""
 			);
-			(await TenantStatusHistorySpec._LastRowAsync(dbContext, tenantId))
+			(await TenantStatusHistorySpec._LastRowAsync(db.Context, tenantId))
 				.Status.Should().Be(TenantLifecycleStatus.Suspended);
 
 			// 6) Hard delete: a terminal row, so the tenant stops being counted
 			//    (no FK would otherwise clean this table).
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM tenants WHERE id = {tenantId}
 				"""
 			);
-			(await TenantStatusHistorySpec._LastRowAsync(dbContext, tenantId))
+			(await TenantStatusHistorySpec._LastRowAsync(db.Context, tenantId))
 				.Status.Should().Be(TenantLifecycleStatus.Deleted);
 
-			(await TenantStatusHistorySpec._StatusesAsync(dbContext, tenantId))
+			(await TenantStatusHistorySpec._StatusesAsync(db.Context, tenantId))
 				.Should()
 				.Equal(
 					TenantLifecycleStatus.Active,
@@ -220,7 +219,7 @@ public sealed class TenantStatusHistorySpec : IClassFixture<ApiFixture> {
 				);
 		} finally {
 			await TenantStatusHistorySpec._DeleteTenantAndHistoryAsync(
-				dbContext,
+				db.Context,
 				tenantId
 			);
 		}

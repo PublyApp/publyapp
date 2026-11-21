@@ -4,12 +4,12 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Tenants.Entities;
 using PublyApp.Api.Modules.Uploads.Services;
 
@@ -222,8 +222,7 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 	}
 
 	private async Task<Guid> _SeedTenantAsync(TenantStatus status) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var tenant = new Tenant {
 			Name = $"Bulk Lifecycle Service {Guid.NewGuid():N}",
 			Code = Guid.NewGuid().ToString("N")[..10],
@@ -231,17 +230,16 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 			MaxUsers = 10,
 		};
 
-		dbContext.Tenant.Add(tenant);
-		await dbContext.SaveChangesAsync();
+		db.Context.Tenant.Add(tenant);
+		await db.Context.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
 	}
 
 	private async Task<Tenant> _GetTenantAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.Tenant
+		return await db.Context.Tenant
 			.IgnoreQueryFilters()
 			.SingleAsync(tenant => tenant.Id == tenantId);
 	}
@@ -251,10 +249,9 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 		TenantStatus status,
 		CancellationToken cancellationToken
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		_ = await dbContext.Tenant
+		_ = await db.Context.Tenant
 			.Where(tenant => tenant.Id == tenantId && !tenant.IsDeleted)
 			.ExecuteUpdateAsync(
 				setters => setters
@@ -285,9 +282,8 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 	}
 
 	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var connectionString = dbContext.Database.GetConnectionString();
+		await using var db = this._Fixture.OpenDb();
+		var connectionString = db.Context.Database.GetConnectionString();
 
 		if (connectionString is null) {
 			throw new InvalidOperationException(

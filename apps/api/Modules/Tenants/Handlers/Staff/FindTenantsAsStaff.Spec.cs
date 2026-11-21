@@ -5,7 +5,6 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
@@ -294,10 +293,7 @@ public sealed class FindTenantsAsStaffSpec
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var withPercent = new Tenant {
 			Name = $"Has%Percent{marker}",
@@ -311,8 +307,8 @@ public sealed class FindTenantsAsStaffSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddRangeAsync(withPercent, withoutPercent);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddRangeAsync(withPercent, withoutPercent);
+		await db.Context.SaveChangesAsync();
 
 		var url = TenantTestHelper.GetFindUrl(
 			q: Uri.EscapeDataString("%"),
@@ -352,10 +348,7 @@ public sealed class FindTenantsAsStaffSpec
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var withUnderscore = new Tenant {
 			Name = $"Has_Underscore{marker}",
@@ -369,8 +362,8 @@ public sealed class FindTenantsAsStaffSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddRangeAsync(withUnderscore, withoutUnderscore);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddRangeAsync(withUnderscore, withoutUnderscore);
+		await db.Context.SaveChangesAsync();
 
 		var url = TenantTestHelper.GetFindUrl(
 			q: Uri.EscapeDataString("_"),
@@ -389,10 +382,7 @@ public sealed class FindTenantsAsStaffSpec
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var withBackslash = new Tenant {
 			Name = $"Has\\Backslash{marker}",
@@ -406,8 +396,8 @@ public sealed class FindTenantsAsStaffSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddRangeAsync(withBackslash, withoutBackslash);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddRangeAsync(withBackslash, withoutBackslash);
+		await db.Context.SaveChangesAsync();
 
 		var url = TenantTestHelper.GetFindUrl(
 			q: Uri.EscapeDataString(@"\"),
@@ -467,10 +457,7 @@ public sealed class FindTenantsAsStaffSpec
 	private async Task<(string token, string userId)> _CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-tenants-{Guid.NewGuid():N}@example.com";
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -481,14 +468,14 @@ public sealed class FindTenantsAsStaffSpec
 			Status = UserStatus.Active,
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(staffAccount);
+		_ = await db.Context.SaveChangesAsync();
 
 		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId.ToString());
@@ -502,10 +489,7 @@ public sealed class FindTenantsAsStaffSpec
 	private async Task<Guid> _SeedTenantWithSoftDeletedUserForFindAsync(
 		string tenantName
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = tenantName,
@@ -513,24 +497,24 @@ public sealed class FindTenantsAsStaffSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		var tenantId = tenant.GetRequiredId();
 
 		await FindTenantsAsStaffSpec._AddFindTenantUserAsync(
-			dbContext,
+			db.Context,
 			tenantId,
 			isUserDeleted: false,
 			isOwner: true
 		);
 		await FindTenantsAsStaffSpec._AddFindTenantUserAsync(
-			dbContext,
+			db.Context,
 			tenantId,
 			isUserDeleted: false,
 			isOwner: false
 		);
 		await FindTenantsAsStaffSpec._AddFindTenantUserAsync(
-			dbContext,
+			db.Context,
 			tenantId,
 			isUserDeleted: true,
 			isOwner: false
@@ -712,11 +696,8 @@ public sealed class FindTenantsAsStaffSpec
 		// CreatedAt, so resolve it by Id on Tenant.
 		List<DateTime> observedOrder;
 		{
-			await using var scope =
-				this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider
-				.GetRequiredService<AppDbContext>();
-			observedOrder = await dbContext.Tenant
+			await using var db = this._Fixture.OpenDb();
+			observedOrder = await db.Context.Tenant
 				.Where(t => t.Id.HasValue && visitedOrder.Contains(t.Id.Value))
 				.OrderBy(t => t.Id.HasValue ? visitedOrder.IndexOf(t.Id.Value) : -1)
 				.Select(t => t.CreatedAt)
@@ -784,11 +765,8 @@ public sealed class FindTenantsAsStaffSpec
 		// so resolve it by Id on Tenant.
 		List<DateTime> observedOrder;
 		{
-			await using var scope =
-				this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider
-				.GetRequiredService<AppDbContext>();
-			observedOrder = await dbContext.Tenant
+			await using var db = this._Fixture.OpenDb();
+			observedOrder = await db.Context.Tenant
 				.Where(t => t.Id.HasValue && visitedOrder.Contains(t.Id.Value))
 				.OrderBy(t => t.Id.HasValue ? visitedOrder.IndexOf(t.Id.Value) : -1)
 				.Select(t => t.UpdatedAt)
@@ -892,14 +870,11 @@ public sealed class FindTenantsAsStaffSpec
 	}
 
 	private async Task _SetTenantUpdatedAtAsync(Guid tenantId, DateTime updatedAt) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		// Direct UPDATE bypasses the audit interceptor that would otherwise
 		// stamp UpdatedAt = now on every Modified save.
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE tenants SET updated_at = {0} WHERE id = {1}",
 			updatedAt, tenantId
 		);
@@ -933,10 +908,7 @@ public sealed class FindTenantsAsStaffSpec
 	private async Task<Guid> _SeedTenantAtAsync(
 		DateTime createdAt
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"Tenant Walk {Guid.NewGuid():N}",
@@ -946,15 +918,15 @@ public sealed class FindTenantsAsStaffSpec
 		};
 		// Two-phase: insert stamps CreatedAt/UpdatedAt = now; re-save Modified
 		// only updates UpdatedAt, so the seeded CreatedAt sticks.
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		var id = tenant.GetRequiredId();
 
-		var tracked = await dbContext.Tenant
+		var tracked = await db.Context.Tenant
 			.Where(t => t.Id == id)
 			.FirstAsync();
 		tracked.CreatedAt = createdAt;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return id;
 	}
@@ -963,10 +935,7 @@ public sealed class FindTenantsAsStaffSpec
 		string name,
 		string code
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = name,
@@ -974,8 +943,8 @@ public sealed class FindTenantsAsStaffSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		return tenant.GetRequiredId();
 	}
 
@@ -985,10 +954,7 @@ public sealed class FindTenantsAsStaffSpec
 		string? code = null,
 		string? defaultLocale = null
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = name,
@@ -997,18 +963,15 @@ public sealed class FindTenantsAsStaffSpec
 			Status = status,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		return tenant.GetRequiredId();
 	}
 
 	private async Task<Guid> _SeedTenantWithStatusAsync(
 		TenantStatus status
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"Tenant Status Walk {Guid.NewGuid():N}",
@@ -1016,8 +979,8 @@ public sealed class FindTenantsAsStaffSpec
 			Status = status,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		return tenant.GetRequiredId();
 	}
 
@@ -1108,11 +1071,8 @@ public sealed class FindTenantsAsStaffSpec
 		Guid tenantId,
 		DateTime expiresAt
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-		var inviter = await dbContext.User
+		await using var db = this._Fixture.OpenDb();
+		var inviter = await db.Context.User
 			.Where(user => user.Email == TestConstants.StaffAdminEmail)
 			.FirstAsync();
 
@@ -1125,8 +1085,8 @@ public sealed class FindTenantsAsStaffSpec
 			Guid.NewGuid().ToString("N")[..32]
 		);
 
-		await dbContext.Invitation.AddAsync(invitation);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Invitation.AddAsync(invitation);
+		await db.Context.SaveChangesAsync();
 	}
 
 	private record StaffRoleCreatedResponse {
@@ -1172,16 +1132,15 @@ public sealed class FindTenantsAsStaffSpec
 	}
 
 	private async Task _SwapTenantIdsAsync(Guid idA, Guid idB) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var temp = Guid.NewGuid();
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE tenants SET id = {0} WHERE id = {1}",
 			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE tenants SET id = {0} WHERE id = {1}",
 			idA, idB);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE tenants SET id = {0} WHERE id = {1}",
 			idB, temp);
 	}

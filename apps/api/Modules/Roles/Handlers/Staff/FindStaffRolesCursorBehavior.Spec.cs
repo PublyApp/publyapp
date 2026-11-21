@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -265,30 +263,28 @@ public sealed class FindStaffRolesCursorBehaviorSpec
 	}
 
 	private async Task<Guid> _SeedStaffRoleAtAsync(string name, DateTime createdAt) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateStaffRole(name);
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		var id = role.GetRequiredId();
-		var tracked = await dbContext.Role
+		var tracked = await db.Context.Role
 			.Where(p => p.Id == id)
 			.FirstAsync();
 		tracked.CreatedAt = createdAt;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return id;
 	}
 
 	private async Task<Guid> _SeedStaffRoleWithUsersAsync(string name, int userCount) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateStaffRole(name);
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		var id = role.GetRequiredId();
 		for (var i = 0; i < userCount; i++) {
@@ -300,19 +296,19 @@ public sealed class FindStaffRolesCursorBehaviorSpec
 				Status = UserStatus.Active,
 				IsVerified = true,
 			};
-			await dbContext.User.AddAsync(user);
-			await dbContext.SaveChangesAsync();
+			await db.Context.User.AddAsync(user);
+			await db.Context.SaveChangesAsync();
 
 			var account = UserAccount.CreateStaffAccount(user.GetRequiredId());
-			await dbContext.UserAccount.AddAsync(account);
-			await dbContext.SaveChangesAsync();
+			await db.Context.UserAccount.AddAsync(account);
+			await db.Context.SaveChangesAsync();
 
 			var junction = new UserAccountRole {
 				UserAccountId = account.GetRequiredId(),
 				RoleId = id,
 			};
-			await dbContext.UserAccountRole.AddAsync(junction);
-			await dbContext.SaveChangesAsync();
+			await db.Context.UserAccountRole.AddAsync(junction);
+			await db.Context.SaveChangesAsync();
 		}
 
 		return id;
@@ -349,12 +345,11 @@ public sealed class FindStaffRolesCursorBehaviorSpec
 	}
 
 	private async Task<Guid> _SeedStaffRoleAsync(string name) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateStaffRole(name);
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId();
 	}
@@ -370,16 +365,15 @@ public sealed class FindStaffRolesCursorBehaviorSpec
 	}
 
 	private async Task _SwapStaffRoleIdsAsync(Guid idA, Guid idB) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var temp = Guid.NewGuid();
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE roles SET id = {0} WHERE id = {1}",
 			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE roles SET id = {0} WHERE id = {1}",
 			idA, idB);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE roles SET id = {0} WHERE id = {1}",
 			idB, temp);
 	}

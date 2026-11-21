@@ -7,12 +7,9 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -60,10 +57,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
 		var tenantId = await this._GetTenantIdAsync();
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
@@ -106,10 +100,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -126,10 +117,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -181,10 +169,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.RoleNameAlreadyExists);
+		await response.ShouldBeProblemAsync(ResponseKeys.RoleNameAlreadyExists);
 	}
 
 	[Fact]
@@ -484,10 +469,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Tone");
+		await response.ShouldHaveValidationErrorAsync("Tone");
 	}
 
 	[Fact]
@@ -562,16 +544,15 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		Guid tenantId,
 		string roleId
 	) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
 			PathUtils.Join(
 				Routes.Staff.Root,
 				Routes.Roles.ForTenantAsStaff.RootFn(tenantId.ToString()),
 				Routes.Roles.ForTenantAsStaff.GetFn(roleId)
-			)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			staffToken
+		);
 		response.EnsureSuccessStatusCode();
 
 		var payload = await response.Content.ReadFromJsonAsync<GetTenantRoleByIdResponse>();
@@ -586,10 +567,9 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		string action,
 		Guid targetId
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.AuditLog
+		return await db.Context.AuditLog
 			.Where(log => log.Action == action && log.TargetId == targetId)
 			.OrderByDescending(log => log.CreatedAt)
 			.FirstOrDefaultAsync();
@@ -600,33 +580,28 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		string icon,
 		string tone
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var role = await dbContext.Role.SingleAsync(item => item.Id == roleId);
+		await using var db = this._Fixture.OpenDb();
+		var role = await db.Context.Role.SingleAsync(item => item.Id == roleId);
 		role.Icon = icon;
 		role.Tone = tone;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _AddRolePermissionAsync(
 		Guid roleId,
 		string permissionKey
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-		await dbContext.RolePermission.AddAsync(new RolePermission {
+		await using var db = this._Fixture.OpenDb();
+		await db.Context.RolePermission.AddAsync(new RolePermission {
 			RoleId = roleId,
 			PermissionKey = permissionKey,
 		});
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task<Role> _GetRoleAsync(Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await dbContext.Role
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.Role
 			.AsNoTracking()
 			.SingleAsync(item => item.Id == roleId);
 	}

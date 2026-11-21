@@ -4,12 +4,9 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Localization;
@@ -284,8 +281,7 @@ public sealed class FullAccessRoleEscalationSpec : IClassFixture<ApiFixture> {
 	private async Task<(string Token, Guid UserId)> _SeedActorAsync(params Permission[] permissions) {
 		var email = $"escalation-actor-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -295,33 +291,33 @@ public sealed class FullAccessRoleEscalationSpec : IClassFixture<ApiFixture> {
 			IsVerified = true,
 			Status = UserStatus.Active,
 		};
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var account = UserAccount.CreateStaffAccount(user.GetRequiredId());
 		account.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(account);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(account);
+		_ = await db.Context.SaveChangesAsync();
 
 		var role = Role.CreateStaffRole(
 			$"escalation-role-{Guid.NewGuid():N}",
 			"Test-only role holding the route permission under test"
 		);
 		role.ValidateRoleType();
-		_ = dbContext.Role.Add(role);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.Role.Add(role);
+		_ = await db.Context.SaveChangesAsync();
 
 		foreach (var permission in permissions) {
-			_ = dbContext.RolePermission.Add(new RolePermission {
+			_ = db.Context.RolePermission.Add(new RolePermission {
 				RoleId = role.GetRequiredId(),
 				PermissionKey = permission.Key,
 			});
 		}
-		_ = dbContext.UserAccountRole.Add(new UserAccountRole {
+		_ = db.Context.UserAccountRole.Add(new UserAccountRole {
 			UserAccountId = account.GetRequiredId(),
 			RoleId = role.GetRequiredId(),
 		});
-		_ = await dbContext.SaveChangesAsync();
+		_ = await db.Context.SaveChangesAsync();
 
 		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, user.GetRequiredId());
@@ -336,44 +332,37 @@ public sealed class FullAccessRoleEscalationSpec : IClassFixture<ApiFixture> {
 			);
 		}
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.Forbidden);
+		await response.ShouldBeProblemAsync(ResponseKeys.Forbidden);
 	}
 
 	private async Task<Guid> _GetStaffFullAccessRoleIdAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await FullAccessRoleTestHelper.EnsureStaffRoleAsync(dbContext);
+		await using var db = this._Fixture.OpenDb();
+		return await FullAccessRoleTestHelper.EnsureStaffRoleAsync(db.Context);
 	}
 
 	private async Task<Guid> _GetTenantFullAccessRoleIdAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await FullAccessRoleTestHelper.EnsureTenantRoleAsync(dbContext, tenantId);
+		await using var db = this._Fixture.OpenDb();
+		return await FullAccessRoleTestHelper.EnsureTenantRoleAsync(db.Context, tenantId);
 	}
 
 	private async Task<Guid> _GetSeededTenantIdAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await dbContext.Tenant
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.Tenant
 			.Where(tenant => tenant.Code == SeedConstants.Tenants.AcmeCode)
 			.Select(tenant => tenant.GetRequiredId())
 			.FirstAsync();
 	}
 
 	private async Task<Guid> _GetAnyTenantMemberAccountIdAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		// A member that is NOT already full access, so "was it assigned?" is a real signal.
 		return await (
-			from account in dbContext.UserAccount
+			from account in db.Context.UserAccount
 			where account.TenantId == tenantId
 				&& account.Scope == AccountScope.Tenant
 				&& !(
-					from uap in dbContext.UserAccountRole
-					join p in dbContext.Role on uap.RoleId equals p.Id
+					from uap in db.Context.UserAccountRole
+					join p in db.Context.Role on uap.RoleId equals p.Id
 					where uap.UserAccountId == account.Id && p.IsFullAccess
 					select 1
 				).Any()
@@ -382,20 +371,18 @@ public sealed class FullAccessRoleEscalationSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetStaffUserIdByEmailAsync(string email) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await dbContext.User
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.User
 			.Where(user => user.Email == email)
 			.Select(user => user.GetRequiredId())
 			.FirstAsync();
 	}
 
 	private async Task<bool> _IsStaffAssignedAsync(Guid userId, Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		return await (
-			from uap in dbContext.UserAccountRole
-			join account in dbContext.UserAccount on uap.UserAccountId equals account.Id
+			from uap in db.Context.UserAccountRole
+			join account in db.Context.UserAccount on uap.UserAccountId equals account.Id
 			where account.UserId == userId
 				&& uap.RoleId == roleId
 				&& account.Scope == AccountScope.Staff
@@ -404,21 +391,18 @@ public sealed class FullAccessRoleEscalationSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<bool> _IsTenantAssignedAsync(Guid userAccountId, Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await dbContext.UserAccountRole
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.UserAccountRole
 			.AnyAsync(uap => uap.UserAccountId == userAccountId && uap.RoleId == roleId);
 	}
 
 	private async Task<bool> _InvitationExistsAsync(string email) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await dbContext.Invitation.AnyAsync(invitation => invitation.Email == email);
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.Invitation.AnyAsync(invitation => invitation.Email == email);
 	}
 
 	private async Task<bool> _TenantExistsAsync(string code) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await dbContext.Tenant.AnyAsync(tenant => tenant.Code == code);
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.Tenant.AnyAsync(tenant => tenant.Code == code);
 	}
 }

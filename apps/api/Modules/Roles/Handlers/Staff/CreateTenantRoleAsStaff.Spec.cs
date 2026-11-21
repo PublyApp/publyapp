@@ -6,12 +6,9 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -59,10 +56,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
 		var tenantId = await this._GetTenantIdAsync();
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -105,10 +99,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -234,10 +225,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Tone");
+		await response.ShouldHaveValidationErrorAsync("Tone");
 	}
 
 	[Fact]
@@ -257,10 +245,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Icon");
+		await response.ShouldHaveValidationErrorAsync("Icon");
 	}
 
 	[Fact]
@@ -416,10 +401,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.RoleNameAlreadyExists);
+		await response.ShouldBeProblemAsync(ResponseKeys.RoleNameAlreadyExists);
 
 		var auditLogCountAfter = await this._GetAuditLogCountAsync(
 			AuditActions.TenantRoleCreated,
@@ -464,10 +446,9 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		string action,
 		Guid targetId
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.AuditLog
+		return await db.Context.AuditLog
 			.Where(log => log.Action == action && log.TargetId == targetId)
 			.OrderByDescending(log => log.CreatedAt)
 			.FirstOrDefaultAsync();
@@ -477,14 +458,13 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		string action,
 		string? detailsContains = null
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		if (detailsContains is null) {
-			return await dbContext.AuditLog.CountAsync(log => log.Action == action);
+			return await db.Context.AuditLog.CountAsync(log => log.Action == action);
 		}
 
-		return await dbContext.AuditLog.CountAsync(log =>
+		return await db.Context.AuditLog.CountAsync(log =>
 			log.Action == action
 			&& log.Details != null
 			&& log.Details.Contains(detailsContains)
@@ -492,12 +472,11 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<List<string>> _GetPermissionKeysAsync(Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		// No IsDeleted filter here: role_permissions now stores active grants only.
 		return await (
-			from pp in dbContext.RolePermission
+			from pp in db.Context.RolePermission
 			where pp.RoleId == roleId
 			orderby pp.PermissionKey
 			select pp.PermissionKey
@@ -508,11 +487,10 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		Guid tenantId,
 		string name
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		return await (
-			from p in dbContext.Role
+			from p in db.Context.Role
 			where p.TenantId == tenantId
 				&& p.Scope == RoleScope.Tenant
 				&& !p.IsDeleted
