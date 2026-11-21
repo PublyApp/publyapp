@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.Aggregators.Adapters.Zernio;
-using PublyApp.Api.Modules.SocialAccounts.Providers.Fakes;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 using Xunit;
@@ -14,7 +13,7 @@ namespace PublyApp.Api.Modules.Aggregators.Fakes;
 [CollectionDefinition(nameof(FakeSeamGateSpec), DisableParallelization = true)]
 public sealed class FakeSeamGateCollection;
 
-// Security pin: the e2e fakes (credential protector, aggregator HTTP handler) are wired
+// Security pin: the e2e fake (aggregator HTTP handler) is wired
 // ONLY on a Development/Testing host. With PUBLISHING_FAKE_PROVIDER set, a Production
 // or unset host environment must still resolve the REAL implementations. The spec
 // changes process environment variables, so its collection never runs in parallel.
@@ -35,13 +34,13 @@ public sealed class FakeSeamGateSpec {
 		innermost.Should().NotBeOfType<FakeAggregatorServer>();
 	}
 
-	// Non-vacuity: the same composition under Testing DOES pick the fakes, so the two
+	// Non-vacuity: the same composition under Testing DOES pick the fake aggregator, so the
 	// assertions above would go red if the gate silently stopped being read.
 	[Fact]
-	public void ItShouldResolveTheFakesWhenTheFlagIsSetOnATestingHost() {
+	public void ItShouldResolveTheFakeAggregatorAndTheRealProtectorWhenTheFlagIsSetOnATestingHost() {
 		var (protector, innermost) = FakeSeamGateSpec._Compose(EnvironmentNames.Testing);
 
-		protector.Should().BeOfType<FakeCredentialProtector>();
+		protector.Should().BeOfType<CredentialProtector>();
 		innermost.Should().BeOfType<FakeAggregatorServer>();
 	}
 

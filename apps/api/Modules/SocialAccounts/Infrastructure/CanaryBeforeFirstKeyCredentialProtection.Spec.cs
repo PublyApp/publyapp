@@ -1,10 +1,9 @@
 using FluentAssertions;
 
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
@@ -15,41 +14,45 @@ using Xunit;
 namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 
 /// <summary>
-/// #2456: on a FRESH database the boot gate mints the master-key canary row in
-/// data_protection_keys BEFORE Data Protection has created its first real key. The REAL
-/// credential protector (not the fake) must still protect/unprotect a credential.
+/// #2456: any database holding the master-key canary row (every real boot mints it) made
+/// the stock key-ring repository throw an XmlException on the first key-ring load. These
+/// specs run against the REAL host wiring (ServiceRegistration), not a hand-built copy:
+/// removing or reordering its registration turns them red.
 /// </summary>
-[Collection("WitnessBootChildProcess")]
-public sealed class CanaryBeforeFirstKeyCredentialProtectionSpec {
+public sealed class CanaryBeforeFirstKeyCredentialProtectionSpec : IClassFixture<ApiFixture> {
+	private readonly ApiFixture _Fixture;
+
+	public CanaryBeforeFirstKeyCredentialProtectionSpec(ApiFixture fixture) {
+		this._Fixture = fixture;
+	}
+
 	[Fact]
-	public async Task ItShouldProtectACredentialOnAFreshDatabaseWhenTheCanaryRowPredatesTheFirstKey() {
-		await using var db = await WitnessTestDatabase.CreateAsync();
+	public void ItShouldUseTheCanaryAwareKeyRingRepositoryInTheApiHost() {
+		var options = this._Fixture.Factory.Services.GetRequiredService<IOptions<KeyManagementOptions>>();
 
-		var services = new ServiceCollection();
-		services.AddLogging();
-		services.AddDbContext<AppDbContext>(options => options.UseNpgsql(db.ConnectionString));
-		services
-			.AddDataProtection()
-			.SetApplicationName("publyapp-social-accounts")
-			.PersistKeysToDbContext<AppDbContext>();
-		// Same wiring as ServiceRegistration (#2456).
-		services.AddOptions<Microsoft.AspNetCore.DataProtection.KeyManagement.KeyManagementOptions>()
-			.Configure<IServiceScopeFactory>((options, scopeFactory) => {
-				options.XmlRepository = new CanaryAwareKeyRingRepository(scopeFactory);
-			});
-		services.AddSingleton<Microsoft.AspNetCore.DataProtection.XmlEncryption.IXmlEncryptor, MasterKeyXmlEncryptor>();
-		services.AddSingleton<Microsoft.AspNetCore.DataProtection.XmlEncryption.IXmlDecryptor, MasterKeyXmlDecryptor>();
-		services.AddSingleton<ICredentialProtector, CredentialProtector>();
-		await using var provider = services.BuildServiceProvider();
+		options.Value.XmlRepository.Should().BeOfType<CanaryAwareKeyRingRepository>();
+	}
 
-		// Canary minted first, exactly like the real boot gate on an empty key ring.
-		var key = AppEnvironment.Instance.SocialAccountsMasterKey;
+	[Fact]
+	public void ItShouldUseTheCanaryAwareKeyRingRepositoryInTheWorkerHost() {
+		using var host = Program.CreateWorkerHostBuilder([]).Build();
+
+		host.Services.GetRequiredService<IOptions<KeyManagementOptions>>().Value.XmlRepository
+			.Should().BeOfType<CanaryAwareKeyRingRepository>();
+	}
+
+	[Fact]
+	public async Task ItShouldProtectACredentialWhenTheCanaryRowAlreadyExists() {
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
-			key,
-			new PostgresKeyRingCanaryStore(provider.GetRequiredService<IServiceScopeFactory>())
+			AppEnvironment.Instance.SocialAccountsMasterKey,
+			new PostgresKeyRingCanaryStore(this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>())
 		);
 
-		var protector = provider.GetRequiredService<ICredentialProtector>();
+		// The first host already built its key ring before the canary existed; a second,
+		// independent host (a restart or another replica) reads the ring WITH the canary row.
+		await using var secondHost = this._Fixture.CreateSecondHost();
+		var services = secondHost.Services;
+		var protector = services.GetRequiredService<ICredentialProtector>();
 		var protectedText = protector.Protect("app-password", SocialProvider.Bluesky);
 
 		protector.Unprotect(protectedText, SocialProvider.Bluesky).Should().BeEquivalentTo(

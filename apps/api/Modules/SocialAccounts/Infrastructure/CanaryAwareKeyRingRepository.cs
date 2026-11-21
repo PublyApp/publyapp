@@ -11,9 +11,9 @@ namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 /// <summary>
 /// Key-ring repository over <c>data_protection_keys</c> that ignores the master-key canary
 /// row (#2456). The canary shares the table but its payload is a base64 nonce:ciphertext:tag
-/// blob, not XML: the stock EF repository parses EVERY row with XElement.Parse, so as soon
-/// as the canary row existed when the key ring was first built (fresh database: the boot
-/// gate mints it before the first key) every Protect call failed with an XmlException.
+/// blob, not XML: the stock EF repository parses EVERY row with XElement.Parse, so on any
+/// database that holds the canary row (every real boot mints it) the first key-ring load
+/// of each process failed with an XmlException, whatever the order of the rows.
 /// </summary>
 public sealed class CanaryAwareKeyRingRepository : IXmlRepository {
 	private readonly IServiceScopeFactory _ScopeFactory;
