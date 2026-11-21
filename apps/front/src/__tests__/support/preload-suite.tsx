@@ -19,7 +19,9 @@ export type PreloadEndpoint = readonly [readonly string[], number];
 type PreloadResponse = readonly [readonly string[], FakeResponse];
 type Search = Record<string, string>;
 
-export type PreloadVariant = {
+const DEFAULT_URL = 'default URL';
+
+type PreloadVariant = {
 	title: string;
 	/** Search the link carries (a non-default URL state). */
 	search?: Search;
@@ -161,7 +163,7 @@ const respondFrom =
 /** Expands one route's preload contract into the two standard tests per URL
  * (hover warms each query once; click reuses them with no refetch). */
 export const definePreloadSuite = (suite: PreloadSuite) => {
-	const scenarios = [{ title: 'default URL' }, ...(suite.variants ?? [])].map(
+	const scenarios = [{ title: DEFAULT_URL }, ...(suite.variants ?? [])].map(
 		(variant) => toScenario(suite, variant),
 	);
 

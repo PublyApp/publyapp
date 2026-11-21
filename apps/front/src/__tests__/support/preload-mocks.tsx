@@ -40,7 +40,7 @@ export const logoutHookModule = (): LogoutHookModule => ({
 });
 
 export const logoutRedirectModule = () => ({
-	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
+	LogoutRedirect: () => <div data-testid="logout-redirect" />,
 });
 
 export const identityI18nModule = async (
