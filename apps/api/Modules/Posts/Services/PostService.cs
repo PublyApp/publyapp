@@ -376,7 +376,7 @@ public class PostService : IPostService {
 		if (args.ProjectId.IsPresent) {
 			var projectId = args.ProjectId.Value;
 			if (projectId.HasValue
-				&& !await this._ProjectExistsAsync(projectId.Value, cancellationToken)) {
+				&& !await this.ProjectExistsForTenantAsync(tenantId, projectId.Value, cancellationToken)) {
 				return new UpdatePostResult.ProjectNotFound(projectId.Value);
 			}
 
@@ -421,11 +421,6 @@ public class PostService : IPostService {
 		asset.AltText = altText;
 		asset.UpdatedAt = DateTime.UtcNow;
 		return true;
-	}
-
-	private async Task<bool> _ProjectExistsAsync(Guid projectId, CancellationToken cancellationToken) {
-		return await this._DbContext.Project.AsNoTracking()
-			.AnyAsync(project => project.Id == projectId && !project.IsDeleted, cancellationToken);
 	}
 
 	private sealed record AppliedSegments(

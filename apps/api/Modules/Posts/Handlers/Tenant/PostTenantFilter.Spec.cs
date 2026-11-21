@@ -60,7 +60,7 @@ public sealed class PostTenantFilterSpec : IClassFixture<ApiFixture> {
 			b, HttpMethod.Patch, $"/posts/{postA}", JsonContent.Create(new { body = "hijacked" })
 		);
 		using var deleteForeign = await this._SendAsync(b, HttpMethod.Delete, $"/posts/{postA}", null);
-		using var attachForeign = await this._SendAsync(
+		using var altTextForeign = await this._SendAsync(
 			b, HttpMethod.Patch, $"/posts/{postA}/images/{seenByA.Images[0].Id}", JsonContent.Create(new { altText = "x" })
 		);
 		using var deleteForeignSegmentImage = await this._SendAsync(
@@ -71,7 +71,7 @@ public sealed class PostTenantFilterSpec : IClassFixture<ApiFixture> {
 		getForeign.StatusCode.Should().Be(HttpStatusCode.NotFound);
 		patchForeign.StatusCode.Should().Be(HttpStatusCode.NotFound);
 		deleteForeign.StatusCode.Should().Be(HttpStatusCode.NotFound);
-		attachForeign.StatusCode.Should().Be(HttpStatusCode.NotFound);
+		altTextForeign.StatusCode.Should().Be(HttpStatusCode.NotFound);
 		deleteForeignSegmentImage.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
 		var afterA = await this._GetAsync(a, postA);

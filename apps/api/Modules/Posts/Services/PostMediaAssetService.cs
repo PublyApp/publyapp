@@ -222,7 +222,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		RemovePostMediaArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var tenantId = args.TenantId;
 		var postId = args.PostId;
 		var assetId = args.AssetId;
 		await using var transaction = await dbContext.Database
@@ -268,7 +267,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		ReorderPostMediaArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var tenantId = args.TenantId;
 		var postId = args.PostId;
 		var orderedAssetIds = args.OrderedAssetIds;
 		await using var transaction = await dbContext.Database
@@ -311,7 +309,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		SetPostMediaAltTextArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var tenantId = args.TenantId;
 		var postId = args.PostId;
 		var assetId = args.AssetId;
 		var altText = args.AltText;
