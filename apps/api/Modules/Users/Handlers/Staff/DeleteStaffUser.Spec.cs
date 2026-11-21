@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -170,10 +168,9 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 	) {
 		var userIdGuid = Guid.Parse(userId);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var user = await dbContext.User
+		var user = await db.Context.User
 			.IgnoreQueryFilters()
 			.FirstOrDefaultAsync(x => x.Id == userIdGuid);
 		user.Should().NotBeNull();
@@ -181,7 +178,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		user.IsDeleted.Should().BeTrue();
 		user.DeletedAt.Should().NotBeNull();
 
-		var staffAccount = await dbContext.UserAccount
+		var staffAccount = await db.Context.UserAccount
 			.IgnoreQueryFilters()
 			.FirstOrDefaultAsync(x =>
 				x.UserId == userIdGuid
@@ -192,7 +189,7 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		staffAccount.IsDeleted.Should().BeTrue();
 		staffAccount.DeletedAt.Should().NotBeNull();
 
-		var userAccountRoles = await dbContext.UserAccountRole
+		var userAccountRoles = await db.Context.UserAccountRole
 			.IgnoreQueryFilters()
 			.Where(x => x.UserAccountId == staffAccount.GetRequiredId())
 			.ToListAsync();
@@ -254,12 +251,11 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SuspendStaffUserAsync(string staffToken, string userId) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			DeleteStaffUserSpec._GetSuspendUrl(userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteStaffUserSpec._GetSuspendUrl(userId),
+			staffToken
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
@@ -281,12 +277,11 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _AssertGetStaffUserReturnsNotFoundAsync(string staffToken, string userId) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			DeleteStaffUserSpec._GetByIdUrl(userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteStaffUserSpec._GetByIdUrl(userId),
+			staffToken
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -294,12 +289,11 @@ public sealed class DeleteStaffUserSpec : IClassFixture<ApiFixture> {
 		string staffToken,
 		string userId
 	) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			DeleteStaffUserSpec._GetRolesUrl(userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			DeleteStaffUserSpec._GetRolesUrl(userId),
+			staffToken
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 

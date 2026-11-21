@@ -38,15 +38,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnOkWithDefaultCursorPagination() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId);
 		var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
@@ -56,15 +50,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnNextCursorWhenMoreResultsExist() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId, limit: 1);
 		var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
@@ -105,8 +93,7 @@ public sealed class FindTenantUsersAsStaffSpec
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var marker = Guid.NewGuid().ToString("N")[..8];
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"Tenant Identity Fixture {marker}",
@@ -114,8 +101,8 @@ public sealed class FindTenantUsersAsStaffSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		var tenantId = tenant.GetRequiredId();
 
 		var user = new User {
@@ -126,13 +113,13 @@ public sealed class FindTenantUsersAsStaffSpec
 			Status = UserStatus.Active,
 			IsVerified = true,
 		};
-		await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 		var userId = user.GetRequiredId();
 
 		var account = UserAccount.CreateTenantAccount(userId, tenantId);
-		await dbContext.UserAccount.AddAsync(account);
-		await dbContext.SaveChangesAsync();
+		await db.Context.UserAccount.AddAsync(account);
+		await db.Context.SaveChangesAsync();
 		var userAccountId = account.GetRequiredId();
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId);
@@ -147,10 +134,7 @@ public sealed class FindTenantUsersAsStaffSpec
 	}
 
 	private async Task<Guid> _SeedTenantWithSearchFixtureAsync(string marker) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"Tenant Find Search Fixture {marker}",
@@ -158,8 +142,8 @@ public sealed class FindTenantUsersAsStaffSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 		var tenantId = tenant.GetRequiredId();
 
 		async Task AddUserAsync(string firstName) {
@@ -171,13 +155,13 @@ public sealed class FindTenantUsersAsStaffSpec
 				Status = UserStatus.Active,
 				IsVerified = true,
 			};
-			await dbContext.User.AddAsync(user);
-			await dbContext.SaveChangesAsync();
+			await db.Context.User.AddAsync(user);
+			await db.Context.SaveChangesAsync();
 
-			await dbContext.UserAccount.AddAsync(
+			await db.Context.UserAccount.AddAsync(
 				UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId)
 			);
-			await dbContext.SaveChangesAsync();
+			await db.Context.SaveChangesAsync();
 		}
 
 		await AddUserAsync($"Has%Percent{marker}");
@@ -207,15 +191,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnBadRequestWhenCursorIsMalformed() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(
 			tenantId, cursor: "not-a-guid"
@@ -234,15 +212,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnBadRequestWhenCursorRecordNotFound() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var nonExistentCursor = Guid.NewGuid();
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(
@@ -262,15 +234,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnBadRequestWhenSortIdIsInvalid() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(
 			tenantId, sortId: "nonexistent"
@@ -289,15 +255,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenStatusIsPending() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(
 			tenantId,
@@ -318,15 +278,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnOkWhenStatusIsWhitespace() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(
 			tenantId,
@@ -347,15 +301,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnUnauthorizedWithoutSession() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId);
 		var request = new HttpRequestMessage(
@@ -372,20 +320,11 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
-
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
 		);
+
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId);
 		var request = new HttpRequestMessage(
@@ -402,15 +341,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var staffUserToken =
 			await this._AuthClient.LoginAsync(
@@ -433,15 +366,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldFilterTenantUsersByMultipleStatusesWhenCommaSeparated() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		using (
 			var scope =
@@ -487,15 +414,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldKeepSuspendedTenantUsersVisibleInDefaultList() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		using (
 			var scope =
@@ -533,15 +454,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnGloballySuspendedStatusWhenUserIsGloballySuspendedAndMembershipIsActive() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		await this._SetTenantUserStatesAsync(
 			tenantId,
@@ -576,15 +491,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnGloballySuspendedStatusWhenUserIsGloballySuspendedAndMembershipIsSuspended() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		await this._SetTenantUserStatesAsync(
 			tenantId,
@@ -618,15 +527,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldExcludeGloballySuspendedUsersFromActiveAndSuspendedFilters() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		await this._SetTenantUserStatesAsync(
 			tenantId,
@@ -696,15 +599,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnOnlyGloballySuspendedUsersWhenStatusFilterIsGloballySuspended() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		await this._SetTenantUserStatesAsync(
 			tenantId,
@@ -745,15 +642,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldMarkTheTenantFullAccessOwnerInTheList() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var url = FindTenantUsersAsStaffSpec._GetFindUrl(tenantId, limit: 100);
 		var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
@@ -785,15 +676,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldSortByStatusWithoutServerError() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var result = await this._Http.GetOkAsync<FindResponse>(
 			FindTenantUsersAsStaffSpec._GetFindUrl(tenantId, sortId: "status", sortOrder: "desc"),
@@ -923,15 +808,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// 3 users with distinct account CreatedAt; the walk must visit each
 		// once in ascending CreatedAt order, with no gap or duplicate.
@@ -990,11 +869,8 @@ public sealed class FindTenantUsersAsStaffSpec
 			.ToList();
 		List<DateTime> observedOrder;
 		{
-			await using var scope =
-				this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider
-				.GetRequiredService<AppDbContext>();
-			observedOrder = await dbContext.User
+			await using var db = this._Fixture.OpenDb();
+			observedOrder = await db.Context.User
 				.Where(u => u.Id.HasValue && visitedSeededUserIds.Contains(u.Id.Value))
 				.OrderBy(u =>
 					u.Id.HasValue ? visitedSeededUserIds.IndexOf(u.Id.Value) : -1
@@ -1009,15 +885,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldWalkEveryIdPageWithoutOverlapOrGap() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// 3 users with distinct UserId; the walk must visit each once in
 		// ascending UserId order. A keySelector swap to another same-type field
@@ -1050,15 +920,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldWalkEveryEmailPageWithoutOverlapOrGap() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// Deterministic, anti-correlated emails: insertion order is c,b,a while
 		// the lexical (sort) order is a,b,c. The walk must return them in
@@ -1095,15 +959,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldWalkEveryStatusPageWithoutOverlapOrGap() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// 3 users with distinct, deliberately NOT insertion-ordered Status
 		// (anti-correlated with insertion). The walk must visit each once in
@@ -1149,15 +1007,9 @@ public sealed class FindTenantUsersAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldOrderTenantUsersByFullAccess() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper
-				.GetTenantIdByNameAsync(
-					this._Http,
-					staffToken,
-					SeedConstants.Tenants.AcmeName
-				);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// 3 users with deliberately NOT insertion-ordered full-access state.
 		// Ascending is_full_access must put the role-less user first, then the two
@@ -1203,10 +1055,7 @@ public sealed class FindTenantUsersAsStaffSpec
 		Guid tenantId,
 		string email
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -1216,29 +1065,26 @@ public sealed class FindTenantUsersAsStaffSpec
 			Status = UserStatus.Active,
 			IsVerified = true,
 		};
-		await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 		var userId = user.GetRequiredId();
 
 		var account =
 			UserAccount.CreateTenantAccount(userId, tenantId);
-		await dbContext.UserAccount.AddAsync(account);
-		await dbContext.SaveChangesAsync();
+		await db.Context.UserAccount.AddAsync(account);
+		await db.Context.SaveChangesAsync();
 
 		return userId.ToString();
 	}
 
 	private async Task _SetTenantUserStatusAsync(Guid userId, UserStatus status) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var user = await dbContext.User
+		var user = await db.Context.User
 			.FirstAsync(u => u.Id == userId);
 		user.Status = status;
 
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _SetTenantUserFullAccessAsync(
@@ -1246,12 +1092,9 @@ public sealed class FindTenantUsersAsStaffSpec
 		Guid userId,
 		bool fullAccess
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var account = await dbContext.UserAccount
+		var account = await db.Context.UserAccount
 			.FirstAsync(ua =>
 				ua.UserId == userId
 				&& ua.TenantId == tenantId
@@ -1263,7 +1106,7 @@ public sealed class FindTenantUsersAsStaffSpec
 		}
 
 		await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
-			dbContext,
+			db.Context,
 			tenantId,
 			account.GetRequiredId()
 		);
@@ -1273,10 +1116,7 @@ public sealed class FindTenantUsersAsStaffSpec
 		Guid tenantId,
 		DateTime createdAt
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = $"tenant-user-walk-{Guid.NewGuid():N}@example.com",
@@ -1288,20 +1128,20 @@ public sealed class FindTenantUsersAsStaffSpec
 		};
 		// Sort key is User.CreatedAt: pin it on the User via two-phase save
 		// (insert stamps now; re-save Modified only updates UpdatedAt).
-		await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 		var userId = user.GetRequiredId();
 
-		var trackedUser = await dbContext.User
+		var trackedUser = await db.Context.User
 			.Where(u => u.Id == userId)
 			.FirstAsync();
 		trackedUser.CreatedAt = createdAt;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		var account =
 			UserAccount.CreateTenantAccount(userId, tenantId);
-		await dbContext.UserAccount.AddAsync(account);
-		await dbContext.SaveChangesAsync();
+		await db.Context.UserAccount.AddAsync(account);
+		await db.Context.SaveChangesAsync();
 
 		return userId.ToString();
 	}
@@ -1329,36 +1169,35 @@ public sealed class FindTenantUsersAsStaffSpec
 	}
 
 	private async Task _SwapTenantUserIdsAsync(string idA, string idB) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await using var tx = await dbContext.Database.BeginTransactionAsync();
+		await using var db = this._Fixture.OpenDb();
+		await using var tx = await db.Context.Database.BeginTransactionAsync();
 		// Disable FK enforcement triggers on both tables so the swap
 		// doesn't violate non-deferrable FK constraints. Triggers are
 		// re-enabled automatically when the transaction ends.
-		await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE users DISABLE TRIGGER ALL; ALTER TABLE user_accounts DISABLE TRIGGER ALL");
+		await db.Context.Database.ExecuteSqlRawAsync("ALTER TABLE users DISABLE TRIGGER ALL; ALTER TABLE user_accounts DISABLE TRIGGER ALL");
 
 		var temp = Guid.NewGuid();
 		var guidA = Guid.Parse(idA);
 		var guidB = Guid.Parse(idB);
 		// Step 1: move idA -> temp in users, then redirect user_accounts.
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE users SET id = {0} WHERE id = {1}",
 			temp, guidA);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			temp, guidA);
 		// Step 2: move idB -> idA in users, then redirect user_accounts.
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE users SET id = {0} WHERE id = {1}",
 			guidA, guidB);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			guidA, guidB);
 		// Step 3: move temp -> idB in users, then redirect user_accounts.
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE users SET id = {0} WHERE id = {1}",
 			guidB, temp);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			guidB, temp);
 

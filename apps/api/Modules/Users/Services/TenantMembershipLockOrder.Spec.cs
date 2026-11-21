@@ -835,12 +835,11 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	/// whether the row is currently unlocked.
 	/// </summary>
 	private async Task<bool> _IsUserAccountRowLockableAsync(Guid userAccountId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await using var transaction = await dbContext.Database.BeginTransactionAsync();
+		await using var db = this._Fixture.OpenDb();
+		await using var transaction = await db.Context.Database.BeginTransactionAsync();
 
 		try {
-			_ = await dbContext.Database.ExecuteSqlAsync(
+			_ = await db.Context.Database.ExecuteSqlAsync(
 				$"SELECT 1 FROM user_accounts WHERE id = {userAccountId} FOR UPDATE NOWAIT"
 			);
 			return true;
@@ -852,10 +851,9 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<bool> _IsAccountDeletedAsync(Guid userAccountId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var isDeleted = await dbContext.UserAccount
+		var isDeleted = await db.Context.UserAccount
 			.IgnoreQueryFilters()
 			.Where(ua => ua.Id == userAccountId)
 			.Select(ua => (bool?)ua.IsDeleted)
@@ -869,8 +867,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _CreateTenantAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var suffix = Guid.NewGuid().ToString("N")[..8];
 		var tenant = new Tenant {
@@ -880,8 +877,8 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 			MaxUsers = 50,
 		};
 
-		_ = dbContext.Tenant.Add(tenant);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.Tenant.Add(tenant);
+		_ = await db.Context.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
 	}
@@ -891,8 +888,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		bool fullAccess = false,
 		bool isDeleted = false
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var suffix = Guid.NewGuid().ToString("N")[..8];
 		var user = new User {
@@ -904,8 +900,8 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 			IsVerified = true
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var account = new UserAccount {
 			UserId = user.GetRequiredId(),
@@ -914,12 +910,12 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 			Status = AccountStatus.Active,
 		};
 
-		_ = dbContext.UserAccount.Add(account);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(account);
+		_ = await db.Context.SaveChangesAsync();
 
 		if (fullAccess) {
 			await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
-				dbContext,
+				db.Context,
 				tenantId,
 				account.GetRequiredId()
 			);
@@ -928,7 +924,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		if (isDeleted) {
 			account.IsDeleted = true;
 			account.DeletedAt = DateTime.UtcNow;
-			_ = await dbContext.SaveChangesAsync();
+			_ = await db.Context.SaveChangesAsync();
 		}
 
 		return (user.GetRequiredId(), account.GetRequiredId());
@@ -946,8 +942,7 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _CreateTenantRoleAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(
 			tenantId,
@@ -956,45 +951,41 @@ public sealed class TenantMembershipLockOrderSpec : IClassFixture<ApiFixture> {
 		);
 		role.ValidateRoleType();
 
-		_ = dbContext.Role.Add(role);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.Role.Add(role);
+		_ = await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId();
 	}
 
 	private async Task _InsertLinkAsync(Guid userAccountId, Guid roleId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		_ = dbContext.UserAccountRole.Add(new UserAccountRole {
+		_ = db.Context.UserAccountRole.Add(new UserAccountRole {
 			UserAccountId = userAccountId,
 			RoleId = roleId,
 		});
-		_ = await dbContext.SaveChangesAsync();
+		_ = await db.Context.SaveChangesAsync();
 	}
 
 	private async Task<int> _CountLinksAsync(Guid userAccountId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.UserAccountRole
+		return await db.Context.UserAccountRole
 			.Where(link => link.UserAccountId == userAccountId)
 			.CountAsync();
 	}
 
 	private async Task<Guid> _GetTenantFullAccessRoleIdAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await FullAccessRoleTestHelper.EnsureTenantRoleAsync(dbContext, tenantId);
+		return await FullAccessRoleTestHelper.EnsureTenantRoleAsync(db.Context, tenantId);
 	}
 
 	private async Task<int> _CountActiveAdminsAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		return await FullAccessRoleQueries.CountActiveTenantFullAccessAsync(
-			dbContext,
+			db.Context,
 			tenantId
 		);
 	}

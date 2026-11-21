@@ -5,7 +5,6 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Routes;
@@ -374,10 +373,7 @@ public sealed class TenantUserCompanyActionsSpec
 
 	private async Task<SeededTenantUserCompanyScenario>
 	_SeedTenantUserCompanyScenarioAsync() {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var unique = Guid.NewGuid().ToString("N");
 		var user = new User {
@@ -394,14 +390,14 @@ public sealed class TenantUserCompanyActionsSpec
 		var newTenant = TenantUserCompanyActionsSpec._CreateTenant($"Actions New {unique}");
 		var removedTenant = TenantUserCompanyActionsSpec._CreateTenant($"Actions Removed {unique}");
 
-		await dbContext.User.AddAsync(user);
-		await dbContext.Tenant.AddRangeAsync(
+		await db.Context.User.AddAsync(user);
+		await db.Context.Tenant.AddRangeAsync(
 			primaryTenant,
 			secondaryTenant,
 			newTenant,
 			removedTenant
 		);
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var primaryTenantId = primaryTenant.GetRequiredId();
@@ -414,12 +410,12 @@ public sealed class TenantUserCompanyActionsSpec
 			UserAccount.CreateTenantAccount(userId, removedTenantId),
 		};
 
-		await dbContext.UserAccount.AddRangeAsync(accounts);
-		await dbContext.SaveChangesAsync();
+		await db.Context.UserAccount.AddRangeAsync(accounts);
+		await db.Context.SaveChangesAsync();
 
 		// The removed membership used to be an admin: it held the tenant full-access role.
 		await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
-			dbContext,
+			db.Context,
 			removedTenantId,
 			accounts[^1].GetRequiredId()
 		);
@@ -428,11 +424,11 @@ public sealed class TenantUserCompanyActionsSpec
 			removedTenantId,
 			$"Actions Stale Role {unique}"
 		);
-		await dbContext.Role.AddAsync(staleRole);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(staleRole);
+		await db.Context.SaveChangesAsync();
 		// Reassignment must not resurrect this stale link; the service should
 		// purge old membership role links before assigning the default role.
-		await dbContext.UserAccountRole.AddAsync(
+		await db.Context.UserAccountRole.AddAsync(
 			new UserAccountRole {
 				UserAccountId = accounts[^1].GetRequiredId(),
 				RoleId = staleRole.GetRequiredId(),
@@ -442,7 +438,7 @@ public sealed class TenantUserCompanyActionsSpec
 		accounts[^1].Status = AccountStatus.Suspended;
 		accounts[^1].IsDeleted = true;
 		accounts[^1].DeletedAt = DateTime.UtcNow;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return new SeededTenantUserCompanyScenario(
 			UserId: userId,
@@ -467,13 +463,10 @@ public sealed class TenantUserCompanyActionsSpec
 		Guid tenantId,
 		AccountStatus expectedStatus
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var account = await TenantUserCompanyActionsSpec._FindTenantMembershipAsync(
-			dbContext,
+			db.Context,
 			userId,
 			tenantId
 		);
@@ -493,13 +486,10 @@ public sealed class TenantUserCompanyActionsSpec
 		Guid userId,
 		Guid tenantId
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var account = await TenantUserCompanyActionsSpec._FindTenantMembershipAsync(
-			dbContext,
+			db.Context,
 			userId,
 			tenantId
 		);
@@ -518,16 +508,13 @@ public sealed class TenantUserCompanyActionsSpec
 		Guid userId,
 		Guid tenantId
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var query =
-			from account in dbContext.UserAccount.IgnoreQueryFilters()
-			join link in dbContext.UserAccountRole
+			from account in db.Context.UserAccount.IgnoreQueryFilters()
+			join link in db.Context.UserAccountRole
 				on account.Id equals link.UserAccountId
-			join role in dbContext.Role.IgnoreQueryFilters()
+			join role in db.Context.Role.IgnoreQueryFilters()
 				on link.RoleId equals role.Id
 			where account.UserId == userId
 				&& account.TenantId == tenantId
@@ -547,16 +534,13 @@ public sealed class TenantUserCompanyActionsSpec
 		Guid userId,
 		Guid tenantId
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var roles = await (
-			from account in dbContext.UserAccount.IgnoreQueryFilters()
-			join link in dbContext.UserAccountRole
+			from account in db.Context.UserAccount.IgnoreQueryFilters()
+			join link in db.Context.UserAccountRole
 				on account.Id equals link.UserAccountId
-			join role in dbContext.Role.IgnoreQueryFilters()
+			join role in db.Context.Role.IgnoreQueryFilters()
 				on link.RoleId equals role.Id
 			where account.UserId == userId
 				&& account.TenantId == tenantId

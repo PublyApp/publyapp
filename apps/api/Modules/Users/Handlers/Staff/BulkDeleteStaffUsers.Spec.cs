@@ -5,9 +5,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -327,12 +325,11 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SuspendStaffUserAsync(string staffToken, string userId) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			BulkDeleteStaffUsersSpec._GetSuspendUrl(userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			BulkDeleteStaffUsersSpec._GetSuspendUrl(userId),
+			staffToken
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
@@ -410,10 +407,9 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 			expectedDeleted: true
 		);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var staffAccount = await dbContext.UserAccount
+		var staffAccount = await db.Context.UserAccount
 			.IgnoreQueryFilters()
 			.FirstOrDefaultAsync(x =>
 				x.UserId == userId
@@ -429,7 +425,7 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 			return;
 		}
 
-		var userAccountRoles = await dbContext.UserAccountRole
+		var userAccountRoles = await db.Context.UserAccountRole
 			.IgnoreQueryFilters()
 			.Where(x => x.UserAccountId == staffAccount.GetRequiredId())
 			.ToListAsync();
@@ -443,10 +439,9 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		UserStatus expectedStatus,
 		bool expectedDeleted
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var user = await dbContext.User
+		var user = await db.Context.User
 			.IgnoreQueryFilters()
 			.FirstOrDefaultAsync(x => x.Id == userId);
 
@@ -459,10 +454,9 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 	private async Task _AssertStaffUserRemainsUndeletedAndUnsuspendedAsync(
 		Guid userId
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var user = await dbContext.User
+		var user = await db.Context.User
 			.IgnoreQueryFilters()
 			.FirstOrDefaultAsync(x => x.Id == userId);
 
@@ -487,12 +481,11 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		string staffToken,
 		string userId
 	) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			BulkDeleteStaffUsersSpec._GetByIdUrl(userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			BulkDeleteStaffUsersSpec._GetByIdUrl(userId),
+			staffToken
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -500,12 +493,11 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		string staffToken,
 		string userId
 	) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			BulkDeleteStaffUsersSpec._GetRolesUrl(userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			BulkDeleteStaffUsersSpec._GetRolesUrl(userId),
+			staffToken
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
@@ -516,10 +508,9 @@ public sealed class BulkDeleteStaffUsersSpec : IClassFixture<ApiFixture> {
 		IReadOnlyCollection<Guid> succeededUserIds,
 		IReadOnlyCollection<BulkDeleteAuditFailedItemResponse> failedItems
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var auditLog = await dbContext.AuditLog
+		var auditLog = await db.Context.AuditLog
 			.AsNoTracking()
 			.Where(x =>
 				x.UserId == actorUserId

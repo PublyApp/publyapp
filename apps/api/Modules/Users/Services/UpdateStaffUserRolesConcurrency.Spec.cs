@@ -4,12 +4,12 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.DependencyInjection;
 
 using Npgsql;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -92,8 +92,7 @@ public sealed class UpdateStaffUserRolesConcurrencySpec
 	}
 
 	private async Task<Guid> _CreateStaffUserAsync(UserStatus status) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = $"staff-role-concurrency-{Guid.NewGuid():N}@example.com",
@@ -104,21 +103,20 @@ public sealed class UpdateStaffUserRolesConcurrencySpec
 			Status = status,
 		};
 
-		dbContext.User.Add(user);
-		await dbContext.SaveChangesAsync();
+		db.Context.User.Add(user);
+		await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var staffAccount = UserAccount.CreateStaffAccount(userId);
 
-		dbContext.UserAccount.Add(staffAccount);
-		await dbContext.SaveChangesAsync();
+		db.Context.UserAccount.Add(staffAccount);
+		await db.Context.SaveChangesAsync();
 
 		return userId;
 	}
 
 	private async Task<Guid> _CreateStaffRoleAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateStaffRole(
 			name: "Concurrency Role " + Guid.NewGuid().ToString("N")[..8],
@@ -126,8 +124,8 @@ public sealed class UpdateStaffUserRolesConcurrencySpec
 		);
 		role.ValidateRoleType();
 
-		dbContext.Role.Add(role);
-		await dbContext.SaveChangesAsync();
+		db.Context.Role.Add(role);
+		await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId();
 	}
@@ -136,11 +134,10 @@ public sealed class UpdateStaffUserRolesConcurrencySpec
 		Guid userId,
 		Guid roleId
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var staffAccountId = await (
-			from ua in dbContext.UserAccount
+			from ua in db.Context.UserAccount
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
 				&& !ua.IsDeleted
@@ -151,14 +148,14 @@ public sealed class UpdateStaffUserRolesConcurrencySpec
 			throw new InvalidOperationException("Staff account was unexpectedly missing.");
 		}
 
-		dbContext.UserAccountRole.Add(
+		db.Context.UserAccountRole.Add(
 			new UserAccountRole {
 				UserAccountId = staffAccountId.Value,
 				RoleId = roleId,
 				UpdatedAt = DateTime.UtcNow,
 			}
 		);
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task<
@@ -230,10 +227,9 @@ public sealed class UpdateStaffUserRolesConcurrencySpec
 	}
 
 	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var connectionString = dbContext.Database.GetConnectionString();
+		var connectionString = db.Context.Database.GetConnectionString();
 		if (connectionString is null) {
 			throw new InvalidOperationException(
 				"Test database connection string was unexpectedly null."
@@ -244,15 +240,14 @@ public sealed class UpdateStaffUserRolesConcurrencySpec
 	}
 
 	private async Task<StaffUserRoleState> _GetStaffUserRoleStateAsync(Guid userId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var user = await dbContext.User
+		var user = await db.Context.User
 			.IgnoreQueryFilters()
 			.SingleAsync(x => x.Id == userId);
 
 		var staffAccountId = await (
-			from ua in dbContext.UserAccount
+			from ua in db.Context.UserAccount
 				.IgnoreQueryFilters()
 			where ua.UserId == userId
 				&& ua.Scope == AccountScope.Staff
@@ -263,7 +258,7 @@ public sealed class UpdateStaffUserRolesConcurrencySpec
 			throw new InvalidOperationException("Staff account id was unexpectedly null.");
 		}
 
-		var hasLiveStaffAccount = await dbContext.UserAccount
+		var hasLiveStaffAccount = await db.Context.UserAccount
 			.IgnoreQueryFilters()
 			.AnyAsync(x =>
 				x.UserId == userId
@@ -271,7 +266,7 @@ public sealed class UpdateStaffUserRolesConcurrencySpec
 				&& !x.IsDeleted
 			);
 
-		var allRoleLinks = await dbContext.UserAccountRole
+		var allRoleLinks = await db.Context.UserAccountRole
 			.IgnoreQueryFilters()
 			.Where(x => x.UserAccountId == staffAccountId.Value)
 			.Select(x => new RoleLinkState(x.RoleId))

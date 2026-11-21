@@ -7,9 +7,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -59,10 +57,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var tenantId = await this._GetTenantIdAsync();
 
 		using var response = await this._BulkRemoveAsync(
@@ -105,10 +100,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Theory]
@@ -333,8 +325,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	}
 
 	private async Task<(Guid TenantId, Guid AdminUserId)> _SeedTenantWithAdminAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var unique = Guid.NewGuid().ToString("N");
 		var tenant = new Tenant {
@@ -352,19 +343,19 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 			IsVerified = true,
 		};
 
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.User.AddAsync(admin);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.User.AddAsync(admin);
+		await db.Context.SaveChangesAsync();
 
 		var adminAccount = UserAccount.CreateTenantAccount(
 			admin.GetRequiredId(),
 			tenant.GetRequiredId()
 		);
-		await dbContext.UserAccount.AddAsync(adminAccount);
-		await dbContext.SaveChangesAsync();
+		await db.Context.UserAccount.AddAsync(adminAccount);
+		await db.Context.SaveChangesAsync();
 
 		await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
-			dbContext,
+			db.Context,
 			tenant.GetRequiredId(),
 			adminAccount.GetRequiredId()
 		);
@@ -373,8 +364,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	}
 
 	private async Task<Guid> _SeedTenantUserAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var unique = Guid.NewGuid().ToString("N");
 		var user = new User {
@@ -386,13 +376,13 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 			IsVerified = true,
 		};
 
-		await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 
-		await dbContext.UserAccount.AddAsync(
+		await db.Context.UserAccount.AddAsync(
 			UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId)
 		);
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return user.GetRequiredId();
 	}
@@ -449,11 +439,10 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	}
 
 	private async Task<UserAccount?> _GetUserAccountIgnoringFiltersAsync(Guid tenantId, Guid userId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		return await (
-			from account in dbContext.UserAccount.IgnoreQueryFilters()
+			from account in db.Context.UserAccount.IgnoreQueryFilters()
 			where account.TenantId == tenantId
 				&& account.UserId == userId
 				&& account.Scope == AccountScope.Tenant
@@ -469,11 +458,10 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 		DateTime startedAt,
 		IReadOnlyCollection<Guid> expectedTargetIds
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var auditLogs = await (
-			from log in dbContext.AuditLog
+			from log in db.Context.AuditLog
 			where log.Action == AuditActions.TenantUserBulkRemoved
 				&& log.CreatedAt >= startedAt
 			select log

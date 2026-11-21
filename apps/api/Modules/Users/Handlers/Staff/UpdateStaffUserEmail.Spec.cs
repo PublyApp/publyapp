@@ -6,9 +6,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -238,10 +236,7 @@ public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenWhenStaffUserEmailSessionIsTenantUser() {
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
@@ -257,12 +252,10 @@ public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _GetStaffUserIdByEmailAsync(string email) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var query =
-			from account in dbContext.UserAccount
+			from account in db.Context.UserAccount
 			where account.Scope == AccountScope.Staff
 				&& !account.IsDeleted
 				&& !account.User.IsDeleted
@@ -273,12 +266,10 @@ public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<string> _GetStaffUserEmailByIdAsync(Guid userId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var query =
-			from user in dbContext.User
+			from user in db.Context.User
 			where user.Id == userId
 			select user.Email;
 
@@ -286,30 +277,26 @@ public sealed class UpdateStaffUserEmailSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SetStaffUserEmailAsync(Guid userId, string email) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var query =
-			from user in dbContext.User
+			from user in db.Context.User
 			where user.Id == userId
 			select user;
 
 		var staffUser = await query.SingleAsync();
 		staffUser.Email = email;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task<AuditLog?> _GetLatestAuditLogAsync(
 		string action,
 		Guid targetId
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var query =
-			from log in dbContext.AuditLog
+			from log in db.Context.AuditLog
 			where log.Action == action
 				&& log.TargetId == targetId
 			orderby log.CreatedAt descending

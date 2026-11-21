@@ -284,11 +284,10 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 		payload.FailedCount.Should().Be(0);
 		payload.FailedItems.Should().BeEmpty();
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var persistedRoleIds = await (
-			from invitation in dbContext.Invitation
-			join invitationRole in dbContext.InvitationRole
+			from invitation in db.Context.Invitation
+			join invitationRole in db.Context.InvitationRole
 				on invitation.Id equals invitationRole.InvitationId
 			where invitation.TenantId == tenantId
 				&& invitation.Email == email
@@ -314,8 +313,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	}
 
 	private async Task<List<Guid>> _CreateTenantRolesAsync(Guid tenantId, int count) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var roles = new List<Role>();
 
 		for (var i = 0; i < count; i++) {
@@ -328,15 +326,14 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 			roles.Add(role);
 		}
 
-		await dbContext.Role.AddRangeAsync(roles);
-		_ = await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddRangeAsync(roles);
+		_ = await db.Context.SaveChangesAsync();
 		return roles.Select(role => role.GetRequiredId()).ToList();
 	}
 
 	private async Task<bool> _TenantInvitationExistsAsync(Guid tenantId, string email) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await dbContext.Invitation.AnyAsync(invitation =>
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.Invitation.AnyAsync(invitation =>
 			invitation.TenantId == tenantId
 			&& invitation.Scope == InvitationScope.Tenant
 			&& invitation.Email == email

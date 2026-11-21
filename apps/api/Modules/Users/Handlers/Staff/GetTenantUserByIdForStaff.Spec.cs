@@ -6,7 +6,6 @@ using System.Text.Json;
 using FluentAssertions;
 
 using PublyApp.Api.Data.Seeding;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -55,14 +54,9 @@ public sealed class GetTenantUserByIdForStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnTenantUserDetailsWithoutEmbeddedCompaniesWhenTenantUserExists() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 		var userId = await GetTenantUserByIdForStaffSpec._GetUserIdByEmailAsync(
 			this._Http,
 			staffToken,
@@ -70,12 +64,11 @@ public sealed class GetTenantUserByIdForStaffSpec
 			TestConstants.AcmeUserEmail
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			GetTenantUserByIdForStaffSpec._GetUrl(userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			GetTenantUserByIdForStaffSpec._GetUrl(userId),
+			staffToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var json = await response.Content.ReadAsStringAsync();
@@ -152,19 +145,14 @@ public sealed class GetTenantUserByIdForStaffSpec
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			GetTenantUserByIdForStaffSpec._GetUrl("not-a-guid")
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			GetTenantUserByIdForStaffSpec._GetUrl("not-a-guid"),
+			staffToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -173,32 +161,22 @@ public sealed class GetTenantUserByIdForStaffSpec
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			GetTenantUserByIdForStaffSpec._GetUrl(Guid.NewGuid().ToString())
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			GetTenantUserByIdForStaffSpec._GetUrl(Guid.NewGuid().ToString()),
+			staffToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.NotFound);
+		await response.ShouldBeProblemAsync(ResponseKeys.NotFound);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 		var userId = await GetTenantUserByIdForStaffSpec._GetUserIdByEmailAsync(
 			this._Http,
 			staffToken,
@@ -210,12 +188,11 @@ public sealed class GetTenantUserByIdForStaffSpec
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			GetTenantUserByIdForStaffSpec._GetUrl(userId)
-		).WithSessionToken(tenantToken);
-
-		using var response = await this._Http.SendAsync(request);
+			GetTenantUserByIdForStaffSpec._GetUrl(userId),
+			tenantToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
@@ -271,12 +248,11 @@ public sealed class GetTenantUserByIdForStaffSpec
 		Guid tenantId,
 		string userId
 	) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			GetTenantUserByIdForStaffSpec._GetRemoveUrl(tenantId, userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			GetTenantUserByIdForStaffSpec._GetRemoveUrl(tenantId, userId),
+			staffToken
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 

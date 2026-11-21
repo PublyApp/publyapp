@@ -33,6 +33,35 @@ internal sealed class TestAuthClient {
 	}
 
 	/// <summary>
+	/// Logs in as the seeded Acme tenant admin and returns the session token.
+	/// </summary>
+	public async Task<string> LoginAsAcmeAdminAsync(CancellationToken ct = default) {
+		return await this.LoginAsync(
+			TestConstants.AcmeAdminEmail,
+			TestConstants.SeedPassword,
+			ct
+		);
+	}
+
+	/// <summary>
+	/// Logs in as the seeded staff admin and resolves a seeded
+	/// tenant's id in one call (the usual staff-spec preamble).
+	/// </summary>
+	public async Task<(string Token, Guid TenantId)> LoginAsStaffWithTenantAsync(
+		string tenantName,
+		CancellationToken ct = default
+	) {
+		var token = await this.LoginAsStaffAdminAsync(ct);
+		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
+			this._Http,
+			token,
+			tenantName,
+			ct
+		);
+		return (token, tenantId);
+	}
+
+	/// <summary>
 	/// Logs in with the given credentials and returns
 	/// the session token.
 	/// Throws with full response body on failure for

@@ -4,11 +4,8 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -46,10 +43,7 @@ public sealed class StaffUserLastOwnerLifecycleSpec : IClassFixture<ApiFixture> 
 		using var response = await this._SuspendAsync(token, adminUserId);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.CannotSuspendLastAdmin);
+		await response.ShouldBeProblemAsync(ResponseKeys.CannotSuspendLastAdmin);
 		(await this._GetUserStatusAsync(adminUserId)).Should().Be(UserStatus.Active);
 	}
 
@@ -110,10 +104,7 @@ public sealed class StaffUserLastOwnerLifecycleSpec : IClassFixture<ApiFixture> 
 		using var response = await this._DeleteAsync(token, adminUserId);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.CannotRemoveLastAdmin);
+		await response.ShouldBeProblemAsync(ResponseKeys.CannotRemoveLastAdmin);
 	}
 
 	[Fact]
@@ -206,12 +197,11 @@ public sealed class StaffUserLastOwnerLifecycleSpec : IClassFixture<ApiFixture> 
 	}
 
 	private async Task<Guid> _GetSeededAdminUserIdAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var email = TestConstants.StaffAdminEmail.Trim().ToLowerInvariant();
 
 		var userId = await (
-			from user in dbContext.User.AsNoTracking()
+			from user in db.Context.User.AsNoTracking()
 			where user.Email == email
 			select user.Id
 		).FirstOrDefaultAsync();
@@ -224,19 +214,17 @@ public sealed class StaffUserLastOwnerLifecycleSpec : IClassFixture<ApiFixture> 
 	}
 
 	private async Task<List<Guid>> _GetActiveOwnerUserIdsAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await FullAccessRoleQueries.ActiveStaffFullAccessAccounts(dbContext)
+		return await FullAccessRoleQueries.ActiveStaffFullAccessAccounts(db.Context)
 			.Select(account => account.UserId)
 			.ToListAsync();
 	}
 
 	private async Task<UserStatus> _GetUserStatusAsync(Guid userId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.User
+		return await db.Context.User
 			.AsNoTracking()
 			.Where(user => user.Id == userId)
 			.Select(user => user.Status)

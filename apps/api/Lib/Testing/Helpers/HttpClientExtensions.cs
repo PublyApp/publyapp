@@ -30,4 +30,18 @@ internal static class HttpClientExtensions {
 		Assert.NotNull(body);
 		return body;
 	}
+
+	/// <summary>
+	/// Sends a request authenticated with <paramref name="sessionToken"/> and returns the response.
+	/// </summary>
+	public static async Task<HttpResponseMessage> SendWithSessionAsync(
+		this HttpClient http,
+		HttpMethod method,
+		string url,
+		string sessionToken,
+		CancellationToken cancellationToken = default
+	) {
+		using var request = new HttpRequestMessage(method, url).WithSessionToken(sessionToken);
+		return await http.SendAsync(request, cancellationToken);
+	}
 }

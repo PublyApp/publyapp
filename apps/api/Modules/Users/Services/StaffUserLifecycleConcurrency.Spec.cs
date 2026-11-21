@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -207,8 +208,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 	}
 
 	private async Task<Guid> _CreateStaffUserAsync(UserStatus status) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = $"staff-lifecycle-{Guid.NewGuid():N}@example.com",
@@ -219,14 +219,14 @@ public sealed class StaffUserLifecycleConcurrencySpec
 			Status = status,
 		};
 
-		dbContext.User.Add(user);
-		await dbContext.SaveChangesAsync();
+		db.Context.User.Add(user);
+		await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var staffAccount = UserAccount.CreateStaffAccount(userId);
 
-		dbContext.UserAccount.Add(staffAccount);
-		await dbContext.SaveChangesAsync();
+		db.Context.UserAccount.Add(staffAccount);
+		await db.Context.SaveChangesAsync();
 
 		return userId;
 	}
@@ -282,10 +282,9 @@ public sealed class StaffUserLifecycleConcurrencySpec
 	}
 
 	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var connectionString = dbContext.Database.GetConnectionString();
+		var connectionString = db.Context.Database.GetConnectionString();
 		if (connectionString is null) {
 			throw new InvalidOperationException(
 				"Test database connection string was unexpectedly null."
@@ -358,14 +357,13 @@ public sealed class StaffUserLifecycleConcurrencySpec
 	}
 
 	private async Task<StaffUserState> _GetStaffUserStateAsync(Guid userId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var user = await dbContext.User
+		var user = await db.Context.User
 			.IgnoreQueryFilters()
 			.SingleAsync(x => x.Id == userId);
 
-		var hasLiveStaffAccount = await dbContext.UserAccount
+		var hasLiveStaffAccount = await db.Context.UserAccount
 			.IgnoreQueryFilters()
 			.AnyAsync(x =>
 				x.UserId == userId

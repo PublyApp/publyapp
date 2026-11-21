@@ -4,12 +4,8 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using Microsoft.Extensions.DependencyInjection;
-
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -49,14 +45,9 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldRemoveUserSuccessfully() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// Get a regular user (not admin) to remove
 		var userId = await RemoveUserFromTenantAsStaffSpec._GetUserIdByEmailAsync(
@@ -116,12 +107,7 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be(ResponseKeys.CannotRemoveLastAdmin);
+		await response.ShouldBeProblemAsync(ResponseKeys.CannotRemoveLastAdmin);
 	}
 
 	[Fact]
@@ -143,12 +129,7 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be(ResponseKeys.CannotRemoveLastAdmin);
+		await response.ShouldBeProblemAsync(ResponseKeys.CannotRemoveLastAdmin);
 	}
 
 	[Fact]
@@ -171,25 +152,15 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnBadRequestWhenMalformedUserId() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var url = RemoveUserFromTenantAsStaffSpec._GetRemoveUrl(
 			tenantId.ToString(),
@@ -205,25 +176,15 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnNotFoundWhenUserNotInTenant() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// Use a user from a different tenant
 		var otherTenantId =
@@ -279,10 +240,7 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
 				this._Http,
@@ -384,10 +342,7 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 
 	private async Task<SeededTenantAdminScenario>
 	_SeedTenantAdminWithSuspendedPeerAsync() {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var unique = Guid.NewGuid().ToString("N");
 		var user = new User {
@@ -413,9 +368,9 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 			MaxUsers = 100,
 		};
 
-		await dbContext.User.AddRangeAsync(user, suspendedPeer);
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddRangeAsync(user, suspendedPeer);
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		var tenantId = tenant.GetRequiredId();
 		var accounts = new[] {
@@ -423,12 +378,12 @@ public sealed class RemoveUserFromTenantAsStaffSpec
 			UserAccount.CreateTenantAccount(suspendedPeer.GetRequiredId(), tenantId),
 		};
 
-		await dbContext.UserAccount.AddRangeAsync(accounts);
-		await dbContext.SaveChangesAsync();
+		await db.Context.UserAccount.AddRangeAsync(accounts);
+		await db.Context.SaveChangesAsync();
 
 		foreach (var account in accounts) {
 			await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
-				dbContext,
+				db.Context,
 				tenantId,
 				account.GetRequiredId()
 			);

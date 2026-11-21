@@ -4,9 +4,6 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using Microsoft.Extensions.DependencyInjection;
-
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -51,10 +48,7 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUserForEveryIntroducedTenantUserRoute() {
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var routeSet = TenantUserRoutesForStaffAuthorizationSpec._CreateRouteSet();
 
 		foreach (var route in routeSet) {
@@ -151,13 +145,10 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			email
 		);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var staffAccountQuery =
-			from account in dbContext.UserAccount
+			from account in db.Context.UserAccount
 			where account.UserId == userId
 				&& account.Scope == AccountScope.Staff
 				&& !account.IsDeleted
@@ -169,22 +160,22 @@ public sealed class TenantUserRoutesForStaffAuthorizationSpec
 			"Test-only staff role for tenant user route permissions"
 		);
 
-		await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
-		await dbContext.RolePermission.AddAsync(
+		await db.Context.RolePermission.AddAsync(
 			new RolePermission {
 				RoleId = role.GetRequiredId(),
 				PermissionKey = permissionKey,
 			}
 		);
-		await dbContext.UserAccountRole.AddAsync(
+		await db.Context.UserAccountRole.AddAsync(
 			new UserAccountRole {
 				UserAccountId = staffAccount.GetRequiredId(),
 				RoleId = role.GetRequiredId(),
 			}
 		);
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return await this._AuthClient.LoginAsync(
 			email,

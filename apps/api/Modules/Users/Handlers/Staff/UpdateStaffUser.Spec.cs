@@ -154,10 +154,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		public async Task
 		ItShouldReturnForbiddenForNonStaffUser() {
 			string token =
-				await this._AuthClient.LoginAsync(
-					TestConstants.AcmeAdminEmail,
-					TestConstants.SeedPassword
-				);
+				await this._AuthClient.LoginAsAcmeAdminAsync();
 
 			string url = UpdateStaffUserSpec._GetUrl(Guid.NewGuid().ToString());
 			HttpRequestMessage request = new HttpRequestMessage(

@@ -35,9 +35,8 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReactivateSuspendedTenantUser() {
 			// Arrange
-			string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http, staffToken, SeedConstants.Tenants.AcmeName
+			var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+				SeedConstants.Tenants.AcmeName
 			);
 			string userId = await ReactivateTenantUserAsStaffSpec._GetUserIdByEmailAsync(
 				this._Http, staffToken, tenantId, TestConstants.AcmeUserEmail
@@ -71,9 +70,8 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnNotFoundForNonexistentUser() {
 			// Arrange
-			string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http, staffToken, SeedConstants.Tenants.AcmeName
+			var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+				SeedConstants.Tenants.AcmeName
 			);
 			Guid nonexistentUserId = Guid.NewGuid();
 
@@ -90,9 +88,8 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnConflictWhenUserNotSuspended() {
 			// Arrange
-			string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http, staffToken, SeedConstants.Tenants.AcmeName
+			var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+				SeedConstants.Tenants.AcmeName
 			);
 			string userId = await ReactivateTenantUserAsStaffSpec._GetUserIdByEmailAsync(
 				this._Http, staffToken, tenantId, TestConstants.AcmeUserEmail
@@ -129,9 +126,8 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnBadRequestForMalformedUserId() {
 			// Arrange
-			string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http, staffToken, SeedConstants.Tenants.AcmeName
+			var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+				SeedConstants.Tenants.AcmeName
 			);
 
 			// Act
@@ -171,10 +167,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnForbiddenForTenantUser() {
 			// Arrange
-			string tenantToken = await this._AuthClient.LoginAsync(
-				TestConstants.AcmeAdminEmail,
-				TestConstants.SeedPassword
-			);
+			string tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
 				this._Http,
 				await this._AuthClient.LoginAsStaffAdminAsync(),

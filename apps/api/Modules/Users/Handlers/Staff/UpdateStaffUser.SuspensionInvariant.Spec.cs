@@ -183,13 +183,10 @@ public sealed class UpdateStaffUserSuspensionInvariantSpec
 	) {
 		var normalizedEmail = email.Trim().ToLowerInvariant();
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var userId = await (
-			from u in dbContext.User.AsNoTracking()
+			from u in db.Context.User.AsNoTracking()
 			where u.Email == normalizedEmail
 			select u.Id
 		)
