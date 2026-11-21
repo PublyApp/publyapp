@@ -90,9 +90,13 @@ const expectEndpointCalls = (
 		expect(countCallsByPath(respond, ...suffix)).toBe(count);
 	}
 	if (scenario.request !== undefined) {
+		// Exactly one call carries the filters (a stat-card count must not).
+		const matcher = expect.objectContaining(scenario.request.params);
 		expect(
-			requestQueryParameters(respond, ...scenario.request.suffix),
-		).toContainEqual(expect.objectContaining(scenario.request.params));
+			requestQueryParameters(respond, ...scenario.request.suffix).filter(
+				(parameters) => matcher.asymmetricMatch(parameters),
+			),
+		).toHaveLength(1);
 	}
 };
 
