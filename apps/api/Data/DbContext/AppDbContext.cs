@@ -476,6 +476,15 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 				uap => this.TenantId == null || uap.Role.TenantId == this.TenantId
 			);
 
+		// SocialAccountProject is a junction whose required Project end is tenant-filtered:
+		// without a matching filter EF warns at model build (and a filtered-out project would
+		// leave an orphan junction row visible). Filter it by the Project's tenant.
+		modelBuilder.Entity<Modules.SocialAccounts.Entities.SocialAccountProject>()
+			.HasQueryFilter(
+				AppDbContext.TenantFilterName,
+				sap => this.TenantId == null || sap.Project.TenantId == this.TenantId
+			);
+
 		// Configure other entities with generic approach
 		foreach (var entityType in modelBuilder.Model.GetEntityTypes()) {
 			// Skip UserAccountRole - it's already configured above with custom query filter

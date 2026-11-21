@@ -37,6 +37,8 @@ before any request or job is served:
      start with a plain-words cause explaining the mismatch and the recovery options
      (restore the original value for ALL services, or deliberately rotate).
 
+The Data Protection key-ring repository must skip the canary row (`CanaryAwareKeyRingRepository`): the stock EF repository parses every row of that table as XML and fails on the canary blob.
+
 A pure in-memory encrypt/decrypt round-trip could never catch a wrong-value key, which is
 why the sentinel is persisted and re-decrypted instead.
 
