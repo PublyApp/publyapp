@@ -8,7 +8,7 @@
 		"front": { "complexityPer1k": 87, "duplicationPer1k": 82.7 },
 		"tests-api": { "complexityPer1k": 25.1, "duplicationPer1k": 374.8 },
 		"tests-front": { "complexityPer1k": 48.4, "duplicationPer1k": 254.7 },
-		"tooling": { "complexityPer1k": 111.4, "duplicationPer1k": 132.8 }
+		"tooling": { "complexityPer1k": 110.1, "duplicationPer1k": 131.1 }
 	},
 	"exceptions": []
 }
