@@ -187,77 +187,65 @@ export const isValidE2eBuildTransportPair = (
 const isPrerequisiteStep = (id: string): boolean =>
 	/\.(checkout|install_pnpm|setup_node|setup_dotnet|setup_just)$/.test(id);
 
+const isSkipped = (step: StepEvidence): boolean =>
+	step.execution === 'skipped' && step.outcome === 'skipped';
+
+const isExecutedSuccess = (step: StepEvidence): boolean =>
+	step.execution === 'executed' && step.outcome === 'success';
+
+/** Whether one step of a `relevant` lane is acceptable. */
+const relevantStepOk = (step: StepEvidence): boolean => {
+	if (step.id.endsWith('.not-applicable')) {
+		return isSkipped(step);
+	}
+	if (step.id.endsWith('.report_upload') || step.id.endsWith('.test_results')) {
+		return isSkipped(step) || isExecutedSuccess(step);
+	}
+	return step.outcome === 'success';
+};
+
+const relevantLaneSucceeded = (
+	jobKey: string,
+	expectedSteps: readonly string[],
+	steps: StepEvidence[],
+): boolean => {
+	if (!isValidE2eTransportProfile(jobKey, expectedSteps, steps)) {
+		return false;
+	}
+	const hasTransportContract = hasE2eTransportContract(jobKey, expectedSteps);
+	return steps.every(
+		(step) =>
+			(hasTransportContract &&
+				isE2eTransportStep(jobKey, expectedSteps, step.id)) ||
+			relevantStepOk(step),
+	);
+};
+
+const notApplicableLaneSucceeded = (steps: StepEvidence[]): boolean => {
+	const sentinel = steps.find((step) => step.id.endsWith('.not-applicable'));
+	if (sentinel === undefined) {
+		return false;
+	}
+	return steps.every((step) => {
+		if (step.id === sentinel.id) {
+			return isExecutedSuccess(step);
+		}
+		if (isPrerequisiteStep(step.id)) {
+			return isSkipped(step) || isExecutedSuccess(step);
+		}
+		return isSkipped(step);
+	});
+};
+
 const laneSucceeded = (
 	jobKey: string,
 	mode: LaneResultMode,
 	expectedSteps: readonly string[],
 	steps: StepEvidence[],
-): boolean => {
-	if (mode === 'relevant') {
-		if (!isValidE2eTransportProfile(jobKey, expectedSteps, steps)) {
-			return false;
-		}
-		const hasTransportContract = hasE2eTransportContract(jobKey, expectedSteps);
-		for (const step of steps) {
-			if (
-				hasTransportContract &&
-				isE2eTransportStep(jobKey, expectedSteps, step.id)
-			) {
-				continue;
-			}
-			if (step.id.endsWith('.not-applicable')) {
-				if (step.execution !== 'skipped' || step.outcome !== 'skipped') {
-					return false;
-				}
-				continue;
-			}
-			if (
-				step.id.endsWith('.report_upload') ||
-				step.id.endsWith('.test_results')
-			) {
-				if (step.execution === 'skipped' && step.outcome === 'skipped') {
-					continue;
-				}
-				if (step.execution !== 'executed' || step.outcome !== 'success') {
-					return false;
-				}
-				continue;
-			}
-			if (step.outcome !== 'success') {
-				return false;
-			}
-		}
-		return true;
-	}
-
-	const sentinel = steps.find((step) => step.id.endsWith('.not-applicable'));
-	if (sentinel === undefined) {
-		return false;
-	}
-
-	for (const step of steps) {
-		if (step.id === sentinel.id) {
-			if (step.execution !== 'executed' || step.outcome !== 'success') {
-				return false;
-			}
-			continue;
-		}
-		if (isPrerequisiteStep(step.id)) {
-			if (step.execution === 'skipped' && step.outcome === 'skipped') {
-				continue;
-			}
-			if (step.execution !== 'executed' || step.outcome !== 'success') {
-				return false;
-			}
-			continue;
-		}
-		if (step.execution !== 'skipped' || step.outcome !== 'skipped') {
-			return false;
-		}
-	}
-
-	return true;
-};
+): boolean =>
+	mode === 'relevant'
+		? relevantLaneSucceeded(jobKey, expectedSteps, steps)
+		: notApplicableLaneSucceeded(steps);
 
 export const createCiLaneResult = ({
 	jobKey,

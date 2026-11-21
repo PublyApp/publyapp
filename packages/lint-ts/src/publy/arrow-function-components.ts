@@ -117,153 +117,147 @@ const expressionContainsJsx = (
 	return false;
 };
 
-const buildImportInfo = (programNode: ESTree.Program): ImportInfo => {
-	const reactNamespaces = new Set<string>();
-	const reactImportedNames = new Set<string>();
-	const reactImportedNameToImported = new Map<string, string>();
-	const importedNames = new Set<string>();
-	const localFunctionDecls = new Map<string, FunctionNode>();
-	const localObjectMembers = new Map<string, Map<string, FunctionNode>>();
+const isFunctionValue = (node: ESTree.Node): node is FunctionNode =>
+	node.type === 'ArrowFunctionExpression' ||
+	node.type === 'FunctionExpression' ||
+	node.type === 'FunctionDeclaration';
 
-	const registerLocalFn = (name: string, fnNode: FunctionNode): void => {
-		if (name) {
-			localFunctionDecls.set(name, fnNode);
-		}
-	};
-
-	/**
-	 * Collect function-valued members of a top-level local object literal
-	 * (#1293). Only static `Identifier` keys mapping to functions are kept;
-	 * getters/setters and non-function members are ignored, and ANY spread
-	 * makes the whole object unresolvable (its shape is no longer local).
-	 */
-	const collectObjectMembers = (
-		objExpr: ESTree.ObjectExpression,
-		into: Map<string, FunctionNode>,
-	): void => {
-		let resolvable = true;
-		for (const prop of objExpr.properties) {
-			if (prop.type === 'SpreadElement') {
-				resolvable = false;
-				break;
-			}
-			if (
-				prop.type !== 'Property' ||
-				prop.kind !== 'init' ||
-				prop.key.type !== 'Identifier'
-			) {
-				continue;
-			}
-			const value = prop.value;
-			if (
-				value.type === 'ArrowFunctionExpression' ||
-				value.type === 'FunctionExpression' ||
-				value.type === 'FunctionDeclaration'
-			) {
-				into.set(prop.key.name, value);
-			}
-		}
-		if (!resolvable) {
+/**
+ * Collect function-valued members of a top-level local object literal
+ * (#1293). Only static `Identifier` keys mapping to functions are kept;
+ * getters/setters and non-function members are ignored, and ANY spread
+ * makes the whole object unresolvable (its shape is no longer local).
+ */
+const collectObjectMembers = (
+	objExpr: ESTree.ObjectExpression,
+	into: Map<string, FunctionNode>,
+): void => {
+	for (const prop of objExpr.properties) {
+		if (prop.type === 'SpreadElement') {
 			into.clear();
+			return;
 		}
-	};
-
-	const collectVarDeclarators = (varDecl: ESTree.VariableDeclaration): void => {
-		for (const decl of varDecl.declarations) {
-			const id = decl.id;
-			const name = id.type === 'Identifier' ? id.name : undefined;
-			const init = decl.init;
-			if (!name || !init) {
-				continue;
-			}
-			if (
-				init.type === 'ArrowFunctionExpression' ||
-				init.type === 'FunctionExpression'
-			) {
-				registerLocalFn(name, init);
-			} else if (init.type === 'ObjectExpression') {
-				let members = localObjectMembers.get(name);
-				if (!members) {
-					members = new Map<string, FunctionNode>();
-					localObjectMembers.set(name, members);
-				}
-				collectObjectMembers(init, members);
-			}
-		}
-	};
-
-	for (const node of programNode.body) {
-		if (node.type === 'ImportDeclaration') {
-			const source = node.source.value;
-			const isReact = source === 'react';
-
-			for (const specifier of node.specifiers) {
-				if (
-					specifier.type === 'ImportDefaultSpecifier' ||
-					specifier.type === 'ImportNamespaceSpecifier'
-				) {
-					const localName = specifier.local.name;
-					if (localName) {
-						importedNames.add(localName);
-						if (isReact) {
-							reactNamespaces.add(localName);
-						}
-					}
-				} else if (specifier.type === 'ImportSpecifier') {
-					const localName = specifier.local.name;
-					const importedName =
-						specifier.imported.type === 'Identifier'
-							? specifier.imported.name
-							: specifier.imported.value;
-					if (localName) {
-						importedNames.add(localName);
-						if (isReact && importedName) {
-							reactImportedNameToImported.set(localName, importedName);
-							if (WRAPPER_FNS.has(importedName)) {
-								reactImportedNames.add(localName);
-							}
-						}
-					}
-				}
-			}
-		} else {
-			let fn: ESTree.Function | null = null;
-
-			if (node.type === 'FunctionDeclaration') {
-				fn = node;
-			} else if (
-				node.type === 'ExportDefaultDeclaration' &&
-				node.declaration.type === 'FunctionDeclaration'
-			) {
-				fn = node.declaration;
-			} else if (node.type === 'ExportNamedDeclaration') {
-				const decl = node.declaration;
-				if (decl && decl.type === 'FunctionDeclaration') {
-					fn = decl;
-				} else if (decl && decl.type === 'VariableDeclaration') {
-					collectVarDeclarators(decl);
-				}
-			} else if (node.type === 'VariableDeclaration') {
-				collectVarDeclarators(node);
-			}
-
-			if (fn) {
-				const id = fn.id;
-				if (id) {
-					registerLocalFn(id.name, fn);
-				}
-			}
+		if (
+			prop.type === 'Property' &&
+			prop.kind === 'init' &&
+			prop.key.type === 'Identifier' &&
+			isFunctionValue(prop.value)
+		) {
+			into.set(prop.key.name, prop.value);
 		}
 	}
+};
 
-	return {
-		reactNamespaces,
-		reactImportedNames,
-		reactImportedNameToImported,
-		importedNames,
-		localFunctionDecls,
-		localObjectMembers,
+const collectVarDeclarators = (
+	info: ImportInfo,
+	varDecl: ESTree.VariableDeclaration,
+): void => {
+	for (const decl of varDecl.declarations) {
+		const name = decl.id.type === 'Identifier' ? decl.id.name : undefined;
+		const init = decl.init;
+		if (!name || !init) {
+			continue;
+		}
+		if (
+			init.type === 'ArrowFunctionExpression' ||
+			init.type === 'FunctionExpression'
+		) {
+			info.localFunctionDecls.set(name, init);
+		} else if (init.type === 'ObjectExpression') {
+			let members = info.localObjectMembers.get(name);
+			if (!members) {
+				members = new Map<string, FunctionNode>();
+				info.localObjectMembers.set(name, members);
+			}
+			collectObjectMembers(init, members);
+		}
+	}
+};
+
+const registerImportSpecifier = (
+	info: ImportInfo,
+	isReact: boolean,
+	specifier: ESTree.ImportDeclaration['specifiers'][number],
+): void => {
+	const localName = specifier.local.name;
+	if (!localName) {
+		return;
+	}
+	info.importedNames.add(localName);
+	if (specifier.type !== 'ImportSpecifier') {
+		if (isReact) {
+			info.reactNamespaces.add(localName);
+		}
+		return;
+	}
+	const importedName =
+		specifier.imported.type === 'Identifier'
+			? specifier.imported.name
+			: specifier.imported.value;
+	if (isReact && importedName) {
+		info.reactImportedNameToImported.set(localName, importedName);
+		if (WRAPPER_FNS.has(importedName)) {
+			info.reactImportedNames.add(localName);
+		}
+	}
+};
+
+/** The function declaration a top-level statement declares directly, if any. */
+const declaredFunction = (node: ESTree.Node): ESTree.Function | null => {
+	if (node.type === 'FunctionDeclaration') {
+		return node;
+	}
+	if (
+		node.type === 'ExportDefaultDeclaration' &&
+		node.declaration.type === 'FunctionDeclaration'
+	) {
+		return node.declaration;
+	}
+	if (
+		node.type === 'ExportNamedDeclaration' &&
+		node.declaration?.type === 'FunctionDeclaration'
+	) {
+		return node.declaration;
+	}
+	return null;
+};
+
+const registerStatement = (info: ImportInfo, node: ESTree.Node): void => {
+	if (node.type === 'ImportDeclaration') {
+		const isReact = node.source.value === 'react';
+		for (const specifier of node.specifiers) {
+			registerImportSpecifier(info, isReact, specifier);
+		}
+		return;
+	}
+	const fn = declaredFunction(node);
+	if (fn?.id) {
+		info.localFunctionDecls.set(fn.id.name, fn);
+		return;
+	}
+	if (node.type === 'VariableDeclaration') {
+		collectVarDeclarators(info, node);
+	} else if (
+		node.type === 'ExportNamedDeclaration' &&
+		node.declaration?.type === 'VariableDeclaration'
+	) {
+		collectVarDeclarators(info, node.declaration);
+	}
+};
+
+const buildImportInfo = (programNode: ESTree.Program): ImportInfo => {
+	const info: ImportInfo = {
+		reactNamespaces: new Set<string>(),
+		reactImportedNames: new Set<string>(),
+		reactImportedNameToImported: new Map<string, string>(),
+		importedNames: new Set<string>(),
+		localFunctionDecls: new Map<string, FunctionNode>(),
+		localObjectMembers: new Map<string, Map<string, FunctionNode>>(),
 	};
+	for (const node of programNode.body) {
+		registerStatement(info, node);
+	}
+	return info;
 };
 
 // State of one `analyseBody` call. `result` is mutated as statements are
