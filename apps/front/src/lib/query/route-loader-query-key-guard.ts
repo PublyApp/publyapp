@@ -1159,6 +1159,87 @@ interface PageKey {
 	where: string;
 }
 
+/** Every call `name(...)` and JSX tag `<Name ...>` of a file, in source order. */
+const collectNamedCalls = (
+	sourceFile: ts.SourceFile,
+): { node: ts.Node; name: string }[] => {
+	const calls: { node: ts.Node; name: string }[] = [];
+	const visit = (node: ts.Node): void => {
+		if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+			calls.push({ node, name: node.expression.text });
+		} else if (
+			(ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+			ts.isIdentifier(node.tagName)
+		) {
+			calls.push({ node, name: node.tagName.text });
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(sourceFile);
+	return calls;
+};
+
+/** The lib module a page call comes from, if the call must be followed. */
+const followableLibBinding = (
+	file: ParsedFile,
+	name: string,
+	skipLibCalls: ReadonlyMap<string, ReadonlySet<string>>,
+	pinnedModules: ReadonlySet<string>,
+) => {
+	const binding = file.bindings.get(name);
+	if (
+		!binding ||
+		binding.exportedName === 'default' ||
+		!isLibModule(binding.module) ||
+		pinnedModules.has(binding.module) ||
+		skipLibCalls.get(file.relativePath)?.has(name)
+	) {
+		return undefined;
+	}
+	return binding;
+};
+
+/** The keys and problems one page call (`useQuery(...)`, `useFoo(...)`,
+ * `<Foo />`) contributes; empty when it is exempt or reaches no query. */
+const keysOfPageCall = async (
+	file: ParsedFile,
+	call: { node: ts.Node; name: string },
+	skipLibCalls: ReadonlyMap<string, ReadonlySet<string>>,
+	pinnedModules: ReadonlySet<string>,
+	state: ExemptionState,
+): Promise<{ keys: PageKey[]; errors: string[] }> => {
+	const { node, name } = call;
+	const none = { keys: [], errors: [] };
+	const where = `${file.relativePath}:${lineOf(file, node)}`;
+	if (DIRECT_QUERY_HOOKS.has(name) && ts.isCallExpression(node)) {
+		if (isExempt(file, node, state)) {
+			return none;
+		}
+		const resolved = identityOfQueryCall(node, file, 'local');
+		if (resolved.identity) {
+			return { keys: [{ identity: resolved.identity, where }], errors: [] };
+		}
+		return { keys: [], errors: resolved.problem ? [resolved.problem] : [] };
+	}
+
+	const binding = followableLibBinding(file, name, skipLibCalls, pinnedModules);
+	if (!binding) {
+		return none;
+	}
+	const reached = await reachFromPage(file, binding);
+	if (reached.identities.length === 0 && reached.errors.length === 0) {
+		// A mutation, a key helper, an invalidator: no query reached.
+		return none;
+	}
+	if (isExempt(file, node, state)) {
+		return none;
+	}
+	return {
+		keys: reached.identities.map((identity) => ({ identity, where })),
+		errors: reached.errors.map((error) => `${where}: ${error}`),
+	};
+};
+
 const collectPageKeys = async (
 	pageFiles: readonly ParsedFile[],
 	skipLibCalls: ReadonlyMap<string, ReadonlySet<string>>,
@@ -1169,57 +1250,16 @@ const collectPageKeys = async (
 	const errors: string[] = [];
 
 	for (const file of pageFiles) {
-		const calls: { node: ts.Node; name: string }[] = [];
-		const visit = (node: ts.Node): void => {
-			if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-				calls.push({ node, name: node.expression.text });
-			} else if (
-				(ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
-				ts.isIdentifier(node.tagName)
-			) {
-				calls.push({ node, name: node.tagName.text });
-			}
-			ts.forEachChild(node, visit);
-		};
-		visit(file.sourceFile);
-
-		for (const { node, name } of calls) {
-			const where = `${file.relativePath}:${lineOf(file, node)}`;
-			if (DIRECT_QUERY_HOOKS.has(name) && ts.isCallExpression(node)) {
-				if (isExempt(file, node, state)) {
-					continue;
-				}
-				const resolved = identityOfQueryCall(node, file, 'local');
-				if (resolved.identity) {
-					keys.push({ identity: resolved.identity, where });
-				} else if (resolved.problem) {
-					errors.push(resolved.problem);
-				}
-				continue;
-			}
-
-			const binding = file.bindings.get(name);
-			if (
-				!binding ||
-				binding.exportedName === 'default' ||
-				!isLibModule(binding.module) ||
-				pinnedModules.has(binding.module) ||
-				skipLibCalls.get(file.relativePath)?.has(name)
-			) {
-				continue;
-			}
-			const reached = await reachFromPage(file, binding);
-			if (reached.identities.length === 0 && reached.errors.length === 0) {
-				// A mutation, a key helper, an invalidator: no query reached.
-				continue;
-			}
-			if (isExempt(file, node, state)) {
-				continue;
-			}
-			for (const identity of reached.identities) {
-				keys.push({ identity, where });
-			}
-			errors.push(...reached.errors.map((error) => `${where}: ${error}`));
+		for (const call of collectNamedCalls(file.sourceFile)) {
+			const found = await keysOfPageCall(
+				file,
+				call,
+				skipLibCalls,
+				pinnedModules,
+				state,
+			);
+			keys.push(...found.keys);
+			errors.push(...found.errors);
 		}
 	}
 	return { keys, errors };

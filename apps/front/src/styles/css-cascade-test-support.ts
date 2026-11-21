@@ -165,6 +165,70 @@ type ParsedRule = {
 
 const CONDITIONAL_AT_RULES = new Set(['media', 'supports', 'container']);
 
+/** Index just past the end of the block comment that starts at `index`. */
+const skipComment = (source: string, index: number): number => {
+	const end = source.indexOf('*/', index + 2);
+	return end === -1 ? source.length : end + 2;
+};
+
+/** Index just past the closing quote of the string that starts at `index`. */
+const skipString = (source: string, index: number): number => {
+	const quote = source[index];
+	let cursor = index + 1;
+	while (cursor < source.length && source[cursor] !== quote) {
+		cursor += source[cursor] === '\\' ? 2 : 1;
+	}
+	return cursor + 1;
+};
+
+/** Index of the `}` matching the `{` at `open` (or the end of `source`). */
+const findBlockEnd = (source: string, open: number): number => {
+	let depth = 1;
+	let cursor = open + 1;
+	while (cursor < source.length && depth > 0) {
+		if (source[cursor] === '{') {
+			depth += 1;
+		} else if (source[cursor] === '}') {
+			depth -= 1;
+			if (depth === 0) {
+				break;
+			}
+		}
+		cursor += 1;
+	}
+	return cursor;
+};
+
+/** Handles the `{` at `index`: opens an at-rule, records a plain rule, or
+ * skips a malformed empty header. Returns the index to resume scanning at. */
+const readOpenBrace = (
+	source: string,
+	index: number,
+	segmentStart: number,
+	rules: ParsedRule[],
+	atRuleStack: string[],
+): number => {
+	const header = source.slice(segmentStart, index).trim();
+
+	if (header.startsWith('@')) {
+		const atNameMatch = /^@([\w-]+)/.exec(header);
+		atRuleStack.push(atNameMatch ? atNameMatch[1].toLowerCase() : '');
+		return index + 1;
+	}
+	if (header.length === 0) {
+		// Empty header before `{` (malformed/edge case) — just step past it.
+		return index + 1;
+	}
+	const cursor = findBlockEnd(source, index);
+	rules.push({
+		selectorList: header,
+		body: source.slice(index + 1, cursor),
+		sourceIndex: index,
+		enclosingAtRules: [...atRuleStack],
+	});
+	return cursor + 1;
+};
+
 /**
  * Single-pass parse of every plain (non-`@`) rule in `source`, tracking
  * at-rule nesting (so callers can tell a rule genuinely nested in
@@ -184,73 +248,19 @@ const parseStylesheetRules = (source: string): ParsedRule[] => {
 		const char = source[index];
 
 		if (char === '/' && source[index + 1] === '*') {
-			const end = source.indexOf('*/', index + 2);
-			index = end === -1 ? length : end + 2;
-			continue;
-		}
-
-		if (char === '"' || char === "'") {
-			const quote = char;
-			let cursor = index + 1;
-			while (cursor < length && source[cursor] !== quote) {
-				cursor += source[cursor] === '\\' ? 2 : 1;
-			}
-			index = cursor + 1;
-			continue;
-		}
-
-		if (char === '{') {
-			const header = source.slice(segmentStart, index).trim();
-
-			if (header.startsWith('@')) {
-				const atNameMatch = /^@([\w-]+)/.exec(header);
-				atRuleStack.push(atNameMatch ? atNameMatch[1].toLowerCase() : '');
-				index += 1;
-				segmentStart = index;
-				continue;
-			}
-
-			if (header.length > 0) {
-				let depth = 1;
-				let cursor = index + 1;
-				while (cursor < length && depth > 0) {
-					if (source[cursor] === '{') {
-						depth += 1;
-					} else if (source[cursor] === '}') {
-						depth -= 1;
-						if (depth === 0) {
-							break;
-						}
-					}
-					cursor += 1;
-				}
-
-				rules.push({
-					selectorList: header,
-					body: source.slice(index + 1, cursor),
-					sourceIndex: index,
-					enclosingAtRules: [...atRuleStack],
-				});
-
-				index = cursor + 1;
-				segmentStart = index;
-				continue;
-			}
-
-			// Empty header before `{` (malformed/edge case) — just step past it.
-			index += 1;
+			index = skipComment(source, index);
+		} else if (char === '"' || char === "'") {
+			index = skipString(source, index);
+		} else if (char === '{') {
+			index = readOpenBrace(source, index, segmentStart, rules, atRuleStack);
 			segmentStart = index;
-			continue;
-		}
-
-		if (char === '}') {
+		} else if (char === '}') {
 			atRuleStack.pop();
 			index += 1;
 			segmentStart = index;
-			continue;
+		} else {
+			index += 1;
 		}
-
-		index += 1;
 	}
 
 	return rules;

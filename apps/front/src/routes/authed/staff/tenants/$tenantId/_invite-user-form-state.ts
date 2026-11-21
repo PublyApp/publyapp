@@ -389,6 +389,87 @@ const textContents = (xml: string, tag: string): string[] => {
 	return results;
 };
 
+type XmlCell = { value: string; type?: RawCell['type'] };
+
+const XML_CELL_TYPES: ReadonlyArray<{
+	attr: string;
+	type: NonNullable<RawCell['type']>;
+}> = [
+	{ attr: 't="str"', type: 'str' },
+	{ attr: 't="b"', type: 'b' },
+	{ attr: 't="e"', type: 'e' },
+];
+
+/** Reads one `<c>` cell: its text value and the xlsx cell type (if any). */
+const readXmlCell = (
+	attrs: string,
+	body: string,
+	sharedStrings: readonly string[],
+): XmlCell => {
+	if (/t="s"/.test(attrs)) {
+		const sharedIndex = Number.parseInt(textContents(body, 'v')[0] ?? '', 10);
+		const value = Number.isInteger(sharedIndex)
+			? (sharedStrings[sharedIndex] ?? '')
+			: '';
+		return { value, type: 's' };
+	}
+	if (/t="inlineStr"/.test(attrs)) {
+		// Inline strings store text in <is><t> (one or more <t> runs for
+		// rich-text fragments); concatenate them with the same XML-entity
+		// decoding as shared strings and <v> cells.
+		const tRuns = textContents(body, 't');
+		return { value: decodeXmlEntities(tRuns.join('')), type: 'inlineStr' };
+	}
+	// `str`: formula text result (legitimate text); `b`/`e`: boolean / error.
+	const value = decodeXmlEntities(textContents(body, 'v')[0] ?? '');
+	const typed = XML_CELL_TYPES.find(({ attr }) => attrs.includes(attr));
+	return typed ? { value, type: typed.type } : { value };
+};
+
+/** The cells of one `<row>`, keyed by their zero-based column index. */
+const readXmlRow = (
+	rowXml: string,
+	sharedStrings: readonly string[],
+): Map<number, RawCell> => {
+	const cells = new Map<number, RawCell>();
+	const cellPattern = /<c\b([^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g;
+	let cellMatch = cellPattern.exec(rowXml);
+	while (cellMatch) {
+		const attrs = cellMatch[1] ?? '';
+		const refMatch = /\br="([A-Z]+\d+)"/.exec(attrs);
+		const cellRef = refMatch?.[1] ?? '';
+		const letters = cellRef.replace(/\d+$/, '');
+		const refIndex = letters ? columnIndexFromRef(letters) : -1;
+		if (refIndex >= 0) {
+			const { value, type } = readXmlCell(
+				attrs,
+				cellMatch[2] ?? '',
+				sharedStrings,
+			);
+			const cell: RawCell = { value: value.trim(), ref: cellRef };
+			if (type) {
+				cell.type = type;
+			}
+			cells.set(refIndex, cell);
+		}
+		cellMatch = cellPattern.exec(rowXml);
+	}
+	return cells;
+};
+
+/** Zero-based index of the header row's column named `headerName`, or -1. */
+const headerColumnIndex = (
+	headerRecord: Map<number, RawCell>,
+	headerName: string,
+): number => {
+	for (const [key, cell] of headerRecord.entries()) {
+		if (cell.value.trim().toLowerCase() === headerName) {
+			return Number(key);
+		}
+	}
+	return -1;
+};
+
 /** Minimal xlsx reader over fflate: shared strings + first worksheet only.
  * SheetJS was dropped repo-wide for unfixed CVEs (round-1 review shell-F1);
  * this covers exactly what an invite sheet needs: shared-string cells read
@@ -415,71 +496,12 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 		decodeXmlEntities(textContents(entry, 't').join('')),
 	);
 
-	const rows: ParsedInviteRow[] = [];
-	const rawRecords: Array<Map<number, RawCell>> = [];
+	const rawRecords = [];
 	for (const rowXml of textContents(sheetXml, 'row')) {
-		const cells = new Map<number, RawCell>();
-		const cellPattern = /<c\b([^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g;
-		let cellMatch = cellPattern.exec(rowXml);
-		while (cellMatch) {
-			const attrs = cellMatch[1] ?? '';
-			const body = cellMatch[2] ?? '';
-			const refMatch = /\br="([A-Z]+\d+)"/.exec(attrs);
-			const cellRef = refMatch?.[1] ?? '';
-			const letters = cellRef.replace(/\d+$/, '');
-			const refIndex = letters ? columnIndexFromRef(letters) : -1;
-
-			let value = '';
-			let cellType: RawCell['type'] | undefined;
-			if (/t="s"/.test(attrs)) {
-				cellType = 's';
-				const sharedIndex = Number.parseInt(
-					textContents(body, 'v')[0] ?? '',
-					10,
-				);
-				value = Number.isInteger(sharedIndex)
-					? (sharedStrings[sharedIndex] ?? '')
-					: '';
-			} else if (/t="inlineStr"/.test(attrs)) {
-				cellType = 'inlineStr';
-				// Inline strings store text in <is><t> (one or more <t> runs for
-				// rich-text fragments); concatenate them with the same XML-entity
-				// decoding as shared strings and <v> cells.
-				const tRuns = textContents(body, 't');
-				value = decodeXmlEntities(tRuns.join(''));
-			} else if (/t="str"/.test(attrs)) {
-				// Formula text result: legitimate text, treat as such.
-				cellType = 'str';
-				value = decodeXmlEntities(textContents(body, 'v')[0] ?? '');
-			} else if (/t="b"/.test(attrs)) {
-				cellType = 'b';
-				value = decodeXmlEntities(textContents(body, 'v')[0] ?? '');
-			} else if (/t="e"/.test(attrs)) {
-				cellType = 'e';
-				value = decodeXmlEntities(textContents(body, 'v')[0] ?? '');
-			} else {
-				value = decodeXmlEntities(textContents(body, 'v')[0] ?? '');
-			}
-
-			if (refIndex >= 0) {
-				const cell: RawCell = {
-					value: value.trim(),
-					ref: cellRef,
-				};
-				if (cellType) {
-					cell.type = cellType;
-				}
-				cells.set(refIndex, cell);
-			}
-
-			cellMatch = cellPattern.exec(rowXml);
+		const cells = readXmlRow(rowXml, sharedStrings);
+		if (cells.size > 0) {
+			rawRecords.push(cells);
 		}
-
-		if (cells.size === 0) {
-			continue;
-		}
-
-		rawRecords.push(cells);
 	}
 
 	// Columns are located through the header row's own positions so sparse
@@ -493,18 +515,10 @@ export const parseInviteWorkbook = (bytes: Uint8Array): ParseInviteResult => {
 		return { outcome: 'error', kind: 'no-email-column' };
 	}
 
-	const columnIndexOf = (headerName: string): number => {
-		for (const [key, cell] of headerRecord.entries()) {
-			if (cell.value.trim().toLowerCase() === headerName) {
-				return Number(key);
-			}
-		}
+	const emailColumn = headerColumnIndex(headerRecord, 'email');
+	const rolesColumn = headerColumnIndex(headerRecord, 'roles');
 
-		return -1;
-	};
-	const emailColumn = columnIndexOf('email');
-	const rolesColumn = columnIndexOf('roles');
-
+	const rows: ParsedInviteRow[] = [];
 	for (const record of rawRecords) {
 		if (record === headerRecord) {
 			continue;
