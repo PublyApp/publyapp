@@ -4,6 +4,7 @@ using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Permissions.Services;
+using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Lib.Filters;
 
@@ -57,72 +58,84 @@ public class PermissionFilter : IEndpointFilter {
 	private async Task<object?> _AuthorizeAsync(
 		EndpointFilterInvocationContext context
 	) {
-		var httpContext = context.HttpContext;
-		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
+		var services = context.HttpContext.RequestServices;
+		var authContext = services.GetRequiredService<IRequestAuthContext>();
 		var accountStaff = authContext.AccountStaff;
-		var permissionService = httpContext.RequestServices.GetRequiredService<IPermissionService>();
-		var logger = httpContext.RequestServices.GetRequiredService<ILogger<PermissionFilter>>();
 
 		if (accountStaff is null) {
 			throw new InvalidOperationException("PermissionFilter must be set behind StaffAuthFilter.");
 		}
 
-		if (
-			(this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0)
-			|| this._CustomPermissionChecker is not null
-		) {
-			// Full access is the seeded system role, materialised by PermissionService as
-			// the wildcard sentinel. It is the ONLY bypass: every other caller is checked
-			// against the permissions their roles grant.
-			var userPermissions = await permissionService.GetPermissionsAsync(accountStaff.UserId);
-
-			if (userPermissions.Contains(PermissionService.WildcardPermission)) {
-				return null;
-			}
-
-			if (userPermissions.Count == 0) {
-				if (logger.IsEnabled(LogLevel.Debug)) {
-					logger.LogDebug("User has no permissions: {@AccountStaff}", new {
-						accountId = accountStaff.Id,
-						userId = accountStaff.UserId,
-					});
-				}
-
-				return TypedProblems.Forbidden(
-					"User has no permissions",
-					ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-				);
-			}
-
-			bool hasRequiredPermissions;
-
-			if (this._CustomPermissionChecker is not null) {
-				hasRequiredPermissions = this._CustomPermissionChecker(userPermissions);
-			} else if (this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0) {
-				var requiredPermissionKeys = this._RequiredPermissions.Select(p => p.Key);
-				hasRequiredPermissions = requiredPermissionKeys.All(key => userPermissions.Contains(key));
-			} else {
-				hasRequiredPermissions = true;
-			}
-
-			if (!hasRequiredPermissions) {
-				if (logger.IsEnabled(LogLevel.Debug)) {
-					logger.LogDebug("User failed permission check: {@PermissionCheck}", new {
-						accountId = accountStaff.Id,
-						userId = accountStaff.UserId,
-						userPermissionsCount = userPermissions.Count,
-						hasCustomChecker = this._CustomPermissionChecker is not null
-					});
-				}
-
-				return TypedProblems.Forbidden(
-					"User does not have the necessary permissions",
-					ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
-				);
-			}
+		if (!this._HasRequirement()) {
+			return null;
 		}
 
-		return null;
+		// Full access is the seeded system role, materialised by PermissionService as
+		// the wildcard sentinel. It is the ONLY bypass: every other caller is checked
+		// against the permissions their roles grant.
+		var userPermissions = await services
+			.GetRequiredService<IPermissionService>()
+			.GetPermissionsAsync(accountStaff.UserId);
+
+		if (userPermissions.Contains(PermissionService.WildcardPermission)) {
+			return null;
+		}
+
+		return this._DenialFor(accountStaff, userPermissions, services.GetRequiredService<ILogger<PermissionFilter>>());
+	}
+
+	private bool _HasRequirement() {
+		return (this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0)
+			|| this._CustomPermissionChecker is not null;
+	}
+
+	// Null when the (non-wildcard) permission set satisfies the requirement.
+	private object? _DenialFor(UserAccount accountStaff, HashSet<string> userPermissions, ILogger logger) {
+		if (userPermissions.Count == 0) {
+			PermissionFilter._LogDebug(logger, "User has no permissions: {@AccountStaff}", new {
+				accountId = accountStaff.Id,
+				userId = accountStaff.UserId,
+			});
+
+			return TypedProblems.Forbidden(
+				"User has no permissions",
+				ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
+			);
+		}
+
+		if (this._Satisfies(userPermissions)) {
+			return null;
+		}
+
+		PermissionFilter._LogDebug(logger, "User failed permission check: {@PermissionCheck}", new {
+			accountId = accountStaff.Id,
+			userId = accountStaff.UserId,
+			userPermissionsCount = userPermissions.Count,
+			hasCustomChecker = this._CustomPermissionChecker is not null
+		});
+
+		return TypedProblems.Forbidden(
+			"User does not have the necessary permissions",
+			ResponseKeys.UserDoesNotHaveTheNecessaryPermissions
+		);
+	}
+
+	private bool _Satisfies(HashSet<string> userPermissions) {
+		if (this._CustomPermissionChecker is not null) {
+			return this._CustomPermissionChecker(userPermissions);
+		}
+
+		if (this._RequiredPermissions is not null && this._RequiredPermissions.Length > 0) {
+			return this._RequiredPermissions.Select(p => p.Key).All(userPermissions.Contains);
+		}
+
+		return true;
+	}
+
+	private static void _LogDebug(ILogger logger, string message, object details) {
+		if (logger.IsEnabled(LogLevel.Debug)) {
+			logger.LogDebug(message, details);
+		}
 	}
 }
 

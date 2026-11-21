@@ -71,7 +71,7 @@ public sealed class ApiFactory
 					var httpContextAccessor = serviceProvider
 						.GetRequiredService<IHttpContextAccessor>();
 					var tenantId =
-						ApiFactory._GetCurrentTenantId(httpContextAccessor);
+						ServiceRegistration.GetCurrentTenantId(httpContextAccessor);
 
 					// Use TEST connection string
 					// instead of AppEnvironment
@@ -213,37 +213,5 @@ public sealed class ApiFactory
 		}
 
 		return null;
-	}
-
-	/// <summary>
-	/// Extracts tenant ID from request header.
-	/// Mirrors ServiceRegistration._GetCurrentTenantId().
-	/// </summary>
-	private static Guid? _GetCurrentTenantId(
-		IHttpContextAccessor httpContextAccessor
-	) {
-		var httpContext = httpContextAccessor.HttpContext;
-		if (httpContext is null) {
-			return null;
-		}
-
-		// Mirrors ServiceRegistration: staff routes start unscoped.
-		if (httpContext.Request.Path.StartsWithSegments(Routes.Routes.Staff.Root)) {
-			return null;
-		}
-
-		var tenantIdHeader = httpContext.Request.Headers[
-			AppEnvironment.Instance.TENANT_ID_HEADER_KEY
-		].FirstOrDefault();
-
-		if (string.IsNullOrEmpty(tenantIdHeader)) {
-			return null;
-		}
-
-		return Guid.TryParse(
-			tenantIdHeader, out var tenantId
-		)
-			? tenantId
-			: null;
 	}
 }
