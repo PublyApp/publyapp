@@ -3,6 +3,8 @@ import { IconWorld } from '@tabler/icons-react';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+vi.unmock('react-i18next');
+
 import { MarketingMobileNav } from './marketing-mobile-nav';
 import type { MarketingNavTrigger } from './marketing-nav';
 import { renderMarketing } from './marketing.test-helper';

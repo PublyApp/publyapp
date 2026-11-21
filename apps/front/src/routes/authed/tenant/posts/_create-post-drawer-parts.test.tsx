@@ -4,13 +4,6 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({
-		t: (key: string) => key,
-		i18n: { resolvedLanguage: 'en', language: 'en' },
-	}),
-}));
-
 // eslint-disable-next-line import/first
 import { CreatePostActions, HandoffPanel } from './_create-post-drawer-parts';
 

@@ -9,11 +9,6 @@
 import { IconBuilding } from '@tabler/icons-react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 import type { QueryDisplayQuery } from '~/components/query-display';
 import { DataTableRowActions } from '~/components/table/row-actions';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';

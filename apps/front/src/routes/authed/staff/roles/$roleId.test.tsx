@@ -69,15 +69,6 @@ vi.mock('@tanstack/react-router', () => ({
 	},
 }));
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({
-		t: (key: string) => key,
-		i18n: {
-			language: 'en',
-		},
-	}),
-}));
-
 vi.mock('~/components/error-views/LogoutRedirect', () => ({
 	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
 }));

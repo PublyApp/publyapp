@@ -5,12 +5,6 @@ import { IconBuilding, IconHash } from '@tabler/icons-react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest';
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({
-		t: (key: string) => key,
-	}),
-}));
-
 import type { ColumnSpecs } from './list-types';
 import { SortMenu } from './sort-menu';
 

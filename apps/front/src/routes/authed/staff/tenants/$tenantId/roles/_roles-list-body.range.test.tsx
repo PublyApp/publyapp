@@ -30,6 +30,8 @@ import type { i18n as I18nInstance } from 'i18next';
 import { createElement } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, expect, test, vi } from 'vitest';
+
+vi.unmock('react-i18next');
 import type { UseRowSelectionResult } from '~/components/table/use-row-selection';
 import type { UseTableControllerResult } from '~/components/table/use-table-controller';
 import enLocale from '~/i18n/locales/en';

@@ -9,7 +9,9 @@ import { cleanup, render } from '@testing-library/react';
 import type { i18n as I18nInstance } from 'i18next';
 import { createElement } from 'react';
 import { I18nextProvider } from 'react-i18next';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+
+vi.unmock('react-i18next');
 import enLocale from '~/i18n/locales/en';
 import frLocale from '~/i18n/locales/fr';
 import { createI18nFromResources } from '~/lib/i18n/react-i18n';
