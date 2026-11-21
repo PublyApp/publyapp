@@ -83,6 +83,54 @@ public sealed class PasswordLoginSpec
 
 	[Fact]
 	public async Task
+	ItShouldUpgradeALegacyHashOnSuccessfulLogin() {
+		var email = TestConstants.StaffAdminEmail;
+		var legacySalt = System.Security.Cryptography.RandomNumberGenerator.GetBytes(16);
+		var legacyKey = Microsoft.AspNetCore.Cryptography.KeyDerivation.KeyDerivation.Pbkdf2(
+			TestConstants.SeedPassword,
+			legacySalt,
+			Microsoft.AspNetCore.Cryptography.KeyDerivation.KeyDerivationPrf.HMACSHA256,
+			100_000,
+			32
+		);
+		var legacyHash = $"{Convert.ToBase64String(legacySalt)}.{Convert.ToBase64String(legacyKey)}";
+
+		using (var scope = this._Fixture.Factory.Services.CreateScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			_ = await dbContext.User
+				.Where(u => u.Email == email)
+				.ExecuteUpdateAsync(s => s.SetProperty(u => u.Password, legacyHash));
+		}
+
+		using var response = await this._Http.PostAsJsonAsync(
+			Routes.Auth.Login,
+			new { email, password = TestConstants.SeedPassword }
+		);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		string stored;
+		using (var scope = this._Fixture.Factory.Services.CreateScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			stored = await dbContext.User
+				.AsNoTracking()
+				.Where(u => u.Email == email)
+				.Select(u => u.Password)
+				.SingleAsync();
+		}
+
+		stored.Should().StartWith("v2.");
+		stored.Should().NotBe(legacyHash);
+
+		// Nobody is locked out: the same password still works on the new hash.
+		using var again = await this._Http.PostAsJsonAsync(
+			Routes.Auth.Login,
+			new { email, password = TestConstants.SeedPassword }
+		);
+		again.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
+	public async Task
 	ItShouldReturnSessionTokenWithMixedCaseEmail() {
 		var mixedCaseEmail = TestConstants.StaffAdminEmail
 			.Replace("staff", "StAfF", StringComparison.Ordinal)

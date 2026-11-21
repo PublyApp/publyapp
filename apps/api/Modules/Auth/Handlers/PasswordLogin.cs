@@ -139,7 +139,8 @@ public sealed class PasswordLogin {
 		}
 
 		// Verify the password
-		if (!PasswordUtils.VerifyPassword(password, user.Password)) {
+		var verification = PasswordUtils.VerifyPassword(password, user.Password);
+		if (!verification.Matches) {
 			await PasswordLogin._LogFailureAsync(
 				auditLogService,
 				user.Id,
@@ -151,6 +152,12 @@ public sealed class PasswordLogin {
 				"Invalid email or password",
 				ResponseKeys.InvalidEmailOrPassword
 			);
+		}
+
+		// Upgrade an old-format or low-cost hash. The user entity is tracked, so
+		// the new hash is saved by the session insert below (same unit of work).
+		if (verification.NeedsRehash) {
+			user.Password = PasswordUtils.HashPassword(password);
 		}
 
 		var session = await sessionService.CreateSessionForUser(user, cancellationToken);
