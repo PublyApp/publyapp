@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '~/components/ui/card';
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 import { StateSurface } from '~/components/ui/state-surface';
 import { useCanManageSocialAccounts } from '~/lib/permissions/use-has-tenant-permission';
+import { aggregatorsQueryOptions } from '~/lib/query/aggregators';
 import type { FediverseProvider } from '~/lib/query/mastodon-connect';
 import {
 	needsReconnectAccountsQueryOptions,
@@ -55,6 +56,7 @@ import { DiscordConnectDrawer } from './_discord-connect-drawer';
 import { ConnectButtons } from './_integrations-connect-buttons';
 import { IntegrationsStatusPill } from './_integrations-status-pill';
 import { IntegrationsVisibleIn } from './_integrations-visible-in';
+import { withPublishingServicesCard } from './_integrations-with-publishing-services';
 import { MastodonConnectDrawer } from './_mastodon-connect-drawer';
 import { ReconnectMismatchDialog } from './_reconnect-mismatch-dialog';
 import {
@@ -312,6 +314,7 @@ const tenantIntegrationsQueries = ({ tenantId }: { tenantId: string }) => ({
 		variables: { tenantId },
 	},
 	picker: { options: tenantsForPickerQueryOptions, variables: {} },
+	aggregators: { options: aggregatorsQueryOptions, variables: { tenantId } },
 });
 
 const TenantSettingsIntegrationsPage = () => {
@@ -577,5 +580,5 @@ export const Route = createFileRoute(
 			tenantIntegrationsQueries({ tenantId }),
 		);
 	},
-	component: TenantSettingsIntegrationsPage,
+	component: withPublishingServicesCard(TenantSettingsIntegrationsPage),
 });

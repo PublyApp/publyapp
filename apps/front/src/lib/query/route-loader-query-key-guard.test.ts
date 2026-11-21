@@ -42,6 +42,7 @@ const EXPECTED_EXEMPTION_FILES = {
 	'routes/authed/staff/tenant-users/$userId-organizations-drawer.tsx': 1,
 	'routes/authed/staff/tenants/$tenantId/roles/$roleId/_assign-members-state-hook.ts': 1,
 	'routes/authed/tenant/posts/_scheduled-rendition-editor.tsx': 1,
+	'routes/authed/tenant/settings/_integrations-with-publishing-services.tsx': 1,
 	'routes/authed/tenant/settings/integrations.tsx': 1,
 };
 
@@ -77,7 +78,7 @@ describe('route-loader <-> page query guard', () => {
 			'the guard must have resolved at least one route loader key — a blind finder must never read as conformant',
 		).toBeGreaterThanOrEqual(1);
 		expect(violations, 'route loader <-> page violations').toEqual([]);
-		expect(exemptions).toHaveLength(17);
+		expect(exemptions).toHaveLength(18);
 		expect(countByFile(exemptions)).toEqual(EXPECTED_EXEMPTION_FILES);
 		// The route-keyed closed-drawer skips are a second exemption surface:
 		// pinned here too, so adding one is a conscious edit of this list.

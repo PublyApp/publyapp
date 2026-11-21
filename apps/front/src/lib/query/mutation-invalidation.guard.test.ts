@@ -577,6 +577,23 @@ const REGISTRY = {
 			);
 		},
 	},
+	'aggregators.ts': {
+		kind: 'list-family',
+		helperName: 'invalidateAggregators',
+		run: async () => {
+			const mod = await import('./aggregators');
+			const invalidated = await capturedInvalidationKeys((client) =>
+				mod.invalidateAggregators(client, TENANT_ID),
+			);
+			expectListCovered('aggregators', 'invalidateAggregators', invalidated, [
+				[
+					'aggregatorsQueryOptions.queryKey (real cached array)',
+					mod.aggregatorsQueryOptions.queryKey({ tenantId: TENANT_ID }),
+				],
+			]);
+			// One list, no per-aggregator detail query: the list family IS the line.
+		},
+	},
 	'social-accounts.ts': {
 		kind: 'list-family',
 		helperName: 'invalidateSocialAccounts',
