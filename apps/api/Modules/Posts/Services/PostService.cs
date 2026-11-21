@@ -228,7 +228,7 @@ public class PostService : IPostService {
 				["created_at"] = CursorSortFieldHandlerFactory.Create<Post, DateTime, Guid?>(
 					cursorLookupQuery: () => this._DbContext.Post
 						.AsNoTracking()
-						.Where(p => p.TenantId == tenantId && !p.IsDeleted),
+						.Where(p => !p.IsDeleted),
 					keySelector: p => p.CreatedAt,
 					idSelector: p => p.Id,
 					cancellationToken
@@ -236,7 +236,7 @@ public class PostService : IPostService {
 				["updated_at"] = CursorSortFieldHandlerFactory.Create<Post, DateTime, Guid?>(
 					cursorLookupQuery: () => this._DbContext.Post
 						.AsNoTracking()
-						.Where(p => p.TenantId == tenantId && !p.IsDeleted),
+						.Where(p => !p.IsDeleted),
 					keySelector: p => p.UpdatedAt,
 					idSelector: p => p.Id,
 					cancellationToken
@@ -253,7 +253,7 @@ public class PostService : IPostService {
 
 		IQueryable<Post> query =
 			from p in this._DbContext.Post.AsNoTracking()
-			where p.TenantId == tenantId && !p.IsDeleted
+			where !p.IsDeleted
 			select p;
 
 		if (!string.IsNullOrWhiteSpace(args.Search)) {
@@ -301,8 +301,7 @@ public class PostService : IPostService {
 			.ToList();
 		var pageAssets = await (
 			from a in this._DbContext.PostMediaAsset.AsNoTracking()
-			where a.TenantId == tenantId
-				&& pagePostIds.Contains(a.PostId)
+			where pagePostIds.Contains(a.PostId)
 				&& !a.IsDeleted
 			orderby a.Position
 			select a
@@ -330,7 +329,6 @@ public class PostService : IPostService {
 		var postQuery =
 			from p in this._DbContext.Post
 			where p.Id == id
-				&& p.TenantId == tenantId
 				&& !p.IsDeleted
 			select p;
 
@@ -370,41 +368,16 @@ public class PostService : IPostService {
 			post.Body = args.Body;
 		}
 
-		if (args.ImageAltText.IsPresent) {
-			// Legacy single-image alt-text patch: targets the FIRST image (the
-			// per-image route is PATCH /posts/{id}/images/{assetId}). A patch
-			// without an image is a named validation refusal, not a silent no-op.
-			var asset = await (
-				from a in this._DbContext.PostMediaAsset
-				where a.TenantId == tenantId
-					&& a.PostId == id
-					&& !a.IsDeleted
-				orderby a.Position
-				select a
-			).FirstOrDefaultAsync(cancellationToken);
-			if (asset is null) {
-				return new UpdatePostResult.ImageMissing();
-			}
-			asset.AltText = args.ImageAltText.Value;
-			asset.UpdatedAt = DateTime.UtcNow;
+		if (args.ImageAltText.IsPresent
+			&& !await this._PatchFirstImageAltTextAsync(id, args.ImageAltText.Value, cancellationToken)) {
+			return new UpdatePostResult.ImageMissing();
 		}
 
 		if (args.ProjectId.IsPresent) {
 			var projectId = args.ProjectId.Value;
-			if (projectId.HasValue) {
-				var projectExists = await (
-					from project in this._DbContext.Project.AsNoTracking()
-					where project.Id == projectId.Value
-						&& project.TenantId == tenantId
-						&& !project.IsDeleted
-					select project.Id
-				).AnyAsync(cancellationToken);
-
-				if (!projectExists) {
-					return new UpdatePostResult.ProjectNotFound(
-						projectId.Value
-					);
-				}
+			if (projectId.HasValue
+				&& !await this.ProjectExistsForTenantAsync(tenantId, projectId.Value, cancellationToken)) {
+				return new UpdatePostResult.ProjectNotFound(projectId.Value);
 			}
 
 			post.ProjectId = projectId;
@@ -424,6 +397,30 @@ public class PostService : IPostService {
 		}
 
 		return new UpdatePostResult.Success(post, applied.ReleasedImagePaths);
+	}
+
+	// Legacy single-image alt-text patch: targets the FIRST image (the per-image route is
+	// PATCH /posts/{id}/images/{assetId}). A patch without an image is a named validation
+	// refusal, not a silent no-op.
+	private async Task<bool> _PatchFirstImageAltTextAsync(
+		Guid postId,
+		string? altText,
+		CancellationToken cancellationToken
+	) {
+		var asset = await (
+			from a in this._DbContext.PostMediaAsset
+			where a.PostId == postId
+				&& !a.IsDeleted
+			orderby a.Position
+			select a
+		).FirstOrDefaultAsync(cancellationToken);
+		if (asset is null) {
+			return false;
+		}
+
+		asset.AltText = altText;
+		asset.UpdatedAt = DateTime.UtcNow;
+		return true;
 	}
 
 	private sealed record AppliedSegments(
@@ -578,8 +575,7 @@ public class PostService : IPostService {
 	) {
 		var segments = await (
 			from segment in this._DbContext.PostSegment.AsNoTracking()
-			where segment.TenantId == tenantId
-				&& segment.PostId == postId
+			where segment.PostId == postId
 				&& !segment.IsDeleted
 			orderby segment.Position
 			select segment
@@ -590,8 +586,7 @@ public class PostService : IPostService {
 
 		var images = await (
 			from asset in this._DbContext.PostSegmentMediaAsset.AsNoTracking()
-			where asset.TenantId == tenantId
-				&& asset.PostId == postId
+			where asset.PostId == postId
 				&& !asset.IsDeleted
 			orderby asset.Position
 			select asset
@@ -651,7 +646,6 @@ public class PostService : IPostService {
 		return await (
 			from project in this._DbContext.Project.AsNoTracking()
 			where project.Id == projectId
-				&& project.TenantId == tenantId
 				&& !project.IsDeleted
 			select project.Id
 		).AnyAsync(cancellationToken);

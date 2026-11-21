@@ -128,7 +128,6 @@ public sealed class PostSegmentMediaAssetService(AppDbContext dbContext)
 			from segment in dbContext.PostSegment.AsNoTracking()
 			where segment.Id == args.SegmentId
 				&& segment.PostId == args.PostId
-				&& segment.TenantId == args.TenantId
 				&& !segment.IsDeleted
 			select segment;
 		return await query.FirstOrDefaultAsync(cancellationToken);
@@ -147,8 +146,7 @@ public sealed class PostSegmentMediaAssetService(AppDbContext dbContext)
 	) {
 		var query =
 			from a in dbContext.PostSegmentMediaAsset.AsNoTracking()
-			where a.TenantId == args.TenantId
-				&& a.PostId == args.PostId
+			where a.PostId == args.PostId
 				&& a.SegmentId == args.SegmentId
 				&& !a.IsDeleted
 			orderby a.Position
@@ -162,8 +160,7 @@ public sealed class PostSegmentMediaAssetService(AppDbContext dbContext)
 	) {
 		var livePositions = await (
 			from a in dbContext.PostSegmentMediaAsset
-			where a.TenantId == args.TenantId
-				&& a.SegmentId == args.SegmentId
+			where a.SegmentId == args.SegmentId
 				&& !a.IsDeleted
 			select a.Position
 		).ToListAsync(cancellationToken);
@@ -199,8 +196,7 @@ public sealed class PostSegmentMediaAssetService(AppDbContext dbContext)
 		await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 		var assets = await (
 			from a in dbContext.PostSegmentMediaAsset
-			where a.TenantId == args.TenantId
-				&& a.SegmentId == args.SegmentId
+			where a.SegmentId == args.SegmentId
 				&& !a.IsDeleted
 			orderby a.Position
 			select a
@@ -234,8 +230,7 @@ public sealed class PostSegmentMediaAssetService(AppDbContext dbContext)
 		await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
 		var assets = await (
 			from a in dbContext.PostSegmentMediaAsset
-			where a.TenantId == args.TenantId
-				&& a.SegmentId == args.SegmentId
+			where a.SegmentId == args.SegmentId
 				&& !a.IsDeleted
 			select a
 		).ToListAsync(cancellationToken);
@@ -272,7 +267,6 @@ public sealed class PostSegmentMediaAssetService(AppDbContext dbContext)
 		var asset = await (
 			from a in dbContext.PostSegmentMediaAsset
 			where a.Id == args.AssetId
-				&& a.TenantId == args.TenantId
 				&& a.PostId == args.PostId
 				&& a.SegmentId == args.SegmentId
 				&& !a.IsDeleted
@@ -295,8 +289,7 @@ public sealed class PostSegmentMediaAssetService(AppDbContext dbContext)
 	) {
 		var assets = await (
 			from a in dbContext.PostSegmentMediaAsset
-			where a.TenantId == tenantId
-				&& a.PostId == postId
+			where a.PostId == postId
 				&& !a.IsDeleted
 			select a
 		).ToListAsync(cancellationToken);
