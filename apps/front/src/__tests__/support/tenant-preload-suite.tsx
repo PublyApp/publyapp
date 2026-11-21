@@ -16,6 +16,8 @@ import {
 	TENANT_ID,
 } from '~/__tests__/support/tenant-preload-support';
 
+const DEFAULT_URL = 'default URL';
+
 type Search = Record<string, string>;
 type Endpoint = readonly string[];
 
@@ -29,7 +31,7 @@ type TenantRouteSuite = {
 	pageTestId: string;
 };
 
-export type TenantPreloadScenario = {
+type TenantPreloadScenario = {
 	title: string;
 	/** Search the link carries (a non-default URL state). */
 	search?: Search;
@@ -84,7 +86,7 @@ const useTenantRouteLifecycle = () => {
  * reuses them; with the picker cold, hover warms nothing. */
 export const defineTenantPreloadSuite = (suite: TenantPreloadSuite) => {
 	const scenarios: readonly TenantPreloadScenario[] = [
-		{ title: 'default URL', assertRequests: suite.assertRequests },
+		{ title: DEFAULT_URL, assertRequests: suite.assertRequests },
 		...(suite.variants ?? []),
 	];
 	const scoped = suite.scoped ?? suite.endpoints;
