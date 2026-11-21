@@ -16,6 +16,8 @@ public sealed record StaffUserRolesSummary(
 	List<StaffUserRoleSummary> AssignedRoles
 );
 
+public sealed record UpgradePasswordHashArgs(Guid UserId, string OldHash, string NewHash);
+
 public abstract record UpdateStaffUserRolesServiceResult {
 	public sealed record Success(
 		List<StaffUserRoleSummary> AssignedRoles
@@ -93,6 +95,13 @@ public interface IUserService {
 	Task<User?> GetUserByEmailVerificationTokenAsync(string token, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByPasswordResetTokenAsync(string token, CancellationToken cancellationToken = default);
 	Task<User?> UpdateUserAsync(User user, CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// Replaces the stored password hash only if it still equals
+	/// <c>OldHash</c>, so a concurrent password reset is never
+	/// overwritten. Returns whether a row was updated.
+	/// </summary>
+	Task<bool> UpgradePasswordHashAsync(UpgradePasswordHashArgs args, CancellationToken cancellationToken = default);
 	Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default);
 }
 
@@ -135,6 +144,13 @@ public class UserService : IUserService {
 		this._DbContext.User.Update(user);
 		await this._DbContext.SaveChangesAsync(cancellationToken);
 		return user;
+	}
+
+	public async Task<bool> UpgradePasswordHashAsync(UpgradePasswordHashArgs args, CancellationToken cancellationToken = default) {
+		var updated = await this._DbContext.User
+			.Where(u => u.Id == args.UserId && u.Password == args.OldHash)
+			.ExecuteUpdateAsync(setters => setters.SetProperty(u => u.Password, args.NewHash), cancellationToken);
+		return updated > 0;
 	}
 
 	public async Task<User?> GetUserByIdAsync(Guid? id, CancellationToken cancellationToken = default) {

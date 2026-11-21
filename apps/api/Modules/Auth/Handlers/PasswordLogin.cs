@@ -154,10 +154,17 @@ public sealed class PasswordLogin {
 			);
 		}
 
-		// Upgrade an old-format or low-cost hash. The user entity is tracked, so
-		// the new hash is saved by the session insert below (same unit of work).
+		// Upgrade an old-format or low-cost hash. Conditional on the stored hash
+		// being unchanged, so a concurrent password reset is never overwritten.
 		if (verification.NeedsRehash) {
-			user.Password = PasswordUtils.HashPassword(password);
+			_ = await userService.UpgradePasswordHashAsync(
+				new UpgradePasswordHashArgs(
+					user.GetRequiredId(),
+					user.Password,
+					PasswordUtils.HashPassword(password)
+				),
+				cancellationToken
+			);
 		}
 
 		var session = await sessionService.CreateSessionForUser(user, cancellationToken);

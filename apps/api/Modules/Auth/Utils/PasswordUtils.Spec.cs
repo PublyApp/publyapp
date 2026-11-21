@@ -1,8 +1,6 @@
-using System.Security.Cryptography;
-
 using FluentAssertions;
 
-using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
@@ -11,27 +9,14 @@ namespace PublyApp.Api.Modules.Auth.Utils;
 public sealed class PasswordUtilsSpec {
 	private const string _Password = "Correct horse battery 42";
 
-	// The format used before #2468: base64(salt).base64(hash), 100,000 iterations.
-	private static string _LegacyHash(string password) {
-		var salt = RandomNumberGenerator.GetBytes(16);
-		var key = KeyDerivation.Pbkdf2(
-			password,
-			salt,
-			KeyDerivationPrf.HMACSHA256,
-			100_000,
-			32
-		);
-		return $"{Convert.ToBase64String(salt)}.{Convert.ToBase64String(key)}";
-	}
-
 	[Fact]
-	public void ItShouldUseTheProductionWorkFactorOutsideTestingAndDevelopment() {
+	public void ItShouldUseTheProductionWorkFactorOutsideTesting() {
 		PasswordUtils.ProductionIterations.Should().Be(600_000);
 		PasswordUtils.IterationsForEnvironment("Production").Should().Be(600_000);
 		PasswordUtils.IterationsForEnvironment("Staging").Should().Be(600_000);
 		PasswordUtils.IterationsForEnvironment(null).Should().Be(600_000);
 		PasswordUtils.IterationsForEnvironment("Testing").Should().Be(PasswordUtils.ReducedIterations);
-		PasswordUtils.IterationsForEnvironment("Development").Should().Be(PasswordUtils.ReducedIterations);
+		PasswordUtils.IterationsForEnvironment("Development").Should().Be(600_000);
 	}
 
 	[Fact]
@@ -53,7 +38,7 @@ public sealed class PasswordUtilsSpec {
 		var result = PasswordUtils.VerifyPassword(PasswordUtilsSpec._Password, hash);
 
 		result.Matches.Should().BeTrue();
-		// Under the reduced test cost, a 600k hash is above the current policy.
+		// At or above the current cost, so no rehash.
 		result.NeedsRehash.Should().BeFalse();
 	}
 
@@ -68,7 +53,7 @@ public sealed class PasswordUtilsSpec {
 
 	[Fact]
 	public void ItShouldVerifyALegacyHashAndAskForARehash() {
-		var result = PasswordUtils.VerifyPassword(PasswordUtilsSpec._Password, PasswordUtilsSpec._LegacyHash(PasswordUtilsSpec._Password));
+		var result = PasswordUtils.VerifyPassword(PasswordUtilsSpec._Password, LegacyPasswordHash.Create(PasswordUtilsSpec._Password));
 
 		result.Should().Be(new PasswordVerification(true, true));
 	}
@@ -86,8 +71,58 @@ public sealed class PasswordUtilsSpec {
 	public void ItShouldRejectAWrongPasswordForBothFormats() {
 		PasswordUtils.VerifyPassword("nope", PasswordUtils.HashPassword(PasswordUtilsSpec._Password))
 			.Should().Be(new PasswordVerification(false, false));
-		PasswordUtils.VerifyPassword("nope", PasswordUtilsSpec._LegacyHash(PasswordUtilsSpec._Password))
+		PasswordUtils.VerifyPassword("nope", LegacyPasswordHash.Create(PasswordUtilsSpec._Password))
 			.Should().Be(new PasswordVerification(false, false));
+	}
+
+	[Fact]
+	public void ItShouldSpendTheCurrentCostOnAWrongPasswordForALegacyHash() {
+		var work = new List<int>();
+
+		var result = PasswordUtils.VerifyPassword(
+			"nope",
+			LegacyPasswordHash.Create(PasswordUtilsSpec._Password),
+			PasswordUtils.ProductionIterations,
+			work.Add
+		);
+
+		result.Should().Be(new PasswordVerification(false, false));
+		work.Sum().Should().Be(PasswordUtils.ProductionIterations);
+	}
+
+	[Fact]
+	public void ItShouldSpendOnlyTheStoredCostOnAWrongPasswordForACurrentHash() {
+		var work = new List<int>();
+		var hash = PasswordUtils.HashPassword(PasswordUtilsSpec._Password, 5_000);
+
+		_ = PasswordUtils.VerifyPassword("nope", hash, 5_000, work.Add);
+
+		work.Sum().Should().Be(5_000);
+	}
+
+	[Fact]
+	public void ItShouldRejectAHugeIterationCountWithoutDerivingAnything() {
+		var work = new List<int>();
+
+		var result = PasswordUtils.VerifyPassword(
+			PasswordUtilsSpec._Password,
+			"v2.2147483647.AAAAAAAAAAAAAAAAAAAAAA==.AAAA",
+			PasswordUtils.ProductionIterations,
+			work.Add
+		);
+
+		result.Should().Be(new PasswordVerification(false, false));
+		work.Should().BeEmpty();
+	}
+
+	[Theory]
+	[InlineData(" 600000")]
+	[InlineData("+600000")]
+	public void ItShouldRejectALaxIterationCount(string count) {
+		PasswordUtils.VerifyPassword(
+			PasswordUtilsSpec._Password,
+			$"v2.{count}.AAAAAAAAAAAAAAAAAAAAAA==.AAAA"
+		).Should().Be(new PasswordVerification(false, false));
 	}
 
 	[Theory]
