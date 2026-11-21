@@ -19,6 +19,11 @@ const AS_INFORMATIVE_AS_DETAIL: ReadonlySet<string> = new Set([
 	'post-segments-locked',
 	'provider-disabled',
 	'post-segment-not-found',
+	'post-image-unsupported-type',
+	'post-image-animated-unsupported',
+	'post-image-dimensions-invalid',
+	'post-image-required',
+	'upload-file-unsupported-type',
 	'aggregator-key-refused',
 	'provider-unreachable',
 ]);
