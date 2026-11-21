@@ -320,6 +320,7 @@ public class PostService : IPostService {
 		Guid id,
 		CancellationToken cancellationToken = default
 	) {
+		this._DbContext.RequireTenantScope();
 		var postQuery =
 			from p in this._DbContext.Post
 			where p.Id == id
@@ -566,6 +567,7 @@ public class PostService : IPostService {
 		Guid postId,
 		CancellationToken cancellationToken = default
 	) {
+		this._DbContext.RequireTenantScope();
 		var segments = await (
 			from segment in this._DbContext.PostSegment.AsNoTracking()
 			where segment.PostId == postId
@@ -635,6 +637,7 @@ public class PostService : IPostService {
 		Guid projectId,
 		CancellationToken cancellationToken = default
 	) {
+		this._DbContext.RequireTenantScope();
 		return await (
 			from project in this._DbContext.Project.AsNoTracking()
 			where project.Id == projectId

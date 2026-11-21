@@ -60,6 +60,7 @@ public sealed class AggregatorConnectionService {
 		Guid tenantId,
 		CancellationToken cancellationToken
 	) {
+		// Kept until the aggregators module drops its predicates (#2460 step 2).
 		var connections = await this._Db.AggregatorConnection
 			.AsNoTracking()
 			.Where(c => c.TenantId == tenantId && !c.IsDeleted)
@@ -162,6 +163,7 @@ public sealed class AggregatorConnectionService {
 		AggregatorKind kind,
 		CancellationToken cancellationToken
 	) {
+		// Kept until the aggregators module drops its predicates (#2460 step 2).
 		return this._Db.AggregatorConnection.FirstOrDefaultAsync(
 			c => c.TenantId == tenantId && c.Kind == kind && !c.IsDeleted,
 			cancellationToken

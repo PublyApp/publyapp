@@ -433,6 +433,7 @@ public class TenantAsStaffService : ITenantAsStaffService {
 				cancellationToken
 			);
 		}
+		// JUSTIFIED cross-tenant: the staff tenant list counts projects of many tenants at once.
 		var projects = await (
 			from project in this._DbContext.Project.AsNoTracking()
 			where !project.IsDeleted

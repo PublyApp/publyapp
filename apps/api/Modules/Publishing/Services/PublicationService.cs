@@ -1034,6 +1034,7 @@ public sealed class PublicationService : IPublicationService {
 		Guid postId,
 		CancellationToken cancellationToken = default
 	) {
+		this._DbContext.RequireTenantScope();
 		if (await this._LoadPostAsync(postId, cancellationToken) is null) {
 			return null;
 		}

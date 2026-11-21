@@ -307,6 +307,7 @@ public sealed class SocialAccountService {
 		Guid id,
 		CancellationToken cancellationToken = default
 	) {
+		this._Db.RequireTenantScope();
 		return await (
 			from a in this._Db.SocialAccount.AsNoTracking()
 			where a.Id == id && !a.IsDeleted

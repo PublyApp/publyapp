@@ -229,6 +229,16 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		this.TenantId = tenantId;
 	}
 
+	// Reads that rely only on the ambient tenant filter call this first: with no tenant on
+	// the context the filter matches every tenant, so an unscoped caller must fail loudly.
+	public void RequireTenantScope() {
+		if (this.TenantId is null) {
+			throw new InvalidOperationException(
+				"This read relies on the tenant filter, but the context is not scoped to a tenant."
+			);
+		}
+	}
+
 	public AppDbContext(DbContextOptions options) : base(options) {
 		var extension = options.FindExtension<TenantExtension>();
 		this.TenantId = extension?.TenantId;

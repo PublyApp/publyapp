@@ -122,6 +122,7 @@ public sealed class PublishTargetService : IPublishTargetService {
 		Guid? projectId = null,
 		CancellationToken cancellationToken = default
 	) {
+		this._Db.RequireTenantScope();
 		IQueryable<SocialAccount> query =
 			from a in this._Db.SocialAccount.AsNoTracking()
 			where !a.IsDeleted

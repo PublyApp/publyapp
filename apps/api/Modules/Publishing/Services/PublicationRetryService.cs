@@ -70,6 +70,7 @@ public sealed class PublicationRetryService : IPublicationRetryService {
 		Guid publicationId,
 		CancellationToken cancellationToken
 	) {
+		this._Db.RequireTenantScope();
 		var publication = await this._Db.Publication
 			.AsNoTracking()
 			.SingleOrDefaultAsync(
