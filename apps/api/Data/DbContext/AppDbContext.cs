@@ -209,6 +209,26 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		this.TenantId = extension?.TenantId;
 	}
 
+	// x => this.TenantId == null || x.TenantId == this.TenantId, with `this` as a
+	// constant of the context so EF swaps in the executing context per query.
+	private LambdaExpression _BuildTenantFilter(Type entityType) {
+		var parameter = Expression.Parameter(entityType, "x");
+		var contextTenantId = Expression.Property(
+			Expression.Constant(this, typeof(AppDbContext)),
+			nameof(this.TenantId)
+		);
+		var entityTenantId = Expression.Convert(
+			Expression.Property(parameter, nameof(ITenantEntity.TenantId)),
+			typeof(Guid?)
+		);
+		var body = Expression.OrElse(
+			Expression.Equal(contextTenantId, Expression.Constant(null, typeof(Guid?))),
+			Expression.Equal(entityTenantId, contextTenantId)
+		);
+
+		return Expression.Lambda(body, parameter);
+	}
+
 	protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) {
 		base.OnConfiguring(optionsBuilder);
 
@@ -408,13 +428,13 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 			.IsUnique()
 			.HasFilter("\"FriendlyName\" = 'social-accounts-master-key-canary'");
 
-		// Apply matching query filters to ensure consistent filtering
-		if (this.TenantId is not null) {
-			// UserAccountRole gets a filter that matches the Role's tenant
-			// This ensures both entities in the relationship are filtered consistently
-			modelBuilder.Entity<UserAccountRole>()
-				.HasQueryFilter(uap => uap.Role.TenantId == this.TenantId);
-		}
+		// Query filters read this context's TenantId per query (EF parameterizes the
+		// context member): the model is built once per process, so nothing about the
+		// current tenant may be captured here. No tenant on the context = no filter.
+		// UserAccountRole gets a filter that matches the Role's tenant, keeping both
+		// entities in the relationship filtered consistently.
+		modelBuilder.Entity<UserAccountRole>()
+			.HasQueryFilter(uap => this.TenantId == null || uap.Role.TenantId == this.TenantId);
 
 		// Configure other entities with generic approach
 		foreach (var entityType in modelBuilder.Model.GetEntityTypes()) {
@@ -435,18 +455,9 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 			if (typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType)) {
 				modelBuilder.Entity(entityType.ClrType);
 
-				if (this.TenantId is not null) {
-					// Dynamically apply query filter for tenant-filtered entities
-					var parameter = Expression.Parameter(entityType.ClrType, "x");
-					var tenantIdProperty = Expression.Property(parameter, nameof(this.TenantId));
-					var tenantIdConstant = Expression.Constant(this.TenantId);
-					var equalExpression = Expression.Equal(tenantIdProperty, tenantIdConstant);
-					var lambda = Expression.Lambda(equalExpression, parameter);
-
-					// Apply the query filter
-					modelBuilder.Entity(entityType.ClrType)
-						.HasQueryFilter(lambda);
-				}
+				// Dynamically apply the per-query tenant filter for tenant-filtered entities
+				modelBuilder.Entity(entityType.ClrType)
+					.HasQueryFilter(this._BuildTenantFilter(entityType.ClrType));
 			} else if (typeof(IOptionalTenantEntity).IsAssignableFrom(entityType.ClrType)) {
 				// Set table name for optional tenant entities (no automatic filtering)
 				modelBuilder.Entity(entityType.ClrType);

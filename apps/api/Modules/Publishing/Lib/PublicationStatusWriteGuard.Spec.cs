@@ -428,6 +428,7 @@ public sealed class PublicationStatusWriteGuardSpec : IClassFixture<ApiFixture> 
 			.FromSqlRaw(
 				"UPDATE publications SET status = 20 WHERE id = {0} RETURNING id",
 				id)
+			.IgnoreQueryFilters() // DML cannot be composed over by the tenant filter
 			.ToListAsync();
 
 		(await act.Should().ThrowAsync<PublicationStatusGuardException>())
