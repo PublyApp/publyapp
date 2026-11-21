@@ -93,8 +93,7 @@ public sealed class PublicationListService : IPublicationListService {
 
 		var query = this._Db.Publication
 			.AsNoTracking()
-			.Where(publication => publication.TenantId == args.TenantId
-				&& !publication.IsDeleted);
+			.Where(publication => !publication.IsDeleted);
 
 		if (!string.IsNullOrEmpty(args.Cursor)) {
 			if (!Guid.TryParse(args.Cursor, out var cursorId)) {
@@ -103,8 +102,7 @@ public sealed class PublicationListService : IPublicationListService {
 
 			var cursorRow = await this._Db.Publication
 				.AsNoTracking()
-				.Where(publication => publication.Id == cursorId
-					&& publication.TenantId == args.TenantId)
+				.Where(publication => publication.Id == cursorId)
 				.Select(publication => new { publication.UpdatedAt })
 				.FirstOrDefaultAsync(cancellationToken);
 			if (cursorRow is null) {
@@ -158,13 +156,11 @@ public sealed class PublicationListService : IPublicationListService {
 		// SQL aggregate, same derivation as the queue (PostStatusSummaryQuery).
 		var supersededIds = await PostStatusSummaryQuery.SupersededIdsAsync(
 			this._Db,
-			args.TenantId,
 			rows.Select(row => row.Publication.GetRequiredId()).ToList(),
 			cancellationToken
 		);
 		var summaries = await PostStatusSummaryQuery.SummarizeAsync(
 			this._Db,
-			args.TenantId,
 			rows.Select(row => row.Publication.PostId).Distinct().ToList(),
 			cancellationToken
 		);

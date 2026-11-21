@@ -215,6 +215,7 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 			PublicationStatus.Scheduled, DateTime.UtcNow.AddHours(2)
 		);
 
+		db.ScopeToTenant(tenantB);
 		var service = PublicationQueueServiceSpec._NewService(db);
 		var rows = await service.FindNonTerminalForAccountAsync(
 			new FindPublicationsOfAccountArgs(tenantB, accountA),

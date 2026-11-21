@@ -82,13 +82,13 @@ public sealed class RenditionService : IRenditionService {
 		GetRenditionArgs args,
 		CancellationToken cancellationToken
 	) {
-		var publication = await this._LoadAsync(args.TenantId, args.PublicationId, cancellationToken);
+		var publication = await this._LoadAsync(args.PublicationId, cancellationToken);
 		if (publication is null) {
 			return new RenditionResult.NotFound();
 		}
 
 		var overrides = await RenditionResolver.LoadOverridesAsync(
-			this._Db, args.TenantId, args.PublicationId, cancellationToken
+			this._Db, args.PublicationId, cancellationToken
 		);
 		return await this._FoundAsync(publication, overrides, overrides is not null, cancellationToken);
 	}
@@ -115,7 +115,7 @@ public sealed class RenditionService : IRenditionService {
 				return new RenditionResult.NotFound();
 			}
 
-			var publication = await this._LoadAsync(tenantId, publicationId, cancellationToken);
+			var publication = await this._LoadAsync(publicationId, cancellationToken);
 			if (publication is null) {
 				return new RenditionResult.NotFound();
 			}
@@ -193,7 +193,7 @@ public sealed class RenditionService : IRenditionService {
 		if (args.Overrides.IsEmpty) {
 			// Nothing is overridden any more: no row means "inherit everything".
 			if (row is not null) {
-				_ = await this._DeleteRowAsync(args.TenantId, args.PublicationId, cancellationToken);
+				_ = await this._DeleteRowAsync(args.PublicationId, cancellationToken);
 			}
 
 			return await this._FoundAsync(publication, null, wasCustomized, cancellationToken);
@@ -221,7 +221,6 @@ public sealed class RenditionService : IRenditionService {
 	}
 
 	private async Task<Publication?> _LoadAsync(
-		Guid tenantId,
 		Guid publicationId,
 		CancellationToken cancellationToken
 	) {
@@ -229,7 +228,6 @@ public sealed class RenditionService : IRenditionService {
 			.AsNoTracking()
 			.FirstOrDefaultAsync(
 				candidate => candidate.Id == publicationId
-					&& candidate.TenantId == tenantId
 					&& !candidate.IsDeleted,
 				cancellationToken
 			);
@@ -270,13 +268,11 @@ public sealed class RenditionService : IRenditionService {
 
 	// A rendition row is hard-deleted (never soft-deleted), so the unique index holds.
 	private async Task<int> _DeleteRowAsync(
-		Guid tenantId,
 		Guid publicationId,
 		CancellationToken cancellationToken
 	) {
 		return await this._Db.Rendition
-			.Where(candidate => candidate.PublicationId == publicationId
-				&& candidate.TenantId == tenantId)
+			.Where(candidate => candidate.PublicationId == publicationId)
 			.ExecuteDeleteAsync(cancellationToken);
 	}
 

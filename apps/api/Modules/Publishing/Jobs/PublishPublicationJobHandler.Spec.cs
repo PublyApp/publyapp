@@ -1030,7 +1030,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		await db.SaveChangesAsync();
 
 		var overrides = await RenditionResolver.LoadOverridesAsync(
-			db, seeded.TenantId, destination, CancellationToken.None
+			db, destination, CancellationToken.None
 		);
 		overrides.Should().NotBeNull();
 		overrides?.Texts.Should().Equal(new Dictionary<int, string> { [0] = "root B" });

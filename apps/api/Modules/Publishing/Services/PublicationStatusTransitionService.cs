@@ -484,6 +484,8 @@ public sealed class PublicationStatusTransitionService : IPublicationStatusTrans
 		Guid tenantId,
 		CancellationToken cancellationToken
 	) {
+		// JUSTIFIED explicit tenant: DispatchDuePostsJob (a platform job on an unscoped context)
+		// moves rows across tenants through this service, so the filter cannot be relied on here.
 		return await this._Db.Publication.SingleOrDefaultAsync(
 			publication => publication.Id == publicationId
 				&& publication.TenantId == tenantId

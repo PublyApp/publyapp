@@ -17,8 +17,7 @@ public static class PublicationSupersession {
 	// THE rule, written once: `other` replaces `publication`. Every other form below derives
 	// from it by substitution, so no SQL or in-memory copy can drift.
 	private static readonly Expression<Func<Publication, Publication, bool>> _Replaces =
-		(other, publication) => other.TenantId == publication.TenantId
-			&& other.PostId == publication.PostId
+		(other, publication) => other.PostId == publication.PostId
 			&& other.SocialAccountId == publication.SocialAccountId
 			&& other.Id != publication.Id
 			&& other.CreatedAt > publication.CreatedAt;
