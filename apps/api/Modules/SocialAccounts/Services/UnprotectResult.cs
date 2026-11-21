@@ -1,7 +1,7 @@
 namespace PublyApp.Api.Modules.SocialAccounts.Services;
 
 /// <summary>
-/// Typed outcome of <see cref="ICredentialProtector.Unprotect"/> (review r3): the
+/// Typed outcome of <see cref="ICredentialProtector.Unprotect(string?, PublyApp.Api.Modules.SocialAccounts.Entities.SocialProvider)"/> (review r3): the
 /// caller must be able to tell "no credential stored" apart from "the stored blob
 /// cannot be decrypted under this protector's purpose". C2 needs that split to honour
 /// the transparent-failure-causes rule: a tampered/wrong-purpose blob surfaces as a
@@ -17,7 +17,7 @@ public enum UnprotectOutcome {
 	Tampered = 2,
 }
 
-/// <summary>Result of <see cref="ICredentialProtector.Unprotect"/>.</summary>
+/// <summary>Result of <see cref="ICredentialProtector.Unprotect(string?, PublyApp.Api.Modules.SocialAccounts.Entities.SocialProvider)"/>.</summary>
 public readonly record struct UnprotectResult(UnprotectOutcome Outcome, string? Plaintext) {
 	public static UnprotectResult Absent() {
 		return new UnprotectResult(UnprotectOutcome.Absent, null);

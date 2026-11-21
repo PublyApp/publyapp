@@ -14,6 +14,9 @@ using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.RateLimiting;
+using PublyApp.Api.Modules.Aggregators.Adapters.Zernio;
+using PublyApp.Api.Modules.Aggregators.Ports;
+using PublyApp.Api.Modules.Aggregators.Services;
 using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
@@ -205,6 +208,16 @@ public static class ServiceRegistration {
 		builder.Services.AddScoped<DiscordWebhookSessionProvider>();
 		builder.Services.AddScoped<DiscordWebhookClient>();
 		builder.Services.AddScoped<DiscordWebhookConnectService>();
+		// Aggregators (#2343): fixed host from code; the key rides in a header, so no
+		// request/response log lines for this client.
+		builder.Services
+			.AddHttpClient(ZernioAdapter.HttpClientName, client => {
+				client.Timeout = TimeSpan.FromSeconds(30);
+				client.MaxResponseContentBufferSize = 1024 * 1024;
+			})
+			.RemoveAllLoggers();
+		builder.Services.AddScoped<IAggregatorAdapter, ZernioAdapter>();
+		builder.Services.AddScoped<AggregatorConnectionService>();
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
 		builder.Services.AddSingleton<IEmailService, EmailService>();
 		builder.Services.AddSingleton<IFileStorage>(

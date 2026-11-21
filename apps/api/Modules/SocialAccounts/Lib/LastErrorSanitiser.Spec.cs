@@ -19,6 +19,14 @@ public sealed class LastErrorSanitiserSpec {
 		sanitised.Should().Contain("[redacted]");
 	}
 
+	[Theory]
+	[InlineData("sk_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")]
+	[InlineData("zrk_0123456789abcdef0123456789abcdef")]
+	public void ItShouldScrubABareAggregatorKeyWhenPresentInTheMessage(string key) {
+		var sanitised = LastErrorSanitiser.Sanitize($"refused key {key}, try again").Required();
+		sanitised.Should().NotContain(key).And.Contain("[redacted]");
+	}
+
 	[Fact]
 	public void ItShouldReturnNullWhenTheMessageIsNull() {
 		LastErrorSanitiser.Sanitize(null).Should().BeNull();

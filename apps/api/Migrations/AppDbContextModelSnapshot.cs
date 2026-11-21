@@ -47,6 +47,70 @@ namespace PublyApp.Api.Migrations
                     b.ToTable("data_protection_keys", (string)null);
                 });
 
+            modelBuilder.Entity("PublyApp.Api.Modules.Aggregators.Entities.AggregatorConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("uuidv7()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("KeyHint")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("key_hint");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("aggregator_kind");
+
+                    b.Property<DateTime?>("LastCheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_checked_at");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text")
+                        .HasColumnName("last_error");
+
+                    b.Property<string>("ProtectedApiKey")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("protected_api_key");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Kind")
+                        .IsUnique()
+                        .HasDatabaseName("ix_aggregator_connections_tenant_kind")
+                        .HasFilter("is_deleted = false");
+
+                    b.ToTable("aggregator_connections");
+                });
+
             modelBuilder.Entity("PublyApp.Api.Modules.AuditLogs.Entities.AuditLog", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2686,6 +2750,17 @@ namespace PublyApp.Api.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("user_account_roles");
+                });
+
+            modelBuilder.Entity("PublyApp.Api.Modules.Aggregators.Entities.AggregatorConnection", b =>
+                {
+                    b.HasOne("PublyApp.Api.Modules.Tenants.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("PublyApp.Api.Modules.AuditLogs.Entities.AuditLog", b =>

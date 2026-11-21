@@ -27,6 +27,10 @@ public static partial class LastErrorSanitiser {
 	[System.Text.RegularExpressions.GeneratedRegex("\"(access_token|refresh_token|client_secret|code_verifier|token)\"\\s*:\\s*\"[^\"]{4,}\"")]
 	private static partial System.Text.RegularExpressions.Regex _JsonSecretPattern();
 
+	// Aggregator API keys (sk_<hex>, zrk_<hex>): bare, so none of the rules above catch them.
+	[System.Text.RegularExpressions.GeneratedRegex(@"\b(?:sk|zrk)_[A-Za-z0-9]{8,}")]
+	private static partial System.Text.RegularExpressions.Regex _AggregatorKeyPattern();
+
 	public static string? Sanitize(string? raw) {
 		if (string.IsNullOrEmpty(raw)) {
 			return raw;
@@ -35,6 +39,7 @@ public static partial class LastErrorSanitiser {
 		scrubbed = LastErrorSanitiser._BearerPattern().Replace(scrubbed, "Bearer [redacted]");
 		scrubbed = LastErrorSanitiser._QueryTokenPattern().Replace(scrubbed, "$1=[redacted]");
 		scrubbed = LastErrorSanitiser._JsonSecretPattern().Replace(scrubbed, "\"$1\": \"[redacted]\"");
+		scrubbed = LastErrorSanitiser._AggregatorKeyPattern().Replace(scrubbed, "[redacted]");
 		var bytes = System.Text.Encoding.UTF8.GetBytes(scrubbed);
 		if (bytes.Length <= LastErrorSanitiser._MaxBytes) {
 			return scrubbed;

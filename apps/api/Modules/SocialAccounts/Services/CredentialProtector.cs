@@ -15,12 +15,24 @@ public sealed class CredentialProtector : ICredentialProtector {
 		return this._ProtectorFor(provider).Protect(plaintext);
 	}
 
+	public string Protect(string plaintext, string purpose) {
+		return this._DataProtectionProvider.CreateProtector(purpose).Protect(plaintext);
+	}
+
 	public UnprotectResult Unprotect(string? protectedText, SocialProvider provider) {
+		return CredentialProtector._Unprotect(protectedText, this._ProtectorFor(provider));
+	}
+
+	public UnprotectResult Unprotect(string? protectedText, string purpose) {
+		return CredentialProtector._Unprotect(protectedText, this._DataProtectionProvider.CreateProtector(purpose));
+	}
+
+	private static UnprotectResult _Unprotect(string? protectedText, IDataProtector protector) {
 		if (string.IsNullOrEmpty(protectedText)) {
 			return UnprotectResult.Absent();
 		}
 		try {
-			return UnprotectResult.Ok(this._ProtectorFor(provider).Unprotect(protectedText));
+			return UnprotectResult.Ok(protector.Unprotect(protectedText));
 		} catch (System.Security.Cryptography.CryptographicException) {
 			// GCM authentication failed: the payload was corrupted/truncated OR was
 			// protected under another purpose/key. Either way the caller must see a
