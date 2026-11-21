@@ -49,17 +49,14 @@ public interface IPostService {
 		CancellationToken cancellationToken = default);
 
 	Task<bool> ProjectExistsForTenantAsync(
-		Guid tenantId,
 		Guid projectId,
 		CancellationToken cancellationToken = default);
 
 	Task<FindPostsResult> FindForTenantAsync(
-		Guid tenantId,
 		FindPostsArgs args,
 		CancellationToken cancellationToken = default);
 
 	Task<Post?> GetByIdForTenantAsync(
-		Guid tenantId,
 		Guid id,
 		CancellationToken cancellationToken = default);
 
@@ -69,7 +66,6 @@ public interface IPostService {
 
 	/// <summary>The post's follow-up segments (segments 2..N) in order.</summary>
 	Task<IReadOnlyList<PostSegmentReadModel>> FindSegmentsAsync(
-		Guid tenantId,
 		Guid postId,
 		CancellationToken cancellationToken = default);
 
@@ -211,7 +207,6 @@ public class PostService : IPostService {
 	}
 
 	public async Task<FindPostsResult> FindForTenantAsync(
-		Guid tenantId,
 		FindPostsArgs args,
 		CancellationToken cancellationToken = default
 	) {
@@ -322,7 +317,6 @@ public class PostService : IPostService {
 	}
 
 	public async Task<Post?> GetByIdForTenantAsync(
-		Guid tenantId,
 		Guid id,
 		CancellationToken cancellationToken = default
 	) {
@@ -342,7 +336,7 @@ public class PostService : IPostService {
 		var tenantId = args.TenantId;
 		var id = args.PostId;
 		var post = await this.GetByIdForTenantAsync(
-			tenantId, id, cancellationToken
+			id, cancellationToken
 		);
 
 		if (post is null) {
@@ -376,7 +370,7 @@ public class PostService : IPostService {
 		if (args.ProjectId.IsPresent) {
 			var projectId = args.ProjectId.Value;
 			if (projectId.HasValue
-				&& !await this.ProjectExistsForTenantAsync(tenantId, projectId.Value, cancellationToken)) {
+				&& !await this.ProjectExistsForTenantAsync(projectId.Value, cancellationToken)) {
 				return new UpdatePostResult.ProjectNotFound(projectId.Value);
 			}
 
@@ -569,7 +563,6 @@ public class PostService : IPostService {
 	}
 
 	public async Task<IReadOnlyList<PostSegmentReadModel>> FindSegmentsAsync(
-		Guid tenantId,
 		Guid postId,
 		CancellationToken cancellationToken = default
 	) {
@@ -617,7 +610,7 @@ public class PostService : IPostService {
 		CancellationToken cancellationToken = default
 	) {
 		var post = await this.GetByIdForTenantAsync(
-			tenantId, id, cancellationToken
+			id, cancellationToken
 		);
 
 		if (post is null) {
@@ -639,7 +632,6 @@ public class PostService : IPostService {
 	}
 
 	public async Task<bool> ProjectExistsForTenantAsync(
-		Guid tenantId,
 		Guid projectId,
 		CancellationToken cancellationToken = default
 	) {

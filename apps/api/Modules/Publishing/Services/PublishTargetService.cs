@@ -105,7 +105,6 @@ public record PublishTargetTextLimit {
 /// </summary>
 public interface IPublishTargetService {
 	Task<IReadOnlyList<PublishTargetItem>> FindForTenantAsync(
-		Guid tenantId,
 		Guid? projectId = null,
 		CancellationToken cancellationToken = default
 	);
@@ -120,7 +119,6 @@ public sealed class PublishTargetService : IPublishTargetService {
 	}
 
 	public async Task<IReadOnlyList<PublishTargetItem>> FindForTenantAsync(
-		Guid tenantId,
 		Guid? projectId = null,
 		CancellationToken cancellationToken = default
 	) {

@@ -72,7 +72,7 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 		db.ScopeToTenant(tenantId);
 		var service = new PublishTargetService(db);
 
-		var targets = await service.FindForTenantAsync(tenantId);
+		var targets = await service.FindForTenantAsync();
 
 		targets.Select(target => target.Id).Should()
 			.Equal([recentActive, everywhere, oldActive],
@@ -105,8 +105,8 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 		db.ScopeToTenant(tenantId);
 		var service = new PublishTargetService(db);
 
-		var underOne = await service.FindForTenantAsync(tenantId, projectOne);
-		var underTwo = await service.FindForTenantAsync(tenantId, projectTwo);
+		var underOne = await service.FindForTenantAsync(projectOne);
+		var underTwo = await service.FindForTenantAsync(projectTwo);
 
 		underOne.Select(target => target.Id).Should()
 			.Equal([roaming, attached],
@@ -130,7 +130,7 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 		db.ScopeToTenant(tenantId);
 		var service = new PublishTargetService(db);
 
-		var targets = await service.FindForTenantAsync(tenantId);
+		var targets = await service.FindForTenantAsync();
 
 		targets.Should().BeEmpty(
 			"the query is tenant-scoped before any other rule applies"

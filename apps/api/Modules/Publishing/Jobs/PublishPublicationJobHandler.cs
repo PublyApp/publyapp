@@ -55,7 +55,45 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		get { return PublishingJobs.PublishPublicationV1.JobType; }
 	}
 
+	/// <summary>Mutable state one run of <see cref="HandleAsync"/> threads through its steps.</summary>
+	// Publication, Effective and Session are assigned by the first steps before any later step reads them.
+#pragma warning disable CS8618
+	private sealed class _Run {
+		public Publication Publication { get; set; }
+		public Guid PublicationId { get; set; }
+		public EffectiveContent Effective { get; set; }
+		public List<CompletedSegment> Completed { get; set; } = [];
+		public int Total { get; set; }
+		public SocialAccount? Account { get; set; }
+		public List<List<PublishMedia>> Media { get; set; } = [];
+		public SocialSession Session { get; set; }
+		public List<string> Texts { get; set; } = [];
+		public int? ResendPosition { get; set; }
+		public int PublishedNow { get; set; }
+		public Guid? OpenAttempt { get; set; }
+
+		public SocialProvider Provider {
+			get { return this.Account?.Provider ?? SocialProvider.Bluesky; }
+		}
+	}
+#pragma warning restore CS8618
+
 	public async Task<JobOutcome> HandleAsync(
+		JobContext context,
+		CancellationToken cancellationToken
+	) {
+		var run = new _Run();
+		var stop = await this._StartAsync(run, context, cancellationToken);
+		stop ??= await this._ResolveContentAsync(run, cancellationToken);
+		stop ??= await this._PrecheckAsync(run, cancellationToken);
+		stop ??= await this._LoadMediaAsync(run, cancellationToken);
+		stop ??= await this._OpenSessionAsync(run, context, cancellationToken);
+		stop ??= await this._ReconcileEarlierWritesAsync(run, context, cancellationToken);
+		return stop ?? await this._PublishAsync(run, context, cancellationToken);
+	}
+
+	private async Task<JobOutcome?> _StartAsync(
+		_Run run,
 		JobContext context,
 		CancellationToken cancellationToken
 	) {
@@ -73,14 +111,23 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			return new JobOutcome.Cancelled("publication_already_terminal");
 		}
 
-		var publicationId = publication.GetRequiredId();
+		run.Publication = publication;
+		run.PublicationId = publication.GetRequiredId();
 		if (!await this._Transitions.MarkInProgressAsync(
-				new MarkPublicationInProgressArgs(publicationId, publication.TenantId),
+				new MarkPublicationInProgressArgs(run.PublicationId, publication.TenantId),
 				cancellationToken
 			)) {
 			return new JobOutcome.Cancelled("publication_not_found");
 		}
 
+		return null;
+	}
+
+	private async Task<JobOutcome?> _ResolveContentAsync(
+		_Run run,
+		CancellationToken cancellationToken
+	) {
+		var publication = run.Publication;
 		var post = await this._Db.Post.SingleOrDefaultAsync(
 			candidate => candidate.Id == publication.PostId && !candidate.IsDeleted,
 			cancellationToken
@@ -88,7 +135,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		if (post is null) {
 			await this._FailOrParkAsync(
 				new MarkPublicationFailedArgs(
-					publicationId,
+					run.PublicationId,
 					publication.TenantId,
 					"the post behind this publication no longer exists",
 					PublicationFailureCategory.FixContent
@@ -100,16 +147,15 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 
 		// The EFFECTIVE content of this destination (post + its rendition, #2172): every
 		// text, image and alt text below comes from here, never from the post directly.
-		var effective = await RenditionResolver.ResolveForPublicationAsync(
-			this._Db, publication.TenantId, publicationId, post, cancellationToken
+		run.Effective = await RenditionResolver.ResolveForPublicationAsync(
+			this._Db, run.PublicationId, post, cancellationToken
 		);
-		var followUps = effective.FollowUps;
 		var storedResults = await this._Db.PublicationSegmentResult
 			.AsNoTracking()
-			.Where(result => result.PublicationId == publicationId && !result.IsDeleted)
+			.Where(result => result.PublicationId == run.PublicationId && !result.IsDeleted)
 			.OrderBy(result => result.SegmentPosition)
 			.ToListAsync(cancellationToken);
-		var completedSegments = storedResults
+		run.Completed = storedResults
 			.Select(result => new CompletedSegment(
 				result.SegmentPosition,
 				result.ExternalRecordId,
@@ -117,100 +163,140 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				result.ExternalUrl
 			))
 			.ToList();
-		var totalSegments = followUps.Count + 1;
-		var publishedNow = 0;
+		run.Total = run.Effective.FollowUps.Count + 1;
 
-		// Re-validate at dispatch (issue #2169): a body edited after scheduling may
-		// no longer fit the provider. Fails the publication with a plain content
-		// cause BEFORE any session/provider call.
-		var targetAccount = await this._Db.SocialAccount
+		run.Account = await this._Db.SocialAccount
 			.AsNoTracking()
 			.Where(candidate => candidate.Id == publication.SocialAccountId && !candidate.IsDeleted)
 			.SingleOrDefaultAsync(cancellationToken);
-		if (targetAccount is not null && !this._ProviderAvailability.IsEnabled(targetAccount.Provider)) {
+		return null;
+	}
+
+	/// <summary>
+	/// Re-validate at dispatch (issue #2169): a body edited after scheduling may no longer
+	/// fit the provider. Fails the publication with a plain content cause BEFORE any
+	/// session/provider call.
+	/// </summary>
+	private async Task<JobOutcome?> _PrecheckAsync(
+		_Run run,
+		CancellationToken cancellationToken
+	) {
+		var targetAccount = run.Account;
+		if (targetAccount is null) {
+			return null;
+		}
+
+		if (!this._ProviderAvailability.IsEnabled(targetAccount.Provider)) {
 			// The operator switched the provider off (#2184): nothing is sent. A plain
 			// retry works once it is enabled again.
-			await this._FailOrParkAsync(
-				new MarkPublicationFailedArgs(
-					publicationId,
-					publication.TenantId,
-					$"{PublishPublicationJobHandler._ProgressPrefix(completedSegments.Count, totalSegments)}"
-						+ $"{SocialAccountWire.FormatProviderLabel(targetAccount.Provider)} publishing is disabled by the operator; retry once it is enabled again",
-					PublicationFailureCategory.RetryLater
-				),
+			return await this._FailRunAsync(
+				run,
+				$"{PublishPublicationJobHandler._ProgressPrefix(run.Completed.Count, run.Total)}"
+					+ $"{SocialAccountWire.FormatProviderLabel(targetAccount.Provider)} publishing is disabled by the operator; retry once it is enabled again",
+				PublicationFailureCategory.RetryLater,
 				cancellationToken
 			);
-			return JobOutcome.Succeeded;
 		}
 
-		if (targetAccount is not null) {
-			var contentFailure = PublishValidationService.Validate(
-				effective.Body,
-				effective.ImageContentTypes,
-				[ProviderCapabilityRegistry.Resolve(targetAccount)],
-				followUps,
-				effective.ImageAltTexts,
-				effective.FollowUpImageContentTypes
-			);
-			if (contentFailure is not null) {
-				await this._FailOrParkAsync(
-					new MarkPublicationFailedArgs(
-						publicationId,
-						publication.TenantId,
-						$"the post can no longer be published: {contentFailure.Cause}",
-						PublicationFailureCategory.FixContent
-					),
-					cancellationToken
-				);
-				return JobOutcome.Succeeded;
-			}
+		var effective = run.Effective;
+		var contentFailure = PublishValidationService.Validate(
+			effective.Body,
+			effective.ImageContentTypes,
+			[ProviderCapabilityRegistry.Resolve(targetAccount)],
+			effective.FollowUps,
+			effective.ImageAltTexts,
+			effective.FollowUpImageContentTypes
+		);
+		if (contentFailure is null) {
+			return null;
 		}
 
-		// Resolve the image bytes before touching the account: a file gone from
-		// storage is a content failure naming the image, never retried (#2170).
-		// Segments a previous attempt already published are never sent again: their
-		// images are not read either.
-		var publishedPositions = completedSegments.Select(segment => segment.Position).ToHashSet();
-		var mediaBySegment = new List<List<PublishMedia>>(totalSegments);
-		for (var position = 0; position < totalSegments; position++) {
+		return await this._FailRunAsync(
+			run,
+			$"the post can no longer be published: {contentFailure.Cause}",
+			PublicationFailureCategory.FixContent,
+			cancellationToken
+		);
+	}
+
+	private async Task<JobOutcome> _FailRunAsync(
+		_Run run,
+		string cause,
+		PublicationFailureCategory category,
+		CancellationToken cancellationToken
+	) {
+		await this._FailOrParkAsync(
+			new MarkPublicationFailedArgs(run.PublicationId, run.Publication.TenantId, cause, category),
+			cancellationToken
+		);
+		return JobOutcome.Succeeded;
+	}
+
+	/// <summary>
+	/// Resolve the image bytes before touching the account: a file gone from
+	/// storage is a content failure naming the image, never retried (#2170).
+	/// Segments a previous attempt already published are never sent again: their
+	/// images are not read either.
+	/// </summary>
+	private async Task<JobOutcome?> _LoadMediaAsync(
+		_Run run,
+		CancellationToken cancellationToken
+	) {
+		var publishedPositions = run.Completed.Select(segment => segment.Position).ToHashSet();
+		for (var position = 0; position < run.Total; position++) {
 			var segmentMedia = new List<PublishMedia>();
-			mediaBySegment.Add(segmentMedia);
+			run.Media.Add(segmentMedia);
 			if (publishedPositions.Contains(position)) {
 				continue;
 			}
 
-			var segmentAssets = effective.ImagesAt(position);
-			for (var index = 0; index < segmentAssets.Count; index++) {
-				var content = await this._FileStorage.ReadAsync(
-					segmentAssets[index].RelativePath, cancellationToken
+			var missing = await this._ReadSegmentImagesAsync(run, position, segmentMedia, cancellationToken);
+			if (missing is not null) {
+				return await this._FailRunAsync(
+					run, missing, PublicationFailureCategory.FixContent, cancellationToken
 				);
-				if (content is null) {
-					await this._FailOrParkAsync(
-						new MarkPublicationFailedArgs(
-							publicationId,
-							publication.TenantId,
-							position == 0
-								? $"image {index + 1} is no longer available"
-								: $"image {index + 1} of segment {position + 1} is no longer available",
-							PublicationFailureCategory.FixContent
-						),
-						cancellationToken
-					);
-					return JobOutcome.Succeeded;
-				}
-
-				segmentMedia.Add(new PublishMedia {
-					Content = content,
-					ContentType = segmentAssets[index].ContentType,
-					AltText = segmentAssets[index].AltText,
-					WidthPx = segmentAssets[index].WidthPx,
-					HeightPx = segmentAssets[index].HeightPx,
-				});
 			}
 		}
 
-		var media = mediaBySegment[0];
+		return null;
+	}
 
+	/// <summary>Reads one segment's images into <paramref name="into"/>; returns the failure cause when one is gone.</summary>
+	private async Task<string?> _ReadSegmentImagesAsync(
+		_Run run,
+		int position,
+		List<PublishMedia> into,
+		CancellationToken cancellationToken
+	) {
+		var segmentAssets = run.Effective.ImagesAt(position);
+		for (var index = 0; index < segmentAssets.Count; index++) {
+			var content = await this._FileStorage.ReadAsync(
+				segmentAssets[index].RelativePath, cancellationToken
+			);
+			if (content is null) {
+				return position == 0
+					? $"image {index + 1} is no longer available"
+					: $"image {index + 1} of segment {position + 1} is no longer available";
+			}
+
+			into.Add(new PublishMedia {
+				Content = content,
+				ContentType = segmentAssets[index].ContentType,
+				AltText = segmentAssets[index].AltText,
+				WidthPx = segmentAssets[index].WidthPx,
+				HeightPx = segmentAssets[index].HeightPx,
+			});
+		}
+
+		return null;
+	}
+
+	private async Task<JobOutcome?> _OpenSessionAsync(
+		_Run run,
+		JobContext context,
+		CancellationToken cancellationToken
+	) {
+		var publication = run.Publication;
 		var sessionResult = await this._SocialSessionProvider.OpenSessionAsync(
 			publication.SocialAccountId, cancellationToken
 		);
@@ -231,149 +317,180 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 			);
 		}
 
-		var effectiveTexts = effective.Texts.Select(TextCounter.Normalize).ToList();
+		run.Session = opened.Session;
+		run.Texts = run.Effective.Texts.Select(TextCounter.Normalize).ToList();
+		return null;
+	}
 
+	private async Task<JobOutcome?> _ReconcileEarlierWritesAsync(
+		_Run run,
+		JobContext context,
+		CancellationToken cancellationToken
+	) {
 		// A journal row that never resolved means an earlier write may have landed
 		// (timeout, crash, stale-job recovery): look BEFORE writing again (#2176).
-		var unresolved = await this._FindUnresolvedAsync(publicationId, cancellationToken);
-		int? resendPosition = null;
+		var unresolved = await this._FindUnresolvedAsync(run.PublicationId, cancellationToken);
 		if (unresolved is not null) {
-			var reconciled = await this._PublishProvider.ReconcileAsync(
-				new ReconcileRequest {
-					PublicationId = publicationId,
-					IdempotencyKey = unresolved.IdempotencyKey,
-					SegmentPosition = unresolved.SegmentPosition,
-					Session = opened.Session,
-					Provider = targetAccount?.Provider ?? SocialProvider.Bluesky,
-					FirstAttemptAtUtc = unresolved.FirstAttemptAtUtc,
-					ExpectedText = unresolved.SegmentPosition < effectiveTexts.Count
-						? effectiveTexts[unresolved.SegmentPosition]
-						: null,
-				},
-				cancellationToken
-			);
-			switch (reconciled) {
-				case ReconcileResult.Found found:
-					await this._AdoptFoundSegmentAsync(
-						publication, unresolved.Id, found.Segment, cancellationToken
-					);
-					completedSegments.RemoveAll(segment => segment.Position == found.Segment.Position);
-					completedSegments.Add(found.Segment);
-					break;
-				case ReconcileResult.SafeToResend:
-					await this._Journal.SupersedeUnresolvedAsync(publicationId, cancellationToken);
-					resendPosition = unresolved.SegmentPosition;
-					break;
-				case ReconcileResult.NeedsReview review:
-					await this._ParkForReviewAsync(publicationId, publication.TenantId, review.Cause, cancellationToken);
-					return JobOutcome.Succeeded;
-				case ReconcileResult.Unavailable unavailable:
-					return await this._RetryUnresolvedAsync(
-						publication, unavailable.Cause, context, cancellationToken, null
-					);
-				default:
-					throw new InvalidOperationException(
-						$"Unhandled ReconcileResult kind '{reconciled.GetType().Name}'."
-					);
-			}
+			return await this._ReconcileUnresolvedAsync(run, unresolved, context, cancellationToken);
 		}
 
 		// A re-issued publication has a NEW key: a write the failed one made but never
 		// recorded would be sent again under it. Look under the old key first (#2181).
-		if (unresolved is null) {
-			var predecessor = await this._ReconcilePredecessorAsync(
-				publication,
-				opened.Session,
-				targetAccount?.Provider ?? SocialProvider.Bluesky,
-				effectiveTexts,
-				completedSegments,
-				context,
-				cancellationToken
-			);
-			if (predecessor is not null) {
-				return predecessor;
-			}
-		}
+		return await this._ReconcilePredecessorAsync(
+			run.Publication,
+			run.Session,
+			run.Provider,
+			run.Texts,
+			run.Completed,
+			context,
+			cancellationToken
+		);
+	}
 
-		Guid? openAttempt = null;
-		var result = await this._PublishProvider.PublishAsync(
-			new PublishRequest {
-				PublicationId = publicationId,
-				IdempotencyKey = publication.IdempotencyKey,
-				PostBody = effectiveTexts[0],
-				ScheduledAtUtc = publication.ScheduledAtUtc,
-				Session = opened.Session,
-				Provider = targetAccount?.Provider ?? SocialProvider.Bluesky,
-				Capability = targetAccount is null ? null : ProviderCapabilityRegistry.Resolve(targetAccount),
-				Visibility = targetAccount?.DefaultVisibility ?? SocialPostVisibility.Public,
-				Media = media,
-				FollowUpMedia = mediaBySegment.Skip(1)
-					.Select(set => (IReadOnlyList<PublishMedia>)set)
-					.ToList(),
-				FollowUpSegments = effectiveTexts.Skip(1).ToList(),
-				CompletedSegments = completedSegments,
-				ResendPosition = resendPosition,
-				OnBeforeWrite = async (position, token) => {
-					openAttempt = await this._Journal.BeginAsync(
-						new BeginPublishAttemptArgs(
-							publication.TenantId,
-							publicationId,
-							position,
-							publication.Attempts,
-							PublishAttemptJournal.Fingerprint(
-								effectiveTexts[position],
-								effective.ImagesAt(position).Select(asset => asset.Id)
-							),
-							publication.IdempotencyKey
-						),
-						token
-					);
-				},
-				OnSegmentCompleted = async (segment, token) => {
-					this._Db.PublicationSegmentResult.Add(new PublicationSegmentResult {
-						TenantId = publication.TenantId,
-						PublicationId = publicationId,
-						SegmentPosition = segment.Position,
-						ExternalRecordId = segment.RecordId,
-						ExternalCid = segment.Cid,
-						ExternalUrl = segment.RecordUrl,
-					});
-					await this._Db.SaveChangesAsync(token);
-					publishedNow += 1;
-					if (openAttempt is { } done) {
-						await this._Journal.ResolveAsync(
-							new ResolvePublishAttemptArgs(
-								done, SubmissionState.Accepted, segment.RecordId, segment.RecordUrl
-							),
-							token
-						);
-						openAttempt = null;
-					}
-				},
+	private async Task<JobOutcome?> _ReconcileUnresolvedAsync(
+		_Run run,
+		UnresolvedAttempt unresolved,
+		JobContext context,
+		CancellationToken cancellationToken
+	) {
+		var publication = run.Publication;
+		var reconciled = await this._PublishProvider.ReconcileAsync(
+			new ReconcileRequest {
+				PublicationId = run.PublicationId,
+				IdempotencyKey = unresolved.IdempotencyKey,
+				SegmentPosition = unresolved.SegmentPosition,
+				Session = run.Session,
+				Provider = run.Provider,
+				FirstAttemptAtUtc = unresolved.FirstAttemptAtUtc,
+				ExpectedText = unresolved.SegmentPosition < run.Texts.Count
+					? run.Texts[unresolved.SegmentPosition]
+					: null,
 			},
 			cancellationToken
 		);
-		await this._ResolveOpenAttemptAsync(openAttempt, result, cancellationToken);
+		switch (reconciled) {
+			case ReconcileResult.Found found:
+				await this._AdoptFoundSegmentAsync(
+					publication, unresolved.Id, found.Segment, cancellationToken
+				);
+				run.Completed.RemoveAll(segment => segment.Position == found.Segment.Position);
+				run.Completed.Add(found.Segment);
+				return null;
+			case ReconcileResult.SafeToResend:
+				await this._Journal.SupersedeUnresolvedAsync(run.PublicationId, cancellationToken);
+				run.ResendPosition = unresolved.SegmentPosition;
+				return null;
+			case ReconcileResult.NeedsReview review:
+				await this._ParkForReviewAsync(run.PublicationId, publication.TenantId, review.Cause, cancellationToken);
+				return JobOutcome.Succeeded;
+			case ReconcileResult.Unavailable unavailable:
+				return await this._RetryUnresolvedAsync(
+					publication, unavailable.Cause, context, cancellationToken, null
+				);
+			default:
+				throw new InvalidOperationException(
+					$"Unhandled ReconcileResult kind '{reconciled.GetType().Name}'."
+				);
+		}
+	}
+
+	private async Task<JobOutcome> _PublishAsync(
+		_Run run,
+		JobContext context,
+		CancellationToken cancellationToken
+	) {
+		var publication = run.Publication;
+		var targetAccount = run.Account;
+		var result = await this._PublishProvider.PublishAsync(
+			new PublishRequest {
+				PublicationId = run.PublicationId,
+				IdempotencyKey = publication.IdempotencyKey,
+				PostBody = run.Texts[0],
+				ScheduledAtUtc = publication.ScheduledAtUtc,
+				Session = run.Session,
+				Provider = run.Provider,
+				Capability = targetAccount is null ? null : ProviderCapabilityRegistry.Resolve(targetAccount),
+				Visibility = targetAccount?.DefaultVisibility ?? SocialPostVisibility.Public,
+				Media = run.Media[0],
+				FollowUpMedia = run.Media.Skip(1)
+					.Select(set => (IReadOnlyList<PublishMedia>)set)
+					.ToList(),
+				FollowUpSegments = run.Texts.Skip(1).ToList(),
+				CompletedSegments = run.Completed,
+				ResendPosition = run.ResendPosition,
+				OnBeforeWrite = (position, token) => this._BeginAttemptAsync(run, position, token),
+				OnSegmentCompleted = (segment, token) => this._RecordSegmentAsync(run, segment, token),
+			},
+			cancellationToken
+		);
+		await this._ResolveOpenAttemptAsync(run.OpenAttempt, result, cancellationToken);
 
 		var progress = PublishPublicationJobHandler._ProgressPrefix(
-			completedSegments.Count + publishedNow, totalSegments
+			run.Completed.Count + run.PublishedNow, run.Total
 		);
+		return await this._MapResultAsync(run, result, progress, context, cancellationToken);
+	}
+
+	private async Task _BeginAttemptAsync(_Run run, int position, CancellationToken token) {
+		var publication = run.Publication;
+		run.OpenAttempt = await this._Journal.BeginAsync(
+			new BeginPublishAttemptArgs(
+				publication.TenantId,
+				run.PublicationId,
+				position,
+				publication.Attempts,
+				PublishAttemptJournal.Fingerprint(
+					run.Texts[position],
+					run.Effective.ImagesAt(position).Select(asset => asset.Id)
+				),
+				publication.IdempotencyKey
+			),
+			token
+		);
+	}
+
+	private async Task _RecordSegmentAsync(_Run run, CompletedSegment segment, CancellationToken token) {
+		this._Db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+			TenantId = run.Publication.TenantId,
+			PublicationId = run.PublicationId,
+			SegmentPosition = segment.Position,
+			ExternalRecordId = segment.RecordId,
+			ExternalCid = segment.Cid,
+			ExternalUrl = segment.RecordUrl,
+		});
+		await this._Db.SaveChangesAsync(token);
+		run.PublishedNow += 1;
+		if (run.OpenAttempt is { } done) {
+			await this._Journal.ResolveAsync(
+				new ResolvePublishAttemptArgs(
+					done, SubmissionState.Accepted, segment.RecordId, segment.RecordUrl
+				),
+				token
+			);
+			run.OpenAttempt = null;
+		}
+	}
+
+	private async Task<JobOutcome> _MapResultAsync(
+		_Run run,
+		PublishResult result,
+		string progress,
+		JobContext context,
+		CancellationToken cancellationToken
+	) {
+		var publication = run.Publication;
 		switch (result) {
 			case PublishResult.Published published:
 				return await this._SucceedAsync(publication, published.RecordId, published.RecordUrl, cancellationToken);
 			case PublishResult.AlreadyExistsTreatedAsPublished alreadyExists:
 				return await this._SucceedAsync(publication, alreadyExists.RecordId, alreadyExists.RecordUrl, cancellationToken);
 			case PublishResult.ContentFailure content:
-				await this._FailOrParkAsync(
-					new MarkPublicationFailedArgs(
-						publicationId,
-						publication.TenantId,
-						$"{progress}{PublishPublicationJobHandler._ProviderName(targetAccount)} refused the content: {content.Cause}",
-						PublicationFailureCategory.FixContent
-					),
+				return await this._FailRunAsync(
+					run,
+					$"{progress}{PublishPublicationJobHandler._ProviderName(run.Account)} refused the content: {content.Cause}",
+					PublicationFailureCategory.FixContent,
 					cancellationToken
 				);
-				return JobOutcome.Succeeded;
 			case PublishResult.AccountFailure account:
 				await this._PauseForAccountAsync(publication, progress + account.Cause, cancellationToken);
 				return JobOutcome.Succeeded;

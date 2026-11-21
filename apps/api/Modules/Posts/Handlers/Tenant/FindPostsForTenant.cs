@@ -50,7 +50,8 @@ public sealed class FindPostsForTenant {
 		[FromServices] IPostService postService,
 		CancellationToken cancellationToken = default
 	) {
-		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
+		// Rejects a malformed tenant id so no query runs on an unscoped context.
+		if (!Guid.TryParse(authContext.TenantId, out _)) {
 			throw new InvalidOperationException(
 				$"{nameof(authContext.TenantId)} is not a GUID"
 			);
@@ -85,7 +86,6 @@ public sealed class FindPostsForTenant {
 		);
 
 		var serviceResult = await postService.FindForTenantAsync(
-			tenantId,
 			args,
 			cancellationToken
 		);

@@ -26,7 +26,8 @@ public sealed class FindPostPublicationsForTenant {
 		[FromServices] IPublicationService publicationService,
 		CancellationToken cancellationToken = default
 	) {
-		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
+		// Rejects a malformed tenant id so no query runs on an unscoped context.
+		if (!Guid.TryParse(authContext.TenantId, out _)) {
 			throw new InvalidOperationException(
 				$"{nameof(authContext.TenantId)} is not a GUID"
 			);
@@ -39,7 +40,7 @@ public sealed class FindPostPublicationsForTenant {
 			return TypedProblems.BadRequest("Invalid postId", ResponseKeys.MalformedId);
 		}
 
-		var items = await publicationService.FindForPostAsync(tenantId, postIdGuid, cancellationToken);
+		var items = await publicationService.FindForPostAsync(postIdGuid, cancellationToken);
 		if (items is null) {
 			return TypedProblems.NotFound("Post not found", ResponseKeys.NotFound);
 		}
