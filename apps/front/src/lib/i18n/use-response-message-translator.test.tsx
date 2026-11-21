@@ -94,6 +94,7 @@ describe('useResponseMessageTranslator in French', () => {
 		['post-segments-locked', 'Les segments déjà publiés'],
 		['provider-disabled', 'Ce fournisseur est désactivé'],
 		['post-segment-not-found', 'segment'],
+		['post-image-unsupported-type', 'PNG, JPEG ou WEBP'],
 	])('translates %s, which says as much as the detail', (key, start) => {
 		expect(translatorFor('fr')(key, {})).toContain(start);
 	});
