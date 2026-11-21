@@ -3,12 +3,16 @@ import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { resolveTableBodyState } from '~/components/table/table-body-state';
 
-import type { FilterCounts } from './filter-menu';
 import { moveColumn } from './list-columns';
 import type { ListPageProps } from './list-page';
+import {
+	buildFilterCounts,
+	countActiveFilters,
+	filterActions,
+	rowPasses,
+	sortRows,
+} from './list-page-derive';
 import { useListTable } from './list-table';
-import type { ListFilter, ListFiltersValue } from './list-types';
-import { listValueHas } from './list-types';
 
 /** The unknown-total convention (§4.1 item 11): « — », never a page sum. */
 const DASH = '—';
@@ -53,49 +57,15 @@ export const useListPage = <T extends { id: string }>({
 
 	const currentTabDef = tabs.find((entry) => entry.key === tab) ?? tabs[0];
 	const inTab = (row: T) => (currentTabDef ? currentTabDef.match(row) : true);
-	const passes = (row: T, except?: string) =>
-		filters.every(
-			(filter) =>
-				filter.key === except ||
-				filter.serverSide === true ||
-				(filtersValue[filter.key]?.length ?? 0) === 0 ||
-				filtersValue[filter.key].some((value) =>
-					listValueHas(filter.valueOf(row), value),
-				),
-		);
-
-	const filtered = rows.filter((row) => inTab(row) && passes(row));
+	const filtered = rows.filter(
+		(row) => inTab(row) && rowPasses(row, filters, filtersValue),
+	);
 	// The counter source is the whole collection when the API already narrowed
 	// `rows` (a server-side filter or search); the table still shows only the
 	// filtered rows.
 	const counted = countRows ?? rows;
 	const sort = sorting[0];
-	const sorted = [...filtered];
-	if (sort) {
-		const column = columns.find((entry) => entry.id === sort.id);
-		if (column?.value) {
-			const direction = sort.desc ? -1 : 1;
-			sorted.sort((a, b) => {
-				const left = column.value?.(a) ?? null;
-				const right = column.value?.(b) ?? null;
-				if (left === null && right === null) {
-					return 0;
-				}
-				if (left === null) {
-					return 1;
-				}
-				if (right === null) {
-					return -1;
-				}
-				if (typeof left === 'number' && typeof right === 'number') {
-					return (left - right) * direction;
-				}
-				return String(left).localeCompare(String(right), locale) * direction;
-			});
-		}
-	}
-
-	const displayed = sorted;
+	const displayed = sortRows(filtered, columns, sorting, locale);
 	const shownColumns = shown.flatMap((id) => {
 		const column = columns.find((entry) => entry.id === id);
 		return column ? [column] : [];
@@ -137,72 +107,14 @@ export const useListPage = <T extends { id: string }>({
 	// panel keeps whole-collection counts, as the prototype's panel does (the
 	// other filters do not change them). `null` means the collection is not
 	// fully loaded and the API exposes no count source.
-	const countChoices = (
-		filter: ListFilter<T>,
-		withinOtherFilters: boolean,
-	): Record<string, number | null> =>
-		Object.fromEntries(
-			filter.choices.map((choice) => [
-				choice.value,
-				countsKnown
-					? counted.filter(
-							(row) =>
-								inTab(row) &&
-								(!withinOtherFilters || passes(row, filter.key)) &&
-								listValueHas(filter.valueOf(row), choice.value),
-						).length
-					: null,
-			]),
-		);
-	const counts: FilterCounts = {};
-	const panelCounts: FilterCounts = {};
-	for (const filter of filters) {
-		counts[filter.key] = apiCounts?.[filter.key] ?? countChoices(filter, true);
-		panelCounts[filter.key] =
-			apiPanelCounts?.[filter.key] ??
-			apiCounts?.[filter.key] ??
-			countChoices(filter, false);
-	}
-
-	const toggleFilter = (key: string, value: string) => {
-		const current = filtersValue[key] ?? [];
-		onFiltersChange({
-			...filtersValue,
-			[key]: current.includes(value)
-				? current.filter((entry) => entry !== value)
-				: [...current, value],
-		});
-	};
-	const clearFilter = (key: string) => {
-		onFiltersChange({ ...filtersValue, [key]: [] });
-	};
-	const clearAllFilters = () => {
-		const cleared: ListFiltersValue = {};
-		for (const filter of filters) {
-			cleared[filter.key] = [];
-		}
-		onFiltersChange(cleared);
-	};
-	const shortcut = (key: string, value: string) => {
-		if (filtersValue[key]?.includes(value)) {
-			onFiltersChange({
-				...filtersValue,
-				[key]: (filtersValue[key] ?? []).filter((entry) => entry !== value),
-			});
-			return;
-		}
-		const next: ListFiltersValue = {};
-		for (const filter of filters) {
-			next[filter.key] = [];
-		}
-		next[key] = [value];
-		onFiltersChange(next);
-	};
-
-	let activeFilterCount = 0;
-	for (const filter of filters) {
-		activeFilterCount += filtersValue[filter.key]?.length ?? 0;
-	}
+	const { counts, panelCounts } = buildFilterCounts(
+		{ filters, filtersValue, counted, countsKnown, inTab },
+		apiCounts,
+		apiPanelCounts,
+	);
+	const { toggleFilter, clearFilter, clearAllFilters, shortcut } =
+		filterActions(filters, filtersValue, onFiltersChange);
+	const activeFilterCount = countActiveFilters(filters, filtersValue);
 	const hasActiveSearch = q.length > 0 || activeFilterCount > 0;
 	const bodyState = resolveTableBodyState({
 		isPending: query.isPending,
