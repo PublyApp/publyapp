@@ -46,7 +46,7 @@ rules with the same numbers.
 **Review severity.** A breach of rules 1–3 is a **blocking QUALITY finding**, outside the usual
 CRITICAL/MAJOR/MEDIUM/MINOR user-scenario rubric: it blocks the merge and is never downgraded to MINOR.
 
-Palier 1 targets (end of January 2027) and the 2026-11-18 measurements: issue
+Palier 1 targets (end of December 2026) and the 2026-11-18 measurements: issue
 [#2438](https://github.com/PublyApp/publyapp/issues/2438). Work items:
 [#2439](https://github.com/PublyApp/publyapp/issues/2439) (front),
 [#2440](https://github.com/PublyApp/publyapp/issues/2440) (tooling),
