@@ -22,7 +22,7 @@ public static class FullAccessRoleQueries {
 		// narrows by account (scope/tenant) itself, so a tenant-scoped context (a staff route
 		// for one tenant) must not hide a staff actor's own role.
 		return dbContext.UserAccountRole
-			.IgnoreQueryFilters()
+			.IgnoreQueryFilters([AppDbContext.TenantFilterName])
 			.Where(uap => !uap.Role.IsDeleted && uap.Role.IsFullAccess);
 	}
 

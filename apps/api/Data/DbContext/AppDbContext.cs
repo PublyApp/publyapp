@@ -207,13 +207,25 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		get { return this.Set<Modules.Publishing.Entities.Publication>(); }
 	}
 
+	// The tenant filter is a NAMED filter so a deliberate cross-tenant read can switch off
+	// exactly this one (IgnoreQueryFilters([TenantFilterName])) and never a future filter.
+	public const string TenantFilterName = "Tenant";
+
 	public Guid? TenantId { get; private set; }
 
 	// Scopes this context to one tenant after construction: staff routes learn the tenant
 	// from the route only once staff authorization has run, and a job learns it from its
 	// provenance. The query filter reads TenantId per query, so every query issued after
 	// this call is filtered; nothing issued before it is affected.
+	// A context already scoped to another tenant is a bug (a mismatched header/route/job),
+	// so switching tenants throws instead of silently resolving it.
 	public void ScopeToTenant(Guid tenantId) {
+		if (this.TenantId is Guid current && current != tenantId) {
+			throw new InvalidOperationException(
+				"This context is already scoped to a different tenant."
+			);
+		}
+
 		this.TenantId = tenantId;
 	}
 
@@ -449,7 +461,10 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		// UserAccountRole gets a filter that matches the Role's tenant, keeping both
 		// entities in the relationship filtered consistently.
 		modelBuilder.Entity<UserAccountRole>()
-			.HasQueryFilter(uap => this.TenantId == null || uap.Role.TenantId == this.TenantId);
+			.HasQueryFilter(
+				AppDbContext.TenantFilterName,
+				uap => this.TenantId == null || uap.Role.TenantId == this.TenantId
+			);
 
 		// Configure other entities with generic approach
 		foreach (var entityType in modelBuilder.Model.GetEntityTypes()) {
@@ -472,7 +487,10 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 
 				// Dynamically apply the per-query tenant filter for tenant-filtered entities
 				modelBuilder.Entity(entityType.ClrType)
-					.HasQueryFilter(this._BuildTenantFilter(entityType.ClrType));
+					.HasQueryFilter(
+						AppDbContext.TenantFilterName,
+						this._BuildTenantFilter(entityType.ClrType)
+					);
 			} else if (typeof(IOptionalTenantEntity).IsAssignableFrom(entityType.ClrType)) {
 				// Set table name for optional tenant entities (no automatic filtering)
 				modelBuilder.Entity(entityType.ClrType);

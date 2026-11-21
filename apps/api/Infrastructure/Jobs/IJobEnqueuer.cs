@@ -11,8 +11,9 @@ public sealed record EnqueueOptions {
 
 	/// <summary>
 	/// The tenant whose data the job works on, when the enqueuing code is not itself
-	/// tenant-scoped (a platform job fanning out per-tenant work). Wins over the request's
-	/// tenant; the worker then opens the job's context scoped to this tenant.
+	/// tenant-scoped (a platform job fanning out per-tenant work). It must equal the request's
+	/// tenant when there is one (a mismatch throws); the worker then opens the job's context
+	/// scoped to this tenant.
 	/// </summary>
 	public Guid? TenantId { get; init; }
 }

@@ -91,7 +91,7 @@ public sealed class JobTenantScopeSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
-	public async Task ItShouldShowAJobScopedToTenantAOnlyTenantAData() {
+	public async Task ItShouldShowOnlyTenantADataWhenAJobIsScopedToTenantA() {
 		await using var seedDb = await this._NewDbAsync();
 		var (tenantA, postA) = await AppDbContextTenantFilterSpec.SeedAsync(seedDb);
 		var (_, postB) = await AppDbContextTenantFilterSpec.SeedAsync(seedDb);

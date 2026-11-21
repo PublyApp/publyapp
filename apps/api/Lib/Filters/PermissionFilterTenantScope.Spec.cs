@@ -29,10 +29,6 @@ public sealed class PermissionFilterTenantScopeSpec : IClassFixture<ApiFixture> 
 			return Task.FromResult(granted);
 		}
 
-		public Task<HashSet<string>> GetEffectivePermissionsAsync(Guid userId, Guid? tenantId = null, Guid? projectId = null) {
-			throw new NotSupportedException();
-		}
-
 		public Task<HashSet<string>> GetTenantPermissionsAsync(Guid userId, Guid tenantId) {
 			throw new NotSupportedException();
 		}
@@ -42,7 +38,15 @@ public sealed class PermissionFilterTenantScopeSpec : IClassFixture<ApiFixture> 
 		}
 	}
 
-	private async Task<(AppDbContext Db, Func<Task<List<Guid>>> Probe, ServiceProvider Provider, DefaultHttpContext Http)>
+	// Disposes the per-test request scope (and its AppDbContext connection), then the provider.
+	private sealed class Cleanup(AsyncServiceScope scope, ServiceProvider provider) : IAsyncDisposable {
+		public async ValueTask DisposeAsync() {
+			await scope.DisposeAsync();
+			await provider.DisposeAsync();
+		}
+	}
+
+	private async Task<(AppDbContext Db, Func<Task<List<Guid>>> Probe, IAsyncDisposable Cleanup, DefaultHttpContext Http)>
 	_BuildAsync(HashSet<string> granted, string? routeTenantId) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var connectionString = scope.ServiceProvider.GetRequiredService<AppDbContext>()
@@ -58,7 +62,8 @@ public sealed class PermissionFilterTenantScopeSpec : IClassFixture<ApiFixture> 
 		services.AddSingleton<IPermissionService>(new FixedPermissions(granted));
 		var provider = services.BuildServiceProvider();
 
-		var http = new DefaultHttpContext { RequestServices = provider.CreateScope().ServiceProvider };
+		var requestScope = provider.CreateAsyncScope();
+		var http = new DefaultHttpContext { RequestServices = requestScope.ServiceProvider };
 		if (routeTenantId is not null) {
 			http.Request.RouteValues["tenantId"] = routeTenantId;
 		}
@@ -66,7 +71,7 @@ public sealed class PermissionFilterTenantScopeSpec : IClassFixture<ApiFixture> 
 		auth.AccountStaff = UserAccount.CreateStaffAccount(Guid.NewGuid());
 
 		var db = http.RequestServices.GetRequiredService<AppDbContext>();
-		return (db, async () => (await db.Post.Select(p => p.Id).ToListAsync()).OfType<Guid>().ToList(), provider, http);
+		return (db, async () => (await db.Post.Select(p => p.Id).ToListAsync()).OfType<Guid>().ToList(), new Cleanup(requestScope, provider), http);
 	}
 
 	private static async Task<List<Guid>?> _RunFilterAsync(
@@ -90,15 +95,15 @@ public sealed class PermissionFilterTenantScopeSpec : IClassFixture<ApiFixture> 
 	}
 
 	[Fact]
-	public async Task ItShouldShowOnlyTheRouteTenantsDataToTheHandlerOnceStaffIsAuthorized() {
+	public async Task ItShouldShowOnlyTheRouteTenantsDataToTheHandlerWhenStaffIsAuthorized() {
 		var permission = AppPermissions.Staff.Tenants.GET;
 		await using var seedScope = this._Fixture.Factory.Services.CreateAsyncScope();
 		var seedDb = seedScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var (tenantA, postA) = await AppDbContextTenantFilterSpec.SeedAsync(seedDb);
 		var (_, postB) = await AppDbContextTenantFilterSpec.SeedAsync(seedDb);
 
-		var (_, probe, provider, http) = await this._BuildAsync([permission.Key], tenantA.ToString());
-		await using var _ = provider;
+		var (_, probe, cleanup, http) = await this._BuildAsync([permission.Key], tenantA.ToString());
+		await using var _ = cleanup;
 
 		var seen = await PermissionFilterTenantScopeSpec._RunFilterAsync(
 			PermissionFilterTenantScopeSpec._Filter(permission), http, probe
@@ -116,8 +121,8 @@ public sealed class PermissionFilterTenantScopeSpec : IClassFixture<ApiFixture> 
 			seedScope.ServiceProvider.GetRequiredService<AppDbContext>()
 		);
 
-		var (db, probe, provider, http) = await this._BuildAsync(["some.other.permission"], tenantA.ToString());
-		await using var _ = provider;
+		var (db, probe, cleanup, http) = await this._BuildAsync(["some.other.permission"], tenantA.ToString());
+		await using var _ = cleanup;
 
 		var seen = await PermissionFilterTenantScopeSpec._RunFilterAsync(
 			PermissionFilterTenantScopeSpec._Filter(permission), http, probe
@@ -132,8 +137,8 @@ public sealed class PermissionFilterTenantScopeSpec : IClassFixture<ApiFixture> 
 	[InlineData("not-a-guid")]
 	public async Task ItShouldLeaveTheContextUnscopedWithoutAValidRouteTenant(string? routeTenantId) {
 		var permission = AppPermissions.Staff.Tenants.LIST;
-		var (db, probe, provider, http) = await this._BuildAsync([permission.Key], routeTenantId);
-		await using var _ = provider;
+		var (db, probe, cleanup, http) = await this._BuildAsync([permission.Key], routeTenantId);
+		await using var _ = cleanup;
 
 		var seen = await PermissionFilterTenantScopeSpec._RunFilterAsync(
 			PermissionFilterTenantScopeSpec._Filter(permission), http, probe

@@ -227,6 +227,11 @@ public sealed class ApiFactory
 			return null;
 		}
 
+		// Mirrors ServiceRegistration: staff routes start unscoped.
+		if (httpContext.Request.Path.StartsWithSegments(Routes.Routes.Staff.Root)) {
+			return null;
+		}
+
 		var tenantIdHeader = httpContext.Request.Headers[
 			AppEnvironment.Instance.TENANT_ID_HEADER_KEY
 		].FirstOrDefault();

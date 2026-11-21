@@ -69,6 +69,27 @@ public sealed class JobEnqueuerSpec : IClassFixture<ApiFixture> {
 	}
 
 	[Fact]
+	public async Task ItShouldRejectAnExplicitTenantThatDiffersFromTheRequestTenant() {
+		var definition = JobEnqueuerSpec._NewDefinition("tenant-mismatch", priority: 100, maxAttempts: 5);
+		var requestTenant = Guid.NewGuid();
+
+		await using var dbContext = await this._CreateDbContextAsync();
+		var enqueuer = new JobEnqueuer(dbContext, new RequestAuthContext {
+			SessionToken = "spec-session",
+			UserId = Guid.NewGuid(),
+			TenantId = requestTenant.ToString()
+		});
+
+		var enqueue = () => enqueuer.EnqueueAsync(
+			definition,
+			new ExportPayload { TargetId = Guid.NewGuid() },
+			new EnqueueOptions { TenantId = Guid.NewGuid() }
+		);
+
+		await enqueue.Should().ThrowAsync<InvalidOperationException>();
+	}
+
+	[Fact]
 	public async Task ItShouldJoinTheCallersTransactionAndRollBackWithIt() {
 		var definition = JobEnqueuerSpec._NewDefinition("txn");
 

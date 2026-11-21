@@ -38,6 +38,12 @@ public static class ServiceRegistration {
 			return null;
 		}
 
+		// Staff routes never take their tenant from the header: they start unscoped, and
+		// PermissionFilter scopes them from the {tenantId} route value after authorization.
+		if (httpContext.Request.Path.StartsWithSegments(Routes.Routes.Staff.Root)) {
+			return null;
+		}
+
 		var tenantIdHeader = httpContext.Request.Headers[AppEnvironment.Instance.TENANT_ID_HEADER_KEY]
 			.FirstOrDefault();
 		if (string.IsNullOrEmpty(tenantIdHeader)) {
