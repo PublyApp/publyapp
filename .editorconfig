@@ -18,6 +18,13 @@ indent_style = space
 # C# files
 [*.cs]
 
+# ==== Member qualification (agrees with PUBLY0012: always this./Type.) ====
+# Without these the IDE defaults to "no qualification" and shows IDE0003 on correct code.
+dotnet_style_qualification_for_field = true
+dotnet_style_qualification_for_property = true
+dotnet_style_qualification_for_method = true
+dotnet_style_qualification_for_event = true
+
 # ==== Formatter style (Js/Java-style braces) ====
 csharp_new_line_before_open_brace = none
 csharp_new_line_before_else = false
