@@ -1,81 +1,39 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup } from '@testing-library/react';
-import { afterEach, describe, test, vi } from 'vitest';
-import type {
-	FakeClientCall,
-	FakeResponse,
-} from '~/__tests__/support/preload-harness';
-import {
-	type PreloadDestination,
-	widenOptions,
-} from '~/__tests__/support/preload-harness';
+
+import { vi } from 'vitest';
+import { definePickerOnlyPreloadSuite } from '~/__tests__/support/tenant-preload-suite';
 import { Route as PageRoute } from '~/routes/authed/tenant/organizations';
 
-import {
-	PICKER_RESPONSE,
-	expectPickerOnlyHoverThenClick,
-} from './_preload-test-support';
+/**
+ * #2340 — the real tenant organizations route preloads the workspace picker from the route's own query spec (see `tenant-preload-suite.tsx` for the harness rationale).
+ */
 
-const mocks = vi.hoisted(() => ({
-	respond: vi.fn((_call: FakeClientCall): FakeResponse => ({})),
-}));
+vi.mock('~/lib/api-client/client-manager', () =>
+	import('~/__tests__/support/preload-mocks').then((m) =>
+		m.tenantClientManagerModule(),
+	),
+);
+vi.mock('~/lib/hooks/use-logout', () =>
+	import('~/__tests__/support/preload-mocks').then((m) => m.logoutHookModule()),
+);
+vi.mock('~/components/error-views/LogoutRedirect', () =>
+	import('~/__tests__/support/preload-mocks').then((m) =>
+		m.logoutRedirectModule(),
+	),
+);
+vi.mock('react-i18next', (importOriginal) =>
+	import('~/__tests__/support/preload-mocks').then((m) =>
+		m.identityI18nModule(importOriginal),
+	),
+);
 
-vi.mock('~/lib/api-client/client-manager', async () => {
-	const actual = await vi.importActual<
-		typeof import('~/lib/api-client/client-manager')
-	>('~/lib/api-client/client-manager');
-	const { buildTenantClientManager } =
-		await import('~/routes/authed/tenant/_preload-test-client');
-	const manager = buildTenantClientManager((call) => mocks.respond(call));
-
-	return { ...actual, getClientManager: () => manager };
-});
-
-vi.mock('~/lib/hooks/use-logout', () => ({
-	useLogout: () => ({ logout: vi.fn() }),
-}));
-
-vi.mock('~/components/error-views/LogoutRedirect', () => ({
-	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
-}));
-
-vi.mock('react-i18next', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('react-i18next')>();
-
-	return {
-		...actual,
-		useTranslation: () => ({
-			t: (key: string) => key,
-			i18n: { language: 'en' },
-		}),
-	};
-});
-
-const LINK_LABEL = 'open organizations';
-
-const destination = widenOptions<PreloadDestination>({
+definePickerOnlyPreloadSuite({
+	title: 'tenant organizations',
+	route: PageRoute,
 	linkTo: '/tenant/organizations',
 	path: '/tenant/organizations',
-	options: PageRoute.options,
-});
-
-describe('#2340 tenant organizations route preload', () => {
-	afterEach(() => {
-		cleanup();
-		vi.restoreAllMocks();
-		mocks.respond.mockReset();
-		window.localStorage.clear();
-	});
-
-	test('hovering with a cold picker cache warms the picker once and the click reads it without a new request', async () => {
-		mocks.respond.mockReturnValue(PICKER_RESPONSE);
-		await expectPickerOnlyHoverThenClick({
-			destination,
-			linkLabel: LINK_LABEL,
-			pageTestId: 'tenant-organizations-page',
-			respond: mocks.respond,
-		});
-	});
+	linkLabel: 'open organizations',
+	pageTestId: 'tenant-organizations-page',
 });
