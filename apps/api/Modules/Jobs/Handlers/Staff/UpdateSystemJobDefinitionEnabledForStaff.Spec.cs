@@ -231,8 +231,7 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 	) {
 		var jobKey = $"spec.a5.sys-enabled.{Guid.NewGuid():N}";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var definition = new SystemJobDefinition {
 			JobKey = jobKey,
@@ -241,8 +240,8 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 			IsEnabled = isEnabled,
 			Description = "A5 endpoint spec row",
 		};
-		dbContext.SystemJobDefinition.Add(definition);
-		_ = await dbContext.SaveChangesAsync();
+		db.Context.SystemJobDefinition.Add(definition);
+		_ = await db.Context.SaveChangesAsync();
 
 		var id = definition.Id;
 		if (id is null) {
@@ -256,10 +255,9 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 	// The seeder owns the protected key row; reuse it when present so the unique
 	// ux_system_job_definitions_job_key index never trips.
 	private async Task<string> _GetExistingOrSeedAsync(string jobKey) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var existing = await dbContext.SystemJobDefinition
+		var existing = await db.Context.SystemJobDefinition
 			.AsNoTracking()
 			.SingleOrDefaultAsync(row => row.JobKey == jobKey);
 		if (existing?.Id is not null) {
@@ -273,8 +271,8 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 			IsEnabled = true,
 			Description = "A5 spec fallback seed",
 		};
-		dbContext.SystemJobDefinition.Add(definition);
-		_ = await dbContext.SaveChangesAsync();
+		db.Context.SystemJobDefinition.Add(definition);
+		_ = await db.Context.SaveChangesAsync();
 
 		var id = definition.Id;
 		if (id is null) {
@@ -287,9 +285,8 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 	}
 
 	private async Task _CleanupAsync(string jobKey) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await dbContext.Database.ExecuteSqlAsync(
+		await using var db = this._Fixture.OpenDb();
+		await db.Context.Database.ExecuteSqlAsync(
 			$"""
 			DELETE FROM audit_logs
 			WHERE target_id IN (
@@ -297,10 +294,10 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 			)
 			"""
 		);
-		await dbContext.Database.ExecuteSqlAsync(
+		await db.Context.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_occurrences WHERE job_key = {jobKey}"
 		);
-		await dbContext.Database.ExecuteSqlAsync(
+		await db.Context.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_definitions WHERE job_key = {jobKey}"
 		);
 	}
@@ -327,8 +324,7 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-sys-enabled-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -339,14 +335,14 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 			Status = UserStatus.Active,
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(staffAccount);
+		_ = await db.Context.SaveChangesAsync();
 
 		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);

@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -173,9 +171,7 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 		string action,
 		DateTime createdAt
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var log = new AuditLog {
 			UserId = userId,
@@ -188,32 +184,30 @@ public sealed class FindAuditLogsCursorBehaviorSpec
 		// Insert first (interceptor stamps CreatedAt/UpdatedAt = now), then
 		// re-fetch and overwrite CreatedAt as a Modified row. On Modified the
 		// interceptor only touches UpdatedAt, so the seeded CreatedAt sticks.
-		await dbContext.AuditLog.AddAsync(log);
-		await dbContext.SaveChangesAsync();
+		await db.Context.AuditLog.AddAsync(log);
+		await db.Context.SaveChangesAsync();
 		var id = log.GetRequiredId();
 
-		var tracked = await dbContext.AuditLog
+		var tracked = await db.Context.AuditLog
 			.Where(a => a.Id == id)
 			.FirstAsync();
 		tracked.CreatedAt = createdAt;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return id;
 	}
 
 	private async Task _SwapAuditLogIdsAsync(Guid idA, Guid idB) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var temp = Guid.NewGuid();
 		// Three-step swap via a temp Id so we never collide on the PK.
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE audit_logs SET id = {0} WHERE id = {1}",
 			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE audit_logs SET id = {0} WHERE id = {1}",
 			idA, idB);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE audit_logs SET id = {0} WHERE id = {1}",
 			idB, temp);
 	}

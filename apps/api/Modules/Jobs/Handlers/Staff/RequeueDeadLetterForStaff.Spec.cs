@@ -144,9 +144,8 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 
 		try {
 			// Stamp the OUT pair first: the row has already been requeued once.
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-			await dbContext.Database.ExecuteSqlAsync(
+			await using var db = this._Fixture.OpenDb();
+			await db.Context.Database.ExecuteSqlAsync(
 				$"""
 				UPDATE job_dead_letter
 				SET requeued_as_job_id = {Guid.NewGuid()}, requeued_at = now()
@@ -213,10 +212,9 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 	private async Task<string> _InsertDeadLetterAsync() {
 		var jobType = $"spec.a5.requeue.{Guid.NewGuid():N}";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		await dbContext.Database.ExecuteSqlAsync(
+		await db.Context.Database.ExecuteSqlAsync(
 			$"""
 			INSERT INTO job_dead_letter
 				(original_job_id, job_type, payload, priority, max_attempts, attempts,
@@ -243,21 +241,20 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _CleanupAsync(string deadLetterId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await dbContext.Database.ExecuteSqlAsync(
+		await using var db = this._Fixture.OpenDb();
+		await db.Context.Database.ExecuteSqlAsync(
 			$"""
 			DELETE FROM job_queue WHERE requeued_from_dead_letter_id = {Guid.Parse(deadLetterId)}
 			"""
 		);
-		await dbContext.Database.ExecuteSqlAsync(
+		await db.Context.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_dead_letter_events WHERE dead_letter_id = {Guid.Parse(deadLetterId)}"
 		);
-		await dbContext.Database.ExecuteSqlAsync(
+		await db.Context.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_dead_letter WHERE id = {Guid.Parse(deadLetterId)}"
 		);
 		foreach (var jobId in this._ProducedJobIds) {
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"DELETE FROM job_queue WHERE id = {jobId}"
 			);
 		}
@@ -286,8 +283,7 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-requeue-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -298,14 +294,14 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 			Status = UserStatus.Active,
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(staffAccount);
+		_ = await db.Context.SaveChangesAsync();
 
 		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);

@@ -1,10 +1,9 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
 
@@ -21,10 +20,9 @@ public sealed class AddSystemJobSweepIndexesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldApplyEverySweepAndMonitorIndex() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var indexNames = await dbContext.Database.SqlQuery<string>(
+		var indexNames = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT indexname AS "Value"
 			FROM pg_indexes
@@ -41,7 +39,7 @@ public sealed class AddSystemJobSweepIndexesSpec : IClassFixture<ApiFixture> {
 			"ix_email_log_permanently_failed_occurred_at",
 		]);
 
-		var originalJobIdIndex = dbContext.Model
+		var originalJobIdIndex = db.Context.Model
 			.FindEntityType(typeof(JobDeadLetter))
 			?.GetIndexes()
 			.SingleOrDefault(index =>
@@ -55,7 +53,7 @@ public sealed class AddSystemJobSweepIndexesSpec : IClassFixture<ApiFixture> {
 		originalJobIdIndex.Properties.Select(property => property.Name)
 			.Should().Equal(nameof(JobDeadLetter.OriginalJobId));
 
-		var originalJobIdDefinition = await dbContext.Database.SqlQuery<string>(
+		var originalJobIdDefinition = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT indexdef AS "Value"
 			FROM pg_indexes
@@ -66,7 +64,7 @@ public sealed class AddSystemJobSweepIndexesSpec : IClassFixture<ApiFixture> {
 
 		originalJobIdDefinition.Should().Contain("(original_job_id)");
 
-		var partialDefinition = await dbContext.Database.SqlQuery<string>(
+		var partialDefinition = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT indexdef AS "Value"
 			FROM pg_indexes

@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -60,10 +58,7 @@ public sealed class FindTenantActivityForStaffSpec
 	private async Task<Guid> _SeedTenantAsync(
 		string namePrefix
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = $"{namePrefix} {Guid.NewGuid():N}",
@@ -71,8 +66,8 @@ public sealed class FindTenantActivityForStaffSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 20,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
 		return tenant.GetRequiredId();
 	}
@@ -82,10 +77,7 @@ public sealed class FindTenantActivityForStaffSpec
 		string firstName = "Member",
 		string lastName = "Fixture"
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = $"tenant-activity-{Guid.NewGuid():N}@example.com",
@@ -97,14 +89,14 @@ public sealed class FindTenantActivityForStaffSpec
 			Status = UserStatus.Active,
 			IsVerified = true,
 		};
-		await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 
 		var account = UserAccount.CreateTenantAccount(
 			user.GetRequiredId(), tenantId
 		);
-		await dbContext.UserAccount.AddAsync(account);
-		await dbContext.SaveChangesAsync();
+		await db.Context.UserAccount.AddAsync(account);
+		await db.Context.SaveChangesAsync();
 
 		return user.GetRequiredId();
 	}
@@ -124,11 +116,11 @@ public sealed class FindTenantActivityForStaffSpec
 
 	private async Task<FindTenantActivityResponseShape>
 		_GetActivityAsync(string url, string token) {
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+		using var response = await this._Http.SendWithSessionAsync(
+			HttpMethod.Get,
+			url,
+			token
+		);
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
 		var result = await response.Content.Required()
@@ -236,19 +228,16 @@ public sealed class FindTenantActivityForStaffSpec
 		// membership and soft-delete the identity, then require the
 		// historical actor's name to persist (resolved off the
 		// global user id, ignoring soft-delete filters).
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-		var account = await dbContext.UserAccount
+		await using var db = this._Fixture.OpenDb();
+		var account = await db.Context.UserAccount
 			.SingleAsync(a =>
 				a.UserId == member && a.TenantId == tenantId);
-		dbContext.UserAccount.Remove(account);
-		await dbContext.SaveChangesAsync();
-		var ghostUser = await dbContext.User
+		db.Context.UserAccount.Remove(account);
+		await db.Context.SaveChangesAsync();
+		var ghostUser = await db.Context.User
 			.SingleAsync(u => u.Id == member);
 		ghostUser.IsDeleted = true;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		var result = await this._GetActivityAsync(
 			FindTenantActivityForStaffSpec._GetUrl(tenantId.ToString()), token
@@ -273,14 +262,11 @@ public sealed class FindTenantActivityForStaffSpec
 			member, AuditActions.PostCreated
 		);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-		var entry = await dbContext.AuditLog
+		await using var db = this._Fixture.OpenDb();
+		var entry = await db.Context.AuditLog
 			.SingleAsync(l => l.Id == entryId);
 		entry.IsDeleted = true;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		var result = await this._GetActivityAsync(
 			FindTenantActivityForStaffSpec._GetUrl(tenantId.ToString()), token
@@ -296,10 +282,11 @@ public sealed class FindTenantActivityForStaffSpec
 		var token = await this._LoginStaffAsync();
 		var url = FindTenantActivityForStaffSpec._GetUrl(Guid.NewGuid().ToString());
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(token);
-		using var response = await this._Http.SendAsync(request);
+		using var response = await this._Http.SendWithSessionAsync(
+			HttpMethod.Get,
+			url,
+			token
+		);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
@@ -311,10 +298,11 @@ public sealed class FindTenantActivityForStaffSpec
 		var token = await this._LoginStaffAsync();
 		var url = FindTenantActivityForStaffSpec._GetUrl("not-a-guid");
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(token);
-		using var response = await this._Http.SendAsync(request);
+		using var response = await this._Http.SendWithSessionAsync(
+			HttpMethod.Get,
+			url,
+			token
+		);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -336,16 +324,14 @@ public sealed class FindTenantActivityForStaffSpec
 	[Fact]
 	public async Task
 		ItShouldReturnForbiddenForTenantScopedUser() {
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var url = FindTenantActivityForStaffSpec._GetUrl(Guid.NewGuid().ToString());
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(tenantToken);
-		using var response = await this._Http.SendAsync(request);
+		using var response = await this._Http.SendWithSessionAsync(
+			HttpMethod.Get,
+			url,
+			tenantToken
+		);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
@@ -399,11 +385,11 @@ public sealed class FindTenantActivityForStaffSpec
 		var token = await this._LoginStaffAsync();
 		var tenantId = await this._SeedTenantAsync("Activity Cursor");
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindTenantActivityForStaffSpec._GetUrl(tenantId.ToString()) + "?cursor=nope"
-		).WithSessionToken(token);
-		using var response = await this._Http.SendAsync(request);
+			FindTenantActivityForStaffSpec._GetUrl(tenantId.ToString()) + "?cursor=nope",
+			token
+		);
 
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
@@ -445,10 +431,11 @@ public sealed class FindTenantActivityForStaffSpec
 			HttpMethod.Delete,
 		};
 		foreach (var method in mutatingMethods) {
-			using var request = new HttpRequestMessage(
-				method, url
-			).WithSessionToken(token);
-			using var response = await this._Http.SendAsync(request);
+			using var response = await this._Http.SendWithSessionAsync(
+				method,
+				url,
+				token
+			);
 
 			response.StatusCode.Should().NotBe(
 				HttpStatusCode.OK,

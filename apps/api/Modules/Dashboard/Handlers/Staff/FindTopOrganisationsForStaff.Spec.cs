@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
@@ -376,11 +375,7 @@ public sealed class FindTopOrganisationsForStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("size");
+		await response.ShouldHaveValidationErrorAsync("size");
 	}
 
 	[Fact]

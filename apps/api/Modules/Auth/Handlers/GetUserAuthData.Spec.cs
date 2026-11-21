@@ -5,9 +5,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -48,24 +46,17 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		// Seeded Acme admin holds the tenant `Owner` full-access role (the #861
 		// scenario proven in TenantPermissionFilter.Spec.cs): the effective set comes
 		// from the full-access role, which this endpoint materialises as "*".
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
 			SeedConstants.Tenants.AcmeName
 		);
 
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var acmeAdminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			$"{GetUserAuthDataSpec._UserAuthDataEndpoint}?tenant_id={acmeId}"
-		)
-			.WithSessionToken(acmeAdminToken);
-		using var response = await this._Http.SendAsync(request);
+			$"{GetUserAuthDataSpec._UserAuthDataEndpoint}?tenant_id={acmeId}",
+			acmeAdminToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -80,10 +71,7 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldExposeRoleDerivedKeysWithoutWildcardForNonAdminHolder() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
 			SeedConstants.Tenants.AcmeName
 		);
 
@@ -107,12 +95,11 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 				TestConstants.SeedPassword
 			);
 
-			using var request = new HttpRequestMessage(
+			using var response = await this._Http.SendWithSessionAsync(
 				HttpMethod.Get,
-				$"{GetUserAuthDataSpec._UserAuthDataEndpoint}?tenant_id={acmeId}"
-			)
-				.WithSessionToken(acmeUserToken);
-			using var response = await this._Http.SendAsync(request);
+				$"{GetUserAuthDataSpec._UserAuthDataEndpoint}?tenant_id={acmeId}",
+				acmeUserToken
+			);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -133,14 +120,13 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		// The endpoint sits behind session auth only: without ?tenant_id= there
 		// is no scope to resolve permissions in, so the payload gates everything
 		// closed with an empty array (never null).
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var acmeAdminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
-		using var request = new HttpRequestMessage(HttpMethod.Get, GetUserAuthDataSpec._UserAuthDataEndpoint)
-			.WithSessionToken(acmeAdminToken);
-		using var response = await this._Http.SendAsync(request);
+		using var response = await this._Http.SendWithSessionAsync(
+			HttpMethod.Get,
+			GetUserAuthDataSpec._UserAuthDataEndpoint,
+			acmeAdminToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -154,10 +140,7 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		Guid tenantId,
 		IEnumerable<string> permissionKeys
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(
 			tenantId,
@@ -166,13 +149,13 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		);
 		role.ValidateRoleType();
 
-		_ = await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		_ = await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		var roleId = role.GetRequiredId();
 
 		foreach (var permissionKey in permissionKeys) {
-			_ = await dbContext.RolePermission.AddAsync(
+			_ = await db.Context.RolePermission.AddAsync(
 				new RolePermission {
 					RoleId = roleId,
 					PermissionKey = permissionKey
@@ -180,7 +163,7 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 			);
 		}
 
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return roleId;
 	}
@@ -192,13 +175,10 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 	) {
 		var trimmedEmail = email.Trim();
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenantUserAccounts = await (
-			from ua in dbContext.UserAccount
+			from ua in db.Context.UserAccount
 			where ua.Scope == AccountScope.Tenant
 				&& ua.TenantId == tenantId
 				&& !ua.IsDeleted
@@ -224,7 +204,7 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 		}
 
 		foreach (var roleId in roleIds) {
-			_ = await dbContext.UserAccountRole.AddAsync(
+			_ = await db.Context.UserAccountRole.AddAsync(
 				new UserAccountRole {
 					UserAccountId = tenantUserAccount.Id.Value,
 					RoleId = roleId
@@ -232,7 +212,7 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 			);
 		}
 
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _CleanupTenantRoleArtifactsAsync(
@@ -242,43 +222,40 @@ public sealed class GetUserAuthDataSpec : IClassFixture<ApiFixture> {
 			return;
 		}
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var roleIdList = roleIds.ToList();
 
 		var linksToRemove = await (
-			from uap in dbContext.UserAccountRole
+			from uap in db.Context.UserAccountRole
 			where roleIdList.Contains(uap.RoleId)
 			select uap
 		).ToListAsync();
 
 		if (linksToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(linksToRemove);
+			db.Context.ForceHardDeleteRange(linksToRemove);
 		}
 
 		var permissionsToRemove = await (
-			from pp in dbContext.RolePermission
+			from pp in db.Context.RolePermission
 			where roleIdList.Contains(pp.RoleId)
 			select pp
 		).ToListAsync();
 
 		if (permissionsToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(permissionsToRemove);
+			db.Context.ForceHardDeleteRange(permissionsToRemove);
 		}
 
 		var rolesToRemove = (await (
-			from p in dbContext.Role
+			from p in db.Context.Role
 			select p
 		).ToListAsync())
 			.Where(role => roleIdList.Contains(role.GetRequiredId()))
 			.ToList();
 
 		if (rolesToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(rolesToRemove);
-			await dbContext.SaveChangesAsync();
+			db.Context.ForceHardDeleteRange(rolesToRemove);
+			await db.Context.SaveChangesAsync();
 		}
 	}
 

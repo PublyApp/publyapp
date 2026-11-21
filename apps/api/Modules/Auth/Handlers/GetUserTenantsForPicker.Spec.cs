@@ -5,9 +5,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -62,14 +60,9 @@ public sealed class GetUserTenantsForPickerSpec
 	[Fact]
 	public async Task
 	ItShouldFlagSuspendedStateWhenOneSuspended() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// Suspend Acme
 		using var suspend =
@@ -120,14 +113,9 @@ public sealed class GetUserTenantsForPickerSpec
 	[Fact]
 	public async Task
 	ItShouldShowAllActiveAfterReactivation() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// Suspend
 		using var suspend =
@@ -182,10 +170,7 @@ public sealed class GetUserTenantsForPickerSpec
 	public async Task
 	ItShouldReturnOneActiveForSingleTenantUser() {
 		// Acme admin has only 1 tenant
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var acmeAdminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var result = await this._Http.GetOkAsync<PickerResponse>(
 			Routes.Auth.GetUserTenantsForPicker,
@@ -202,14 +187,9 @@ public sealed class GetUserTenantsForPickerSpec
 	[Fact]
 	public async Task
 	ItShouldNotLeakStaffInternalNotesToTenantScope() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		using var setNotes =
 			await TenantTestHelper.UpdateTenantAsync(
@@ -305,12 +285,9 @@ public sealed class GetUserTenantsForPickerSpec
 	) {
 		var normalizedEmail = email.Trim().ToLowerInvariant();
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var updatedCount = await dbContext.User
+		var updatedCount = await db.Context.User
 			.Where(u => u.Email == normalizedEmail)
 			.ExecuteUpdateAsync(setters => setters
 				.SetProperty(
@@ -375,10 +352,7 @@ public sealed class GetUserTenantsForPickerSpec
 		string staffToken,
 		int tenantCount
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var email = $"all-tenants-deleted-{Guid.NewGuid():N}@example.com";
 		var user = new User {
@@ -391,8 +365,8 @@ public sealed class GetUserTenantsForPickerSpec
 			Status = UserStatus.Active,
 			IsVerified = true,
 		};
-		await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 		var userId = user.GetRequiredId();
 
 		var tenantIds = new List<Guid>();
@@ -403,16 +377,16 @@ public sealed class GetUserTenantsForPickerSpec
 				Status = TenantStatus.Active,
 				MaxUsers = 10,
 			};
-			await dbContext.Tenant.AddAsync(tenant);
-			await dbContext.SaveChangesAsync();
+			await db.Context.Tenant.AddAsync(tenant);
+			await db.Context.SaveChangesAsync();
 
-			await dbContext.UserAccount.AddAsync(
+			await db.Context.UserAccount.AddAsync(
 				UserAccount.CreateTenantAccount(
 					userId,
 					tenant.GetRequiredId()
 				)
 			);
-			await dbContext.SaveChangesAsync();
+			await db.Context.SaveChangesAsync();
 			tenantIds.Add(tenant.GetRequiredId());
 		}
 
@@ -459,10 +433,7 @@ public sealed class GetUserTenantsForPickerSpec
 	}
 
 	private async Task<string> _SeedUserWithoutMembershipsAsync() {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var email = $"never-invited-{Guid.NewGuid():N}@example.com";
 		var user = new User {
@@ -475,8 +446,8 @@ public sealed class GetUserTenantsForPickerSpec
 			Status = UserStatus.Active,
 			IsVerified = true,
 		};
-		await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 
 		return email;
 	}
@@ -508,20 +479,17 @@ public sealed class GetUserTenantsForPickerSpec
 			}
 
 			// Second, LIVE membership on a seeded shared tenant.
-			await using var scope =
-				this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider
-				.GetRequiredService<AppDbContext>();
-			var acme = await dbContext.Tenant.FirstAsync(t =>
+			await using var db = this._Fixture.OpenDb();
+			var acme = await db.Context.Tenant.FirstAsync(t =>
 				t.Name == SeedConstants.Tenants.AcmeName);
-			var user = await dbContext.User.FirstAsync(u => u.Email == email);
-			await dbContext.UserAccount.AddAsync(
+			var user = await db.Context.User.FirstAsync(u => u.Email == email);
+			await db.Context.UserAccount.AddAsync(
 				UserAccount.CreateTenantAccount(
 					user.GetRequiredId(),
 					acme.GetRequiredId()
 				)
 			);
-			await dbContext.SaveChangesAsync();
+			await db.Context.SaveChangesAsync();
 
 			var token = await this._AuthClient.LoginAsync(
 				email,
@@ -548,12 +516,9 @@ public sealed class GetUserTenantsForPickerSpec
 	}
 
 	private async Task _DeleteSeededPickerUserAsync(string email) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var seededUsers = await dbContext.User
+		var seededUsers = await db.Context.User
 			.Where(u => u.Email == email)
 			.ToListAsync();
 		if (seededUsers.Count != 1) {
@@ -563,22 +528,22 @@ public sealed class GetUserTenantsForPickerSpec
 		}
 		var seededUser = seededUsers[0];
 
-		await dbContext.Session
+		await db.Context.Session
 			.Where(s => s.UserId == seededUser.Id)
 			.ExecuteDeleteAsync();
 		// No count assertion on accounts: the shared cleanup also serves the
 		// never-invited arm (#258 round 2), which legitimately has zero
 		// memberships. Tenants stay asserted — both arms create them or none.
-		await dbContext.UserAccount
+		await db.Context.UserAccount
 			.Where(ua => ua.UserId == seededUser.Id)
 			.ExecuteDeleteAsync();
 		// The never-invited arm (#258 round 2) seeds a user with no tenants, so
 		// this bulk delete may legitimately remove zero rows. Only the
 		// all-tenants-deleted and mixed arms seed "All Deleted Picker" tenants.
-		await dbContext.Tenant
+		await db.Context.Tenant
 			.Where(t => t.Name.StartsWith("All Deleted Picker "))
 			.ExecuteDeleteAsync();
-		await dbContext.User.Where(u => u.Email == email)
+		await db.Context.User.Where(u => u.Email == email)
 			.ExecuteDeleteAsync();
 	}
 

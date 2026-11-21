@@ -164,17 +164,17 @@ public sealed class AnonymousAuthRateLimitingSpec
 		var authClient = new TestAuthClient(client);
 		var token = await authClient.LoginAsStaffAdminAsync();
 
-		using var firstRequest = new HttpRequestMessage(
+		using var firstResponse = await client.SendWithSessionAsync(
 			HttpMethod.Get,
-			AppRoutes.Auth.GetUserAuthData
-		).WithSessionToken(token);
-		using var firstResponse = await client.SendAsync(firstRequest);
+			AppRoutes.Auth.GetUserAuthData,
+			token
+		);
 
-		using var secondRequest = new HttpRequestMessage(
+		using var secondResponse = await client.SendWithSessionAsync(
 			HttpMethod.Get,
-			AppRoutes.Auth.GetUserAuthData
-		).WithSessionToken(token);
-		using var secondResponse = await client.SendAsync(secondRequest);
+			AppRoutes.Auth.GetUserAuthData,
+			token
+		);
 
 		firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		secondResponse.StatusCode.Should().Be(HttpStatusCode.OK);

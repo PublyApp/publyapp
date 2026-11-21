@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
@@ -47,10 +45,7 @@ public sealed class ResetPasswordRevokesSessionsSpec
 	private async Task<string> _CreateVerifiedUserAsync() {
 		var email = $"reset-{Guid.NewGuid():N}@example.com";
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -63,8 +58,8 @@ public sealed class ResetPasswordRevokesSessionsSpec
 			Status = UserStatus.Active,
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		return email;
 	}
@@ -77,12 +72,9 @@ public sealed class ResetPasswordRevokesSessionsSpec
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var token = await dbContext.User
+		var token = await db.Context.User
 			.AsNoTracking()
 			.Where(user => user.Email == email)
 			.Select(user => user.PasswordResetToken)
@@ -115,12 +107,11 @@ public sealed class ResetPasswordRevokesSessionsSpec
 	}
 
 	private async Task _AssertTokenIsDeadAsync(string sessionToken) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			AppRoutes.Auth.GetUserAuthData
-		).WithSessionToken(sessionToken);
-
-		using var response = await this._Http.SendAsync(request);
+			AppRoutes.Auth.GetUserAuthData,
+			sessionToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
 	}

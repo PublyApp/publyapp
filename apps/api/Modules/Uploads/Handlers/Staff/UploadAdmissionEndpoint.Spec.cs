@@ -130,9 +130,8 @@ public sealed class UploadAdmissionEndpointSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<int> _CountUploadAuditsAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await dbContext.AuditLog.CountAsync(
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.AuditLog.CountAsync(
 			log => log.Action == AuditActions.UploadCreated
 		);
 	}
@@ -237,18 +236,16 @@ public sealed class UploadAdmissionConfiguredBudgetEndpointSpec : IClassFixture<
 	}
 
 	private async Task _RetuneAllBudgetsAsync(long maxBytes) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await dbContext.Database.ExecuteSqlAsync(
+		await using var db = this._Fixture.OpenDb();
+		await db.Context.Database.ExecuteSqlAsync(
 			$"UPDATE upload_budgets SET max_bytes = {maxBytes}",
 			CancellationToken.None
 		);
 	}
 
 	private async Task<int> _CountUploadAuditsAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await dbContext.AuditLog.CountAsync(
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.AuditLog.CountAsync(
 			log => log.Action == AuditActions.UploadCreated
 		);
 	}

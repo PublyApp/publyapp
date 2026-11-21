@@ -120,10 +120,7 @@ public sealed class FindTenantPermissionsSpec
 	public async Task
 	ItShouldReturnForbiddenForNonStaffUser() {
 		var sessionToken =
-			await this._AuthClient.LoginAsync(
-				TestConstants.AcmeAdminEmail,
-				TestConstants.SeedPassword
-			);
+			await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,

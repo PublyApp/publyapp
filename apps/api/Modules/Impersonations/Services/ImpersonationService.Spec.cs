@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.Auth.Entities;
 using PublyApp.Api.Modules.Auth.Jobs;
@@ -30,10 +31,9 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldRollbackSessionAndAuditWhenAuditInsertFails() {
 		var (tenantId, sessionUserId) = await this._SeedTenantUserAsync();
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var service = new ImpersonationService(
-			dbContext,
+			db.Context,
 			new Microsoft.AspNetCore.Http.HttpContextAccessor(),
 			NullLogger<ImpersonationService>.Instance
 		);
@@ -68,10 +68,9 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 		var (tenantId, sessionUserId) = await this._SeedTenantUserAsync();
 		var staffUserId = await this._SeedStaffActorAsync();
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var service = new ImpersonationService(
-			dbContext,
+			db.Context,
 			new Microsoft.AspNetCore.Http.HttpContextAccessor(),
 			NullLogger<ImpersonationService>.Instance
 		);
