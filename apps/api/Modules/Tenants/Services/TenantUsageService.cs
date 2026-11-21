@@ -85,8 +85,8 @@ public class TenantUsageService : ITenantUsageService {
 		// soft-deleted, so the number never drifts from the tenant users list.
 		var usersTotal = await this.UsersTotalQuery(tenantId).CountAsync(cancellationToken);
 		var usersActive = await this.UsersActiveQuery(tenantId).CountAsync(cancellationToken);
-		var projectsCount = await this.ProjectsCountQuery(tenantId).CountAsync(cancellationToken);
-		var scheduledPublicationsCount = await this.ScheduledPublicationsCountQuery(tenantId)
+		var projectsCount = await this.ProjectsCountQuery().CountAsync(cancellationToken);
+		var scheduledPublicationsCount = await this.ScheduledPublicationsCountQuery()
 			.CountAsync(cancellationToken);
 
 		return new TenantUsageSnapshot {
@@ -157,13 +157,10 @@ public class TenantUsageService : ITenantUsageService {
 	/// Returns the raw <c>ProjectsCount</c> query so tests can instrument it
 	/// directly. Excludes soft-deleted projects.
 	/// </summary>
-	protected internal IQueryable<Project> ProjectsCountQuery(
-		Guid tenantId
-	) {
+	protected internal IQueryable<Project> ProjectsCountQuery() {
 		return (
 			from project in this._DbContext.Project.AsNoTracking()
-			where project.TenantId == tenantId
-				&& !project.IsDeleted
+			where !project.IsDeleted
 			select project
 		);
 	}
@@ -172,13 +169,10 @@ public class TenantUsageService : ITenantUsageService {
 	/// Returns the raw <c>ScheduledPublicationsCount</c> query so tests can
 	/// instrument it directly. Excludes soft-deleted publications.
 	/// </summary>
-	protected internal IQueryable<Publication> ScheduledPublicationsCountQuery(
-		Guid tenantId
-	) {
+	protected internal IQueryable<Publication> ScheduledPublicationsCountQuery() {
 		return (
 			from publication in this._DbContext.Publication.AsNoTracking()
-			where publication.TenantId == tenantId
-				&& !publication.IsDeleted
+			where !publication.IsDeleted
 				&& publication.Status == PublicationStatus.Scheduled
 			select publication
 		);

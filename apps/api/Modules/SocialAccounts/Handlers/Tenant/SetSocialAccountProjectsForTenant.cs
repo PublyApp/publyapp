@@ -66,7 +66,7 @@ public sealed class SetSocialAccountProjectsForTenant {
 		var projectIds = body.GetProjectIds();
 
 		var serviceResult = await socialAccountService.SetProjectsForTenantAsync(
-			tenantId, accountId, projectIds, cancellationToken
+			accountId, projectIds, cancellationToken
 		);
 
 		if (serviceResult is SetSocialAccountProjectsResult.NotFound) {

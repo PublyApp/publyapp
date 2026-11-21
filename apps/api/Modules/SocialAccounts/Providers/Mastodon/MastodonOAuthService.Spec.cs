@@ -173,7 +173,14 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 		var state = MastodonOAuthServiceSpec._StateOf(await h.Service.StartAsync(h.TenantId, h.UserId, "foreign.example", default));
 
 		var otherUser = await h.Service.CompleteAsync(h.TenantId, Guid.NewGuid(), "c", state, default);
-		var otherTenant = await h.Service.CompleteAsync(Guid.NewGuid(), h.UserId, "c", state, default);
+		// A request of another tenant runs on a context scoped to that tenant (#2460):
+		// the tenant filter alone hides this state from it.
+		var foreignTenantId = Guid.NewGuid();
+		await using var foreignScope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var foreignDb = foreignScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		foreignDb.ScopeToTenant(foreignTenantId);
+		var foreignService = new MastodonOAuthService(foreignDb, h.Protector, h.Client);
+		var otherTenant = await foreignService.CompleteAsync(foreignTenantId, h.UserId, "c", state, default);
 		var unknown = await h.Service.CompleteAsync(h.TenantId, h.UserId, "c", "not-a-state", default);
 		var genuine = await h.Service.CompleteAsync(h.TenantId, h.UserId, "c", state, default);
 
@@ -274,7 +281,7 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 		MastodonCredentials.Unprotect(h.Protector, account.ProtectedCredentials).Should().BeNull();
 		var session = await new MastodonSessionProvider(h.Db, h.Protector).OpenSessionAsync(account.GetRequiredId(), default);
 		session.Should().BeOfType<SocialSessionResult.Opened>().Which.Session.AccessJwt.Should().Be("access-token-1");
-		(await h.Service.PrepareRevocationAsync(h.TenantId, account.GetRequiredId(), default)).Should().NotBeNull();
+		(await h.Service.PrepareRevocationAsync(account.GetRequiredId(), default)).Should().NotBeNull();
 	}
 
 	[Fact]
@@ -687,14 +694,14 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 		await using var _ = scope;
 		var connected = await MastodonOAuthServiceSpec._ConnectAsync(h, "revoke.example");
 
-		var revocation = await h.Service.PrepareRevocationAsync(h.TenantId, connected.Account.GetRequiredId(), default);
+		var revocation = await h.Service.PrepareRevocationAsync(connected.Account.GetRequiredId(), default);
 		// The local disconnect erases the credentials FIRST; the prepared revoke still works.
 		connected.Account.ProtectedCredentials = string.Empty;
 		await h.Db.SaveChangesAsync();
 		await h.Service.RevokeBestEffortAsync(revocation, default);
 
 		h.Client.Calls.Should().Contain("revoke revoke.example access-token-1 client-secret");
-		(await h.Service.PrepareRevocationAsync(h.TenantId, connected.Account.GetRequiredId(), default)).Should().BeNull();
+		(await h.Service.PrepareRevocationAsync(connected.Account.GetRequiredId(), default)).Should().BeNull();
 	}
 
 	[Fact]
@@ -702,7 +709,7 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 		var (h, scope) = await this._NewAsync();
 		await using var _ = scope;
 		var connected = await MastodonOAuthServiceSpec._ConnectAsync(h, "down.example");
-		var revocation = await h.Service.PrepareRevocationAsync(h.TenantId, connected.Account.GetRequiredId(), default);
+		var revocation = await h.Service.PrepareRevocationAsync(connected.Account.GetRequiredId(), default);
 		h.Client.RevokeFailure = new HttpRequestException("down");
 
 		var act = () => h.Service.RevokeBestEffortAsync(revocation, default);

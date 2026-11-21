@@ -88,7 +88,7 @@ public sealed class SetSocialAccountVisibilityForTenant {
 		}
 
 		var result = await socialAccountService.SetDefaultVisibilityForTenantAsync(
-			tenantId, accountId, visibility.Value, cancellationToken
+			accountId, visibility.Value, cancellationToken
 		);
 
 		if (result is SetSocialAccountVisibilityResult.NotFound) {
