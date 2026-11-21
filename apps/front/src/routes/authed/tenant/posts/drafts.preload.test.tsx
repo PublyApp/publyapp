@@ -6,12 +6,12 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type {
 	FakeClientCall,
 	FakeResponse,
-} from '~/routes/authed/staff/_preload-test-harness';
+} from '~/__tests__/support/preload-harness';
 import {
 	type PreloadDestination,
 	requestQueryParameters,
 	widenOptions,
-} from '~/routes/authed/staff/_preload-test-harness';
+} from '~/__tests__/support/preload-harness';
 import { Route as DraftsRoute } from '~/routes/authed/tenant/posts/drafts';
 
 import {

@@ -6,11 +6,11 @@ import { afterEach, describe, test, vi } from 'vitest';
 import type {
 	FakeClientCall,
 	FakeResponse,
-} from '~/routes/authed/staff/_preload-test-harness';
+} from '~/__tests__/support/preload-harness';
 import {
 	type PreloadDestination,
 	widenOptions,
-} from '~/routes/authed/staff/_preload-test-harness';
+} from '~/__tests__/support/preload-harness';
 import { Route as PageRoute } from '~/routes/authed/tenant';
 
 import {
