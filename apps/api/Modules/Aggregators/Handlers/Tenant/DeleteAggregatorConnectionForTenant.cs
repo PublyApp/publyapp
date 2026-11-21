@@ -30,7 +30,7 @@ public sealed class DeleteAggregatorConnectionForTenant {
 			return TypedProblems.NotFound("Aggregator not found", ResponseKeys.AggregatorNotFound);
 		}
 
-		if (!await connectionService.RemoveAsync(tenantId, aggregatorKind, cancellationToken)) {
+		if (!await connectionService.RemoveAsync(aggregatorKind, cancellationToken)) {
 			return TypedProblems.NotFound("No key saved for this aggregator", ResponseKeys.AggregatorConnectionNotFound);
 		}
 

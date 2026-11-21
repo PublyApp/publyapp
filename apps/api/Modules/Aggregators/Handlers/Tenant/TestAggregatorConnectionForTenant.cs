@@ -34,7 +34,7 @@ public sealed class TestAggregatorConnectionForTenant {
 			return TypedProblems.NotFound("Aggregator not found", ResponseKeys.AggregatorNotFound);
 		}
 
-		var result = await connectionService.TestAsync(tenantId, aggregatorKind, cancellationToken);
+		var result = await connectionService.TestAsync(aggregatorKind, cancellationToken);
 		if (result is TestAggregatorKeyResult.NotFound) {
 			return TypedProblems.NotFound("No key saved for this aggregator", ResponseKeys.AggregatorConnectionNotFound);
 		}

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-using PublyApp.Api.Lib;
 using PublyApp.Api.Modules.Aggregators.Entities;
 using PublyApp.Api.Modules.Aggregators.Ports;
 using PublyApp.Api.Modules.Aggregators.Services;
@@ -40,15 +39,10 @@ public sealed class FindAggregatorsForTenantResponse {
 /// <summary>The list the generic Integrations UI renders, from each adapter's own description.</summary>
 public sealed class FindAggregatorsForTenant {
 	public static async Task<Ok<FindAggregatorsForTenantResponse>> Handle(
-		[FromServices] IRequestAuthContext authContext,
 		[FromServices] AggregatorConnectionService connectionService,
 		CancellationToken cancellationToken = default
 	) {
-		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
-			throw new InvalidOperationException($"{nameof(authContext.TenantId)} is not a GUID");
-		}
-
-		var items = await connectionService.FindAsync(tenantId, cancellationToken);
+		var items = await connectionService.FindAsync(cancellationToken);
 		return TypedResults.Ok(new FindAggregatorsForTenantResponse {
 			Aggregators = [.. items.Select(item => new AggregatorItem(
 				AggregatorKindWire.Format(item.Kind),

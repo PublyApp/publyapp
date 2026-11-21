@@ -58,12 +58,6 @@ public sealed partial class TenantPredicateGuardSpec {
 			2,
 			"column is UserAccount.TenantId (UserAccount is not tenant-filtered), projected through a join with UserAccountRole"
 		),
-		new(
-			"Modules/Aggregators/Services/AggregatorConnectionService.cs",
-			"c.TenantId == tenantId",
-			2,
-			"aggregators module not migrated yet (#2460 follow-up); remove with its predicates"
-		),
 	];
 
 	[Fact]
