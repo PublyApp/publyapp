@@ -17,9 +17,7 @@ internal static class ProblemAssertions {
 		this HttpResponseMessage response,
 		string translationKey
 	) {
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
+		var problem = await ProblemAssertions._ReadProblemAsync<AppProblemDetails>(response);
 		problem.TranslationKey.Should().Be(translationKey);
 	}
 
@@ -28,9 +26,7 @@ internal static class ProblemAssertions {
 		this HttpResponseMessage response,
 		string translationKey
 	) {
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
+		var problem = await ProblemAssertions._ReadProblemAsync<ValidationProblemDetails>(response);
 		problem.TranslationKey.Should().Be(translationKey);
 	}
 
@@ -39,9 +35,15 @@ internal static class ProblemAssertions {
 		this HttpResponseMessage response,
 		string field
 	) {
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
+		var problem = await ProblemAssertions._ReadProblemAsync<ValidationProblemDetails>(response);
+		problem.Errors.Should().ContainKey(field);
+	}
+
+	private static async Task<T> _ReadProblemAsync<T>(HttpResponseMessage response)
+		where T : AppProblemDetails {
+		var problem = await response.Content.ReadFromJsonAsync<T>();
 		problem.Should().NotBeNull();
 		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey(field);
+		return problem;
 	}
 }

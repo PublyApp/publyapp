@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Roles.Entities;
@@ -37,8 +35,8 @@ internal static class TenantMemberTestHelper {
 		string[] permissionKeys,
 		string emailPrefix = "spec-tenant-member"
 	) {
-		await using var scope = fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var handle = fixture.OpenDb();
+		var db = handle.Context;
 
 		var email = $"{emailPrefix}-{Guid.NewGuid():N}@example.com";
 		var user = new User {

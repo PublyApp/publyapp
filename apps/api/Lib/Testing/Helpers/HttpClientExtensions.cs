@@ -20,9 +20,12 @@ internal static class HttpClientExtensions {
 		string sessionToken,
 		CancellationToken cancellationToken = default
 	) where T : class {
-		using var request = new HttpRequestMessage(HttpMethod.Get, url)
-			.WithSessionToken(sessionToken);
-		using var response = await http.SendAsync(request, cancellationToken);
+		using var response = await http.SendWithSessionAsync(
+			HttpMethod.Get,
+			url,
+			sessionToken,
+			cancellationToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
