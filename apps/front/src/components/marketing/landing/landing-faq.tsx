@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-const FAQ_ITEMS = ['0', '1', '2', '3'] as const;
+export const FAQ_ITEMS = ['0', '1', '2', '3'] as const;
 
 /**
  * §8 — FAQ, a ruled list. Four short answers read better fully open, in one

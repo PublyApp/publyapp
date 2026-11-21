@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-const TRIAL_STEPS = ['1', '2', '3'] as const;
+export const TRIAL_STEPS = ['1', '2', '3'] as const;
 
 /**
  * §6 — the planned trial: claim-gated, three ruled steps.

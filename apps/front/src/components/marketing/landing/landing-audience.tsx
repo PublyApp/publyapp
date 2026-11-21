@@ -8,7 +8,7 @@ import { MarketingImageSlot } from '~/components/marketing/marketing-image-slot'
  * the pane beside it, so deleting the slot leaves a clean, left-aligned cell
  * with nothing missing — below `lg` the pane does not render at all.
  */
-const AUDIENCE_CELLS = [
+export const AUDIENCE_CELLS = [
 	'role-access',
 	'teams-agencies',
 	'inhouse-operations',
