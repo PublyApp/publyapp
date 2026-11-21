@@ -139,7 +139,8 @@ public sealed class PasswordLogin {
 		}
 
 		// Verify the password
-		if (!PasswordUtils.VerifyPassword(password, user.Password)) {
+		var verification = PasswordUtils.VerifyPassword(password, user.Password);
+		if (!verification.Matches) {
 			await PasswordLogin._LogFailureAsync(
 				auditLogService,
 				user.Id,
@@ -150,6 +151,19 @@ public sealed class PasswordLogin {
 			return TypedProblems.BadRequest(
 				"Invalid email or password",
 				ResponseKeys.InvalidEmailOrPassword
+			);
+		}
+
+		// Upgrade an old-format or low-cost hash. Conditional on the stored hash
+		// being unchanged, so a concurrent password reset is never overwritten.
+		if (verification.NeedsRehash) {
+			_ = await userService.UpgradePasswordHashAsync(
+				new UpgradePasswordHashArgs(
+					user.GetRequiredId(),
+					user.Password,
+					PasswordUtils.HashPassword(password)
+				),
+				cancellationToken
 			);
 		}
 

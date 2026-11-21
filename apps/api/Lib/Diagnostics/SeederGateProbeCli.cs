@@ -114,7 +114,7 @@ public static class SeederGateProbeCli {
 				.SingleOrDefaultAsync(cancellationToken: default);
 
 			var ownerPasswordMatchesCommittedSeed = ownerPasswordHash is not null
-				&& PasswordUtils.VerifyPassword(SeedConstants.SeedPassword, ownerPasswordHash);
+				&& PasswordUtils.VerifyPassword(SeedConstants.SeedPassword, ownerPasswordHash).Matches;
 
 			var hasDemoTenants = await dbContext
 				.Tenant

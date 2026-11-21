@@ -81,6 +81,80 @@ public sealed class PasswordLoginSpec
 		result.UserId.Should().NotBeEmpty();
 	}
 
+	private async Task _SetPasswordHashAsync(string email, string hash) {
+		using var scope = this._Fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		_ = await dbContext.User
+			.Where(u => u.Email == email)
+			.ExecuteUpdateAsync(s => s.SetProperty(u => u.Password, hash));
+	}
+
+	private async Task<string> _GetPasswordHashAsync(string email) {
+		using var scope = this._Fixture.Factory.Services.CreateScope();
+		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		return await dbContext.User
+			.AsNoTracking()
+			.Where(u => u.Email == email)
+			.Select(u => u.Password)
+			.SingleAsync();
+	}
+
+	[Fact]
+	public async Task
+	ItShouldLeaveTheStoredHashUntouchedOnAWrongPassword() {
+		var email = TestConstants.StaffAdminEmail;
+		var legacyHash = LegacyPasswordHash.Create(TestConstants.SeedPassword);
+		await this._SetPasswordHashAsync(email, legacyHash);
+
+		using var response = await this._Http.PostAsJsonAsync(
+			Routes.Auth.Login,
+			new { email, password = "wrong-password-at-least-6-chars" }
+		);
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+		(await this._GetPasswordHashAsync(email)).Should().Be(legacyHash);
+	}
+
+	[Fact]
+	public async Task
+	ItShouldUpgradeALegacyHashOnSuccessfulLogin() {
+		var email = TestConstants.StaffAdminEmail;
+		var legacyHash = LegacyPasswordHash.Create(TestConstants.SeedPassword);
+
+		using (var scope = this._Fixture.Factory.Services.CreateScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			_ = await dbContext.User
+				.Where(u => u.Email == email)
+				.ExecuteUpdateAsync(s => s.SetProperty(u => u.Password, legacyHash));
+		}
+
+		using var response = await this._Http.PostAsJsonAsync(
+			Routes.Auth.Login,
+			new { email, password = TestConstants.SeedPassword }
+		);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		string stored;
+		using (var scope = this._Fixture.Factory.Services.CreateScope()) {
+			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			stored = await dbContext.User
+				.AsNoTracking()
+				.Where(u => u.Email == email)
+				.Select(u => u.Password)
+				.SingleAsync();
+		}
+
+		stored.Should().StartWith("v2.");
+		stored.Should().NotBe(legacyHash);
+
+		// Nobody is locked out: the same password still works on the new hash.
+		using var again = await this._Http.PostAsJsonAsync(
+			Routes.Auth.Login,
+			new { email, password = TestConstants.SeedPassword }
+		);
+		again.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
 	[Fact]
 	public async Task
 	ItShouldReturnSessionTokenWithMixedCaseEmail() {
