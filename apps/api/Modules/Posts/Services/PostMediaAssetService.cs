@@ -146,7 +146,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		var query =
 			from p in dbContext.Post.AsNoTracking()
 			where p.Id == postId
-				&& p.TenantId == tenantId
 				&& !p.IsDeleted
 			select p;
 		return await query.FirstOrDefaultAsync(cancellationToken);
@@ -159,8 +158,7 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 	) {
 		var query =
 			from a in dbContext.PostMediaAsset.AsNoTracking()
-			where a.TenantId == tenantId
-				&& a.PostId == postId
+			where a.PostId == postId
 				&& !a.IsDeleted
 			orderby a.Position
 			select a;
@@ -174,8 +172,7 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 	) {
 		var query =
 			from a in dbContext.PostMediaAsset.AsNoTracking()
-			where a.TenantId == tenantId
-				&& a.PostId == postId
+			where a.PostId == postId
 				&& !a.IsDeleted
 			orderby a.Position
 			select a;
@@ -188,8 +185,7 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 	) {
 		var livePositions = await (
 			from a in dbContext.PostMediaAsset
-			where a.TenantId == args.TenantId
-				&& a.PostId == args.PostId
+			where a.PostId == args.PostId
 				&& !a.IsDeleted
 			select a.Position
 		).ToListAsync(cancellationToken);
@@ -233,8 +229,7 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			.BeginTransactionAsync(cancellationToken);
 		var assets = await (
 			from a in dbContext.PostMediaAsset
-			where a.TenantId == tenantId
-				&& a.PostId == postId
+			where a.PostId == postId
 				&& !a.IsDeleted
 			orderby a.Position
 			select a
@@ -280,8 +275,7 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 			.BeginTransactionAsync(cancellationToken);
 		var assets = await (
 			from a in dbContext.PostMediaAsset
-			where a.TenantId == tenantId
-				&& a.PostId == postId
+			where a.PostId == postId
 				&& !a.IsDeleted
 			select a
 		).ToListAsync(cancellationToken);
@@ -324,7 +318,6 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		var asset = await (
 			from a in dbContext.PostMediaAsset
 			where a.Id == assetId
-				&& a.TenantId == tenantId
 				&& a.PostId == postId
 				&& !a.IsDeleted
 			select a
@@ -348,8 +341,7 @@ public sealed class PostMediaAssetService(AppDbContext dbContext)
 		// as Deleted when the caller saves its own unit of work.
 		var assets = await (
 			from a in dbContext.PostMediaAsset
-			where a.TenantId == tenantId
-				&& a.PostId == postId
+			where a.PostId == postId
 				&& !a.IsDeleted
 			select a
 		).ToListAsync(cancellationToken);

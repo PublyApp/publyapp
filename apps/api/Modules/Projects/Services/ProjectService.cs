@@ -40,8 +40,7 @@ public class ProjectService : IProjectService {
 	) {
 		return await this._DbContext.Project
 			.Where(x =>
-				x.TenantId == tenantId
-				&& !x.IsDeleted
+				!x.IsDeleted
 				&& x.Status == ProjectStatus.Active
 			)
 			.OrderBy(x => x.Name)
