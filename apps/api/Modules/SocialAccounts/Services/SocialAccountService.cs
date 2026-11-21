@@ -204,6 +204,7 @@ public sealed class SocialAccountService {
 		FindSocialAccountsArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		this._Db.RequireTenantScope();
 		var cursor = args.Cursor;
 		var effectiveLimit = args.Limit
 			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
@@ -307,6 +308,7 @@ public sealed class SocialAccountService {
 		Guid id,
 		CancellationToken cancellationToken = default
 	) {
+		this._Db.RequireTenantScope();
 		return await (
 			from a in this._Db.SocialAccount.AsNoTracking()
 			where a.Id == id && !a.IsDeleted
@@ -318,6 +320,7 @@ public sealed class SocialAccountService {
 
 	public async Task<IReadOnlyList<SocialAccountNeedsReconnectItem>>
 		FindNeedsReconnectAccountsAsync(CancellationToken cancellationToken) {
+		this._Db.RequireTenantScope();
 		var accounts = await (
 			from a in this._Db.SocialAccount.AsNoTracking()
 			where !a.IsDeleted
@@ -407,6 +410,7 @@ public sealed class SocialAccountService {
 		string appPassword,
 		CancellationToken cancellationToken = default
 	) {
+		this._Db.RequireTenantScope();
 		var account = await (
 			from a in this._Db.SocialAccount
 			where a.Id == socialAccountId
@@ -460,6 +464,7 @@ public sealed class SocialAccountService {
 		Guid socialAccountId,
 		CancellationToken cancellationToken = default
 	) {
+		this._Db.RequireTenantScope();
 		var account = await (
 			from a in this._Db.SocialAccount
 			where a.Id == socialAccountId
@@ -487,6 +492,7 @@ public sealed class SocialAccountService {
 		IReadOnlyList<Guid> projectIds,
 		CancellationToken cancellationToken = default
 	) {
+		this._Db.RequireTenantScope();
 		var account = await (
 			from a in this._Db.SocialAccount
 			where a.Id == socialAccountId
@@ -547,6 +553,7 @@ public sealed class SocialAccountService {
 		SocialPostVisibility visibility,
 		CancellationToken cancellationToken = default
 	) {
+		this._Db.RequireTenantScope();
 		var account = await (
 			from a in this._Db.SocialAccount
 			where a.Id == socialAccountId

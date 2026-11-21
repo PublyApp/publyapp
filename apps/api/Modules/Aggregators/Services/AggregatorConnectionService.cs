@@ -60,6 +60,7 @@ public sealed class AggregatorConnectionService {
 		Guid tenantId,
 		CancellationToken cancellationToken
 	) {
+		// Kept: aggregators are not migrated to the tenant filter yet (#2460 follow-up); drop with the allow-list entry.
 		var connections = await this._Db.AggregatorConnection
 			.AsNoTracking()
 			.Where(c => c.TenantId == tenantId && !c.IsDeleted)
@@ -162,6 +163,7 @@ public sealed class AggregatorConnectionService {
 		AggregatorKind kind,
 		CancellationToken cancellationToken
 	) {
+		// Kept: aggregators are not migrated to the tenant filter yet (#2460 follow-up); drop with the allow-list entry.
 		return this._Db.AggregatorConnection.FirstOrDefaultAsync(
 			c => c.TenantId == tenantId && c.Kind == kind && !c.IsDeleted,
 			cancellationToken

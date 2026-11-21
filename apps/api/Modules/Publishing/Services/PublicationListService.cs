@@ -88,6 +88,7 @@ public sealed class PublicationListService : IPublicationListService {
 		FindPublicationsArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		this._Db.RequireTenantScope();
 		var effectiveLimit = args.Limit
 			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
 

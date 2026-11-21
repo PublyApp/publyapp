@@ -6,6 +6,8 @@ using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
+using PublyApp.Api.Lib.Testing.Helpers;
+
 using Xunit;
 
 namespace PublyApp.Api.Infrastructure.Jobs;
@@ -78,7 +80,7 @@ public sealed partial class JobEnqueueBoundarySpec {
 
 	[Fact]
 	public void ItShouldOnlyWriteJobQueueRowsFromInsideTheEngine() {
-		var apiRoot = JobEnqueueBoundarySpec._FindApiRoot();
+		var apiRoot = ApiSourceRoot.Find();
 		var offenders = new List<string>();
 
 		foreach (var file in Directory.EnumerateFiles(apiRoot, "*.cs", SearchOption.AllDirectories)) {
@@ -311,24 +313,5 @@ public sealed partial class JobEnqueueBoundarySpec {
 		var copyLength = Math.Min(rendered.Length, originalLength);
 		builder.Append(rendered.AsSpan(0, copyLength));
 		builder.Append(' ', originalLength - copyLength);
-	}
-
-	// The test assembly runs from apps/api/.artifacts/bin/...; walk up until the
-	// directory containing PublyApp.Api.csproj (the apps/api root).
-	private static string _FindApiRoot() {
-		var current = new DirectoryInfo(AppContext.BaseDirectory);
-
-		while (current is not null) {
-			if (File.Exists(Path.Combine(current.FullName, "PublyApp.Api.csproj"))) {
-				return current.FullName;
-			}
-
-			current = current.Parent;
-		}
-
-		throw new InvalidOperationException(
-			"Could not locate the apps/api root (PublyApp.Api.csproj) above "
-			+ AppContext.BaseDirectory
-		);
 	}
 }

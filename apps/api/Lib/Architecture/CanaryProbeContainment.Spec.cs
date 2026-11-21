@@ -6,6 +6,8 @@ using FluentAssertions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
+using PublyApp.Api.Lib.Testing.Helpers;
+
 using Xunit;
 
 namespace PublyApp.Api.Lib.Architecture;
@@ -53,7 +55,7 @@ public sealed partial class CanaryProbeContainmentSpec {
 
 	[Fact]
 	public void ItShouldReferenceTheProbeExactlyThroughTheSanctionedWiringSet() {
-		var apiRoot = CanaryProbeContainmentSpec._FindApiRoot();
+		var apiRoot = ApiSourceRoot.Find();
 		var wired = new Dictionary<string, List<string>>();
 
 		foreach (
@@ -91,7 +93,7 @@ public sealed partial class CanaryProbeContainmentSpec {
 
 	[Fact]
 	public void ItShouldKeepTheExpectedProbeCallsAtEverySanctionedSite() {
-		var apiRoot = CanaryProbeContainmentSpec._FindApiRoot();
+		var apiRoot = ApiSourceRoot.Find();
 		var missing = new List<string>();
 
 		foreach (
@@ -373,28 +375,6 @@ public sealed partial class CanaryProbeContainmentSpec {
 			masked.Append(text);
 			unmasked.Append(text);
 		}
-	}
-
-	// The test assembly runs from apps/api/.artifacts/bin/...; walk up until the
-	// directory containing PublyApp.Api.csproj (the apps/api root).
-	private static string _FindApiRoot() {
-		var current = new DirectoryInfo(AppContext.BaseDirectory);
-
-		while (current is not null) {
-			if (File.Exists(
-					Path.Combine(current.FullName, "PublyApp.Api.csproj")
-				)
-			) {
-				return current.FullName;
-			}
-
-			current = current.Parent;
-		}
-
-		throw new InvalidOperationException(
-			"Could not locate the apps/api root (PublyApp.Api.csproj) above "
-				+ AppContext.BaseDirectory
-		);
 	}
 
 	// Walk further up for the repo root containing justfile (manifest paths are

@@ -849,6 +849,7 @@ public sealed class PublicationService : IPublicationService {
 		FindScheduledPublicationsArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		this._DbContext.RequireTenantScope();
 		var invalidWindow = PublicationService._ValidateWindow(args);
 		if (invalidWindow is not null) {
 			return invalidWindow;
@@ -1034,6 +1035,7 @@ public sealed class PublicationService : IPublicationService {
 		Guid postId,
 		CancellationToken cancellationToken = default
 	) {
+		this._DbContext.RequireTenantScope();
 		if (await this._LoadPostAsync(postId, cancellationToken) is null) {
 			return null;
 		}
