@@ -9,6 +9,8 @@ import {
 } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+vi.unmock('react-i18next');
+
 import {
 	MARKETING_NAV_INTENT_CLOSE_DELAY_MS,
 	MARKETING_NAV_INTENT_OPEN_DELAY_MS,

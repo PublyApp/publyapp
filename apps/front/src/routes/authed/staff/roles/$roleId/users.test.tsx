@@ -127,11 +127,6 @@ vi.mock('~/components/error-views/AppErrorView', () => ({
 		createElement('div', { 'data-testid': testId ?? 'app-error-view' }),
 }));
 
-vi.mock('~/components/error-views/LogoutRedirect', () => ({
-	LogoutRedirect: () =>
-		createElement('div', { 'data-testid': 'logout-redirect' }),
-}));
-
 vi.mock('../../_staff-list-team', async (importOriginal) => {
 	const actual =
 		await importOriginal<typeof import('../../_staff-list-team')>();

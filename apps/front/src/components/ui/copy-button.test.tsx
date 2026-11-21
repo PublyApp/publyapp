@@ -17,10 +17,6 @@ type ClipboardExecutor = {
 	reject: (error: Error) => void;
 };
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
 	logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));

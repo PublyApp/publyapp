@@ -28,12 +28,6 @@ vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	},
 }));
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({
-		t: (key: string) => key,
-	}),
-}));
-
 import {
 	cleanup,
 	fireEvent,

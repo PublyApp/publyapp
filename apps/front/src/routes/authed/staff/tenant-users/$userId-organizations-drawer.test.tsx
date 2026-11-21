@@ -24,10 +24,6 @@ vi.mock('~/lib/query/staff-global-tenant-users', async (importOriginal) => {
 	};
 });
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 import { LinkCompaniesDrawerHost } from './$userId-organizations-drawer';
 
 const pickerOf = (rows: unknown[]) => ({

@@ -96,10 +96,6 @@ vi.mock('~/lib/hooks/use-media-query', () => ({
 	useMediaQuery: () => mocks.isDesktop,
 }));
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 // Task 7 (C3): the shell mounts the needs-reconnect banner on tenant
 // surfaces. These seams are mocked wholesale here because this suite has no
 // QueryClient; the banner's own behaviour lives in its dedicated suite.

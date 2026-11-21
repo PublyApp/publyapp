@@ -8,6 +8,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { createElement } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+
+vi.unmock('react-i18next');
 import resourceEN from '~/i18n/locales/en';
 import { createI18nFromResources } from '~/lib/i18n/react-i18n';
 
