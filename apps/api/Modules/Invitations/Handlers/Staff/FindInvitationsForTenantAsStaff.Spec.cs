@@ -1085,10 +1085,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 						SeedConstants.Tenants.AcmeName
 					);
 
-			string tenantToken = await this._AuthClient.LoginAsync(
-				TestConstants.AcmeAdminEmail,
-				TestConstants.SeedPassword
-			);
+			string tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId);
 			HttpRequestMessage request = new HttpRequestMessage(

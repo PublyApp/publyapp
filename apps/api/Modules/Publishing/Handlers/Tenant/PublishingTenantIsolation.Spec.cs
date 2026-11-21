@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
@@ -82,9 +81,8 @@ public sealed class PublishingTenantIsolationSpec : IClassFixture<ApiFixture> {
 		using var cancel = await this._SendAsync(HttpMethod.Delete, $"/posts/{b.PostId}/schedule", session);
 		cancel.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var stillThere = await db.Publication.IgnoreQueryFilters()
+		await using var db = this._Fixture.OpenDb();
+		var stillThere = await db.Context.Publication.IgnoreQueryFilters()
 			.SingleAsync(p => p.Id == b.PublicationId);
 		stillThere.IsDeleted.Should().BeFalse("a foreign cancel must not reach the row");
 		stillThere.Status.Should().Be(PublicationStatus.Scheduled);
@@ -136,26 +134,19 @@ public sealed class PublishingTenantIsolationSpec : IClassFixture<ApiFixture> {
 		);
 		edit.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var row = await db.Publication.IgnoreQueryFilters().SingleAsync(p => p.Id == b.PublicationId);
+		await using var db = this._Fixture.OpenDb();
+		var row = await db.Context.Publication.IgnoreQueryFilters().SingleAsync(p => p.Id == b.PublicationId);
 		row.ScheduledAtUtc.Year.Should().NotBe(2099, "B's schedule was not moved");
 	}
 
 	private async Task<int> _CountPublicationsAsync(Guid accountId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.Publication.IgnoreQueryFilters().CountAsync(p => p.SocialAccountId == accountId);
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.Publication.IgnoreQueryFilters().CountAsync(p => p.SocialAccountId == accountId);
 	}
 
 	private async Task<(string Token, Guid TenantId)> _LoginAcmeAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.AcmeName
-		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (token, tenantId);
 	}
 
@@ -177,13 +168,12 @@ public sealed class PublishingTenantIsolationSpec : IClassFixture<ApiFixture> {
 	private sealed record Seeded(Guid PostId, Guid PublicationId, Guid AccountId, string Handle);
 
 	private async Task<(Seeded Acme, Seeded TechStart)> _SeedBothTenantsAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var acme = await PublishingTenantIsolationSpec._SeedAsync(
-			db, SeedConstants.Tenants.AcmeName, TestConstants.AcmeAdminEmail
+			db.Context, SeedConstants.Tenants.AcmeName, TestConstants.AcmeAdminEmail
 		);
 		var techStart = await PublishingTenantIsolationSpec._SeedAsync(
-			db, SeedConstants.Tenants.TechStartName, TestConstants.TechStartAdminEmail
+			db.Context, SeedConstants.Tenants.TechStartName, TestConstants.TechStartAdminEmail
 		);
 		return (acme, techStart);
 	}

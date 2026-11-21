@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -53,10 +51,7 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 			this._Fixture,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var response = await this._SendAsync(token, acmeId, new { instance });
 
@@ -79,10 +74,7 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 			this._Fixture,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var response = await this._SendAsync(token, acmeId, new { instance = "" });
 
@@ -100,18 +92,12 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 			this._Fixture,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var response = await this._SendAsync(token, acmeId, new { instance = 42 });
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Instance");
+		await response.ShouldHaveValidationErrorAsync("Instance");
 	}
 
 	[Fact]
@@ -120,10 +106,7 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 			this._Fixture,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var tooLong = $"{new string('a', 300)}.social";
 		using var response = await this._SendAsync(
@@ -133,10 +116,7 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Instance");
+		await response.ShouldHaveValidationErrorAsync("Instance");
 	}
 
 	[Fact]
@@ -145,10 +125,7 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 			this._Fixture,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var response = await this._SendAsync(
 			token,
@@ -157,10 +134,7 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Provider");
+		await response.ShouldHaveValidationErrorAsync("Provider");
 		(await this._OAuthStateCountAsync(acmeId)).Should().Be(0);
 	}
 
@@ -172,10 +146,7 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 			this._Fixture,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		// RFC 2606 reserved TLD: guaranteed not to resolve, so the connect attempt
 		// fails at the transport layer exactly like a dead instance.
@@ -186,10 +157,7 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be("provider-unreachable");
+		await response.ShouldBeProblemAsync("provider-unreachable");
 		(await this._OAuthStateCountAsync(acmeId)).Should().Be(
 			0,
 			"nothing was stored for an unreachable instance"
@@ -215,10 +183,7 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWithoutTheTenantHeader() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -228,10 +193,7 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be("tenant-id-required");
+		await response.ShouldBeProblemAsync("tenant-id-required");
 	}
 
 	[Fact]
@@ -250,10 +212,7 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(
+		await response.ShouldBeProblemAsync(
 			"user-does-not-have-the-necessary-permissions"
 		);
 		(await this._OAuthStateCountAsync(acmeId)).Should().Be(0);
@@ -299,9 +258,8 @@ public sealed class StartMastodonConnectForTenantSpec : IClassFixture<ApiFixture
 	}
 
 	private async Task<int> _OAuthStateCountAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.OAuthState
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.OAuthState
 			.AsNoTracking()
 			.CountAsync(state => state.TenantId == tenantId);
 	}

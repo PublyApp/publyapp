@@ -4,12 +4,9 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.AuditLogs.Entities;
@@ -46,10 +43,7 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 			SeedConstants.Tenants.AcmeName
 		);
 		var acmeAdminId = await this._UserIdAsync(TestConstants.AcmeAdminEmail);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var publicationId = await this._SeedPublicationAsync(
 			acmeId,
 			PublicationStatus.Paused,
@@ -111,10 +105,7 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 			this._Fixture,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var publicationId = await this._SeedPublicationAsync(acmeId, status, category);
 
 		using var response = await this._SendAsync(token, acmeId, publicationId);
@@ -138,10 +129,7 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 			this._Fixture,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var publicationId = await this._SeedPublicationAsync(
 			acmeId,
 			PublicationStatus.Paused,
@@ -168,10 +156,7 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 			this._Fixture,
 			SeedConstants.Tenants.TechStartName
 		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var foreignId = await this._SeedPublicationAsync(
 			techStartId,
 			PublicationStatus.Paused,
@@ -194,10 +179,7 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 			this._Fixture,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var publicationId = await this._SeedPublicationAsync(
 			acmeId,
 			PublicationStatus.Paused,
@@ -216,10 +198,7 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 			this._Fixture,
 			SeedConstants.Tenants.AcmeName
 		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var response = await this._SendAsync(token, acmeId, "not-a-guid");
 
@@ -232,16 +211,13 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 
 	[Fact]
 	public async Task ItShouldReturnBadRequestWithoutTheTenantHeader() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			MarkPublicationPublishedForTenantSpec._GetUrl(Guid.CreateVersion7().ToString())
-		).WithSessionToken(token);
-		using var response = await this._Http.SendAsync(request);
+			MarkPublicationPublishedForTenantSpec._GetUrl(Guid.CreateVersion7().ToString()),
+			token
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		await MarkPublicationPublishedForTenantSpec._AssertProblemKeyAsync(
@@ -324,10 +300,7 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 			this._Fixture,
 			SeedConstants.Tenants.TechStartName
 		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var publicationId = await this._SeedPublicationAsync(
 			techStartId,
 			PublicationStatus.Paused,
@@ -369,16 +342,12 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 		HttpResponseMessage response,
 		string expectedKey
 	) {
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(expectedKey);
+		await response.ShouldBeProblemAsync(expectedKey);
 	}
 
 	private async Task<Guid> _UserIdAsync(string email) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.User
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.User
 			.Where(user => user.Email == email)
 			.Select(user => user.GetRequiredId())
 			.SingleAsync();
@@ -389,10 +358,9 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 		PublicationStatus status,
 		PublicationFailureCategory? category
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var userId = await db.User
+		var userId = await db.Context.User
 			.Where(user => user.Email == TestConstants.AcmeAdminEmail)
 			.Select(user => user.GetRequiredId())
 			.SingleAsync();
@@ -408,9 +376,9 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 			ProtectedCredentials = "enc-spec-blob",
 			Status = SocialAccountStatus.Active,
 		};
-		db.Post.Add(post);
-		db.SocialAccount.Add(account);
-		await db.SaveChangesAsync();
+		db.Context.Post.Add(post);
+		db.Context.SocialAccount.Add(account);
+		await db.Context.SaveChangesAsync();
 
 		var id = Guid.CreateVersion7();
 		var publication = new Publication {
@@ -425,8 +393,8 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 			IdempotencyKey = PublicationIdempotencyKey.For(id),
 		};
 		publication.Id = id;
-		db.Publication.Add(publication);
-		await db.SaveChangesAsync();
+		db.Context.Publication.Add(publication);
+		await db.Context.SaveChangesAsync();
 
 		return id;
 	}
@@ -437,10 +405,9 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 		int segmentPosition,
 		SubmissionState state
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		await db.PublishAttempt.AddAsync(new PublishAttempt {
+		await db.Context.PublishAttempt.AddAsync(new PublishAttempt {
 			TenantId = tenantId,
 			PublicationId = publicationId,
 			SegmentPosition = segmentPosition,
@@ -450,30 +417,27 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 			IdempotencyKey = $"{publicationId:N}-{segmentPosition}",
 			SubmissionState = state,
 		});
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task<Publication> _LoadPublicationAsync(Guid publicationId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.Publication
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.Publication
 			.AsNoTracking()
 			.SingleAsync(publication => publication.Id == publicationId);
 	}
 
 	private async Task<List<PublishAttempt>> _LoadAttemptsAsync(Guid publicationId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.PublishAttempt
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.PublishAttempt
 			.AsNoTracking()
 			.Where(attempt => attempt.PublicationId == publicationId)
 			.ToListAsync();
 	}
 
 	private async Task<List<AuditLog>> _LoadAuditAsync(Guid publicationId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.AuditLog
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.AuditLog
 			.AsNoTracking()
 			.Where(entry => entry.Action == AuditActions.PublicationMarkedPublished
 				&& entry.TargetId == publicationId)
@@ -481,11 +445,10 @@ public sealed class MarkPublicationPublishedForTenantSpec : IClassFixture<ApiFix
 	}
 
 	private async Task _SoftDeleteAsync(Guid publicationId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var publication = await db.Publication.SingleAsync(row => row.Id == publicationId);
+		await using var db = this._Fixture.OpenDb();
+		var publication = await db.Context.Publication.SingleAsync(row => row.Id == publicationId);
 		publication.IsDeleted = true;
 		publication.DeletedAt = DateTime.UtcNow;
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 }

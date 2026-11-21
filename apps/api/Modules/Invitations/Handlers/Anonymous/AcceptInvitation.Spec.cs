@@ -63,10 +63,8 @@ public sealed class AcceptInvitationSpec
 
 		createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-		await using var setupScope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var setupDbContext =
-			setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var invitation = await setupDbContext.Invitation
+		await using var setupDbContext = this._Fixture.OpenDb();
+		var invitation = await setupDbContext.Context.Invitation
 			.Where(inv =>
 				inv.Email == inviteEmail &&
 				inv.Scope == InvitationScope.Tenant
@@ -97,12 +95,11 @@ public sealed class AcceptInvitationSpec
 		accepted.TenantId.Should().Be(invitation.TenantId);
 		accepted.SessionToken.Should().NotBeNullOrWhiteSpace();
 
-		using var pickerRequest = new HttpRequestMessage(
+		using var pickerResponse = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			Routes.Auth.GetUserTenantsForPicker
-		).WithSessionToken(accepted.SessionToken);
-
-		using var pickerResponse = await this._Http.SendAsync(pickerRequest);
+			Routes.Auth.GetUserTenantsForPicker,
+			accepted.SessionToken
+		);
 
 		pickerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -117,10 +114,8 @@ public sealed class AcceptInvitationSpec
 			t.Status == "Active"
 		);
 
-		await using var assertScope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var assertDbContext =
-			assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var tenant = await assertDbContext.Tenant
+		await using var assertDbContext = this._Fixture.OpenDb();
+		var tenant = await assertDbContext.Context.Tenant
 			.Where(t => t.Id == invitation.TenantId)
 			.SingleAsync();
 
@@ -160,10 +155,8 @@ public sealed class AcceptInvitationSpec
 
 		createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-		await using var setupScope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var setupDbContext =
-			setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var invitation = await setupDbContext.Invitation
+		await using var setupDbContext = this._Fixture.OpenDb();
+		var invitation = await setupDbContext.Context.Invitation
 			.Where(inv =>
 				inv.Email == inviteEmail &&
 				inv.Scope == InvitationScope.Tenant &&
@@ -192,12 +185,11 @@ public sealed class AcceptInvitationSpec
 		accepted.UserId.Should().NotBeEmpty();
 		accepted.SessionToken.Should().Be(existingUserToken);
 
-		using var pickerRequest = new HttpRequestMessage(
+		using var pickerResponse = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			Routes.Auth.GetUserTenantsForPicker
-		).WithSessionToken(existingUserToken);
-
-		using var pickerResponse = await this._Http.SendAsync(pickerRequest);
+			Routes.Auth.GetUserTenantsForPicker,
+			existingUserToken
+		);
 
 		pickerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
@@ -210,10 +202,8 @@ public sealed class AcceptInvitationSpec
 					t.Status == "Active"
 				);
 
-		await using var assertScope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var assertDbContext =
-			assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var tenant = await assertDbContext.Tenant
+		await using var assertDbContext = this._Fixture.OpenDb();
+		var tenant = await assertDbContext.Context.Tenant
 			.Where(t => t.Id == invitation.TenantId)
 			.SingleAsync();
 
@@ -334,13 +324,10 @@ public sealed class AcceptInvitationSpec
 		accepted.Should().NotBeNull();
 		Assert.NotNull(accepted);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var dbContext = this._Fixture.OpenDb();
 		// Accepting the invitation minted the session the user lands in, so
 		// it is also their first sign-in event.
-		var signIn = await dbContext.AuditLog
+		var signIn = await dbContext.Context.AuditLog
 			.SingleAsync(log =>
 				log.UserId == accepted.UserId
 				&& log.Action == AuditActions.LoginSucceeded

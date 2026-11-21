@@ -428,13 +428,12 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 		);
 		await this._AddSegmentResultAsync(tenantId, failed.PublicationId, 0);
 		await this._StoreTextOverrideAsync(tenantId, failed.PublicationId, 1, "two, first edit");
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var sourceId = failed.PublicationId;
 
 		// An in-flight rendition edit of the failed row holds its row lock.
-		await using var transaction = await db.Database.BeginTransactionAsync();
-		_ = await db.Database
+		await using var transaction = await db.Context.Database.BeginTransactionAsync();
+		_ = await db.Context.Database
 			.SqlQuery<Guid>($"""
 				SELECT id AS "Value" FROM publications WHERE id = {sourceId} FOR UPDATE
 				""")
@@ -449,11 +448,11 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 		await Task.Delay(TimeSpan.FromSeconds(1));
 		reissue.IsCompleted.Should().BeFalse("the re-issue must wait for the source row before copying");
 
-		var row = await db.Rendition.SingleAsync(rendition => rendition.PublicationId == sourceId);
+		var row = await db.Context.Rendition.SingleAsync(rendition => rendition.PublicationId == sourceId);
 		new RenditionOverrides(
 			new Dictionary<int, string> { [1] = "two, second edit" }, null
 		).WriteTo(row);
-		_ = await db.SaveChangesAsync();
+		_ = await db.Context.SaveChangesAsync();
 		await transaction.CommitAsync();
 
 		using var response = await reissue;
@@ -765,13 +764,8 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.AcmeName
-		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
@@ -786,8 +780,7 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _SeedAccountAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var account = new SocialAccount {
 			TenantId = tenantId,
 			ExternalAccountId = "did:plc:" + Guid.NewGuid().ToString("N"),
@@ -795,32 +788,29 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 			ProtectedCredentials = "enc-spec-blob",
 			Status = SocialAccountStatus.Active,
 		};
-		db.SocialAccount.Add(account);
-		await db.SaveChangesAsync();
+		db.Context.SocialAccount.Add(account);
+		await db.Context.SaveChangesAsync();
 		return account.GetRequiredId();
 	}
 
 	private async Task<string> _HandleOfAsync(Guid accountId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.SocialAccount
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.SocialAccount
 			.Where(account => account.Id == accountId)
 			.Select(account => account.DisplayHandle)
 			.SingleAsync();
 	}
 
 	private async Task<List<Publication>> _PublicationsOfAsync(Guid postId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.Publication.AsNoTracking()
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.Publication.AsNoTracking()
 			.Where(publication => publication.PostId == postId && !publication.IsDeleted)
 			.ToListAsync();
 	}
 
 	private async Task<List<Rendition>> _RenditionsAsync(IReadOnlyCollection<Guid> publicationIds) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.Rendition.AsNoTracking()
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.Rendition.AsNoTracking()
 			.Where(rendition => publicationIds.Contains(rendition.PublicationId))
 			.ToListAsync();
 	}
@@ -843,9 +833,8 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 		string body,
 		params string[] followUps
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var userId = await db.User
+		await using var db = this._Fixture.OpenDb();
+		var userId = await db.Context.User
 			.Where(user => user.Email == TestConstants.AcmeAdminEmail)
 			.Select(user => user.GetRequiredId())
 			.SingleAsync();
@@ -856,11 +845,11 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 			DisplayHandle = "@rend-seed." + Guid.NewGuid().ToString("N")[..6] + ".bsky.social",
 			ProtectedCredentials = "enc-spec-blob",
 		};
-		db.Post.Add(post);
-		db.SocialAccount.Add(account);
-		await db.SaveChangesAsync();
+		db.Context.Post.Add(post);
+		db.Context.SocialAccount.Add(account);
+		await db.Context.SaveChangesAsync();
 		for (var index = 0; index < followUps.Length; index++) {
-			db.PostSegment.Add(new PostSegment {
+			db.Context.PostSegment.Add(new PostSegment {
 				TenantId = tenantId,
 				PostId = post.GetRequiredId(),
 				Position = index + 1,
@@ -883,15 +872,14 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 			IdempotencyKey = PublicationIdempotencyKey.For(id),
 		};
 		publication.Id = id;
-		db.Publication.Add(publication);
-		await db.SaveChangesAsync();
+		db.Context.Publication.Add(publication);
+		await db.Context.SaveChangesAsync();
 		return new SeededPublication(id, account.GetRequiredId(), post.GetRequiredId());
 	}
 
 	private async Task<int> _ResetAuditCountAsync(Guid publicationId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.AuditLog.AsNoTracking().CountAsync(
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.AuditLog.AsNoTracking().CountAsync(
 			entry => entry.Action == AuditActions.RenditionReset && entry.TargetId == publicationId
 		);
 	}
@@ -902,8 +890,7 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 		SeededPublication older,
 		PublicationStatus status
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var id = Guid.CreateVersion7();
 		var publication = new Publication {
 			TenantId = tenantId,
@@ -916,32 +903,30 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 			CreatedAt = DateTime.UtcNow.AddMinutes(5),
 		};
 		publication.Id = id;
-		db.Publication.Add(publication);
-		await db.SaveChangesAsync();
+		db.Context.Publication.Add(publication);
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task<Guid> _AddPostImageAsync(Guid tenantId, Guid postId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var asset = new PostMediaAsset {
 			TenantId = tenantId,
 			PostId = postId,
 			RelativePath = "spec/" + Guid.NewGuid().ToString("N") + ".png",
 			ContentType = "image/png",
-			UploadedByUserId = await db.Post
+			UploadedByUserId = await db.Context.Post
 				.Where(post => post.Id == postId)
 				.Select(post => post.CreatedByUserId)
 				.SingleAsync(),
 		};
-		db.PostMediaAsset.Add(asset);
-		await db.SaveChangesAsync();
+		db.Context.PostMediaAsset.Add(asset);
+		await db.Context.SaveChangesAsync();
 		return asset.GetRequiredId();
 	}
 
 	private async Task _SoftDeletePostImageAsync(Guid assetId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		_ = await db.PostMediaAsset
+		await using var db = this._Fixture.OpenDb();
+		_ = await db.Context.PostMediaAsset
 			.Where(asset => asset.Id == assetId)
 			.ExecuteUpdateAsync(setters => setters
 				.SetProperty(asset => asset.IsDeleted, true)
@@ -954,31 +939,28 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 		int position,
 		string text
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var rendition = new Rendition { TenantId = tenantId, PublicationId = publicationId };
 		new RenditionOverrides(new Dictionary<int, string> { [position] = text }, null)
 			.WriteTo(rendition);
-		db.Rendition.Add(rendition);
-		await db.SaveChangesAsync();
+		db.Context.Rendition.Add(rendition);
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _StoreMediaOverrideAsync(Guid tenantId, Guid publicationId, Guid assetId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var rendition = new Rendition { TenantId = tenantId, PublicationId = publicationId };
 		new RenditionOverrides(
 			new Dictionary<int, string>(),
 			new RenditionMediaOverride([assetId], new Dictionary<Guid, string>())
 		).WriteTo(rendition);
-		db.Rendition.Add(rendition);
-		await db.SaveChangesAsync();
+		db.Context.Rendition.Add(rendition);
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _AddSegmentResultAsync(Guid tenantId, Guid publicationId, int position) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+		await using var db = this._Fixture.OpenDb();
+		db.Context.PublicationSegmentResult.Add(new PublicationSegmentResult {
 			TenantId = tenantId,
 			PublicationId = publicationId,
 			SegmentPosition = position,
@@ -986,37 +968,32 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 			ExternalCid = $"cid-{position}",
 			ExternalUrl = $"https://u/{position}",
 		});
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task<Guid> _SeedForeignAssetAsync() {
 		var publicationId = await this._SeedForeignPublicationAsync();
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var publication = await db.Publication.IgnoreQueryFilters().SingleAsync(p => p.Id == publicationId);
+		await using var db = this._Fixture.OpenDb();
+		var publication = await db.Context.Publication.IgnoreQueryFilters().SingleAsync(p => p.Id == publicationId);
 		var asset = new PostMediaAsset {
 			TenantId = publication.TenantId,
 			PostId = publication.PostId,
 			RelativePath = "foreign/asset.png",
 			ContentType = "image/png",
-			UploadedByUserId = await db.Post.IgnoreQueryFilters()
+			UploadedByUserId = await db.Context.Post.IgnoreQueryFilters()
 				.Where(post => post.Id == publication.PostId)
 				.Select(post => post.CreatedByUserId)
 				.SingleAsync(),
 		};
-		db.PostMediaAsset.Add(asset);
-		await db.SaveChangesAsync();
+		db.Context.PostMediaAsset.Add(asset);
+		await db.Context.SaveChangesAsync();
 		return asset.GetRequiredId();
 	}
 
 	private async Task<Guid> _SeedForeignPublicationAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var techId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.TechStartName
-		);
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var userId = await db.User
+		var (_, techId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.TechStartName);
+		await using var db = this._Fixture.OpenDb();
+		var userId = await db.Context.User
 			.Where(user => user.Email == TestConstants.TechStartAdminEmail)
 			.Select(user => user.GetRequiredId())
 			.SingleAsync();
@@ -1027,9 +1004,9 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 			DisplayHandle = "@rend-foreign.bsky.social",
 			ProtectedCredentials = "enc-spec-blob",
 		};
-		db.Post.Add(post);
-		db.SocialAccount.Add(account);
-		await db.SaveChangesAsync();
+		db.Context.Post.Add(post);
+		db.Context.SocialAccount.Add(account);
+		await db.Context.SaveChangesAsync();
 		var id = Guid.CreateVersion7();
 		var publication = new Publication {
 			TenantId = techId,
@@ -1041,8 +1018,8 @@ public sealed class PublicationRenditionSpec : IClassFixture<ApiFixture> {
 			IdempotencyKey = PublicationIdempotencyKey.For(id),
 		};
 		publication.Id = id;
-		db.Publication.Add(publication);
-		await db.SaveChangesAsync();
+		db.Context.Publication.Add(publication);
+		await db.Context.SaveChangesAsync();
 		return id;
 	}
 }

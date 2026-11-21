@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -117,11 +115,8 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 		// does not expose CreatedAt, so resolve it by Id on SocialAccount.
 		List<DateTime> observedOrder;
 		{
-			await using var scope =
-				this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider
-				.GetRequiredService<AppDbContext>();
-			observedOrder = await dbContext.SocialAccount
+			await using var dbContext = this._Fixture.OpenDb();
+			observedOrder = await dbContext.Context.SocialAccount
 				.Where(a => a.Id.HasValue && visitedOrder.Contains(a.Id.Value))
 				.OrderBy(a => a.Id.HasValue ? visitedOrder.IndexOf(a.Id.Value) : -1)
 				.Select(a => a.CreatedAt)
@@ -213,11 +208,8 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 		// to the seeded-but-sorted order, NOT the insertion order.
 		List<DateTime> observedOrder;
 		{
-			await using var scope =
-				this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider
-				.GetRequiredService<AppDbContext>();
-			observedOrder = await dbContext.SocialAccount
+			await using var dbContext = this._Fixture.OpenDb();
+			observedOrder = await dbContext.Context.SocialAccount
 				.Where(a => a.Id.HasValue && visitedOrder.Contains(a.Id.Value))
 				.OrderBy(a => a.Id.HasValue ? visitedOrder.IndexOf(a.Id.Value) : -1)
 				.Select(a => a.UpdatedAt)
@@ -244,16 +236,8 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
@@ -278,25 +262,21 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 	}
 
 	private async Task _SetCreatedAtAsync(Guid accountId, DateTime createdAt) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var dbContext = this._Fixture.OpenDb();
 
-		var account = await dbContext.SocialAccount
+		var account = await dbContext.Context.SocialAccount
 			.Where(a => a.Id == accountId)
 			.FirstAsync();
 		account.CreatedAt = createdAt;
-		await dbContext.SaveChangesAsync();
+		await dbContext.Context.SaveChangesAsync();
 	}
 
 	private async Task _SetUpdatedAtAsync(Guid accountId, DateTime updatedAt) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var dbContext = this._Fixture.OpenDb();
 
 		// Direct UPDATE bypasses the audit interceptor that would otherwise
 		// stamp UpdatedAt = now on every Modified save.
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await dbContext.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE social_accounts SET updated_at = {0} WHERE id = {1}",
 			updatedAt, accountId
 		);
@@ -316,16 +296,15 @@ public sealed class FindSocialAccountsCursorBehaviorSpec
 	}
 
 	private async Task _SwapSocialAccountIdsAsync(Guid idA, Guid idB) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var dbContext = this._Fixture.OpenDb();
 		var temp = Guid.NewGuid();
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await dbContext.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE social_accounts SET id = {0} WHERE id = {1}",
 			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await dbContext.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE social_accounts SET id = {0} WHERE id = {1}",
 			idA, idB);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await dbContext.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE social_accounts SET id = {0} WHERE id = {1}",
 			idB, temp);
 	}

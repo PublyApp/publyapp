@@ -4,7 +4,6 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
@@ -199,10 +198,9 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _AddSegmentResultsAsync(Guid publicationId, Guid tenantId, int count) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		for (var position = 0; position < count; position++) {
-			db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+			db.Context.PublicationSegmentResult.Add(new PublicationSegmentResult {
 				TenantId = tenantId,
 				PublicationId = publicationId,
 				SegmentPosition = position,
@@ -212,16 +210,15 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 			});
 		}
 
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _SoftDeleteAsync(Guid publicationId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var publication = await db.Publication.SingleAsync(p => p.Id == publicationId);
+		await using var db = this._Fixture.OpenDb();
+		var publication = await db.Context.Publication.SingleAsync(p => p.Id == publicationId);
 		publication.IsDeleted = true;
 		publication.DeletedAt = DateTime.UtcNow;
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	[Theory]
@@ -297,13 +294,8 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.AcmeName
-		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
@@ -314,9 +306,8 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 		int attempts = 0,
 		SocialAccountStatus accountStatus = SocialAccountStatus.Active
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var userId = await db.User
+		await using var db = this._Fixture.OpenDb();
+		var userId = await db.Context.User
 			.Where(user => user.Email == TestConstants.AcmeAdminEmail)
 			.Select(user => user.GetRequiredId())
 			.SingleAsync();
@@ -332,12 +323,12 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 			ProtectedCredentials = "enc-spec-blob",
 			Status = accountStatus,
 		};
-		db.Post.Add(post);
-		db.SocialAccount.Add(account);
-		await db.SaveChangesAsync();
+		db.Context.Post.Add(post);
+		db.Context.SocialAccount.Add(account);
+		await db.Context.SaveChangesAsync();
 
 		var publicationId = await RetryPublicationForTenantSpec._AddPublicationAsync(
-			db, tenantId, post.GetRequiredId(), account.GetRequiredId(), status, category, attempts
+			db.Context, tenantId, post.GetRequiredId(), account.GetRequiredId(), status, category, attempts
 		);
 		var key = PublicationIdempotencyKey.For(publicationId);
 		return new Seeded(publicationId, post.GetRequiredId(), account.GetRequiredId(), key);
@@ -350,8 +341,7 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 		PublicationStatus status,
 		Guid? accountId = null
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var targetAccountId = accountId;
 		if (targetAccountId is null) {
 			var account = new SocialAccount {
@@ -360,13 +350,13 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 				DisplayHandle = "@retry-sibling.bsky.social",
 				ProtectedCredentials = "enc-spec-blob",
 			};
-			db.SocialAccount.Add(account);
-			await db.SaveChangesAsync();
+			db.Context.SocialAccount.Add(account);
+			await db.Context.SaveChangesAsync();
 			targetAccountId = account.GetRequiredId();
 		}
 
 		return await RetryPublicationForTenantSpec._AddPublicationAsync(
-			db, tenantId, postId, targetAccountId.Value, status, null, 0
+			db.Context, tenantId, postId, targetAccountId.Value, status, null, 0
 		);
 	}
 
@@ -399,13 +389,9 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _SeedTechStartFailedAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var techId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.TechStartName
-		);
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var userId = await db.User
+		var (_, techId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.TechStartName);
+		await using var db = this._Fixture.OpenDb();
+		var userId = await db.Context.User
 			.Where(user => user.Email == TestConstants.TechStartAdminEmail)
 			.Select(user => user.GetRequiredId())
 			.SingleAsync();
@@ -420,25 +406,23 @@ public sealed class RetryPublicationForTenantSpec : IClassFixture<ApiFixture> {
 			DisplayHandle = "@retry-foreign.bsky.social",
 			ProtectedCredentials = "enc-spec-blob",
 		};
-		db.Post.Add(post);
-		db.SocialAccount.Add(account);
-		await db.SaveChangesAsync();
+		db.Context.Post.Add(post);
+		db.Context.SocialAccount.Add(account);
+		await db.Context.SaveChangesAsync();
 		return await RetryPublicationForTenantSpec._AddPublicationAsync(
-			db, techId, post.GetRequiredId(), account.GetRequiredId(),
+			db.Context, techId, post.GetRequiredId(), account.GetRequiredId(),
 			PublicationStatus.Failed, PublicationFailureCategory.Unknown, 1
 		);
 	}
 
 	private async Task<Publication> _LoadAsync(Guid publicationId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.Publication.AsNoTracking().SingleAsync(p => p.Id == publicationId);
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.Publication.AsNoTracking().SingleAsync(p => p.Id == publicationId);
 	}
 
 	private async Task<int> _JobCountAsync(string idempotencyKey) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.JobQueue
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.JobQueue
 			.Where(job => job.JobType == PublishingJobs.PublishPublicationV1JobType)
 			.Where(job => job.IdempotencyKey == idempotencyKey)
 			.CountAsync();

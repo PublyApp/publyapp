@@ -1226,8 +1226,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 	private async Task<string> _CreateUnprivilegedStaffTokenAsync() {
 		var email = $"no-perms-invitations-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var dbContext = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -1237,13 +1236,13 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			IsVerified = true,
 			Status = UserStatus.Active,
 		};
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = dbContext.Context.User.Add(user);
+		_ = await dbContext.Context.SaveChangesAsync();
 
 		var staffAccount = UserAccount.CreateStaffAccount(user.GetRequiredId());
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = dbContext.Context.UserAccount.Add(staffAccount);
+		_ = await dbContext.Context.SaveChangesAsync();
 
 		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 	}

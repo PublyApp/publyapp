@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -31,13 +29,12 @@ public sealed class SetSocialAccountVisibilityForTenantSpec : IClassFixture<ApiF
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
 		var tenantId = await TenantMemberTestHelper.GetTenantIdAsync(this._Fixture, SeedConstants.Tenants.AcmeName);
-		var token = await this._AuthClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
 	private async Task<Guid> _SeedAccountAsync(Guid tenantId, SocialProvider provider) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var account = new SocialAccount {
 			TenantId = tenantId,
 			Provider = provider,
@@ -45,8 +42,8 @@ public sealed class SetSocialAccountVisibilityForTenantSpec : IClassFixture<ApiF
 			DisplayHandle = $"vis-{Guid.NewGuid():N}@vis.example",
 			ProtectedCredentials = "enc-spec-blob",
 		};
-		db.SocialAccount.Add(account);
-		await db.SaveChangesAsync();
+		db.Context.SocialAccount.Add(account);
+		await db.Context.SaveChangesAsync();
 		return account.GetRequiredId();
 	}
 
@@ -59,9 +56,8 @@ public sealed class SetSocialAccountVisibilityForTenantSpec : IClassFixture<ApiF
 	}
 
 	private async Task<SocialPostVisibility> _StoredAsync(Guid accountId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await db.SocialAccount.AsNoTracking().Where(a => a.Id == accountId).Select(a => a.DefaultVisibility).SingleAsync();
+		await using var db = this._Fixture.OpenDb();
+		return await db.Context.SocialAccount.AsNoTracking().Where(a => a.Id == accountId).Select(a => a.DefaultVisibility).SingleAsync();
 	}
 
 	[Theory]

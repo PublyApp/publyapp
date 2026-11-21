@@ -129,9 +129,8 @@ public sealed class DiscordWebhookReconnectSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(this._Http, staffToken, SeedConstants.Tenants.AcmeName);
-		var token = await this._AuthClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 

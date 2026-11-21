@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -33,13 +31,8 @@ public sealed class PostThreadSegmentsSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.AcmeName
-		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
@@ -212,16 +205,15 @@ public sealed class PostThreadSegmentsSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SeedPublishedSegmentsAsync(Guid tenantId, Guid postId, int count) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var account = new SocialAccount {
 			TenantId = tenantId,
 			ExternalAccountId = $"did:plc:{Guid.NewGuid():N}",
 			DisplayHandle = "@thread.spec",
 			ProtectedCredentials = "enc-spec-blob",
 		};
-		db.SocialAccount.Add(account);
-		await db.SaveChangesAsync();
+		db.Context.SocialAccount.Add(account);
+		await db.Context.SaveChangesAsync();
 
 		var publication = new Publication {
 			TenantId = tenantId,
@@ -231,11 +223,11 @@ public sealed class PostThreadSegmentsSpec : IClassFixture<ApiFixture> {
 			ScheduledTimeZone = "Etc/UTC",
 			IdempotencyKey = Guid.NewGuid().ToString("N"),
 		};
-		db.Publication.Add(publication);
-		await db.SaveChangesAsync();
+		db.Context.Publication.Add(publication);
+		await db.Context.SaveChangesAsync();
 
 		for (var position = 0; position < count; position++) {
-			db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+			db.Context.PublicationSegmentResult.Add(new PublicationSegmentResult {
 				TenantId = tenantId,
 				PublicationId = publication.GetRequiredId(),
 				SegmentPosition = position,
@@ -245,6 +237,6 @@ public sealed class PostThreadSegmentsSpec : IClassFixture<ApiFixture> {
 			});
 		}
 
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 }

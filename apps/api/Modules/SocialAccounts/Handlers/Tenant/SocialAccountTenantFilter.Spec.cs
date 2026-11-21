@@ -41,10 +41,7 @@ public sealed class SocialAccountTenantFilterSpec : IClassFixture<ApiFixture> {
 	private sealed record Tenant(Guid Id, string Token);
 
 	private async Task<Tenant> _LoginAsync(string tenantName, string email) {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var id = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, tenantName
-		);
+		var (_, id) = await this._AuthClient.LoginAsStaffWithTenantAsync(tenantName);
 		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return new Tenant(id, token);
 	}
@@ -81,11 +78,10 @@ public sealed class SocialAccountTenantFilterSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _SeedProjectAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var project = new Project { TenantId = tenantId, Name = $"tf-{Guid.NewGuid():N}" };
-		db.Project.Add(project);
-		await db.SaveChangesAsync();
+		db.Context.Project.Add(project);
+		await db.Context.SaveChangesAsync();
 		return project.GetRequiredId();
 	}
 
@@ -130,9 +126,8 @@ public sealed class SocialAccountTenantFilterSpec : IClassFixture<ApiFixture> {
 			using var response = await this._Http.SendAsync(disconnect);
 			response.IsSuccessStatusCode.Should().BeTrue();
 		}
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var rowB = await db.SocialAccount.AsNoTracking().SingleAsync(x => x.Id == accountB);
+		await using var db = this._Fixture.OpenDb();
+		var rowB = await db.Context.SocialAccount.AsNoTracking().SingleAsync(x => x.Id == accountB);
 		rowB.Status.Should().Be(SocialAccountStatus.Active);
 		rowB.IsDeleted.Should().BeFalse();
 	}
@@ -225,32 +220,29 @@ public sealed class SocialAccountTenantFilterSpec : IClassFixture<ApiFixture> {
 			Routes.Tenants.ForStaff.Root,
 			Routes.Tenants.ForStaff.UsageFn(tenantId.ToString())
 		);
-		using var request = new HttpRequestMessage(HttpMethod.Get, url)
-			.WithSessionToken(staffToken);
-		using var response = await this._Http.SendAsync(request);
+		using var response = await this._Http.SendWithSessionAsync(HttpMethod.Get, url, staffToken);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		return (await response.Content.ReadFromJsonAsync<GetTenantUsageAsStaffResult>()).Required();
 	}
 
 	private async Task _SeedScheduledPublicationAsync(Guid tenantId, Guid accountId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var user = new User {
 			Email = $"tf-{Guid.NewGuid():N}@example.com",
 			Password = "unused",
 			IsVerified = true,
 		};
-		db.User.Add(user);
-		await db.SaveChangesAsync();
+		db.Context.User.Add(user);
+		await db.Context.SaveChangesAsync();
 		var post = new Post {
 			TenantId = tenantId,
 			Body = "tenant filter spec body",
 			CreatedByUserId = user.GetRequiredId(),
 		};
-		db.Post.Add(post);
-		await db.SaveChangesAsync();
+		db.Context.Post.Add(post);
+		await db.Context.SaveChangesAsync();
 		// Status keeps its default (Scheduled): only the transition service writes it.
-		db.Publication.Add(new Publication {
+		db.Context.Publication.Add(new Publication {
 			TenantId = tenantId,
 			PostId = post.GetRequiredId(),
 			SocialAccountId = accountId,
@@ -258,6 +250,6 @@ public sealed class SocialAccountTenantFilterSpec : IClassFixture<ApiFixture> {
 			ScheduledTimeZone = "Etc/UTC",
 			IdempotencyKey = $"tf-{Guid.NewGuid():N}",
 		});
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 }

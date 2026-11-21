@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -69,11 +67,9 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 		Guid.TryParse(payload.Id.ToString(), out _).Should().BeTrue();
 
 		// persisted
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var persisted = await (
-			from p in db.Post.AsNoTracking()
+			from p in db.Context.Post.AsNoTracking()
 			where p.Id == payload.Id
 			select p
 		).FirstOrDefaultAsync();
@@ -660,10 +656,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
 		var tenantId = await this._GetAcmeIdAsync();
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
@@ -684,8 +677,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 		var acmeId = await this._GetAcmeIdAsync();
 		var email = $"posts-crud-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -693,15 +685,15 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 			IsVerified = true,
 			Status = UserStatus.Active,
 		};
-		db.User.Add(user);
-		await db.SaveChangesAsync();
+		db.Context.User.Add(user);
+		await db.Context.SaveChangesAsync();
 
 		var account = UserAccount.CreateTenantAccount(
 			user.GetRequiredId(), acmeId
 		);
 		account.ValidateAccountType();
-		db.UserAccount.Add(account);
-		await db.SaveChangesAsync();
+		db.Context.UserAccount.Add(account);
+		await db.Context.SaveChangesAsync();
 
 		return (acmeId, email);
 	}
@@ -772,28 +764,24 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 		Guid tenantId
 	) {
 		var projectId = await this._CreateProjectForTenantAsync(tenantId);
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var project = await db.Project.FirstAsync(p => p.Id == projectId);
+		await using var db = this._Fixture.OpenDb();
+		var project = await db.Context.Project.FirstAsync(p => p.Id == projectId);
 		project.IsDeleted = true;
 		project.DeletedAt = DateTime.UtcNow;
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 		return projectId;
 	}
 
 	private async Task<Guid> _CreateProjectForTenantAsync(Guid tenantId) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var project = new PublyApp.Api.Modules.Projects.Entities.Project {
 			TenantId = tenantId,
 			Name = "Spec Project " + Guid.NewGuid().ToString("N")[..8],
 			Status = PublyApp.Api.Modules.Projects.Entities.ProjectStatus
 				.Active,
 		};
-		_ = await db.Project.AddAsync(project);
-		await db.SaveChangesAsync();
+		_ = await db.Context.Project.AddAsync(project);
+		await db.Context.SaveChangesAsync();
 		return project.GetRequiredId();
 	}
 

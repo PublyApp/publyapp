@@ -128,8 +128,7 @@ public sealed class PostTenantFilterSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Session> _LoginAsync(string tenantName, string email) {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(this._Http, staffToken, tenantName);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(tenantName);
 		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return new Session(tenantId, token);
 	}

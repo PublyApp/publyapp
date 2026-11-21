@@ -6,9 +6,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Invitations.Entities;
@@ -58,9 +56,8 @@ public sealed class GetInvitationDetailsSpec
 
 		createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var invitation = await dbContext.Invitation
+		await using var dbContext = this._Fixture.OpenDb();
+		var invitation = await dbContext.Context.Invitation
 			.Where(inv =>
 				inv.Email == inviteEmail &&
 				inv.Scope == InvitationScope.Tenant

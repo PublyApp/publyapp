@@ -6,9 +6,7 @@ using FluentAssertions;
 
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -42,7 +40,7 @@ public sealed class FindPostPublicationsForTenantSpec : IClassFixture<ApiFixture
 	}
 
 	private Task<string> _AdminTokenAsync() {
-		return this._AuthClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
+		return this._AuthClient.LoginAsAcmeAdminAsync();
 	}
 
 	// A post with one publication on a fresh account, at a fixed instant.
@@ -52,16 +50,15 @@ public sealed class FindPostPublicationsForTenantSpec : IClassFixture<ApiFixture
 		DateTime scheduledAtUtc,
 		PublicationStatus status
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var author = await db.User.AsNoTracking().SingleAsync(u => u.Email == TestConstants.AcmeAdminEmail);
+		await using var db = this._Fixture.OpenDb();
+		var author = await db.Context.User.AsNoTracking().SingleAsync(u => u.Email == TestConstants.AcmeAdminEmail);
 		var post = new Modules.Posts.Entities.Post {
 			TenantId = tenantId,
 			Body = body,
 			CreatedByUserId = author.GetRequiredId(),
 		};
-		db.Post.Add(post);
-		await db.SaveChangesAsync();
+		db.Context.Post.Add(post);
+		await db.Context.SaveChangesAsync();
 		var (publicationId, accountId) = await this._AddRowAsync(
 			tenantId, post.GetRequiredId(), status, scheduledAtUtc, new DateTime(2097, 1, 1, 0, 0, 0, DateTimeKind.Utc)
 		);
@@ -76,8 +73,7 @@ public sealed class FindPostPublicationsForTenantSpec : IClassFixture<ApiFixture
 		DateTime createdAtUtc,
 		Guid? accountId = null
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var resolved = accountId;
 		if (resolved is null) {
 			var account = new SocialAccount {
@@ -86,8 +82,8 @@ public sealed class FindPostPublicationsForTenantSpec : IClassFixture<ApiFixture
 				DisplayHandle = "@postlist." + Guid.NewGuid().ToString("N")[..5] + ".bsky.social",
 				ProtectedCredentials = "enc-spec-blob",
 			};
-			db.SocialAccount.Add(account);
-			await db.SaveChangesAsync();
+			db.Context.SocialAccount.Add(account);
+			await db.Context.SaveChangesAsync();
 			resolved = account.GetRequiredId();
 		}
 
@@ -101,15 +97,14 @@ public sealed class FindPostPublicationsForTenantSpec : IClassFixture<ApiFixture
 			IdempotencyKey = "pending",
 			CreatedAt = createdAtUtc,
 		};
-		db.Publication.Add(publication);
-		await db.SaveChangesAsync();
+		db.Context.Publication.Add(publication);
+		await db.Context.SaveChangesAsync();
 		return (publication.GetRequiredId(), resolved.Value);
 	}
 
 	private async Task _CancelAsync(Guid publicationId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		_ = await db.Publication
+		await using var db = this._Fixture.OpenDb();
+		_ = await db.Context.Publication
 			.Where(p => p.Id == publicationId)
 			.ExecuteUpdateAsync(setters => setters
 				.SetProperty(p => p.IsDeleted, true)

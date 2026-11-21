@@ -74,9 +74,8 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
 		var postId = await this._CreatePostAsync(tenantId, token, new string('a', 301));
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db, tenantId);
+		await using var db = this._Fixture.OpenDb();
+		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db.Context, tenantId);
 
 		using var request =
 			new HttpRequestMessage(HttpMethod.Post, SchedulePostForTenantSpec._ScheduleUrl(postId))
@@ -99,7 +98,7 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 		problem.RootElement.GetProperty("actual").GetInt32().Should().Be(301);
 
 		var postIdGuid = Guid.Parse(postId);
-		(await db.Publication.CountAsync(p => p.PostId == postIdGuid))
+		(await db.Context.Publication.CountAsync(p => p.PostId == postIdGuid))
 			.Should().Be(0);
 	}
 
@@ -107,9 +106,8 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldRefuseADisabledProviderWith422AndNoPublication() {
 		var (tenantId, token, postId) = await this._CreatePostAsAcmeAdminAsync();
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db, tenantId);
+		await using var db = this._Fixture.OpenDb();
+		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db.Context, tenantId);
 		var factory = this._Fixture.Factory.WithWebHostBuilder(builder => builder.ConfigureServices(
 			services => services.AddSingleton<PublyApp.Api.Modules.SocialAccounts.Services.IProviderAvailability>(
 				new BlueskyOff()
@@ -132,7 +130,7 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 		using var problem = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
 		problem.RootElement.GetProperty("translationKey").GetString().Should().Be("publish-provider-disabled");
 		var postIdGuid = Guid.Parse(postId);
-		(await db.Publication.CountAsync(p => p.PostId == postIdGuid)).Should().Be(0);
+		(await db.Context.Publication.CountAsync(p => p.PostId == postIdGuid)).Should().Be(0);
 	}
 
 	private sealed class BlueskyOff : PublyApp.Api.Modules.SocialAccounts.Services.IProviderAvailability {
@@ -146,9 +144,8 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 		RecordingPublishProvider.Reset();
 		var (tenantId, token, postId) = await this._CreatePostAsAcmeAdminAsync();
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db, tenantId);
+		await using var db = this._Fixture.OpenDb();
+		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db.Context, tenantId);
 
 		using var request =
 			new HttpRequestMessage(HttpMethod.Post, SchedulePostForTenantSpec._ScheduleUrl(postId))
@@ -163,13 +160,10 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-		await using var verifyScope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var verifyDb =
-			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var verifyDb = this._Fixture.OpenDb();
 		var postIdGuid = Guid.Parse(postId);
 		var publication = await (
-			from p in verifyDb.Publication.AsNoTracking()
+			from p in verifyDb.Context.Publication.AsNoTracking()
 			where p.PostId == postIdGuid
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
@@ -190,10 +184,9 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldCreateDistinctPublicationsForMultipleAccounts() {
 		var (tenantId, token, postId) = await this._CreatePostAsAcmeAdminAsync();
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var first = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db, tenantId);
-		var second = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db, tenantId);
+		await using var db = this._Fixture.OpenDb();
+		var first = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db.Context, tenantId);
+		var second = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db.Context, tenantId);
 
 		using var request =
 			new HttpRequestMessage(HttpMethod.Post, SchedulePostForTenantSpec._ScheduleUrl(postId))
@@ -208,13 +201,10 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-		await using var verifyScope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var verifyDb =
-			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var verifyDb = this._Fixture.OpenDb();
 		var postIdGuid = Guid.Parse(postId);
 		var publications = await (
-			from p in verifyDb.Publication.AsNoTracking()
+			from p in verifyDb.Context.Publication.AsNoTracking()
 			where p.PostId == postIdGuid
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
@@ -229,8 +219,7 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturn422WhenAccountIsNotVisibleInThePostProject() {
 		var (tenantId, token, postId) = await this._CreatePostAsAcmeAdminAsync();
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		// Attach the post to a dedicated project, then seed an account attached to
 		// that SAME project — the account is visible in the project, so scheduling
@@ -240,15 +229,15 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 			TenantId = tenantId,
 			Name = "sched-probe-" + Guid.NewGuid().ToString("N")[..8],
 		};
-		db.Project.Add(project);
-		await db.SaveChangesAsync();
-		await db.Post
+		db.Context.Project.Add(project);
+		await db.Context.SaveChangesAsync();
+		await db.Context.Post
 			.Where(p => p.Id == Guid.Parse(postId))
 			.ExecuteUpdateAsync(
 				s => s.SetProperty(p => p.ProjectId, project.Id)
 			);
 
-		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db, tenantId, project.Id);
+		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db.Context, tenantId, project.Id);
 
 		using var request =
 			new HttpRequestMessage(HttpMethod.Post, SchedulePostForTenantSpec._ScheduleUrl(postId))
@@ -268,22 +257,21 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturn422WhenAccountIsAttachedToAnotherProject() {
 		var (tenantId, token, postId) = await this._CreatePostAsAcmeAdminAsync();
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var postProject = new Modules.Projects.Entities.Project {
 			TenantId = tenantId,
 			Name = "sched-post-" + Guid.NewGuid().ToString("N")[..8],
 		};
-		db.Project.Add(postProject);
-		await db.SaveChangesAsync();
-		await db.Post
+		db.Context.Project.Add(postProject);
+		await db.Context.SaveChangesAsync();
+		await db.Context.Post
 			.Where(p => p.Id == Guid.Parse(postId))
 			.ExecuteUpdateAsync(
 				s => s.SetProperty(p => p.ProjectId, postProject.Id)
 			);
 
-		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db, tenantId);
+		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db.Context, tenantId);
 
 		// Attach the account to a DIFFERENT project: it is no longer visible in the
 		// post's project, so the whole request must be refused with a stable key.
@@ -291,15 +279,15 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 			TenantId = tenantId,
 			Name = "sched-other-" + Guid.NewGuid().ToString("N")[..8],
 		};
-		db.Project.Add(otherProject);
-		await db.SaveChangesAsync();
-		db.Set<SocialAccountProject>().Add(new SocialAccountProject {
-			SocialAccount = await db.SocialAccount.SingleAsync(
+		db.Context.Project.Add(otherProject);
+		await db.Context.SaveChangesAsync();
+		db.Context.Set<SocialAccountProject>().Add(new SocialAccountProject {
+			SocialAccount = await db.Context.SocialAccount.SingleAsync(
 				a => a.Id == accountId
 			),
 			ProjectId = otherProject.GetRequiredId(),
 		});
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		using var request =
 			new HttpRequestMessage(HttpMethod.Post, SchedulePostForTenantSpec._ScheduleUrl(postId))
@@ -357,9 +345,8 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturn422WhenInstantIsInThePastBeyondDrift() {
 		var (tenantId, token, postId) = await this._CreatePostAsAcmeAdminAsync();
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db, tenantId);
+		await using var db = this._Fixture.OpenDb();
+		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db.Context, tenantId);
 
 		using var request =
 			new HttpRequestMessage(HttpMethod.Post, SchedulePostForTenantSpec._ScheduleUrl(postId))
@@ -403,10 +390,7 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturn403WithoutPostsPublishPermission() {
 		var tenantId = await this._GetAcmeIdAsync();
-		var adminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var adminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var postId = await this._CreatePostAsync(tenantId, adminToken);
 
 		// AcmeUser has no roles assigned, so the permission filter refuses.
@@ -415,9 +399,8 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 			TestConstants.SeedPassword
 		);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db, tenantId);
+		await using var db = this._Fixture.OpenDb();
+		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db.Context, tenantId);
 
 		using var request =
 			new HttpRequestMessage(HttpMethod.Post, SchedulePostForTenantSpec._ScheduleUrl(postId))
@@ -437,12 +420,7 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturn404ForUnknownAndCrossTenantPostIds() {
 		var (acmeTenantId, acmeToken, postId) =
 			await this._CreatePostAsAcmeAdminAsync();
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var techStartId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.TechStartName
-		);
+		var (_, techStartId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.TechStartName);
 
 		// Unknown id in the caller's own tenant → 404.
 		using var unknownRequest =
@@ -478,11 +456,8 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 		using var foreignResponse = await this._Http.SendAsync(foreignRequest);
 		foreignResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
 
-		await using var verifyScope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var verifyDb =
-			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		(await verifyDb.Publication.AsNoTracking().AnyAsync(
+		await using var verifyDb = this._Fixture.OpenDb();
+		(await verifyDb.Context.Publication.AsNoTracking().AnyAsync(
 			p => p.PostId == Guid.Parse(postId)
 		)).Should().BeFalse("a cross-tenant attempt must not create anything");
 	}
@@ -492,9 +467,8 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 		RecordingPublishProvider.Reset();
 		var (tenantId, token, postId) = await this._CreatePostAsAcmeAdminAsync();
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db, tenantId);
+		await using var db = this._Fixture.OpenDb();
+		var accountId = await SchedulePostForTenantSpec._SeedActiveAccountAsync(db.Context, tenantId);
 
 		using var request =
 			new HttpRequestMessage(HttpMethod.Post, SchedulePostForTenantSpec._ScheduleUrl(postId))
@@ -524,16 +498,8 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 

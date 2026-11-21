@@ -257,10 +257,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				tenantId,
 				$"tenant-revoke-tenant-user-{Guid.NewGuid():N}@example.com"
 			);
-			string tenantToken = await this._AuthClient.LoginAsync(
-				TestConstants.AcmeAdminEmail,
-				TestConstants.SeedPassword
-			);
+			string tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 			using HttpResponseMessage response = await this._Http.SendAsync(
 				RevokeInvitationForTenantAsStaffSpec._CreateTenantRevokeRequest(tenantToken, tenantId.ToString(), invitationId.ToString())

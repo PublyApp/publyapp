@@ -232,11 +232,10 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 	// Publishes the row through the transition service (never assigning Status) with
 	// `publishedSegments` stored results; a negative count leaves it Scheduled.
 	private async Task<Guid> _PublishWithSegmentsAsync(Guid publicationId, int publishedSegments) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var publication = await db.Publication.AsNoTracking().SingleAsync(row => row.Id == publicationId);
+		await using var db = this._Fixture.OpenDb();
+		var publication = await db.Context.Publication.AsNoTracking().SingleAsync(row => row.Id == publicationId);
 		for (var position = 0; position < publishedSegments; position++) {
-			db.PublicationSegmentResult.Add(new PublicationSegmentResult {
+			db.Context.PublicationSegmentResult.Add(new PublicationSegmentResult {
 				TenantId = publication.TenantId,
 				PublicationId = publicationId,
 				SegmentPosition = position,
@@ -246,9 +245,9 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 			});
 		}
 
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 		if (publishedSegments >= 0) {
-			var transitions = new PublicationStatusTransitionService(db);
+			var transitions = new PublicationStatusTransitionService(db.Context);
 			await transitions.MarkInProgressAsync(
 				new MarkPublicationInProgressArgs(publicationId, publication.TenantId), CancellationToken.None
 			);
@@ -264,11 +263,10 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _AddFollowUpsAfterwardsAsync(Guid publicationId, Guid tenantId, int count, int startAt) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var postId = (await db.Publication.AsNoTracking().SingleAsync(row => row.Id == publicationId)).PostId;
+		await using var db = this._Fixture.OpenDb();
+		var postId = (await db.Context.Publication.AsNoTracking().SingleAsync(row => row.Id == publicationId)).PostId;
 		for (var index = 0; index < count; index++) {
-			db.PostSegment.Add(new global::PublyApp.Api.Modules.Posts.Entities.PostSegment {
+			db.Context.PostSegment.Add(new global::PublyApp.Api.Modules.Posts.Entities.PostSegment {
 				TenantId = tenantId,
 				PostId = postId,
 				Position = startAt + index,
@@ -276,31 +274,22 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 			});
 		}
 
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	// ── helpers ────────────────────────────────────────────────────────
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
 	private async Task<int> _CountRowsAsync(bool tenantIsAcme) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var acmeName = SeedConstants.Tenants.AcmeName;
 		return await (
-			from publication in db.Publication.AsNoTracking()
+			from publication in db.Context.Publication.AsNoTracking()
 			where tenantIsAcme
 				? publication.Tenant.Name == acmeName
 				: publication.Tenant.Name != acmeName
@@ -326,13 +315,12 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<List<Guid>> _SeedScheduledRowsAsync(int count) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var acmeName = SeedConstants.Tenants.AcmeName;
-		var tenant = await db.Tenant
+		var tenant = await db.Context.Tenant
 			.Where(t => t.Name == acmeName)
 			.SingleAsync();
-		var user = await db.User
+		var user = await db.Context.User
 			.Where(u => u.Email == TestConstants.AcmeAdminEmail)
 			.SingleAsync();
 		var post = new global::PublyApp.Api.Modules.Posts.Entities.Post {
@@ -340,16 +328,16 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 			Body = "history spec post " + Guid.NewGuid().ToString("N"),
 			CreatedByUserId = user.GetRequiredId(),
 		};
-		db.Post.Add(post);
-		await db.SaveChangesAsync();
+		db.Context.Post.Add(post);
+		await db.Context.SaveChangesAsync();
 
 		var ids = new List<Guid>();
 		for (var index = 0; index < count; index++) {
 			var accountId = await FindPublicationsForTenantSpec._SeedAccountAsync(
-				db, tenant.GetRequiredId(), $"@history-{index}.bsky.social"
+				db.Context, tenant.GetRequiredId(), $"@history-{index}.bsky.social"
 			);
 			var id = Guid.CreateVersion7();
-			db.Publication.Add(new Publication {
+			db.Context.Publication.Add(new Publication {
 				TenantId = tenant.GetRequiredId(),
 				PostId = post.GetRequiredId(),
 				SocialAccountId = accountId,
@@ -363,20 +351,19 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 			ids.Add(id);
 		}
 
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 		return ids;
 	}
 
 	private async Task _SeedPublishedAndFailedRowsAsync() {
 		var ids = await this._SeedScheduledRowsAsync(2);
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var acmeName = SeedConstants.Tenants.AcmeName;
-		var tenantId = (await db.Tenant
+		var tenantId = (await db.Context.Tenant
 			.Where(t => t.Name == acmeName)
 			.SingleAsync()).GetRequiredId();
 
-		var transitions = new PublicationStatusTransitionService(db);
+		var transitions = new PublicationStatusTransitionService(db.Context);
 		await transitions.MarkInProgressAsync(
 			new MarkPublicationInProgressArgs(ids[0], tenantId),
 			CancellationToken.None
@@ -405,13 +392,12 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SeedForeignTenantPublicationAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var techStartName = SeedConstants.Tenants.TechStartName;
-		var tenant = await db.Tenant
+		var tenant = await db.Context.Tenant
 			.Where(t => t.Name == techStartName)
 			.SingleAsync();
-		var user = await db.User
+		var user = await db.Context.User
 			.Where(u => u.Email == TestConstants.TechStartAdminEmail)
 			.SingleAsync();
 		var post = new global::PublyApp.Api.Modules.Posts.Entities.Post {
@@ -419,13 +405,13 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 			Body = "foreign history spec post",
 			CreatedByUserId = user.GetRequiredId(),
 		};
-		db.Post.Add(post);
-		await db.SaveChangesAsync();
+		db.Context.Post.Add(post);
+		await db.Context.SaveChangesAsync();
 		var accountId = await FindPublicationsForTenantSpec._SeedAccountAsync(
-			db, tenant.GetRequiredId(), "@foreign.bsky.social"
+			db.Context, tenant.GetRequiredId(), "@foreign.bsky.social"
 		);
 		var id = Guid.CreateVersion7();
-		db.Publication.Add(new Publication {
+		db.Context.Publication.Add(new Publication {
 			TenantId = tenant.GetRequiredId(),
 			PostId = post.GetRequiredId(),
 			SocialAccountId = accountId,
@@ -436,6 +422,6 @@ public sealed class FindPublicationsForTenantSpec : IClassFixture<ApiFixture> {
 					.PublicationIdempotencyKey.For(id),
 			Id = id,
 		});
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 }

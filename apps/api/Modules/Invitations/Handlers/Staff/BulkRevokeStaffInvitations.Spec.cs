@@ -272,10 +272,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			$"bulk-revoke-tenant-user-{Guid.NewGuid():N}@example.com"
 		);
 
-		string tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		string tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			tenantToken,

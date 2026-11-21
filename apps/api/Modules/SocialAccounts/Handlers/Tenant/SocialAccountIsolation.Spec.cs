@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -69,9 +67,8 @@ public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
 		listBody.Should().NotContain(accountId.ToString());
 
 		// And A's row was untouched by all of B's attempts.
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var row = await db.SocialAccount.AsNoTracking()
+		await using var db = this._Fixture.OpenDb();
+		var row = await db.Context.SocialAccount.AsNoTracking()
 			.SingleAsync(a => a.Id == accountId);
 		row.Status.Should().Be(SocialAccountStatus.Active);
 		row.ProtectedCredentials.Should().NotBeEmpty();
@@ -113,13 +110,8 @@ public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid TenantId, string Token, Guid AccountId)>
 		_ConnectForAcmeAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.AcmeName
-		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post, "/social-accounts/connect"
 		).WithSessionToken(token).WithTenantId(tenantId);
@@ -135,10 +127,7 @@ public sealed class SocialAccountIsolationSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid TenantId, string Token)>
 		_LoginAsTechStartAdminAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.TechStartName
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.TechStartName);
 		var token = await this._AuthClient.LoginAsync(
 			TestConstants.TechStartAdminEmail, TestConstants.SeedPassword
 		);
