@@ -1,156 +1,55 @@
 /**
  * @vitest-environment jsdom
  */
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
-import {
-	countCallsByPath,
-	expectFilteredHoverClickReusesWarmedKeys,
-	type FakeClientCall,
-	type FakeResponse,
-	type PreloadDestination,
-	preloadedQueries,
-	renderPreloadScenario,
-	warmedSnapshot,
-	widenOptions,
-} from '~/__tests__/support/preload-harness';
+
+import { vi } from 'vitest';
+import { definePreloadSuite } from '~/__tests__/support/preload-suite';
 import { Route as StaffJobsQueueRoute } from '~/routes/authed/staff/jobs/queue';
 
 /**
- * #2340 — the real staff jobs queue (the `/staff/jobs` index) preloads its
- * page queries from the route's own query spec (see
- * `staff-users.preload.test.tsx` for the harness rationale). Hover warms the
- * queue list plus the three `size: 1` counter lists once; the click
- * paints them from cache.
+ * #2340 — the real staff jobs queue (the `/staff/jobs` index) preloads the queue list and the three counter lists from the route's own query spec (see `staff-users.preload.test.tsx` for the harness rationale).
+ * Hover warms each page query exactly once and renders nothing; after the click
+ * the page's own hooks observe the very queries the loader warmed, and the
+ * fresh data is reused: no additional fetch.
  */
-const mocks = vi.hoisted(() => ({
-	respond: vi.fn((_call: FakeClientCall): FakeResponse => ({})),
-}));
 
-vi.mock('~/lib/api-client/client-manager', async () => {
-	const actual = await vi.importActual<
-		typeof import('~/lib/api-client/client-manager')
-	>('~/lib/api-client/client-manager');
-	const { buildFakeApiClient } =
-		await import('~/__tests__/support/preload-harness');
-	const fakeClient = buildFakeApiClient(mocks.respond);
+vi.mock('~/lib/api-client/client-manager', () =>
+	import('~/__tests__/support/preload-mocks').then((m) =>
+		m.clientManagerModule(),
+	),
+);
+vi.mock('~/lib/hooks/use-logout', () =>
+	import('~/__tests__/support/preload-mocks').then((m) => m.logoutHookModule()),
+);
+vi.mock('~/components/error-views/LogoutRedirect', () =>
+	import('~/__tests__/support/preload-mocks').then((m) =>
+		m.logoutRedirectModule(),
+	),
+);
+vi.mock('react-i18next', (importOriginal) =>
+	import('~/__tests__/support/preload-mocks').then((m) =>
+		m.identityI18nModule(importOriginal),
+	),
+);
 
-	return {
-		...actual,
-		getClientManager: () => ({
-			getOrCreateClient: () => fakeClient,
-			getOrCreateStaffClient: () => fakeClient,
-			getOrCreateTenantScopeClient: () => fakeClient,
-			getOrCreateAnonymousClient: () => fakeClient,
-			getOrCreateSessionClient: () => fakeClient,
-			clearClients: () => {},
-		}),
-	};
-});
-
-vi.mock('~/lib/hooks/use-logout', () => ({
-	useLogout: () => ({ logout: vi.fn() }),
-}));
-
-vi.mock('~/components/error-views/LogoutRedirect', () => ({
-	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
-}));
-
-vi.mock('react-i18next', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('react-i18next')>();
-
-	return {
-		...actual,
-		useTranslation: () => ({
-			t: (key: string) => key,
-			i18n: { language: 'en' },
-		}),
-	};
-});
-
-const QUEUE_PATH = ['staff', 'jobs', 'queue', 'get'] as const;
-const DEAD_LETTERS_PATH = ['staff', 'jobs', 'deadLetter', 'get'] as const;
-const SYSTEM_JOBS_PATH = ['staff', 'jobs', 'systemJobs', 'get'] as const;
-const LINK_LABEL = 'open jobs queue';
-
-const destination = widenOptions<PreloadDestination>({
+definePreloadSuite({
+	title: 'staff jobs queue',
+	route: StaffJobsQueueRoute,
 	linkTo: '/staff/jobs',
 	path: '/',
 	parentPath: '/staff/jobs',
-	options: StaffJobsQueueRoute.options,
-});
-
-describe('#2340 staff jobs queue route preload', () => {
-	afterEach(() => {
-		cleanup();
-		vi.restoreAllMocks();
-		mocks.respond.mockReset();
-	});
-
-	test('hovering the link warms the page queries exactly once', async () => {
-		const { queryClient } = renderPreloadScenario({
-			destination,
-			linkLabel: LINK_LABEL,
-		});
-
-		const link = await screen.findByRole('link', { name: LINK_LABEL });
-		expect(countCallsByPath(mocks.respond, ...QUEUE_PATH)).toBe(0);
-
-		fireEvent.mouseEnter(link);
-
-		await waitFor(() => {
-			expect(countCallsByPath(mocks.respond, ...QUEUE_PATH)).toBe(2);
-			expect(countCallsByPath(mocks.respond, ...DEAD_LETTERS_PATH)).toBe(1);
-			expect(countCallsByPath(mocks.respond, ...SYSTEM_JOBS_PATH)).toBe(1);
-		});
-		await waitFor(() => {
-			expect(queryClient.isFetching()).toBe(0);
-		});
-
-		const warmed = preloadedQueries(queryClient);
-		expect(warmed).toHaveLength(4);
-		expect(warmed.every((query) => query.state.data !== undefined)).toBe(true);
-		expect(screen.queryByTestId('staff-jobs-queue-table')).toBeNull();
-	});
-
-	test('clicking after the preload paints the page from cache with no refetch', async () => {
-		const { queryClient } = renderPreloadScenario({
-			destination,
-			linkLabel: LINK_LABEL,
-		});
-		const link = await screen.findByRole('link', { name: LINK_LABEL });
-
-		fireEvent.mouseEnter(link);
-		await waitFor(() => {
-			expect(countCallsByPath(mocks.respond, ...QUEUE_PATH)).toBe(2);
-		});
-		await waitFor(() => {
-			expect(queryClient.isFetching()).toBe(0);
-		});
-
-		const warmed = preloadedQueries(queryClient);
-		const snapshot = warmedSnapshot(warmed);
-
-		fireEvent.click(link);
-
-		await waitFor(() => {
-			expect(screen.getByTestId('staff-jobs-queue-table')).toBeTruthy();
-		});
-
-		for (const query of warmed) {
-			expect(query.getObserversCount()).toBeGreaterThan(0);
-			expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));
-		}
-	});
-
-	test('a filtered URL warms the key the page reads for that URL', async () => {
-		await expectFilteredHoverClickReusesWarmedKeys({
-			destination: widenOptions<PreloadDestination>({
-				...destination,
-				linkSearch: { status: 'pending' },
-			}),
-			linkLabel: LINK_LABEL,
-			pageTestId: 'staff-jobs-queue-table',
-		});
-	});
+	linkLabel: 'open jobs queue',
+	endpoints: [
+		[['staff', 'jobs', 'queue', 'get'], 2],
+		[['staff', 'jobs', 'deadLetter', 'get'], 1],
+		[['staff', 'jobs', 'systemJobs', 'get'], 1],
+	],
+	warmed: 4,
+	pageTestId: 'staff-jobs-queue-table',
+	variants: [
+		{
+			title: 'a filtered URL warms the key the page reads for that URL',
+			search: { status: 'pending' },
+		},
+	],
 });
