@@ -165,6 +165,6 @@ public sealed class AggregatorConnectionService {
 	// RequireTenantScope throws when there is none, so the id is always set past it.
 	private Guid _ScopedTenantId() {
 		this._Db.RequireTenantScope();
-		return this._Db.TenantId.Value;
+		return this._Db.TenantId.GetValueOrDefault();
 	}
 }
