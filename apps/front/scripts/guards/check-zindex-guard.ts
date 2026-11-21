@@ -337,93 +337,103 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 // literal is never mistaken for a comment. Comment bodies are replaced with
 // same-length whitespace so candidate character offsets stay valid.
 // ---------------------------------------------------------------------------
+const blankRange = (chars: string[], from: number, to: number): void => {
+	for (let k = from; k < to; k += 1) {
+		if (chars[k] !== '\n') {
+			chars[k] = ' ';
+		}
+	}
+};
+
+/** Blanks a `//` comment and returns the index of its line break. */
+const blankLineComment = (chars: string[], start: number): number => {
+	let k = start;
+	while (k < chars.length && chars[k] !== '\n') {
+		chars[k] = ' ';
+		k += 1;
+	}
+	return k;
+};
+
+/** Blanks a block comment and returns the index after it. */
+const blankBlockComment = (chars: string[], start: number): number => {
+	let k = start + 2;
+	while (k < chars.length && !(chars[k] === '*' && chars[k + 1] === '/')) {
+		k += 1;
+	}
+	blankRange(chars, start, k + 2);
+	return k + 2;
+};
+
+/** Returns the index after a quoted string that opens at `start`. */
+const skipQuotedString = (
+	chars: string[],
+	start: number,
+	quote: string,
+): number => {
+	let k = start + 1;
+	while (k < chars.length && chars[k] !== quote) {
+		k += chars[k] === '\\' ? 2 : 1;
+	}
+	return k + 1;
+};
+
+/** Returns the index after the template literal opening at `openIndex`. */
+const skipTemplateLiteral = (chars: string[], openIndex: number): number => {
+	let j = openIndex + 1;
+	while (j < chars.length) {
+		const c = chars[j];
+		if (c === '`') {
+			return j + 1;
+		}
+		if (c === '\\') {
+			j += 2;
+		} else if (c === '$' && chars[j + 1] === '{') {
+			j = blankCodeComments(chars, j + 2, '}');
+		} else {
+			j += 1;
+		}
+	}
+	return chars.length;
+};
+
+/** One step of code scanning at `j`: blanks comments, skips literals; returns the next index. */
+const stepCode = (chars: string[], j: number): number => {
+	const c = chars[j];
+	const next = chars[j + 1];
+	if (c === '/' && next === '/') {
+		return blankLineComment(chars, j);
+	}
+	if (c === '/' && next === '*') {
+		return blankBlockComment(chars, j);
+	}
+	if (c === '"' || c === "'") {
+		return skipQuotedString(chars, j, c);
+	}
+	if (c === '`') {
+		return skipTemplateLiteral(chars, j);
+	}
+	return j + 1;
+};
+
+const blankCodeComments = (
+	chars: string[],
+	start: number,
+	terminator: string,
+): number => {
+	let j = start;
+	while (j < chars.length) {
+		if (chars[j] === terminator) {
+			return j + 1;
+		}
+		j = stepCode(chars, j);
+	}
+	return chars.length;
+};
+
 export const stripComments = (source: string): string => {
 	const chars = source.split('');
-	const n = chars.length;
-
-	const blank = (from: number, to: number): void => {
-		for (let k = from; k < to; k += 1) {
-			if (chars[k] !== '\n') {
-				chars[k] = ' ';
-			}
-		}
-	};
-
-	const scanTemplate = (openIndex: number): number => {
-		let j = openIndex + 1;
-		while (j < n) {
-			const c = chars[j];
-			if (c === '\\') {
-				j += 2;
-				continue;
-			}
-			if (c === '`') {
-				return j + 1;
-			}
-			if (c === '$' && chars[j + 1] === '{') {
-				j = scanCode(j + 2, '}');
-				continue;
-			}
-			j += 1;
-		}
-		return n;
-	};
-
-	const scanCode = (start: number, terminator: string): number => {
-		let j = start;
-		while (j < n) {
-			const c = chars[j];
-			if (c === terminator) {
-				return j + 1;
-			}
-			if (c === '/' && chars[j + 1] === '/') {
-				let k = j;
-				while (k < n && chars[k] !== '\n') {
-					if (chars[k] !== '\n') {
-						chars[k] = ' ';
-					}
-					k += 1;
-				}
-				j = k;
-				continue;
-			}
-			if (c === '/' && chars[j + 1] === '*') {
-				let k = j + 2;
-				while (k < n) {
-					if (chars[k] === '*' && chars[k + 1] === '/') {
-						break;
-					}
-					k += 1;
-				}
-				blank(j, k + 2);
-				j = k + 2;
-				continue;
-			}
-			if (c === '"' || c === "'") {
-				let k = j + 1;
-				while (k < n) {
-					if (chars[k] === '\\') {
-						k += 2;
-						continue;
-					}
-					if (chars[k] === c) {
-						break;
-					}
-					k += 1;
-				}
-				j = k + 1;
-				continue;
-			}
-			if (c === '`') {
-				j = scanTemplate(j);
-				continue;
-			}
-			j += 1;
-		}
-		return n;
-	};
-
-	scanCode(0, '\u0000');
+	blankCodeComments(chars, 0, '\u0000');
 	return chars.join('');
 };
 
