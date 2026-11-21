@@ -215,22 +215,8 @@ public sealed class MastodonOAuthService {
 		CancellationToken cancellationToken,
 		Func<SocialProvider, bool>? isEnabled = null
 	) {
-		var hash = MastodonOAuthService.Hash(state);
 		var now = DateTime.UtcNow;
-		var pending = await this._Db.OAuthState
-			.AsNoTracking()
-			.Where(row => row.StateHash == hash
-				&& row.UserId == userId
-				&& row.ConsumedAt == null
-				&& row.ExpiresAt > now)
-			.Select(row => new {
-				row.Id,
-				row.InstanceHost,
-				row.Provider,
-				row.ProtectedCodeVerifier,
-				row.ReconnectSocialAccountId,
-			})
-			.FirstOrDefaultAsync(cancellationToken);
+		var pending = await this._FindPendingAsync(MastodonOAuthService.Hash(state), userId, now, cancellationToken);
 		if (pending is null) {
 			return new CompleteMastodonConnectResult.InvalidState();
 		}
@@ -239,16 +225,7 @@ public sealed class MastodonOAuthService {
 			return new CompleteMastodonConnectResult.ProviderDisabled(pending.Provider);
 		}
 
-		// Single use: the conditional update is the lock; the loser of a race gets 0 rows.
-		var consumed = await this._Db.OAuthState
-			.Where(row => row.Id == pending.Id && row.ConsumedAt == null)
-			.ExecuteUpdateAsync(
-				setters => setters
-					.SetProperty(row => row.ConsumedAt, now)
-					.SetProperty(row => row.ProtectedCodeVerifier, (string?)null),
-				cancellationToken
-			);
-		if (consumed != 1) {
+		if (!await this._TryConsumeAsync(pending.Id, now, cancellationToken)) {
 			return new CompleteMastodonConnectResult.InvalidState();
 		}
 
@@ -294,22 +271,11 @@ public sealed class MastodonOAuthService {
 			return new CompleteMastodonConnectResult.Unreachable();
 		}
 
-		if (pending.ReconnectSocialAccountId is { } reconnecting) {
-			var expected = await this._Db.SocialAccount
-				.AsNoTracking()
-				.Where(row => row.Id == reconnecting && !row.IsDeleted)
-				.Select(row => new { row.ExternalAccountId, row.DisplayHandle })
-				.FirstOrDefaultAsync(cancellationToken);
-			if (expected is not null && expected.ExternalAccountId != $"{account.Value.Id}@{host}") {
-				// A different account signed in: never link it silently, and never leave its
-				// token behind. The account being reconnected stays exactly as it was.
-				await this.RevokeBestEffortAsync(
-					new MastodonRevocation(host, app, accessToken.Value), cancellationToken
-				);
-				return new CompleteMastodonConnectResult.AccountMismatch(
-					expected.DisplayHandle, $"{account.Value.Acct}@{host}", pending.Provider, host
-				);
-			}
+		var mismatch = await this._FindReconnectMismatchAsync(
+			pending, host, app, account.Value, accessToken.Value, cancellationToken
+		);
+		if (mismatch is not null) {
+			return mismatch;
 		}
 
 		var limits = await this._Client.GetInstanceLimitsAsync(host, cancellationToken);
@@ -317,6 +283,75 @@ public sealed class MastodonOAuthService {
 
 		return await this._StoreAccountAsync(
 			tenantId, pending.Provider, host, account.Value, accessToken.Value, overrides, cancellationToken
+		);
+	}
+
+	private sealed record PendingState(
+		Guid Id,
+		string InstanceHost,
+		SocialProvider Provider,
+		string? ProtectedCodeVerifier,
+		Guid? ReconnectSocialAccountId
+	);
+
+	private async Task<PendingState?> _FindPendingAsync(
+		string hash, Guid userId, DateTime now, CancellationToken cancellationToken
+	) {
+		return await this._Db.OAuthState
+			.AsNoTracking()
+			.Where(row => row.StateHash == hash
+				&& row.UserId == userId
+				&& row.ConsumedAt == null
+				&& row.ExpiresAt > now)
+			.Select(row => new PendingState(
+				(Guid)row.Id,
+				row.InstanceHost,
+				row.Provider,
+				row.ProtectedCodeVerifier,
+				row.ReconnectSocialAccountId
+			))
+			.FirstOrDefaultAsync(cancellationToken);
+	}
+
+	// Single use: the conditional update is the lock; the loser of a race gets 0 rows.
+	private async Task<bool> _TryConsumeAsync(Guid stateId, DateTime now, CancellationToken cancellationToken) {
+		var consumed = await this._Db.OAuthState
+			.Where(row => row.Id == stateId && row.ConsumedAt == null)
+			.ExecuteUpdateAsync(
+				setters => setters
+					.SetProperty(row => row.ConsumedAt, now)
+					.SetProperty(row => row.ProtectedCodeVerifier, (string?)null),
+				cancellationToken
+			);
+		return consumed == 1;
+	}
+
+	// A different account signed in on a reconnect: never link it silently, and never
+	// leave its token behind. The account being reconnected stays exactly as it was.
+	private async Task<CompleteMastodonConnectResult?> _FindReconnectMismatchAsync(
+		PendingState pending,
+		string host,
+		MastodonApp app,
+		MastodonAccountInfo account,
+		string accessToken,
+		CancellationToken cancellationToken
+	) {
+		if (pending.ReconnectSocialAccountId is not { } reconnecting) {
+			return null;
+		}
+
+		var expected = await this._Db.SocialAccount
+			.AsNoTracking()
+			.Where(row => row.Id == reconnecting && !row.IsDeleted)
+			.Select(row => new { row.ExternalAccountId, row.DisplayHandle })
+			.FirstOrDefaultAsync(cancellationToken);
+		if (expected is null || expected.ExternalAccountId == $"{account.Id}@{host}") {
+			return null;
+		}
+
+		await this.RevokeBestEffortAsync(new MastodonRevocation(host, app, accessToken), cancellationToken);
+		return new CompleteMastodonConnectResult.AccountMismatch(
+			expected.DisplayHandle, $"{account.Acct}@{host}", pending.Provider, host
 		);
 	}
 
