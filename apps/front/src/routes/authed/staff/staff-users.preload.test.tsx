@@ -4,12 +4,12 @@
 
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { expect, test, vi } from 'vitest';
-import { respond } from '~/__tests__/support/preload-mocks';
-import { definePreloadSuite } from '~/__tests__/support/preload-suite';
 import {
 	renderPreloadScenario,
 	requestQueryParameters,
-} from '~/routes/authed/staff/_preload-test-harness';
+} from '~/__tests__/support/preload-harness';
+import { respond } from '~/__tests__/support/preload-mocks';
+import { definePreloadSuite } from '~/__tests__/support/preload-suite';
 import { Route as StaffUsersRoute } from '~/routes/authed/staff/staff-users';
 
 /**
@@ -66,6 +66,7 @@ definePreloadSuite({
 		{
 			title: 'a filtered URL warms the key the page reads for that URL',
 			search: { status: 'active' },
+			clickEndpoints: [[USERS_PATH, 2]],
 		},
 	],
 	extraTests: (destination) => {

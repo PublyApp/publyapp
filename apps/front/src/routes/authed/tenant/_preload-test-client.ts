@@ -2,7 +2,7 @@ import {
 	buildFakeApiClient,
 	type FakeClientCall,
 	type FakeResponse,
-} from '~/routes/authed/staff/_preload-test-harness';
+} from '~/__tests__/support/preload-harness';
 
 // Kept apart from `_preload-test-support`: the tests' `vi.mock` factory for the
 // client manager imports this file, and the support file imports modules that

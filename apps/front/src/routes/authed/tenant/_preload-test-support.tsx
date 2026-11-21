@@ -2,7 +2,6 @@ import type { QueryClient } from '@tanstack/react-query';
 import { screen, waitFor } from '@testing-library/react';
 import { fireEvent } from '@testing-library/react';
 import { expect } from 'vitest';
-import { tenantsForPickerQueryOptions } from '~/lib/query/tenants-for-picker';
 import {
 	type FakeClientCall,
 	type PreloadDestination,
@@ -11,13 +10,14 @@ import {
 	preloadedQueries,
 	renderPreloadScenario,
 	warmedSnapshot,
-} from '~/routes/authed/staff/_preload-test-harness';
+} from '~/__tests__/support/preload-harness';
+import { tenantsForPickerQueryOptions } from '~/lib/query/tenants-for-picker';
 
 import { TenantStatusObject } from '@org/client-ts/models/index';
 
 /**
  * #2340 — support for the tenant routes' `*.preload.test.tsx` files. It mirrors
- * the staff harness (`staff/_preload-test-harness.tsx`, reused for the router,
+ * the staff harness (`__tests__/support/preload-harness.tsx`, reused for the router,
  * the QueryClient and the fake Kiota client) and adds what the tenant side
  * needs: the workspace picker, and a client that tells which tenant a request
  * was scoped to (`getOrCreateClient(tenantId)` prefixes the call path with it).

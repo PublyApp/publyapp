@@ -3,7 +3,7 @@ import {
 	buildFakeApiClient,
 	type FakeClientCall,
 	type FakeResponse,
-} from '~/routes/authed/staff/_preload-test-harness';
+} from '~/__tests__/support/preload-harness';
 
 /**
  * Module factories for the staff `*.preload.test.tsx` suites. `vi.mock` calls

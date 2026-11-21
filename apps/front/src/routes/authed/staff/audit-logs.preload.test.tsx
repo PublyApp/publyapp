@@ -12,7 +12,7 @@ import {
 	renderPreloadScenario,
 	warmedSnapshot,
 	widenOptions,
-} from '~/routes/authed/staff/_preload-test-harness';
+} from '~/__tests__/support/preload-harness';
 import { Route as StaffAuditLogsRoute } from '~/routes/authed/staff/audit-logs';
 
 /**
@@ -30,7 +30,7 @@ vi.mock('~/lib/api-client/client-manager', async () => {
 		typeof import('~/lib/api-client/client-manager')
 	>('~/lib/api-client/client-manager');
 	const { buildFakeApiClient } =
-		await import('~/routes/authed/staff/_preload-test-harness');
+		await import('~/__tests__/support/preload-harness');
 	const fakeClient = buildFakeApiClient(mocks.respond);
 
 	return {

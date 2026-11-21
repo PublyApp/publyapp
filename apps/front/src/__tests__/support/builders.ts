@@ -1,4 +1,4 @@
-import type { FakeResponse } from '~/routes/authed/staff/_preload-test-harness';
+import type { FakeResponse } from '~/__tests__/support/preload-harness';
 
 /** Payloads a staff tenant page needs to mount its queries (tenant, role,
  * role permissions, role members, tenant permission catalogue). */

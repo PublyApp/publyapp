@@ -1,6 +1,5 @@
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { respond } from '~/__tests__/support/preload-mocks';
 import {
 	countCallsByPath,
 	type FakeClientCall,
@@ -12,7 +11,8 @@ import {
 	requestQueryParameters,
 	warmedSnapshot,
 	widenOptions,
-} from '~/routes/authed/staff/_preload-test-harness';
+} from '~/__tests__/support/preload-harness';
+import { respond } from '~/__tests__/support/preload-mocks';
 
 /** An endpoint suffix and how many distinct queries must hit it. */
 export type PreloadEndpoint = readonly [readonly string[], number];
@@ -25,6 +25,9 @@ export type PreloadVariant = {
 	search?: Search;
 	/** Overrides the suite's endpoints for this URL. */
 	endpoints?: readonly PreloadEndpoint[];
+	/** Endpoint counts after the click (default: `endpoints`); pins side-panel
+	 * calls that hit the same endpoint. */
+	clickEndpoints?: readonly PreloadEndpoint[];
 	/** Overrides the suite's warmed-query count for this URL. */
 	warmed?: number;
 	/** Request parameters the URL must put on one endpoint's calls. */
@@ -60,7 +63,7 @@ export type PreloadSuite = {
 type Scenario = Required<
 	Pick<PreloadVariant, 'title' | 'endpoints' | 'warmed'>
 > &
-	Pick<PreloadVariant, 'search' | 'request'>;
+	Pick<PreloadVariant, 'search' | 'request' | 'clickEndpoints'>;
 
 const buildDestination = (suite: PreloadSuite, search?: Search) =>
 	widenOptions<PreloadDestination>({
@@ -71,8 +74,11 @@ const buildDestination = (suite: PreloadSuite, search?: Search) =>
 		options: suite.route.options,
 	});
 
-const expectEndpointCalls = (scenario: Scenario) => {
-	for (const [suffix, count] of scenario.endpoints) {
+const expectEndpointCalls = (
+	scenario: Scenario,
+	endpoints: readonly PreloadEndpoint[] = scenario.endpoints,
+) => {
+	for (const [suffix, count] of endpoints) {
 		expect(countCallsByPath(respond, ...suffix)).toBe(count);
 	}
 	if (scenario.request !== undefined) {
@@ -100,7 +106,7 @@ const hover = async (suite: PreloadSuite, scenario: Scenario) => {
 	await waitFor(() => {
 		expect(queryClient.isFetching()).toBe(0);
 	});
-	expect(lazyCalls(suite).every((count) => count === 0)).toBe(true);
+	expect(lazyCalls(suite)).toEqual(lazyCalls(suite).map(() => 0));
 
 	const warmed = preloadedQueries(queryClient);
 	expect(warmed).toHaveLength(scenario.warmed);
@@ -130,7 +136,9 @@ const hoverThenClick = async (suite: PreloadSuite, scenario: Scenario) => {
 		expect(hovered.queryClient.isFetching()).toBe(0);
 	});
 	await waitFor(() => {
-		expect(lazyCalls(suite).every((count) => count > 0)).toBe(true);
+		for (const count of lazyCalls(suite)) {
+			expect(count).toBeGreaterThan(0);
+		}
 	});
 
 	return hovered;
@@ -183,10 +191,10 @@ export const definePreloadSuite = (suite: PreloadSuite) => {
 				for (const query of warmed) {
 					expect(query.state.dataUpdatedAt).toBe(snapshot.get(query.queryKey));
 				}
-				// A list page mounts side panels that call the same endpoints.
-				if (suite.pageTestId === undefined) {
-					expectEndpointCalls(scenario);
-				}
+				expectEndpointCalls(
+					scenario,
+					scenario.clickEndpoints ?? scenario.endpoints,
+				);
 			},
 		);
 
