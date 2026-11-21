@@ -87,16 +87,15 @@ public sealed class SocialAccountPublicationLifecycleSpec : IClassFixture<ApiFix
 	[Fact]
 	public async Task ItShouldPauseEveryNonTerminalRowOfTheAccountOnDisconnect() {
 		var (tenantId, token, accountId) = await this._ConnectNewAccountAsync();
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var userId = await SocialAccountPublicationLifecycleSpec._SeedUserAsync(db);
+		var userId = await SocialAccountPublicationLifecycleSpec._SeedUserAsync(db.Context);
 		var scheduledId = await SocialAccountPublicationLifecycleSpec._SeedPublicationAsync(
-			db, tenantId, accountId, userId,
+			db.Context, tenantId, accountId, userId,
 			PublicationStatus.Scheduled, DateTime.UtcNow.AddHours(2)
 		);
 		var pausedId = await SocialAccountPublicationLifecycleSpec._SeedPublicationAsync(
-			db, tenantId, accountId, userId,
+			db.Context, tenantId, accountId, userId,
 			PublicationStatus.Paused, DateTime.UtcNow.AddHours(-1)
 		);
 
@@ -108,7 +107,7 @@ public sealed class SocialAccountPublicationLifecycleSpec : IClassFixture<ApiFix
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		foreach (var publicationId in new[] { scheduledId, pausedId }) {
-			var publication = await SocialAccountPublicationLifecycleSpec._ReloadAsync(db, publicationId);
+			var publication = await SocialAccountPublicationLifecycleSpec._ReloadAsync(db.Context, publicationId);
 			publication.Status.Should().Be(
 				PublicationStatus.Paused, "disconnect stops everything non-terminal"
 			);
@@ -117,13 +116,8 @@ public sealed class SocialAccountPublicationLifecycleSpec : IClassFixture<ApiFix
 	}
 
 	private async Task<(Guid TenantId, string Token, Guid AccountId)> _ConnectNewAccountAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.AcmeName
-		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post, "/social-accounts/connect"
 		).WithSessionToken(token).WithTenantId(tenantId);

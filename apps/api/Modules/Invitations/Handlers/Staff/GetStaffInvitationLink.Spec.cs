@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -100,11 +99,11 @@ public sealed class GetStaffInvitationLinkSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnBadRequestForAMalformedId() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			GetStaffInvitationLinkSpec._GetUrl("not-a-guid")
-		).WithSessionToken(token);
-		using var response = await this._Http.SendAsync(request);
+			GetStaffInvitationLinkSpec._GetUrl("not-a-guid"),
+			token
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		await GetStaffInvitationLinkSpec._AssertProblemKeyAsync(response, "malformed-id");
@@ -123,10 +122,7 @@ public sealed class GetStaffInvitationLinkSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForATenantUser() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var response = await this._SendAsync(token, Guid.NewGuid());
 
@@ -169,9 +165,6 @@ public sealed class GetStaffInvitationLinkSpec : IClassFixture<ApiFixture> {
 		HttpResponseMessage response,
 		string expectedKey
 	) {
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(expectedKey);
+		await response.ShouldBeProblemAsync(expectedKey);
 	}
 }

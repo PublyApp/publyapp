@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -289,32 +287,17 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
 	private async Task<Guid> _GetAcmeAdminUserIdAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var dbContext = this._Fixture.OpenDb();
 
-		var user = await dbContext.User
+		var user = await dbContext.Context.User
 			.Where(u => u.Email == TestConstants.AcmeAdminEmail)
 			.FirstAsync();
 		return user.GetRequiredId();
@@ -326,9 +309,7 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		string body,
 		DateTime createdAt
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var dbContext = this._Fixture.OpenDb();
 
 		var post = new Post {
 			TenantId = tenantId,
@@ -339,44 +320,40 @@ public sealed class FindPostsCursorBehaviorSpec : IClassFixture<ApiFixture> {
 		// Insert first (interceptor stamps CreatedAt/UpdatedAt = now), then
 		// re-fetch and overwrite CreatedAt as a Modified row. On Modified the
 		// interceptor only touches UpdatedAt, so the seeded CreatedAt sticks.
-		await dbContext.Post.AddAsync(post);
-		await dbContext.SaveChangesAsync();
+		await dbContext.Context.Post.AddAsync(post);
+		await dbContext.Context.SaveChangesAsync();
 		var id = post.GetRequiredId();
 
-		var tracked = await dbContext.Post
+		var tracked = await dbContext.Context.Post
 			.Where(p => p.Id == id)
 			.FirstAsync();
 		tracked.CreatedAt = createdAt;
-		await dbContext.SaveChangesAsync();
+		await dbContext.Context.SaveChangesAsync();
 
 		return id;
 	}
 
 	private async Task _OverrideUpdatedAtAsync(Guid postId, DateTime updatedAt) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var dbContext = this._Fixture.OpenDb();
 
 		// Direct UPDATE bypasses the audit interceptor that would otherwise
 		// stamp UpdatedAt = now on every Modified save.
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await dbContext.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE posts SET updated_at = {0} WHERE id = {1}",
 			updatedAt, postId
 		);
 	}
 
 	private async Task _SwapPostIdsAsync(Guid idA, Guid idB) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var dbContext = this._Fixture.OpenDb();
 		var temp = Guid.NewGuid();
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await dbContext.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE posts SET id = {0} WHERE id = {1}",
 			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await dbContext.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE posts SET id = {0} WHERE id = {1}",
 			idA, idB);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await dbContext.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE posts SET id = {0} WHERE id = {1}",
 			idB, temp);
 	}

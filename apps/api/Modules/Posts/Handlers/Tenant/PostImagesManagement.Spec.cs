@@ -144,10 +144,9 @@ public sealed class PostImagesManagementSpec : IClassFixture<ApiFixture> {
 		post.Images.Select(i => i.Id).Should().Equal(a.Id, c.Id);
 		post.Images.Select(i => i.Position).Should().Equal(0, 1);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var removedReferences = await (
-			from u in db.UploadAsset.AsNoTracking()
+			from u in db.Context.UploadAsset.AsNoTracking()
 			where u.RelativePath == b.Path && !u.IsDeleted
 			select (int?)u.ReferenceCount
 		).SingleAsync();
@@ -244,10 +243,7 @@ public sealed class PostImagesManagementSpec : IClassFixture<ApiFixture> {
 		var postId = await this._CreatePostAsync(tenantId, token);
 		var a = await this._AttachAsync(tenantId, token, postId, 10);
 
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var otherTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.TechStartName
-		);
+		var (_, otherTenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.TechStartName);
 		var otherToken = await this._AuthClient.LoginAsync(
 			TestConstants.TechStartAdminEmail, TestConstants.SeedPassword
 		);
@@ -318,13 +314,8 @@ public sealed class PostImagesManagementSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.AcmeName
-		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail, TestConstants.SeedPassword
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 

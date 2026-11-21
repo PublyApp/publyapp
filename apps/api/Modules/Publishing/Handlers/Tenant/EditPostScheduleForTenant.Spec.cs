@@ -7,7 +7,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -67,15 +66,14 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var post = await db.Post.AsNoTracking().SingleAsync(
+		await using var db = this._Fixture.OpenDb();
+		var post = await db.Context.Post.AsNoTracking().SingleAsync(
 			p => p.Id == Guid.Parse(postId)
 		);
 		post.Body.Should().Be("edited body for the scheduled post");
 
 		var publications = await (
-			from p in db.Publication.AsNoTracking()
+			from p in db.Context.Publication.AsNoTracking()
 			where p.PostId == Guid.Parse(postId)
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
@@ -94,7 +92,7 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		}
 
 		var audits = await (
-			from entry in db.AuditLog.AsNoTracking()
+			from entry in db.Context.AuditLog.AsNoTracking()
 			where entry.TargetId == Guid.Parse(postId)
 				&& (entry.Action == AuditActions.PublicationRescheduled
 					|| entry.Action == AuditActions.PostUpdated)
@@ -109,9 +107,8 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		var (tenantId, token, postId) = await this._SeedScheduledPostAsync();
 
 		// Give the rows a failed-looking state to prove reschedule cleans them up.
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await db.Publication
+		await using var db = this._Fixture.OpenDb();
+		await db.Context.Publication
 			.Where(p => p.PostId == Guid.Parse(postId)
 				&& p.TenantId == tenantId)
 			.ExecuteUpdateAsync(s => s
@@ -137,12 +134,9 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		await using var verifyScope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var verifyDb =
-			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var verifyDb = this._Fixture.OpenDb();
 		var publications = await (
-			from p in verifyDb.Publication.AsNoTracking()
+			from p in verifyDb.Context.Publication.AsNoTracking()
 			where p.PostId == Guid.Parse(postId)
 				&& p.TenantId == tenantId
 				&& !p.IsDeleted
@@ -158,12 +152,9 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldPatchTextOnlyWithoutTouchingTheSchedule() {
 		var (tenantId, token, postId) = await this._SeedScheduledPostAsync();
 
-		await using var beforeScope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var beforeDb =
-			beforeScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var beforeDb = this._Fixture.OpenDb();
 		var before = await (
-			from p in beforeDb.Publication.AsNoTracking()
+			from p in beforeDb.Context.Publication.AsNoTracking()
 			where p.PostId == Guid.Parse(postId) && p.TenantId == tenantId
 			select new { p.ScheduledAtUtc, p.ScheduledTimeZone }
 		).ToListAsync();
@@ -180,12 +171,9 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-		await using var afterScope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var afterDb =
-			afterScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var afterDb = this._Fixture.OpenDb();
 		var publications = await (
-			from p in afterDb.Publication.AsNoTracking()
+			from p in afterDb.Context.Publication.AsNoTracking()
 			where p.PostId == Guid.Parse(postId) && p.TenantId == tenantId
 			select p
 		).ToListAsync();
@@ -201,9 +189,8 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		// One row is mid-flight (InProgress): the handler's InProgress gate must
 		// refuse the edit. Seeded as a tracked insert (the #1446 guard permits
 		// Status on Added rows; only raw/unstamped Status UPDATEs are rejected).
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var inProgress = await db.Publication
+		await using var db = this._Fixture.OpenDb();
+		var inProgress = await db.Context.Publication
 			.AsNoTracking()
 			.Where(p => p.PostId == Guid.Parse(postId)
 				&& p.TenantId == tenantId)
@@ -218,10 +205,10 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 				+ ".bsky.social",
 			ProtectedCredentials = "enc-spec-blob",
 		};
-		db.SocialAccount.Add(inFlightAccount);
-		await db.SaveChangesAsync();
+		db.Context.SocialAccount.Add(inFlightAccount);
+		await db.Context.SaveChangesAsync();
 
-		db.Publication.Add(new Publication {
+		db.Context.Publication.Add(new Publication {
 			TenantId = tenantId,
 			PostId = inProgress.PostId,
 			SocialAccountId = inFlightAccount.GetRequiredId(),
@@ -230,7 +217,7 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 			ScheduledTimeZone = inProgress.ScheduledTimeZone,
 			IdempotencyKey = "in-progress-seed",
 		});
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		using var request =
 			new HttpRequestMessage(HttpMethod.Patch, EditPostScheduleForTenantSpec._ScheduleUrl(postId))
@@ -251,11 +238,8 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 		problem.Detail.Should().NotBeNullOrWhiteSpace();
 
 		// The refusal covers the TEXT too: nothing may change.
-		await using var verifyScope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var verifyDb =
-			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var post = await verifyDb.Post.AsNoTracking().SingleAsync(
+		await using var verifyDb = this._Fixture.OpenDb();
+		var post = await verifyDb.Context.Post.AsNoTracking().SingleAsync(
 			p => p.Id == Guid.Parse(postId)
 		);
 		post.Body.Should().Be("original scheduled body");
@@ -329,12 +313,7 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturn404ForUnknownAndCrossTenantPostIds() {
 		var (acmeTenantId, acmeToken, postId) =
 			await this._SeedScheduledPostAsync();
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var techStartId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.TechStartName
-		);
+		var (_, techStartId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.TechStartName);
 
 		using var unknownRequest =
 			new HttpRequestMessage(
@@ -379,9 +358,8 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 			.Should().Be("publish-content-too-long");
 		problem.RootElement.GetProperty("actual").GetInt32().Should().Be(301);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var post = await db.Post.AsNoTracking().SingleAsync(p => p.Id == Guid.Parse(postId));
+		await using var db = this._Fixture.OpenDb();
+		var post = await db.Context.Post.AsNoTracking().SingleAsync(p => p.Id == Guid.Parse(postId));
 		post.Body.Length.Should().BeLessThan(301, "the over-limit edit was not saved");
 	}
 
@@ -432,10 +410,7 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 	private async Task<(Guid TenantId, string Token, string PostId)>
 	_SeedScheduledPostAsync() {
 		var tenantId = await this._GetAcmeIdAsync();
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var postId = await this._CreateScheduledPostAsync(tenantId);
 		return (tenantId, token, postId);
 	}
@@ -445,10 +420,9 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 	/// returns the persisted post id as a string for URL building.
 	/// </summary>
 	private async Task<string> _CreateScheduledPostAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var author = await db.User.AsNoTracking().SingleAsync(
+		var author = await db.Context.User.AsNoTracking().SingleAsync(
 			u => u.Email == TestConstants.AcmeAdminEmail
 		);
 
@@ -457,7 +431,7 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 			Body = "original scheduled body",
 			CreatedByUserId = author.GetRequiredId(),
 		};
-		db.Post.Add(post);
+		db.Context.Post.Add(post);
 		var firstAccount = new SocialAccount {
 			TenantId = tenantId,
 			ExternalAccountId = "did:plc:" + Guid.NewGuid().ToString("N"),
@@ -472,12 +446,12 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 				+ ".bsky.social",
 			ProtectedCredentials = "enc-spec-blob",
 		};
-		db.SocialAccount.AddRange(firstAccount, secondAccount);
-		await db.SaveChangesAsync();
+		db.Context.SocialAccount.AddRange(firstAccount, secondAccount);
+		await db.Context.SaveChangesAsync();
 
 		var accounts = new[] { firstAccount, secondAccount };
 		foreach (var account in accounts) {
-			db.Publication.Add(new Publication {
+			db.Context.Publication.Add(new Publication {
 				TenantId = tenantId,
 				PostId = post.GetRequiredId(),
 				SocialAccountId = account.GetRequiredId(),
@@ -487,7 +461,7 @@ public sealed class EditPostScheduleForTenantSpec : IClassFixture<ApiFixture> {
 				IdempotencyKey = "pending",
 			});
 		}
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return post.GetRequiredId().ToString();
 	}

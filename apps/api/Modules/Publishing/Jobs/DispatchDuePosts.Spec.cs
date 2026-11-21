@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
@@ -192,14 +193,11 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 			"the in-flight dedup key must ride EnqueueOptions too"
 		);
 
-		await using var verifyScope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var verifyDb =
-			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await verifyDb.Entry(await verifyDb.Publication.SingleAsync(
+		await using var verifyDb = this._Fixture.OpenDb();
+		await verifyDb.Context.Entry(await verifyDb.Context.Publication.SingleAsync(
 				p => p.Id == pastDue
 			)).ReloadAsync();
-		var claimedRow = await verifyDb.Publication.SingleAsync(
+		var claimedRow = await verifyDb.Context.Publication.SingleAsync(
 			p => p.Id == pastDue
 		);
 		claimedRow.Status.Should().Be(
@@ -207,18 +205,18 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 			"claiming transitions the row to InProgress via the transition service"
 		);
 
-		await verifyDb.Entry(await verifyDb.Publication.SingleAsync(
+		await verifyDb.Context.Entry(await verifyDb.Context.Publication.SingleAsync(
 				p => p.Id == future
 			)).ReloadAsync();
-		var untouchedFuture = await verifyDb.Publication.SingleAsync(
+		var untouchedFuture = await verifyDb.Context.Publication.SingleAsync(
 			p => p.Id == future
 		);
 		untouchedFuture.Status.Should().Be(PublicationStatus.Scheduled);
 
-		await verifyDb.Entry(await verifyDb.Publication.SingleAsync(
+		await verifyDb.Context.Entry(await verifyDb.Context.Publication.SingleAsync(
 				p => p.Id == inProgress
 			)).ReloadAsync();
-		var untouchedInProgress = await verifyDb.Publication.SingleAsync(
+		var untouchedInProgress = await verifyDb.Context.Publication.SingleAsync(
 			p => p.Id == inProgress
 		);
 		untouchedInProgress.Status.Should().Be(PublicationStatus.InProgress);

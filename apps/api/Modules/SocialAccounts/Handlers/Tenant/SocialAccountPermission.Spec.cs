@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -38,8 +36,7 @@ public sealed class SocialAccountPermissionSpec : IClassFixture<ApiFixture> {
 	private async Task<string> _CreateBareAcmeMemberAsync(Guid tenantId) {
 		var email = $"sa-perm-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -47,25 +44,22 @@ public sealed class SocialAccountPermissionSpec : IClassFixture<ApiFixture> {
 			IsVerified = true,
 			Status = UserStatus.Active,
 		};
-		db.User.Add(user);
-		await db.SaveChangesAsync();
+		db.Context.User.Add(user);
+		await db.Context.SaveChangesAsync();
 
 		var account = UserAccount.CreateTenantAccount(
 			user.GetRequiredId(), tenantId
 		);
 		account.ValidateAccountType();
-		db.UserAccount.Add(account);
-		await db.SaveChangesAsync();
+		db.Context.UserAccount.Add(account);
+		await db.Context.SaveChangesAsync();
 
 		return email;
 	}
 
 	[Fact]
 	public async Task ItShouldReturn403OnEveryRouteWithoutTheVerb() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.AcmeName
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
 		// Round 2: probe a dedicated role-less member - the seeded Acme member
 		// now legitimately holds publish + view via the demo role.
 		var bareEmail = await this._CreateBareAcmeMemberAsync(tenantId);

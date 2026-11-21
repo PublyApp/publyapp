@@ -6,9 +6,7 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -135,11 +133,9 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 		payload.Image.AltText.Should().Be("A red logo on white background");
 
 		// The alt text lives on the asset row, not the post row.
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var asset = await (
-			from a in db.PostMediaAsset.AsNoTracking()
+			from a in db.Context.PostMediaAsset.AsNoTracking()
 			where a.PostId == Guid.Parse(postId) && !a.IsDeleted
 			select a
 		).SingleAsync();
@@ -172,10 +168,7 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
 		var tenantId = await this._GetAcmeIdAsync();
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 

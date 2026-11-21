@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 using PublyApp.Api.Modules.Tenants.Entities;
@@ -176,10 +177,9 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 		// A request of another tenant runs on a context scoped to that tenant (#2460):
 		// the tenant filter alone hides this state from it.
 		var foreignTenantId = Guid.NewGuid();
-		await using var foreignScope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var foreignDb = foreignScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		foreignDb.ScopeToTenant(foreignTenantId);
-		var foreignService = new MastodonOAuthService(foreignDb, h.Protector, h.Client);
+		await using var foreignDb = this._Fixture.OpenDb();
+		foreignDb.Context.ScopeToTenant(foreignTenantId);
+		var foreignService = new MastodonOAuthService(foreignDb.Context, h.Protector, h.Client);
 		var otherTenant = await foreignService.CompleteAsync(foreignTenantId, h.UserId, "c", state, default);
 		var unknown = await h.Service.CompleteAsync(h.TenantId, h.UserId, "c", "not-a-state", default);
 		var genuine = await h.Service.CompleteAsync(h.TenantId, h.UserId, "c", state, default);
@@ -457,10 +457,9 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 		other.Should().BeOfType<StartMastodonConnectResult.Started>();
 
 		// 2. the advisory lock itself is not held by the in-flight start.
-		await using var probe = this._Fixture.Factory.Services.CreateAsyncScope();
-		var probeDb = probe.ServiceProvider.GetRequiredService<AppDbContext>();
-		await using var tx = await probeDb.Database.BeginTransactionAsync();
-		var free = await probeDb.Database
+		await using var probeDb = this._Fixture.OpenDb();
+		await using var tx = await probeDb.Context.Database.BeginTransactionAsync();
+		var free = await probeDb.Context.Database
 			.SqlQuery<bool>($"SELECT pg_try_advisory_xact_lock(hashtextextended({h.TenantId.ToString()}, 0)) AS \"Value\"")
 			.SingleAsync();
 		free.Should().BeTrue("the lock is only held while counting and reserving");

@@ -40,13 +40,12 @@ public sealed class MastodonReconnectAndQuotaSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsync() {
 		var tenantId = await TenantMemberTestHelper.GetTenantIdAsync(this._Fixture, SeedConstants.Tenants.AcmeName);
-		var token = await this._AuthClient.LoginAsync(TestConstants.AcmeAdminEmail, TestConstants.SeedPassword);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
 	private async Task<Guid> _SeedAccountAsync(Guid tenantId, string host, string id, SocialAccountStatus status) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var account = new SocialAccount {
 			TenantId = tenantId,
 			Provider = SocialProvider.Mastodon,
@@ -56,8 +55,8 @@ public sealed class MastodonReconnectAndQuotaSpec : IClassFixture<ApiFixture> {
 			ProtectedCredentials = "old-protected-blob",
 			Status = status,
 		};
-		db.SocialAccount.Add(account);
-		await db.SaveChangesAsync();
+		db.Context.SocialAccount.Add(account);
+		await db.Context.SaveChangesAsync();
 		return account.GetRequiredId();
 	}
 
@@ -94,9 +93,8 @@ public sealed class MastodonReconnectAndQuotaSpec : IClassFixture<ApiFixture> {
 		problem.GetProperty("instanceHost").GetString().Should().Be(host);
 		// The standard ProblemDetails member stays the request path: our key must not shadow it.
 		problem.GetProperty("instance").GetString().Should().EndWith("/social-accounts/mastodon/callback");
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var stored = await db.SocialAccount.AsNoTracking().Where(a => a.TenantId == tenantId && a.ExternalAccountId.EndsWith("@" + host)).ToListAsync();
+		await using var db = this._Fixture.OpenDb();
+		var stored = await db.Context.SocialAccount.AsNoTracking().Where(a => a.TenantId == tenantId && a.ExternalAccountId.EndsWith("@" + host)).ToListAsync();
 		stored.Should().ContainSingle().Which.Status.Should().Be(SocialAccountStatus.NeedsReconnect);
 	}
 
@@ -112,9 +110,8 @@ public sealed class MastodonReconnectAndQuotaSpec : IClassFixture<ApiFixture> {
 
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		(await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid().Should().Be(accountId);
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		(await db.SocialAccount.AsNoTracking().SingleAsync(a => a.Id == accountId)).Status.Should().Be(SocialAccountStatus.Active);
+		await using var db = this._Fixture.OpenDb();
+		(await db.Context.SocialAccount.AsNoTracking().SingleAsync(a => a.Id == accountId)).Status.Should().Be(SocialAccountStatus.Active);
 	}
 
 	[Fact]
@@ -159,9 +156,8 @@ public sealed class MastodonReconnectAndQuotaSpec : IClassFixture<ApiFixture> {
 			this._Instance.Calls.Should().NotContain(call => call.StartsWith("register one-more", StringComparison.Ordinal));
 		} finally {
 			// The fixture's tenant is shared with the other specs of this class: leave no quota behind.
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-			await db.OAuthAppRegistration.Where(r => r.Host.StartsWith(marker)).ExecuteDeleteAsync();
+			await using var db = this._Fixture.OpenDb();
+			await db.Context.OAuthAppRegistration.Where(r => r.Host.StartsWith(marker)).ExecuteDeleteAsync();
 		}
 	}
 }

@@ -4,11 +4,8 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -122,11 +119,11 @@ public sealed class ResendStaffInvitationSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnBadRequestForAMalformedId() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			ResendStaffInvitationSpec._GetUrl("not-a-guid")
-		).WithSessionToken(token);
-		using var response = await this._Http.SendAsync(request);
+			ResendStaffInvitationSpec._GetUrl("not-a-guid"),
+			token
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		await ResendStaffInvitationSpec._AssertProblemKeyAsync(response, "malformed-id");
@@ -145,10 +142,7 @@ public sealed class ResendStaffInvitationSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForATenantUser() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var response = await this._SendAsync(token, Guid.NewGuid());
 
@@ -188,10 +182,9 @@ public sealed class ResendStaffInvitationSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<List<JobQueueItem>> _LoadJobsAsync(Guid invitationId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var jobs = await db.JobQueue
+		var jobs = await db.Context.JobQueue
 			.AsNoTracking()
 			.Where(job => job.JobType == InvitationEmailJobs.StaffInvitationV1.JobType)
 			.ToListAsync();
@@ -205,9 +198,6 @@ public sealed class ResendStaffInvitationSpec : IClassFixture<ApiFixture> {
 		HttpResponseMessage response,
 		string expectedKey
 	) {
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(expectedKey);
+		await response.ShouldBeProblemAsync(expectedKey);
 	}
 }

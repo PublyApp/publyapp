@@ -6,9 +6,7 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
@@ -80,18 +78,16 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// No live asset row survives, and the blob's reference dropped back
 		// to zero — physical deletion stays exclusively sweeper's.
 		var postIdGuid = Guid.Parse(postId);
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var remaining = await (
-			from a in db.PostMediaAsset.AsNoTracking()
+			from a in db.Context.PostMediaAsset.AsNoTracking()
 			where a.PostId == postIdGuid && !a.IsDeleted
 			select a
 		).AnyAsync();
 		remaining.Should().BeFalse();
 
 		var referenceCount = await (
-			from u in db.UploadAsset.AsNoTracking()
+			from u in db.Context.UploadAsset.AsNoTracking()
 			where u.RelativePath == attachedPath && !u.IsDeleted
 			select (int?)u.ReferenceCount
 		).SingleOrDefaultAsync();
@@ -145,18 +141,16 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// And Acme's image survived untouched: still one live row, still
 		// referenced.
 		var postIdGuid = Guid.Parse(postId);
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var livePaths = await (
-			from a in db.PostMediaAsset.AsNoTracking()
+			from a in db.Context.PostMediaAsset.AsNoTracking()
 			where a.PostId == postIdGuid && !a.IsDeleted
 			select a.RelativePath
 		).ToListAsync();
 		livePaths.Should().HaveCount(1);
 
 		var referenceCount = await (
-			from u in db.UploadAsset.AsNoTracking()
+			from u in db.Context.UploadAsset.AsNoTracking()
 			where u.RelativePath == livePaths[0] && !u.IsDeleted
 			select (int?)u.ReferenceCount
 		).SingleOrDefaultAsync();
@@ -222,10 +216,7 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
 		var tenantId = await this._GetAcmeIdAsync();
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 

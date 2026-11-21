@@ -5,9 +5,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -65,11 +63,10 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 		Assert.NotNull(payload);
 		payload.Key.Should().Be("post-schedule-cancelled-success");
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var remaining = await (
-			from p in db.Publication.IgnoreQueryFilters().AsNoTracking()
+			from p in db.Context.Publication.IgnoreQueryFilters().AsNoTracking()
 			where p.PostId == Guid.Parse(postId)
 			select p
 		).ToListAsync();
@@ -82,7 +79,7 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 			.Should().Be(DerivedPostStatus.Draft);
 
 		var audits = await (
-			from entry in db.AuditLog.AsNoTracking()
+			from entry in db.Context.AuditLog.AsNoTracking()
 			where entry.TargetId == Guid.Parse(postId)
 				&& entry.Action == AuditActions.PublicationScheduleCancelled
 			select entry.Details
@@ -97,11 +94,8 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 	public async Task ItShouldReturnNoopWhenNothingIsScheduled() {
 		var (tenantId, token, postId) = await this._SeedScheduledPostAsync();
 
-		await using var setupScope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var setupDb =
-			setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await setupDb.Publication
+		await using var setupDb = this._Fixture.OpenDb();
+		await setupDb.Context.Publication
 			.Where(p => p.PostId == Guid.Parse(postId))
 			.ExecuteDeleteAsync();
 
@@ -125,9 +119,8 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 		// One row is mid-flight (InProgress): cancel keeps it and deletes the
 		// Scheduled siblings. Seeded as a tracked insert (the #1446 guard permits
 		// Status on Added rows; only raw/unstamped Status UPDATEs are rejected).
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var sample = await db.Publication
+		await using var db = this._Fixture.OpenDb();
+		var sample = await db.Context.Publication
 			.AsNoTracking()
 			.Where(p => p.PostId == Guid.Parse(postId)
 				&& p.TenantId == tenantId)
@@ -142,10 +135,10 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 				+ ".bsky.social",
 			ProtectedCredentials = "enc-spec-blob",
 		};
-		db.SocialAccount.Add(inFlightAccount);
-		await db.SaveChangesAsync();
+		db.Context.SocialAccount.Add(inFlightAccount);
+		await db.Context.SaveChangesAsync();
 
-		db.Publication.Add(new Publication {
+		db.Context.Publication.Add(new Publication {
 			TenantId = tenantId,
 			PostId = sample.PostId,
 			SocialAccountId = inFlightAccount.GetRequiredId(),
@@ -154,7 +147,7 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 			ScheduledTimeZone = sample.ScheduledTimeZone,
 			IdempotencyKey = "in-progress-seed",
 		});
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		using var request =
 			new HttpRequestMessage(HttpMethod.Delete, CancelPostScheduleForTenantSpec._ScheduleUrl(postId))
@@ -170,12 +163,9 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 		payload.Message.Should().Contain("1");
 		payload.Message.Should().ContainAny("kept", "still", "not");
 
-		await using var verifyScope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var verifyDb =
-			verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var verifyDb = this._Fixture.OpenDb();
 		var remaining = await (
-			from p in verifyDb.Publication.AsNoTracking()
+			from p in verifyDb.Context.Publication.AsNoTracking()
 			where p.PostId == Guid.Parse(postId) && !p.IsDeleted
 			select p
 		).ToListAsync();
@@ -219,12 +209,7 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 	public async Task ItShouldReturn404ForUnknownAndCrossTenantPostIds() {
 		var (acmeTenantId, acmeToken, postId) =
 			await this._SeedScheduledPostAsync();
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var techStartId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.TechStartName
-		);
+		var (_, techStartId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.TechStartName);
 
 		using var unknownRequest =
 			new HttpRequestMessage(
@@ -252,9 +237,8 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 	public async Task ItShouldReturn404ForSoftDeletedPosts() {
 		var (tenantId, token, postId) = await this._SeedScheduledPostAsync();
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await db.Post
+		await using var db = this._Fixture.OpenDb();
+		await db.Context.Post
 			.Where(p => p.Id == Guid.Parse(postId))
 			.ExecuteUpdateAsync(s => s
 				.SetProperty(p => p.IsDeleted, true)
@@ -272,10 +256,7 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 	private async Task<(Guid TenantId, string Token, string PostId)>
 	_SeedScheduledPostAsync() {
 		var tenantId = await this._GetAcmeIdAsync();
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var postId = await this._CreateScheduledPostAsync(tenantId);
 		return (tenantId, token, postId);
 	}
@@ -284,16 +265,12 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 		(Guid TenantId, string Token, string PostId, List<Guid> PublicationIds)>
 	_SeedScheduledPostWithIdsAsync() {
 		var tenantId = await this._GetAcmeIdAsync();
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var postId = await this._CreateScheduledPostAsync(tenantId);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var publicationIds = await (
-			from p in db.Publication.AsNoTracking()
+			from p in db.Context.Publication.AsNoTracking()
 			where p.PostId == Guid.Parse(postId)
 			orderby p.Id
 			select p.GetRequiredId()
@@ -307,10 +284,9 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 	/// returns the persisted post id plus the two publication ids.
 	/// </summary>
 	private async Task<string> _CreateScheduledPostAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var author = await db.User.AsNoTracking().SingleAsync(
+		var author = await db.Context.User.AsNoTracking().SingleAsync(
 			u => u.Email == TestConstants.AcmeAdminEmail
 		);
 
@@ -319,7 +295,7 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 			Body = "scheduled body awaiting cancellation",
 			CreatedByUserId = author.GetRequiredId(),
 		};
-		db.Post.Add(post);
+		db.Context.Post.Add(post);
 		var firstAccount = new SocialAccount {
 			TenantId = tenantId,
 			ExternalAccountId = "did:plc:" + Guid.NewGuid().ToString("N"),
@@ -334,11 +310,11 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 				+ ".bsky.social",
 			ProtectedCredentials = "enc-spec-blob",
 		};
-		db.SocialAccount.AddRange(firstAccount, secondAccount);
-		await db.SaveChangesAsync();
+		db.Context.SocialAccount.AddRange(firstAccount, secondAccount);
+		await db.Context.SaveChangesAsync();
 
 		foreach (var account in new[] { firstAccount, secondAccount }) {
-			db.Publication.Add(new Publication {
+			db.Context.Publication.Add(new Publication {
 				TenantId = tenantId,
 				PostId = post.GetRequiredId(),
 				SocialAccountId = account.GetRequiredId(),
@@ -348,7 +324,7 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 				IdempotencyKey = "pending",
 			});
 		}
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return post.GetRequiredId().ToString();
 	}

@@ -92,11 +92,9 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// Exactly one live asset row owns the post, and the underlying blob's
 		// reference was acquired (reference_count >= 1) per #807 F5 discipline.
 		var postIdGuid = Guid.Parse(postId);
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var asset = await (
-			from a in db.PostMediaAsset.AsNoTracking()
+			from a in db.Context.PostMediaAsset.AsNoTracking()
 			where a.PostId == postIdGuid && !a.IsDeleted
 			select a
 		).SingleAsync();
@@ -108,7 +106,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		asset.RelativePath.Should().Be(payload.Path);
 
 		var referenced = await (
-			from u in db.UploadAsset.AsNoTracking()
+			from u in db.Context.UploadAsset.AsNoTracking()
 			where u.RelativePath == payload.Path && !u.IsDeleted
 			select u.ReferenceCount
 		).SingleAsync();
@@ -141,11 +139,9 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 		// And nothing leaked: Acme still owns zero image assets for that post.
 		var postIdGuid = Guid.Parse(postId);
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var leaked = await (
-			from a in db.PostMediaAsset.AsNoTracking()
+			from a in db.Context.PostMediaAsset.AsNoTracking()
 			where a.PostId == postIdGuid
 			select a
 		).AnyAsync();
@@ -304,11 +300,9 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		second.Position.Should().Be(1);
 
 		var postIdGuid = Guid.Parse(postId);
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var live = await (
-			from a in db.PostMediaAsset.AsNoTracking()
+			from a in db.Context.PostMediaAsset.AsNoTracking()
 			where a.PostId == postIdGuid && !a.IsDeleted
 			orderby a.Position
 			select a.RelativePath
@@ -317,7 +311,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 		foreach (var path in live) {
 			var referenceCount = await (
-				from u in db.UploadAsset.AsNoTracking()
+				from u in db.Context.UploadAsset.AsNoTracking()
 				where u.RelativePath == path && !u.IsDeleted
 				select (int?)u.ReferenceCount
 			).SingleAsync();
@@ -352,9 +346,8 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		problem.TranslationKey.Should().Be("post-image-limit-reached");
 
 		var postIdGuid = Guid.Parse(postId);
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		(await db.PostMediaAsset.CountAsync(a => a.PostId == postIdGuid && !a.IsDeleted))
+		await using var db = this._Fixture.OpenDb();
+		(await db.Context.PostMediaAsset.CountAsync(a => a.PostId == postIdGuid && !a.IsDeleted))
 			.Should().Be(ProviderCapabilityRegistry.MaxImagesPerPost);
 	}
 
@@ -515,12 +508,11 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			+ "insert must lose the unique index"
 		);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		// The blocking row still owns the slot — the failed attach changed nothing.
 		var livePaths = await (
-			from a in db.PostMediaAsset.AsNoTracking()
+			from a in db.Context.PostMediaAsset.AsNoTracking()
 			where a.PostId == postIdGuid && !a.IsDeleted
 			select a.RelativePath
 		).ToListAsync();
@@ -530,12 +522,12 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// the live image, so the reference acquired for it had to be released.
 		// A blob referenced by no live asset row IS the #1616 leak.
 		var livePathsAllPosts = await (
-			from a in db.PostMediaAsset.AsNoTracking()
+			from a in db.Context.PostMediaAsset.AsNoTracking()
 			where !a.IsDeleted
 			select a.RelativePath
 		).ToListAsync();
 		var leaked = await (
-			from u in db.UploadAsset.AsNoTracking()
+			from u in db.Context.UploadAsset.AsNoTracking()
 			where !u.IsDeleted
 				&& u.ReferenceCount > 0
 				&& !livePathsAllPosts.Contains(u.RelativePath)
@@ -925,13 +917,10 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// An uncommitted row at position 1: neither contender can see it (so both
 		// compute position 1), and their inserts block on its unique-key entry
 		// until the barrier ends.
-		await using var barrierScope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var barrierDb = barrierScope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-		await using var barrierTx = await barrierDb.Database
+		await using var barrierDb = this._Fixture.OpenDb();
+		await using var barrierTx = await barrierDb.Context.Database
 			.BeginTransactionAsync();
-		barrierDb.PostMediaAsset.Add(new Entities.PostMediaAsset {
+		barrierDb.Context.PostMediaAsset.Add(new Entities.PostMediaAsset {
 			TenantId = tenantId,
 			PostId = postIdGuid,
 			Position = 1,
@@ -941,11 +930,11 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			WidthPx = 8,
 			HeightPx = 8,
 			SizeBytes = 64,
-			UploadedByUserId = await AttachPostImageForTenantSpec._ResolveAcmeAdminUserIdAsync(barrierDb),
+			UploadedByUserId = await AttachPostImageForTenantSpec._ResolveAcmeAdminUserIdAsync(barrierDb.Context),
 		});
-		await barrierDb.SaveChangesAsync();
+		await barrierDb.Context.SaveChangesAsync();
 		var barrierPid =
-			await PostgresLockBarrier.GetBackendPidAsync(barrierDb);
+			await PostgresLockBarrier.GetBackendPidAsync(barrierDb.Context);
 
 		// Baseline of live blobs NOW so the loser blob is identified by path
 		// identity, not by elimination (the class shares one database).
@@ -1009,12 +998,9 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			+ "the unique index produces the loser and the handler must name it"
 		);
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var livePaths = await (
-			from a in db.PostMediaAsset.AsNoTracking()
+			from a in db.Context.PostMediaAsset.AsNoTracking()
 			where a.PostId == postIdGuid && !a.IsDeleted
 			orderby a.Position
 			select a.RelativePath
@@ -1024,7 +1010,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		var winnerPath = livePaths[1];
 
 		var winnerRefCount = await (
-			from u in db.UploadAsset.AsNoTracking()
+			from u in db.Context.UploadAsset.AsNoTracking()
 			where u.RelativePath == winnerPath && !u.IsDeleted
 			select (int?)u.ReferenceCount
 		).SingleAsync();
@@ -1033,7 +1019,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		);
 
 		var loserPaths = await (
-			from u in db.UploadAsset.AsNoTracking()
+			from u in db.Context.UploadAsset.AsNoTracking()
 			where !u.IsDeleted
 				&& !baselinePaths.Contains(u.RelativePath)
 				&& u.RelativePath != winnerPath
@@ -1044,7 +1030,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		);
 
 		var loserRefCount = await (
-			from u in db.UploadAsset.AsNoTracking()
+			from u in db.Context.UploadAsset.AsNoTracking()
 			where u.RelativePath == loserPaths[0] && !u.IsDeleted
 			select (int?)u.ReferenceCount
 		).SingleAsync();
@@ -1087,18 +1073,16 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		}
 
 		var postIdGuid = Guid.Parse(postId);
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var remaining = await (
-			from a in db.PostMediaAsset.AsNoTracking()
+			from a in db.Context.PostMediaAsset.AsNoTracking()
 			where a.PostId == postIdGuid
 			select a
 		).CountAsync();
 		remaining.Should().Be(0, "the asset row must be hard-deleted with its post");
 
 		var referenceCount = await (
-			from u in db.UploadAsset.AsNoTracking()
+			from u in db.Context.UploadAsset.AsNoTracking()
 			where u.RelativePath == this._AttachedPath && !u.IsDeleted
 			select (int?)u.ReferenceCount
 		).SingleOrDefaultAsync();
@@ -1126,10 +1110,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
 		var tenantId = await this._GetAcmeIdAsync();
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 

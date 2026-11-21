@@ -3,9 +3,7 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -32,16 +30,8 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsAcmeAdminAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(SeedConstants.Tenants.AcmeName);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
@@ -67,9 +57,8 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 		SocialAccountStatus status,
 		string? lastError = null
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		db.SocialAccount.Add(new SocialAccount {
+		await using var db = this._Fixture.OpenDb();
+		db.Context.SocialAccount.Add(new SocialAccount {
 			TenantId = tenantId,
 			ExternalAccountId = externalAccountId,
 			DisplayHandle = $"@{externalAccountId}.bsky.social",
@@ -77,7 +66,7 @@ public sealed class FindNeedsReconnectAccountsForTenantSpec : IClassFixture<ApiF
 			Status = status,
 			LastError = lastError,
 		});
-		await db.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	[Fact]
