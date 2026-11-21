@@ -3,9 +3,6 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using Microsoft.Extensions.DependencyInjection;
-
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -96,12 +93,11 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 			TestConstants.StaffAdminEmail
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			StaffUserDangerZonePermissionsSpec._GetSuspendUrl(existingUserId)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			StaffUserDangerZonePermissionsSpec._GetSuspendUrl(existingUserId),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -116,12 +112,11 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 			TestConstants.StaffAdminEmail
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			StaffUserDangerZonePermissionsSpec._GetReactivateUrl(existingUserId)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			StaffUserDangerZonePermissionsSpec._GetReactivateUrl(existingUserId),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -210,12 +205,11 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 			TestConstants.StaffAdminEmail
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			StaffUserDangerZonePermissionsSpec._GetDeleteUrl(existingUserId)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			StaffUserDangerZonePermissionsSpec._GetDeleteUrl(existingUserId),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
@@ -267,10 +261,7 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
 		var email = $"no-perms-{Guid.NewGuid():N}@example.com";
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -281,14 +272,14 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 			Status = UserStatus.Active,
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(staffAccount);
+		_ = await db.Context.SaveChangesAsync();
 
 		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 	}

@@ -6,7 +6,7 @@
 	"zones": {
 		"api": { "complexityPer1k": 94.8, "duplicationPer1k": 161.5 },
 		"front": { "complexityPer1k": 85.7, "duplicationPer1k": 82.4 },
-		"tests-api": { "complexityPer1k": 25, "duplicationPer1k": 354.2 },
+		"tests-api": { "complexityPer1k": 25, "duplicationPer1k": 342.2 },
 		"tests-front": { "complexityPer1k": 48.4, "duplicationPer1k": 254.7 },
 		"tooling": { "complexityPer1k": 108.8, "duplicationPer1k": 131.1 }
 	},

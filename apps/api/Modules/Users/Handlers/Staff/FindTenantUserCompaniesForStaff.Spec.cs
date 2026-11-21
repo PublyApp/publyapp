@@ -5,11 +5,8 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -98,12 +95,9 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		// so resolve CreatedAt by (TenantId, UserId) on UserAccount.
 		List<DateTime> observedOrder;
 		{
-			await using var scope =
-				this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider
-				.GetRequiredService<AppDbContext>();
+			await using var db = this._Fixture.OpenDb();
 			var userIdGuid = Guid.Parse(userId);
-			observedOrder = await dbContext.UserAccount
+			observedOrder = await db.Context.UserAccount
 				.Where(a => a.UserId == userIdGuid
 					&& a.TenantId.HasValue
 					&& visitedOrder.Contains(a.TenantId.Value))
@@ -166,9 +160,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			.ToList();
 		// Production orders by TenantName ascending, then by Id ascending (tiebreaker).
 		// Query the actual tenant names to build the expected order.
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var tenantNames = await dbContext.Tenant
+		await using var db = this._Fixture.OpenDb();
+		var tenantNames = await db.Context.Tenant
 			.Where(t => t.Id.HasValue && seededTenantIds.Contains(t.Id.Value))
 			.ToDictionaryAsync(
 				t => t.Id.HasValue ? t.Id.Value : Guid.Empty,
@@ -421,19 +414,14 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	ItShouldReturnBadRequestWhenUserIdIsMalformed() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindTenantUserCompaniesForStaffSpec._GetUrl("not-a-guid")
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			FindTenantUserCompaniesForStaffSpec._GetUrl("not-a-guid"),
+			staffToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -451,12 +439,11 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			SeedConstants.CrossTenant.AliceEmail
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindTenantUserCompaniesForStaffSpec._GetUrl(userId, cursor: "not-a-guid")
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			FindTenantUserCompaniesForStaffSpec._GetUrl(userId, cursor: "not-a-guid"),
+			staffToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
@@ -466,22 +453,17 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	ItShouldReturnNotFoundWhenTenantUserDoesNotExistEvenWithCursor() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
 			FindTenantUserCompaniesForStaffSpec._GetUrl(
 				Guid.NewGuid().ToString(),
 				cursor: Guid.NewGuid().ToString()
-			)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			staffToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.NotFound);
+		await response.ShouldBeProblemAsync(ResponseKeys.NotFound);
 	}
 
 	[Fact]
@@ -499,12 +481,11 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			SeedConstants.CrossTenant.AliceEmail
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindTenantUserCompaniesForStaffSpec._GetUrl(userId, sortId: "not_allowed")
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			FindTenantUserCompaniesForStaffSpec._GetUrl(userId, sortId: "not_allowed"),
+			staffToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
@@ -545,19 +526,14 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	ItShouldReturnNotFoundWhenTenantUserDoesNotExist() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindTenantUserCompaniesForStaffSpec._GetUrl(Guid.NewGuid().ToString())
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			FindTenantUserCompaniesForStaffSpec._GetUrl(Guid.NewGuid().ToString()),
+			staffToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.NotFound);
+		await response.ShouldBeProblemAsync(ResponseKeys.NotFound);
 	}
 
 	[Fact]
@@ -579,12 +555,11 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			TestConstants.SeedPassword
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindTenantUserCompaniesForStaffSpec._GetUrl(userId)
-		).WithSessionToken(tenantToken);
-
-		using var response = await this._Http.SendAsync(request);
+			FindTenantUserCompaniesForStaffSpec._GetUrl(userId),
+			tenantToken
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
@@ -653,12 +628,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			Routes.Users.ForTenantAsStaff.Find
 		) + "?limit=50";
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			url
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+		using var response = await this._Http.SendWithSessionAsync(HttpMethod.Get, url, staffToken);
 		response.EnsureSuccessStatusCode();
 
 		var result = await response.Content
@@ -691,12 +661,11 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		Guid tenantId,
 		string userId
 	) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
-			FindTenantUserCompaniesForStaffSpec._GetRemoveUrl(tenantId, userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			FindTenantUserCompaniesForStaffSpec._GetRemoveUrl(tenantId, userId),
+			staffToken
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
@@ -719,10 +688,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		Guid acmeTenantId,
 		DateTime baseDate
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = $"company-walk-{Guid.NewGuid():N}@example.com",
@@ -732,8 +698,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			Status = UserStatus.Active,
 			IsVerified = true,
 		};
-		await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 		var userId = user.GetRequiredId();
 
 		// Attach to Acme plus two freshly created tenants so the CreatedAt
@@ -746,8 +712,8 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 				Status = TenantStatus.Active,
 				MaxUsers = 10,
 			};
-			await dbContext.Tenant.AddAsync(tenant);
-			await dbContext.SaveChangesAsync();
+			await db.Context.Tenant.AddAsync(tenant);
+			await db.Context.SaveChangesAsync();
 			tenantIds.Add(tenant.GetRequiredId());
 		}
 
@@ -764,15 +730,15 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 			);
 			var createdAt = baseDate.AddDays((tenantIds.Count - i) % tenantIds.Count);
 			order.Add(createdAt);
-			await dbContext.UserAccount.AddAsync(account);
-			await dbContext.SaveChangesAsync();
+			await db.Context.UserAccount.AddAsync(account);
+			await db.Context.SaveChangesAsync();
 			var accountId = account.GetRequiredId();
 
-			var tracked = await dbContext.UserAccount
+			var tracked = await db.Context.UserAccount
 				.Where(a => a.Id == accountId)
 				.FirstAsync();
 			tracked.CreatedAt = createdAt;
-			await dbContext.SaveChangesAsync();
+			await db.Context.SaveChangesAsync();
 		}
 
 
@@ -781,7 +747,7 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 		// insertion-ordered, so stable OrderBy(CreatedAt) already matches
 		// ThenBy(Id) and removing the production tiebreaker leaves the test
 		// green. After the swap, the tiebreaker is actually exercised.
-		var accountIds = tenantIds.Select(t => dbContext.UserAccount
+		var accountIds = tenantIds.Select(t => db.Context.UserAccount
 			.Where(a => a.TenantId == t && a.UserId == userId)
 			.Select(a => a.Id.HasValue ? a.Id.Value : Guid.Empty)
 			.First()).ToList();
@@ -790,16 +756,15 @@ public sealed class FindTenantUserCompaniesForStaffSpec
 	}
 
 	private async Task _SwapUserAccountIdsAsync(Guid idA, Guid idB) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var temp = Guid.NewGuid();
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET id = {0} WHERE id = {1}",
 			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET id = {0} WHERE id = {1}",
 			idA, idB);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET id = {0} WHERE id = {1}",
 			idB, temp);
 	}

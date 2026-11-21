@@ -46,10 +46,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -156,20 +153,15 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnValidationProblemForPendingStatusFilter() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(status: "pending")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			FindStaffUserSpec._GetFindUrl(status: "pending"),
+			token
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem =
-			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("status");
+		await response.ShouldHaveValidationErrorAsync("status");
 	}
 
 	[Theory]
@@ -181,80 +173,60 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	) {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(status: status)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			FindStaffUserSpec._GetFindUrl(status: status),
+			token
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem =
-			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("status");
+		await response.ShouldHaveValidationErrorAsync("status");
 	}
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForUnknownStatusFilter() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(status: "banned")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			FindStaffUserSpec._GetFindUrl(status: "banned"),
+			token
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem =
-			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("status");
+		await response.ShouldHaveValidationErrorAsync("status");
 	}
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForInactiveStatusFilter() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(status: "inactive")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			FindStaffUserSpec._GetFindUrl(status: "inactive"),
+			token
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem =
-			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("status");
+		await response.ShouldHaveValidationErrorAsync("status");
 	}
 
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForMixedCaseStatusFilter() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(status: "Suspended")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			FindStaffUserSpec._GetFindUrl(status: "Suspended"),
+			token
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem =
-			await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("status");
+		await response.ShouldHaveValidationErrorAsync("status");
 	}
 
 	[Fact]
@@ -545,9 +517,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var visitedSeededUserIds = visitedOrder.ToList();
 		List<DateTime> observedOrder;
 		{
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-			observedOrder = await dbContext.User
+			await using var db = this._Fixture.OpenDb();
+			observedOrder = await db.Context.User
 				.Where(u => u.Id.HasValue && visitedSeededUserIds.Contains(u.Id.Value))
 				.OrderBy(u =>
 					u.Id.HasValue ? visitedSeededUserIds.IndexOf(u.Id.Value) : -1
@@ -610,9 +581,8 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var visitedSeededUserIds = visitedOrder.ToList();
 		List<DateTime> observedOrder;
 		{
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-			observedOrder = await dbContext.User
+			await using var db = this._Fixture.OpenDb();
+			observedOrder = await db.Context.User
 				.Where(u => u.Id.HasValue && visitedSeededUserIds.Contains(u.Id.Value))
 				.OrderBy(u =>
 					u.Id.HasValue ? visitedSeededUserIds.IndexOf(u.Id.Value) : -1
@@ -865,11 +835,11 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			("standard", 3, false),
 			("full_access,standard", 5, (bool?)null),
 		}) {
-			using var request = new HttpRequestMessage(
+			using var response = await this._Http.SendWithSessionAsync(
 				HttpMethod.Get,
-				FindStaffUserSpec._GetFindUrl(limit: 1, q: marker, access: access)
-			).WithSessionToken(token);
-			using var response = await this._Http.SendAsync(request);
+				FindStaffUserSpec._GetFindUrl(limit: 1, q: marker, access: access),
+				token
+			);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var result = await response.Content.ReadFromJsonAsync<FindResponse>();
 			Assert.NotNull(result);
@@ -906,16 +876,16 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var seen = new List<Guid>();
 		string? cursor = null;
 		do {
-			using var request = new HttpRequestMessage(
+			using var response = await this._Http.SendWithSessionAsync(
 				HttpMethod.Get,
 				FindStaffUserSpec._GetFindUrl(
 					cursor: cursor,
 					limit: 2,
 					q: marker,
 					access: "full_access"
-				)
-			).WithSessionToken(token);
-			using var response = await this._Http.SendAsync(request);
+				),
+				token
+			);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var result = await response.Content.ReadFromJsonAsync<FindResponse>();
 			Assert.NotNull(result);
@@ -930,11 +900,11 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForUnknownAccessFilter() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(access: "admin")
-		).WithSessionToken(token);
-		using var response = await this._Http.SendAsync(request);
+			FindStaffUserSpec._GetFindUrl(access: "admin"),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
@@ -1264,12 +1234,11 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldRejectAMalformedExcludeRoleId() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(excludeRoleId: "not-a-guid")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			FindStaffUserSpec._GetFindUrl(excludeRoleId: "not-a-guid"),
+			token
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
@@ -1283,16 +1252,16 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var ids = new List<Guid>();
 		string? cursor = null;
 		for (var page = 0; page < 20; page++) {
-			using var request = new HttpRequestMessage(
+			using var response = await this._Http.SendWithSessionAsync(
 				HttpMethod.Get,
 				FindStaffUserSpec._GetFindUrl(
 					cursor: cursor,
 					limit: limit,
 					q: marker,
 					excludeRoleId: excludeRoleId.ToString()
-				)
-			).WithSessionToken(token);
-			using var response = await this._Http.SendAsync(request);
+				),
+				token
+			);
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var result = await response.Content.ReadFromJsonAsync<FindResponse>();
 			Assert.NotNull(result);
@@ -1549,13 +1518,12 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SeedStaffUserUpdatedAtAsync(Guid userId, DateTime updatedAt) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		// The audit interceptor stamps UpdatedAt = now on every Modified save,
 		// so a normal entity update would overwrite the seeded value. Use a
 		// direct UPDATE to bypass the interceptor (same pattern as Posts test).
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE users SET updated_at = {0} WHERE id = {1}",
 			updatedAt, userId
 		);
@@ -1582,10 +1550,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SetStaffUserFullAccessAsync(Guid userId, bool fullAccess) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var account = await dbContext.UserAccount.FirstAsync(ua =>
+		var account = await db.Context.UserAccount.FirstAsync(ua =>
 			ua.UserId == userId && ua.Scope == AccountScope.Staff
 		);
 
@@ -1593,9 +1560,9 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			return;
 		}
 
-		var roleId = await FullAccessRoleTestHelper.EnsureStaffRoleAsync(dbContext);
+		var roleId = await FullAccessRoleTestHelper.EnsureStaffRoleAsync(db.Context);
 		await FullAccessRoleTestHelper.AssignAsync(
-			dbContext,
+			db.Context,
 			account.GetRequiredId(),
 			roleId
 		);
@@ -1647,34 +1614,33 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SwapStaffUserIdsAsync(Guid idA, Guid idB) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await using var tx = await dbContext.Database.BeginTransactionAsync();
+		await using var db = this._Fixture.OpenDb();
+		await using var tx = await db.Context.Database.BeginTransactionAsync();
 		// Disable FK enforcement triggers on both tables so the swap
 		// doesn't violate non-deferrable FK constraints. Triggers are
 		// re-enabled automatically when the transaction ends.
-		await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE users DISABLE TRIGGER ALL; ALTER TABLE user_accounts DISABLE TRIGGER ALL");
+		await db.Context.Database.ExecuteSqlRawAsync("ALTER TABLE users DISABLE TRIGGER ALL; ALTER TABLE user_accounts DISABLE TRIGGER ALL");
 
 		var temp = Guid.NewGuid();
 		// Step 1: move idA -> temp in users, then redirect user_accounts.
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE users SET id = {0} WHERE id = {1}",
 			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			temp, idA);
 		// Step 2: move idB -> idA in users, then redirect user_accounts.
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE users SET id = {0} WHERE id = {1}",
 			idA, idB);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			idA, idB);
 		// Step 3: move temp -> idB in users, then redirect user_accounts.
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE users SET id = {0} WHERE id = {1}",
 			idB, temp);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE user_accounts SET user_id = {0} WHERE user_id = {1}",
 			idB, temp);
 

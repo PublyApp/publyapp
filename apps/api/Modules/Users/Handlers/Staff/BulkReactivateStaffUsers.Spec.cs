@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -190,12 +188,11 @@ public sealed class BulkReactivateStaffUsersSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SuspendStaffUserAsync(string staffToken, string userId) {
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
-			BulkReactivateStaffUsersSpec._GetSuspendUrl(userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
+			BulkReactivateStaffUsersSpec._GetSuspendUrl(userId),
+			staffToken
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
@@ -217,11 +214,10 @@ public sealed class BulkReactivateStaffUsersSpec : IClassFixture<ApiFixture> {
 		Guid userId,
 		UserStatus expectedStatus
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = await (
-			from entity in dbContext.User.AsNoTracking()
+			from entity in db.Context.User.AsNoTracking()
 			where entity.Id == userId
 			select entity
 		).FirstOrDefaultAsync();

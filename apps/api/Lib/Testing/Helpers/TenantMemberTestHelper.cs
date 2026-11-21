@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Roles.Entities;
@@ -17,10 +15,9 @@ namespace PublyApp.Api.Lib.Testing.Helpers;
 internal static class TenantMemberTestHelper {
 	/// <summary>The seeded tenant's id, read straight from the test database.</summary>
 	public static async Task<Guid> GetTenantIdAsync(ApiFixture fixture, string tenantName) {
-		await using var scope = fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = fixture.OpenDb();
 
-		return await db.Tenant
+		return await db.Context.Tenant
 			.Where(tenant => tenant.Name == tenantName)
 			.Select(tenant => tenant.GetRequiredId())
 			.SingleAsync();
@@ -38,8 +35,8 @@ internal static class TenantMemberTestHelper {
 		string[] permissionKeys,
 		string emailPrefix = "spec-tenant-member"
 	) {
-		await using var scope = fixture.Factory.Services.CreateAsyncScope();
-		var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var handle = fixture.OpenDb();
+		var db = handle.Context;
 
 		var email = $"{emailPrefix}-{Guid.NewGuid():N}@example.com";
 		var user = new User {

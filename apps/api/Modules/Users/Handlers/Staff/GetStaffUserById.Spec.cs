@@ -5,9 +5,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -67,24 +65,19 @@ public sealed class GetStaffUserByIdSpec
 			TestConstants.AcmeAdminEmail
 		);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			GetStaffUserByIdSpec._GetUrl(tenantUserId.ToString())
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
+			GetStaffUserByIdSpec._GetUrl(tenantUserId.ToString()),
+			token
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
 	private async Task<Guid> _GetUserIdByEmailAsync(string email) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.User
+		return await db.Context.User
 			.Where(user => user.Email == email)
 			.Select(user => user.GetRequiredId())
 			.SingleAsync();
@@ -161,10 +154,7 @@ public sealed class GetStaffUserByIdSpec
 	public async Task
 	ItShouldReturnForbiddenForNonStaffUser() {
 		var token =
-			await this._AuthClient.LoginAsync(
-				TestConstants.AcmeAdminEmail,
-				TestConstants.SeedPassword
-			);
+			await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url = GetStaffUserByIdSpec._GetUrl(Guid.NewGuid().ToString());
 		var request = new HttpRequestMessage(

@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -58,10 +56,7 @@ public sealed class UpdateStaffUserRolesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Put,
@@ -113,11 +108,7 @@ public sealed class UpdateStaffUserRolesSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
@@ -211,11 +202,7 @@ public sealed class UpdateStaffUserRolesSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.RoleNotStaffScope);
+		await response.ShouldBeValidationProblemAsync(ResponseKeys.RoleNotStaffScope);
 	}
 
 	[Fact]
@@ -288,16 +275,12 @@ public sealed class UpdateStaffUserRolesSpec : IClassFixture<ApiFixture> {
 		using var response = await this._Http.SendAsync(request);
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(ResponseKeys.CannotRemoveLastAdmin);
+		await response.ShouldBeProblemAsync(ResponseKeys.CannotRemoveLastAdmin);
 	}
 
 	private async Task<List<Guid>> _GetActiveStaffFullAccessUserIdsAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		return await FullAccessRoleQueries.ActiveStaffFullAccessAccounts(dbContext)
+		await using var db = this._Fixture.OpenDb();
+		return await FullAccessRoleQueries.ActiveStaffFullAccessAccounts(db.Context)
 			.Select(account => account.UserId)
 			.ToListAsync();
 	}
@@ -339,8 +322,7 @@ public sealed class UpdateStaffUserRolesSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<string> _CreateTenantRoleAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Code = "tp-" + Guid.NewGuid().ToString("N")[..10],
@@ -348,8 +330,8 @@ public sealed class UpdateStaffUserRolesSpec : IClassFixture<ApiFixture> {
 			MaxUsers = 10,
 			Status = TenantStatus.Active,
 		};
-		_ = dbContext.Tenant.Add(tenant);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.Tenant.Add(tenant);
+		_ = await db.Context.SaveChangesAsync();
 
 		var role = Role.CreateTenantRole(
 			tenantId: tenant.GetRequiredId(),
@@ -358,8 +340,8 @@ public sealed class UpdateStaffUserRolesSpec : IClassFixture<ApiFixture> {
 		);
 		role.ValidateRoleType();
 
-		_ = dbContext.Role.Add(role);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.Role.Add(role);
+		_ = await db.Context.SaveChangesAsync();
 
 		return role.GetRequiredId().ToString();
 	}
@@ -410,10 +392,7 @@ public sealed class UpdateStaffUserRolesSpec : IClassFixture<ApiFixture> {
 	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
 		var email = $"no-perms-{Guid.NewGuid():N}@example.com";
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -424,14 +403,14 @@ public sealed class UpdateStaffUserRolesSpec : IClassFixture<ApiFixture> {
 			Status = UserStatus.Active,
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(staffAccount);
+		_ = await db.Context.SaveChangesAsync();
 
 		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 	}

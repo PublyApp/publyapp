@@ -4,9 +4,6 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using Microsoft.Extensions.DependencyInjection;
-
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -41,9 +38,8 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldSuspendActiveTenantUser() {
 			// Arrange
-			string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http, staffToken, SeedConstants.Tenants.AcmeName
+			var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+				SeedConstants.Tenants.AcmeName
 			);
 			string userId = await SuspendTenantUserAsStaffSpec._GetUserIdByEmailAsync(
 				this._Http, staffToken, tenantId, TestConstants.AcmeUserEmail
@@ -66,9 +62,8 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnNotFoundForNonexistentUser() {
 			// Arrange
-			string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http, staffToken, SeedConstants.Tenants.AcmeName
+			var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+				SeedConstants.Tenants.AcmeName
 			);
 			Guid nonexistentUserId = Guid.NewGuid();
 
@@ -85,9 +80,8 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnBadRequestWhenSuspendingLastAdmin() {
 			// Arrange - TechStart has only ONE admin
-			string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http, staffToken, SeedConstants.Tenants.TechStartName
+			var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+				SeedConstants.Tenants.TechStartName
 			);
 			string userId = await SuspendTenantUserAsStaffSpec._GetUserIdByEmailAsync(
 				this._Http, staffToken, tenantId, TestConstants.TechStartAdminEmail
@@ -149,9 +143,8 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnBadRequestForMalformedUserId() {
 			// Arrange
-			string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http, staffToken, SeedConstants.Tenants.AcmeName
+			var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+				SeedConstants.Tenants.AcmeName
 			);
 
 			// Act
@@ -191,10 +184,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 		[Fact]
 		public async Task ItShouldReturnForbiddenForTenantUser() {
 			// Arrange
-			string tenantToken = await this._AuthClient.LoginAsync(
-				TestConstants.AcmeAdminEmail,
-				TestConstants.SeedPassword
-			);
+			string tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 			Guid tenantId = await TenantTestHelper.GetTenantIdByNameAsync(
 				this._Http,
 				await this._AuthClient.LoginAsStaffAdminAsync(),
@@ -255,10 +245,7 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 
 		private async Task<SeededTenantAdminScenario>
 		_SeedTenantAdminWithSuspendedPeerAsync() {
-			await using var scope =
-				this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider
-				.GetRequiredService<AppDbContext>();
+			await using var db = this._Fixture.OpenDb();
 
 			var unique = Guid.NewGuid().ToString("N");
 			var user = new User {
@@ -284,9 +271,9 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 				MaxUsers = 100,
 			};
 
-			await dbContext.User.AddRangeAsync(user, suspendedPeer);
-			await dbContext.Tenant.AddAsync(tenant);
-			await dbContext.SaveChangesAsync();
+			await db.Context.User.AddRangeAsync(user, suspendedPeer);
+			await db.Context.Tenant.AddAsync(tenant);
+			await db.Context.SaveChangesAsync();
 
 			var tenantId = tenant.GetRequiredId();
 			var accounts = new[] {
@@ -294,12 +281,12 @@ namespace PublyApp.Api.Modules.Users.Handlers.Staff {
 				UserAccount.CreateTenantAccount(suspendedPeer.GetRequiredId(), tenantId),
 			};
 
-			await dbContext.UserAccount.AddRangeAsync(accounts);
-			await dbContext.SaveChangesAsync();
+			await db.Context.UserAccount.AddRangeAsync(accounts);
+			await db.Context.SaveChangesAsync();
 
 			foreach (var account in accounts) {
 				await FullAccessRoleTestHelper.MakeTenantFullAccessAsync(
-					dbContext,
+					db.Context,
 					tenantId,
 					account.GetRequiredId()
 				);

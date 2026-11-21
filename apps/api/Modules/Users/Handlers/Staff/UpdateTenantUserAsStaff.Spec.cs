@@ -41,14 +41,9 @@ public sealed class UpdateTenantUserAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldClearAvatarUrlWhenExplicitNull() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// First set an avatar URL
 		var userId = await UpdateTenantUserAsStaffSpec._GetUserIdByEmailAsync(
@@ -99,14 +94,9 @@ public sealed class UpdateTenantUserAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnBadRequestWhenNoFields() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var userId = await UpdateTenantUserAsStaffSpec._GetUserIdByEmailAsync(
 			this._Http,
@@ -157,25 +147,15 @@ public sealed class UpdateTenantUserAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnBadRequestWhenMalformedUserId() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var url = UpdateTenantUserAsStaffSpec._GetUpdateUrl(
 			tenantId.ToString(),
@@ -195,25 +175,15 @@ public sealed class UpdateTenantUserAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	[Fact]
 	public async Task
 	ItShouldClearFirstNameWhenNullIsProvided() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// Get user ID for a regular user in the tenant
 		var userId = await UpdateTenantUserAsStaffSpec._GetUserIdByEmailAsync(
@@ -266,14 +236,9 @@ public sealed class UpdateTenantUserAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenFirstNameExceedsMaxLength() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var userId = await UpdateTenantUserAsStaffSpec._GetUserIdByEmailAsync(
 			this._Http,
@@ -297,24 +262,15 @@ public sealed class UpdateTenantUserAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("FirstName");
+		await response.ShouldHaveValidationErrorAsync("FirstName");
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnUnprocessableEntityWhenAvatarUrlExceedsMaxLength() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var userId = await UpdateTenantUserAsStaffSpec._GetUserIdByEmailAsync(
 			this._Http,
@@ -341,24 +297,15 @@ public sealed class UpdateTenantUserAsStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("AvatarUrl");
+		await response.ShouldHaveValidationErrorAsync("AvatarUrl");
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnNotFoundWhenUserNotInTenant() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// Use a user from a different tenant
 		var otherTenantId =
@@ -422,10 +369,7 @@ public sealed class UpdateTenantUserAsStaffSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
-		var tenantToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var tenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
 				this._Http,

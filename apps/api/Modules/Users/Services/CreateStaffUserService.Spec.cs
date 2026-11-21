@@ -8,6 +8,7 @@ using Npgsql;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Tenants.Entities;
@@ -28,13 +29,12 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldRejectWhenUserHasTenantOrProjectAccounts() {
 		var email = $"create-staff-f1-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await CreateStaffUserServiceSpec._SeedUserWithTenantAccountAsync(dbContext, email);
+		await using var db = this._Fixture.OpenDb();
+		await CreateStaffUserServiceSpec._SeedUserWithTenantAccountAsync(db.Context, email);
 
 		var enqueuer = new RejectingEnqueuer();
 		var service = new CreateStaffUserService(
-			dbContext,
+			db.Context,
 			enqueuer
 		);
 
@@ -64,10 +64,9 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldRollbackUserAndAccountWhenEnqueueFails() {
 		var email = $"create-staff-rollback-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var service = new CreateStaffUserService(
-			dbContext,
+			db.Context,
 			new RejectingEnqueuer()
 		);
 
@@ -94,12 +93,11 @@ public sealed class CreateStaffUserServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldCreateUserAccountAndEnqueueVerifyEmailWhenSuccessful() {
 		var email = $"create-staff-success-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var enqueuer = new RecordingEnqueuer();
 		var service = new CreateStaffUserService(
-			dbContext,
+			db.Context,
 			enqueuer
 		);
 
