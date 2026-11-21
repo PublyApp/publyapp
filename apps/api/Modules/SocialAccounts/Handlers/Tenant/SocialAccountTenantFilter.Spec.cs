@@ -249,11 +249,11 @@ public sealed class SocialAccountTenantFilterSpec : IClassFixture<ApiFixture> {
 		};
 		db.Post.Add(post);
 		await db.SaveChangesAsync();
+		// Status keeps its default (Scheduled): only the transition service writes it.
 		db.Publication.Add(new Publication {
 			TenantId = tenantId,
 			PostId = post.GetRequiredId(),
 			SocialAccountId = accountId,
-			Status = PublicationStatus.Scheduled,
 			ScheduledAtUtc = DateTime.UtcNow.AddDays(3),
 			ScheduledTimeZone = "Etc/UTC",
 			IdempotencyKey = $"tf-{Guid.NewGuid():N}",

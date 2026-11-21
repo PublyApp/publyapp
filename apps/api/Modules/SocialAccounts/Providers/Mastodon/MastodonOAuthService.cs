@@ -287,7 +287,7 @@ public sealed class MastodonOAuthService {
 	}
 
 	private sealed record PendingState(
-		Guid Id,
+		Guid? Id,
 		string InstanceHost,
 		SocialProvider Provider,
 		string? ProtectedCodeVerifier,
@@ -304,7 +304,7 @@ public sealed class MastodonOAuthService {
 				&& row.ConsumedAt == null
 				&& row.ExpiresAt > now)
 			.Select(row => new PendingState(
-				(Guid)row.Id,
+				row.Id,
 				row.InstanceHost,
 				row.Provider,
 				row.ProtectedCodeVerifier,
@@ -314,7 +314,7 @@ public sealed class MastodonOAuthService {
 	}
 
 	// Single use: the conditional update is the lock; the loser of a race gets 0 rows.
-	private async Task<bool> _TryConsumeAsync(Guid stateId, DateTime now, CancellationToken cancellationToken) {
+	private async Task<bool> _TryConsumeAsync(Guid? stateId, DateTime now, CancellationToken cancellationToken) {
 		var consumed = await this._Db.OAuthState
 			.Where(row => row.Id == stateId && row.ConsumedAt == null)
 			.ExecuteUpdateAsync(
