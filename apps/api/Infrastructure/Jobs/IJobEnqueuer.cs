@@ -8,6 +8,13 @@ namespace PublyApp.Api.Infrastructure.Jobs;
 /// </summary>
 public sealed record EnqueueOptions {
 	public string? IdempotencyKey { get; init; }
+
+	/// <summary>
+	/// The tenant whose data the job works on, when the enqueuing code is not itself
+	/// tenant-scoped (a platform job fanning out per-tenant work). Wins over the request's
+	/// tenant; the worker then opens the job's context scoped to this tenant.
+	/// </summary>
+	public Guid? TenantId { get; init; }
 }
 
 /// <summary>

@@ -1,3 +1,4 @@
+using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Extensions;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Localization;
@@ -31,6 +32,31 @@ public class PermissionFilter : IEndpointFilter {
 		EndpointFilterInvocationContext context,
 		EndpointFilterDelegate next
 	) {
+		var denial = await this._AuthorizeAsync(context);
+		if (denial is not null) {
+			return denial;
+		}
+
+		// Only now, once staff authorization has passed, is the {tenantId} route value
+		// trusted: scope the request's context to it so the global tenant filter applies.
+		PermissionFilter._ScopeContextToRouteTenant(context.HttpContext);
+
+		return await next(context);
+	}
+
+	private static void _ScopeContextToRouteTenant(HttpContext httpContext) {
+		var routeTenantId = httpContext.Request.RouteValues["tenantId"]?.ToString();
+		if (!Guid.TryParse(routeTenantId, out var tenantId)) {
+			return;
+		}
+
+		httpContext.RequestServices.GetRequiredService<AppDbContext>().ScopeToTenant(tenantId);
+	}
+
+	// Null when the caller is allowed, otherwise the problem result to return.
+	private async Task<object?> _AuthorizeAsync(
+		EndpointFilterInvocationContext context
+	) {
 		var httpContext = context.HttpContext;
 		var authContext = httpContext.RequestServices.GetRequiredService<IRequestAuthContext>();
 		var accountStaff = authContext.AccountStaff;
@@ -51,7 +77,7 @@ public class PermissionFilter : IEndpointFilter {
 			var userPermissions = await permissionService.GetPermissionsAsync(accountStaff.UserId);
 
 			if (userPermissions.Contains(PermissionService.WildcardPermission)) {
-				return await next(context);
+				return null;
 			}
 
 			if (userPermissions.Count == 0) {
@@ -96,7 +122,7 @@ public class PermissionFilter : IEndpointFilter {
 			}
 		}
 
-		return await next(context);
+		return null;
 	}
 }
 

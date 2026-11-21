@@ -35,7 +35,7 @@ public sealed class JobEnqueuer : IJobEnqueuer {
 			IdempotencyKey = options?.IdempotencyKey,
 			// Provenance envelope (F15): trusted request identity when present,
 			// current trace id for correlation. All null for system-originated work.
-			TenantId = JobEnqueuer._ParseTenantId(this._AuthContext.TenantId),
+			TenantId = options?.TenantId ?? JobEnqueuer._ParseTenantId(this._AuthContext.TenantId),
 			ActorUserId = this._AuthContext.UserId,
 			CorrelationId = Activity.Current?.Id
 		};

@@ -207,7 +207,15 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		get { return this.Set<Modules.Publishing.Entities.Publication>(); }
 	}
 
-	public Guid? TenantId { get; }
+	public Guid? TenantId { get; private set; }
+
+	// Scopes this context to one tenant after construction: staff routes learn the tenant
+	// from the route only once staff authorization has run, and a job learns it from its
+	// provenance. The query filter reads TenantId per query, so every query issued after
+	// this call is filtered; nothing issued before it is affected.
+	public void ScopeToTenant(Guid tenantId) {
+		this.TenantId = tenantId;
+	}
 
 	public AppDbContext(DbContextOptions options) : base(options) {
 		var extension = options.FindExtension<TenantExtension>();

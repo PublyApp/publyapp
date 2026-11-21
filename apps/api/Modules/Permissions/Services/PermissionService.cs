@@ -82,9 +82,11 @@ public class PermissionService : IPermissionService {
 
 		// Important: respect soft-deletes on user/account entities. Junction rows are hard
 		// deleted when unassigned, so row existence is the active membership state.
+		// JUSTIFIED cross-tenant: staff roles carry no tenant, so the staff actor's own roles
+		// must stay visible on a context scoped to a tenant by a staff route.
 		return await this._Context.Set<RolePermission>()
 			.Join(
-				this._Context.Set<UserAccountRole>(),
+				this._Context.Set<UserAccountRole>().IgnoreQueryFilters(),
 				pp => pp.RoleId,
 				uap => uap.RoleId,
 				(pp, uap) => new { pp.PermissionKey, uap.UserAccountId }
@@ -179,7 +181,9 @@ public class PermissionService : IPermissionService {
 		// Same liveness contract as every effective-permission read: the junction row means
 		// "assigned", while the account and role must be live and the account active.
 		var query =
-			from uap in this._Context.Set<UserAccountRole>()
+			// JUSTIFIED cross-tenant: staff full-access roles carry no tenant, and the account
+			// scope/tenant is narrowed explicitly below.
+			from uap in this._Context.Set<UserAccountRole>().IgnoreQueryFilters()
 			join ua in this._Context.Set<UserAccount>() on uap.UserAccountId equals ua.Id
 			join p in this._Context.Set<Role>() on uap.RoleId equals p.Id
 			where ua.UserId == userId

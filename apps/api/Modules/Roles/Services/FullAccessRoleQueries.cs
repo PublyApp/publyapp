@@ -18,7 +18,11 @@ public static class FullAccessRoleQueries {
 	}
 
 	public static IQueryable<UserAccountRole> FullAccessAssignments(AppDbContext dbContext) {
+		// JUSTIFIED cross-tenant: staff full-access roles carry no tenant, and every caller
+		// narrows by account (scope/tenant) itself, so a tenant-scoped context (a staff route
+		// for one tenant) must not hide a staff actor's own role.
 		return dbContext.UserAccountRole
+			.IgnoreQueryFilters()
 			.Where(uap => !uap.Role.IsDeleted && uap.Role.IsFullAccess);
 	}
 
