@@ -265,6 +265,11 @@ public static class ServiceRegistration {
 			.AddDataProtection()
 			.SetApplicationName("publyapp-social-accounts")
 			.PersistKeysToDbContext<AppDbContext>();
+		// #2456: the key-ring repository must skip the master-key canary row (not XML).
+		builder.Services.AddOptions<Microsoft.AspNetCore.DataProtection.KeyManagement.KeyManagementOptions>()
+			.Configure<IServiceScopeFactory>((options, scopeFactory) => {
+				options.XmlRepository = new Modules.SocialAccounts.Infrastructure.CanaryAwareKeyRingRepository(scopeFactory);
+			});
 		builder.Services.AddSingleton<Microsoft.AspNetCore.DataProtection.XmlEncryption.IXmlEncryptor, MasterKeyXmlEncryptor>();
 		builder.Services.AddSingleton<Microsoft.AspNetCore.DataProtection.XmlEncryption.IXmlDecryptor, MasterKeyXmlDecryptor>();
 		builder.Services.AddSingleton<ICredentialProtector, CredentialProtector>();
