@@ -849,6 +849,7 @@ public sealed class PublicationService : IPublicationService {
 		FindScheduledPublicationsArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		this._DbContext.RequireTenantScope();
 		var invalidWindow = PublicationService._ValidateWindow(args);
 		if (invalidWindow is not null) {
 			return invalidWindow;

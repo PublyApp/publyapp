@@ -210,6 +210,7 @@ public class PostService : IPostService {
 		FindPostsArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		this._DbContext.RequireTenantScope();
 		var cursor = args.Cursor;
 		var effectiveLimit = args.Limit
 			?? AppEnvironment.Instance.PAGINATION_DEFAULT_LIMIT;
@@ -601,6 +602,7 @@ public class PostService : IPostService {
 		Guid postId,
 		CancellationToken cancellationToken = default
 	) {
+		this._DbContext.RequireTenantScope();
 		return await ThreadSegments.PublishedSegmentCountAsync(
 			this._DbContext, postId, cancellationToken
 		);

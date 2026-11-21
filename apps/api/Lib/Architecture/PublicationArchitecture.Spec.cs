@@ -6,12 +6,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Publishing.Entities;
 
 using Xunit;
@@ -449,7 +449,7 @@ public sealed partial class PublicationArchitectureSpec {
 
 	[Fact]
 	public void ItShouldLetOnlyTheTransitionServiceWritePublicationStatus() {
-		var apiRoot = PublicationArchitectureSpec._FindApiRoot();
+		var apiRoot = ApiSourceRoot.Find();
 		var sources = PublicationArchitectureSpec._EnumerateApiSourceFiles(apiRoot);
 
 		_ = sources.Should().NotBeEmpty(
@@ -509,7 +509,7 @@ public sealed partial class PublicationArchitectureSpec {
 	// attribution, and reads / foreign-type writes must stay clean.
 	[Fact]
 	public void ItShouldDiscriminateEveryWriterShapeInTheDetectorItself() {
-		var apiRoot = PublicationArchitectureSpec._FindApiRoot();
+		var apiRoot = ApiSourceRoot.Find();
 		const string publicationPath = "Modules/Publishing/Entities/Publication.cs";
 		var publicationSource = File.ReadAllText(
 			Path.Combine(apiRoot, "Modules", "Publishing", "Entities", "Publication.cs")
@@ -958,26 +958,6 @@ public sealed partial class PublicationArchitectureSpec {
 			|| relativePath.Contains("/.artifacts/", StringComparison.Ordinal);
 	}
 
-	// The test assembly runs from apps/api/.artifacts/bin/...; walk up until the
-	// directory containing PublyApp.Api.csproj (the apps/api root).
-	private static string _FindApiRoot() {
-		var directory = new DirectoryInfo(AppContext.BaseDirectory);
-		while (directory is not null) {
-			if (File.Exists(
-					Path.Combine(directory.FullName, "PublyApp.Api.csproj")
-				)) {
-				return directory.FullName;
-			}
-
-			directory = directory.Parent;
-		}
-
-		throw new InvalidOperationException(
-			"Could not locate the apps/api root (PublyApp.Api.csproj) above "
-				+ AppContext.BaseDirectory
-		);
-	}
-
 	// ── D2 (Task 5): publishing surface ratchet extensions ─────────────
 
 	// Every route mapped inside Modules/Publishing/Endpoints/** must carry BOTH a
@@ -986,7 +966,7 @@ public sealed partial class PublicationArchitectureSpec {
 	// contract readable at the mapping site (plan D2 Task 5 fact a).
 	[Fact]
 	public void ItShouldKeepEveryPublishingEndpointPermissionedAndRateLimited() {
-		var apiRoot = PublicationArchitectureSpec._FindApiRoot();
+		var apiRoot = ApiSourceRoot.Find();
 		var endpointsRoot = Path.Combine(
 			apiRoot, "Modules", "Publishing", "Endpoints"
 		);
@@ -1077,7 +1057,7 @@ public sealed partial class PublicationArchitectureSpec {
 	// follow the PostTenantCrud.Spec precedent).
 	[Fact]
 	public void ItShouldKeepDbContextOutOfPublishingHandlers() {
-		var apiRoot = PublicationArchitectureSpec._FindApiRoot();
+		var apiRoot = ApiSourceRoot.Find();
 		var handlersRoot = Path.Combine(
 			apiRoot, "Modules", "Publishing", "Handlers"
 		);
@@ -1112,7 +1092,7 @@ public sealed partial class PublicationArchitectureSpec {
 	// slice forbids (plan D2 Task 5 fact c).
 	[Fact]
 	public void ItShouldKeepPublishNowServiceOnInfrastructureDependenciesOnly() {
-		var apiRoot = PublicationArchitectureSpec._FindApiRoot();
+		var apiRoot = ApiSourceRoot.Find();
 		var serviceFile = Path.Combine(
 			apiRoot,
 			"Modules",

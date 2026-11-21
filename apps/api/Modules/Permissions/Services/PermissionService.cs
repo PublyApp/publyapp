@@ -82,6 +82,7 @@ public class PermissionService : IPermissionService {
 				joined => joined.UserAccountId,
 				ua => ua.Id,
 				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.Scope })
+			// Kept: TenantId here is UserAccount.TenantId (UserAccount is not tenant-filtered), joined to UserAccountRole.
 			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.Scope == AccountScope.Tenant)
 			.Select(x => x.PermissionKey)
 			.Distinct()
@@ -103,6 +104,7 @@ public class PermissionService : IPermissionService {
 				joined => joined.UserAccountId,
 				ua => ua.Id,
 				(joined, ua) => new { joined.PermissionKey, ua.UserId, ua.TenantId, ua.ProjectId, ua.Scope })
+			// Kept: TenantId here is UserAccount.TenantId (UserAccount is not tenant-filtered), joined to UserAccountRole.
 			.Where(x => x.UserId == userId && x.TenantId == tenantId && x.ProjectId == projectId && x.Scope == AccountScope.Project)
 			.Select(x => x.PermissionKey)
 			.Distinct()

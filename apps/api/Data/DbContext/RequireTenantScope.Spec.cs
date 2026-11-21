@@ -26,6 +26,14 @@ public sealed class RequireTenantScopeSpec {
 		AppEnvironment.Initialize();
 	}
 
+	private static SocialAccountService _Social(AppDbContext db) {
+		return new SocialAccountService(
+			db,
+			new Mock<ICredentialProtector>().Object,
+			new Mock<IBlueskyClient>().Object
+		);
+	}
+
 	public static TheoryData<string, Func<AppDbContext, Task>> Reads() {
 		var id = Guid.NewGuid();
 		return new TheoryData<string, Func<AppDbContext, Task>> {
@@ -35,7 +43,17 @@ public sealed class RequireTenantScopeSpec {
 			{ "PublishTargetService.FindForTenantAsync", db => new PublishTargetService(db).FindForTenantAsync() },
 			{ "PublicationService.FindForPostAsync", db => new PublicationService(db, new HttpContextAccessor()).FindForPostAsync(id) },
 			{ "PublicationRetryService.CheckAsync", db => new PublicationRetryService(db, new Mock<IJobEnqueuer>().Object).CheckAsync(id, CancellationToken.None) },
-			{ "SocialAccountService.GetByIdForTenantAsync", db => new SocialAccountService(db, new Mock<ICredentialProtector>().Object, new Mock<IBlueskyClient>().Object).GetByIdForTenantAsync(id) },
+			{ "PostService.FindForTenantAsync", db => new PostService(db, NullLogger<PostService>.Instance).FindForTenantAsync(new FindPostsArgs(Guid.Empty, null, null, null, null)) },
+			{ "PostService.GetPublishedSegmentCountAsync", db => new PostService(db, NullLogger<PostService>.Instance).GetPublishedSegmentCountAsync(id) },
+			{ "PublicationService.FindScheduledAsync", db => new PublicationService(db, new HttpContextAccessor()).FindScheduledAsync(new FindScheduledPublicationsArgs(DateTime.UtcNow, DateTime.UtcNow, null, null, 1)) },
+			{ "PublicationListService.FindForTenantAsync", db => new PublicationListService(db).FindForTenantAsync(new FindPublicationsArgs(id, null, null, null)) },
+			{ "SocialAccountService.FindForTenantAsync", db => RequireTenantScopeSpec._Social(db).FindForTenantAsync(new FindSocialAccountsArgs(Guid.Empty, null, null, null, null)) },
+			{ "SocialAccountService.FindNeedsReconnectAccountsAsync", db => RequireTenantScopeSpec._Social(db).FindNeedsReconnectAccountsAsync(CancellationToken.None) },
+			{ "SocialAccountService.ReconnectForTenantAsync", db => RequireTenantScopeSpec._Social(db).ReconnectForTenantAsync(id, "pw") },
+			{ "SocialAccountService.DisconnectForTenantAsync", db => RequireTenantScopeSpec._Social(db).DisconnectForTenantAsync(id) },
+			{ "SocialAccountService.SetProjectsForTenantAsync", db => RequireTenantScopeSpec._Social(db).SetProjectsForTenantAsync(id, []) },
+			{ "SocialAccountService.SetDefaultVisibilityForTenantAsync", db => RequireTenantScopeSpec._Social(db).SetDefaultVisibilityForTenantAsync(id, default) },
+			{ "SocialAccountService.GetByIdForTenantAsync", db => RequireTenantScopeSpec._Social(db).GetByIdForTenantAsync(id) },
 		};
 	}
 

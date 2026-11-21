@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data;
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
@@ -22,16 +23,22 @@ namespace PublyApp.Api.Lib.Architecture;
 /// tenant-filtered entity fails here unless it is allow-listed with a reason. The allow-list
 /// is exact: file + predicate text + count, so a new occurrence inside an allowed file still
 /// fails and an entry that no longer matches anything fails too (it ratchets down).
-/// Syntactic scan, same limits as the other source guards: it reads <c>==</c> comparisons on
-/// a <c>.TenantId</c> member, and takes a statement to read an entity when it names its
-/// DbSet or type. A tenant column read through <c>Equals</c> or a pattern is out of its reach.
+/// Syntactic scan of <c>Modules/</c> only (not Lib, Infrastructure or Data). It reads <c>==</c>
+/// comparisons on a <c>range.TenantId</c> member and resolves the range variable to the
+/// collection it iterates (the receiver of the Where/Any call, or the from/join source).
+/// Blind spots, named so nobody assumes wider coverage: a predicate on a local query variable
+/// (<c>var q = db.Post.AsQueryable(); q.Where(x => x.TenantId == t)</c>, the most common shape
+/// of a miss), a navigation (<c>p.Project.TenantId == t</c>), <c>.TenantId.Equals(t)</c>,
+/// a pattern (<c>p.TenantId is { } id</c>), and anything outside <c>Modules/</c>.
+/// Admission proof, maintenance cost and retirement condition: AGENTS.md, « Admission
+/// (tenant predicate guard) ».
 /// </summary>
 public sealed partial class TenantPredicateGuardSpec {
 	private sealed record Allowed(string File, string Predicate, int Count, string Reason);
 
 	private sealed record Hit(string File, string Predicate);
 
-	// Every kept predicate carries a one-line comment in the code saying why (#2460).
+	// Every kept predicate the scan sees carries a one-line comment in the code saying why (#2460).
 	private static readonly Allowed[] _AllowList = [
 		new(
 			"Modules/Publishing/Services/PublicationStatusTransitionService.cs",
@@ -49,7 +56,7 @@ public sealed partial class TenantPredicateGuardSpec {
 			"Modules/Permissions/Services/PermissionService.cs",
 			"x.TenantId == tenantId",
 			2,
-			"column is UserAccount.TenantId (not filtered), read beside UserAccountRole with the tenant filter ignored for staff roles"
+			"column is UserAccount.TenantId (UserAccount is not tenant-filtered), projected through a join with UserAccountRole"
 		),
 		new(
 			"Modules/Aggregators/Services/AggregatorConnectionService.cs",
@@ -61,7 +68,7 @@ public sealed partial class TenantPredicateGuardSpec {
 
 	[Fact]
 	public void ItShouldFindNoUnlistedHandWrittenTenantPredicateOnAFilteredEntity() {
-		var apiRoot = TenantPredicateGuardSpec._FindApiRoot();
+		var apiRoot = ApiSourceRoot.Find();
 		var names = TenantPredicateGuardSpec._FilteredEntityNames();
 		var hits = Directory
 			.EnumerateFiles(Path.Combine(apiRoot, "Modules"), "*.cs", SearchOption.AllDirectories)
@@ -210,21 +217,6 @@ public sealed partial class TenantPredicateGuardSpec {
 		}
 
 		return names;
-	}
-
-	private static string _FindApiRoot() {
-		var directory = new DirectoryInfo(AppContext.BaseDirectory);
-		while (directory is not null) {
-			if (File.Exists(Path.Combine(directory.FullName, "PublyApp.Api.csproj"))) {
-				return directory.FullName;
-			}
-
-			directory = directory.Parent;
-		}
-
-		throw new InvalidOperationException(
-			"Could not locate the apps/api root (PublyApp.Api.csproj) above " + AppContext.BaseDirectory
-		);
 	}
 
 	[GeneratedRegex(@"\s+")]
