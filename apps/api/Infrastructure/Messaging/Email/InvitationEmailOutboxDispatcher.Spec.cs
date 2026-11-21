@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Services;
 
@@ -183,9 +184,8 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 			RevokeInvitationForStaffResult.Success
 		>();
 
-		await using var verifyScope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var verifyDbContext = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var reloadedRow = await verifyDbContext.InvitationEmailOutbox
+		await using var db = this._Fixture.OpenDb();
+		var reloadedRow = await db.Context.InvitationEmailOutbox
 			.SingleAsync(o => o.Id == outboxRow.Id);
 
 		// Retired: revoke does not eagerly cancel the row anymore (§5.4). It stays Pending

@@ -1,10 +1,9 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
@@ -19,15 +18,14 @@ public sealed class AddSystemJobOccurrencesSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldCreateTheOccurrenceLedgerAndScheduleEpochShape() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var tableExists = await dbContext.Database.SqlQuery<bool>(
+		var tableExists = await db.Context.Database.SqlQuery<bool>(
 			$"SELECT to_regclass('public.system_job_occurrences') IS NOT NULL AS \"Value\""
 		).SingleAsync();
 		tableExists.Should().BeTrue();
 
-		var primaryKeyColumns = await dbContext.Database.SqlQuery<string>(
+		var primaryKeyColumns = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT attribute.attname AS "Value"
 			FROM pg_constraint constraint_row
@@ -43,7 +41,7 @@ public sealed class AddSystemJobOccurrencesSpec : IClassFixture<ApiFixture> {
 		).ToListAsync();
 		primaryKeyColumns.Should().Equal("job_key", "scheduled_fire_at");
 
-		var scheduledFireIndex = await dbContext.Database.SqlQuery<string>(
+		var scheduledFireIndex = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT indexdef AS "Value"
 			FROM pg_indexes
@@ -53,7 +51,7 @@ public sealed class AddSystemJobOccurrencesSpec : IClassFixture<ApiFixture> {
 		).SingleAsync();
 		scheduledFireIndex.Should().Contain("(scheduled_fire_at)");
 
-		var scheduleEpoch = await dbContext.Database.SqlQuery<string>(
+		var scheduleEpoch = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT data_type || ':' || is_nullable || ':' || column_default AS "Value"
 			FROM information_schema.columns

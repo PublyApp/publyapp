@@ -508,13 +508,7 @@ public sealed class ComprehensiveRateLimitingSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.RequestEntityTooLarge);
 		ComprehensiveRateLimitingSpec._AssertCorsOrigin(response);
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be(
-			ResponseKeys.RequestBodyValidationFailed
-		);
+		await response.ShouldBeProblemAsync(ResponseKeys.RequestBodyValidationFailed);
 	}
 
 	[Fact]

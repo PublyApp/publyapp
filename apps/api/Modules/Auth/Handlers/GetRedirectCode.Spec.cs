@@ -5,9 +5,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -55,14 +53,9 @@ public sealed class GetRedirectCodeSpec
 	[Fact]
 	public async Task
 	ItShouldRedirectToTenantWithActiveHint() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (_, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var aliceToken = await this._AuthClient.LoginAsync(
 			TestConstants.AliceEmail,
@@ -111,14 +104,9 @@ public sealed class GetRedirectCodeSpec
 	[Fact]
 	public async Task
 	ItShouldSetHasSuspendedTrueWhenOneSuspended() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// Suspend Acme
 		using var suspend =
@@ -160,14 +148,9 @@ public sealed class GetRedirectCodeSpec
 	[Fact]
 	public async Task
 	ItShouldFallThroughWhenHintPointsToSuspended() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 		var techStartId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
 				this._Http,
@@ -223,14 +206,9 @@ public sealed class GetRedirectCodeSpec
 	[Fact]
 	public async Task
 	ItShouldRedirectWhenHintIsActiveWithOtherSuspended() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 		var techStartId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
 				this._Http,
@@ -271,14 +249,9 @@ public sealed class GetRedirectCodeSpec
 	[Fact]
 	public async Task
 	ItShouldReturnTenantPickerWhenAllSuspended() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 		var techStartId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
 				this._Http,
@@ -419,19 +392,11 @@ public sealed class GetRedirectCodeSpec
 	public async Task
 	ItShouldDirectRedirectForSingleActiveTenant() {
 		// Acme admin has 1 tenant -> direct redirect
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
-
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
+		var (_, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
 		);
+
+		var acmeAdminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var result = await this._Http.GetOkAsync<RedirectCodeResponse>(
 			Routes.Auth.GetRedirectCode,
@@ -444,10 +409,7 @@ public sealed class GetRedirectCodeSpec
 
 	private async Task<SeededRedirectCodeUser>
 	_SeedUserWithTenantAsync() {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var email = $"redirect-code-deleted-{Guid.NewGuid():N}@example.com";
 		var user = new User {
@@ -460,8 +422,8 @@ public sealed class GetRedirectCodeSpec
 			Status = UserStatus.Active,
 			IsVerified = true,
 		};
-		await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 
 		var tenant = new Tenant {
 			Name = $"Redirect Code Deleted {Guid.NewGuid():N}",
@@ -469,16 +431,16 @@ public sealed class GetRedirectCodeSpec
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
-		await dbContext.UserAccount.AddAsync(
+		await db.Context.UserAccount.AddAsync(
 			UserAccount.CreateTenantAccount(
 				user.GetRequiredId(),
 				tenant.GetRequiredId()
 			)
 		);
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return new SeededRedirectCodeUser {
 			Email = email,
@@ -489,10 +451,7 @@ public sealed class GetRedirectCodeSpec
 
 	private async Task<SeededRedirectCodeUserWithoutMemberships>
 	_SeedUserWithoutMembershipsAsync() {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var email = $"redirect-code-never-invited-{Guid.NewGuid():N}@example.com";
 		var user = new User {
@@ -505,8 +464,8 @@ public sealed class GetRedirectCodeSpec
 			Status = UserStatus.Active,
 			IsVerified = true,
 		};
-		await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 
 		return new SeededRedirectCodeUserWithoutMemberships {
 			Email = email,
@@ -533,23 +492,20 @@ public sealed class GetRedirectCodeSpec
 		Guid userId,
 		Guid? tenantId
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		await dbContext.Session
+		await db.Context.Session
 			.Where(s => s.UserId == userId)
 			.ExecuteDeleteAsync();
-		await dbContext.UserAccount
+		await db.Context.UserAccount
 			.Where(ua => ua.UserId == userId)
 			.ExecuteDeleteAsync();
 		if (tenantId is Guid tenantIdValue) {
-			await dbContext.Tenant
+			await db.Context.Tenant
 				.Where(t => t.Id == tenantIdValue)
 				.ExecuteDeleteAsync();
 		}
-		await dbContext.User
+		await db.Context.User
 			.Where(u => u.Id == userId)
 			.ExecuteDeleteAsync();
 	}

@@ -5,13 +5,12 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -131,10 +130,7 @@ public sealed class GetVerificationLinkSpec
 	}
 
 	private async Task<(Guid UserId, string Email)> _SeedUnverifiedUserAsync() {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var email = $"verification-link-{Guid.NewGuid():N}@example.com";
 		var user = new User {
@@ -147,8 +143,8 @@ public sealed class GetVerificationLinkSpec
 			Status = UserStatus.Active,
 			IsVerified = false,
 		};
-		await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 
 		return (user.GetRequiredId(), email);
 	}

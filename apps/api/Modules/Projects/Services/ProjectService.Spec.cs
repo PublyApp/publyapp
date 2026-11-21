@@ -2,11 +2,10 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Projects.Entities;
 
 using Xunit;
@@ -24,10 +23,9 @@ public sealed class ProjectServiceSpec
 	[Fact]
 	public async Task
 	ItShouldSoftDeleteProjectWithoutChangingLifecycleStatusWhenDeleting() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var tenantId = await dbContext.Tenant
+		var tenantId = await db.Context.Tenant
 			.Where(t => t.Code == SeedConstants.Tenants.AcmeCode)
 			.Select(t => t.Id)
 			.SingleAsync();
@@ -41,16 +39,16 @@ public sealed class ProjectServiceSpec
 			Status = ProjectStatus.Active
 		};
 
-		dbContext.Project.Add(project);
-		await dbContext.SaveChangesAsync();
+		db.Context.Project.Add(project);
+		await db.Context.SaveChangesAsync();
 
 		var projectId = project.GetRequiredId();
-		var service = new ProjectService(dbContext);
+		var service = new ProjectService(db.Context);
 
 		await service.DeleteProjectAsync(projectId);
 
-		dbContext.ChangeTracker.Clear();
-		var deletedProject = await dbContext.Project
+		db.Context.ChangeTracker.Clear();
+		var deletedProject = await db.Context.Project
 			.SingleAsync(p => p.Id == projectId);
 
 		deletedProject.IsDeleted.Should().BeTrue();

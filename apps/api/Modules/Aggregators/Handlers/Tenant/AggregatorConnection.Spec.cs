@@ -178,8 +178,9 @@ public sealed class AggregatorConnectionSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(Guid TenantId, string Token)> _LoginAsync(string tenantName, string email) {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await TenantTestHelper.GetTenantIdByNameAsync(this._Http, staffToken, tenantName);
+		var (_, tenantId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			tenantName
+		);
 		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		// The fixture's database is shared by the specs of this class: start clean.
 		using var _ = await this._SendAsync(HttpMethod.Delete, AggregatorConnectionSpec._Url, tenantId, token);

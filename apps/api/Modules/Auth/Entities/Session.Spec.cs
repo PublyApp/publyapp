@@ -2,10 +2,9 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
@@ -24,12 +23,9 @@ public sealed class SessionSpec
 	[Fact]
 	public async Task
 	ItShouldPhysicallyDeleteWhenRemovedFromDbContext() {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var user = await dbContext.User.FirstAsync(
+		var user = await db.Context.User.FirstAsync(
 			u => u.Email == TestConstants.StaffAdminEmail
 		);
 
@@ -39,8 +35,8 @@ public sealed class SessionSpec
 			ExpiresAt = DateTime.UtcNow.AddMinutes(15)
 		};
 
-		await dbContext.Session.AddAsync(session);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Session.AddAsync(session);
+		await db.Context.SaveChangesAsync();
 
 		session.Id.Should().NotBeNull();
 		if (session.Id is null) {
@@ -49,10 +45,10 @@ public sealed class SessionSpec
 
 		var sessionId = session.Id.Value;
 
-		dbContext.Session.Remove(session);
-		await dbContext.SaveChangesAsync();
+		db.Context.Session.Remove(session);
+		await db.Context.SaveChangesAsync();
 
-		var remainingCount = await dbContext.Session
+		var remainingCount = await db.Context.Session
 			.CountAsync(s => s.Id == sessionId);
 		remainingCount.Should().Be(0);
 	}

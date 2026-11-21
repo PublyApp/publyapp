@@ -5,9 +5,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -137,9 +135,11 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 
 		try {
 			var url = $"{FindJobQueueItemsForStaffSpec._Url()}?q={Uri.EscapeDataString(jobType)}&limit=1";
-			using var request = new HttpRequestMessage(HttpMethod.Get, url)
-				.WithSessionToken(token);
-			using var response = await this._Http.SendAsync(request);
+			using var response = await this._Http.SendWithSessionAsync(
+				HttpMethod.Get,
+				url,
+				token
+			);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -176,9 +176,11 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 
 		try {
 			var url = $"{FindJobQueueItemsForStaffSpec._Url()}?q={Uri.EscapeDataString(marker)}";
-			using var request = new HttpRequestMessage(HttpMethod.Get, url)
-				.WithSessionToken(token);
-			using var response = await this._Http.SendAsync(request);
+			using var response = await this._Http.SendWithSessionAsync(
+				HttpMethod.Get,
+				url,
+				token
+			);
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 			var document = await response.Content.ReadFromJsonAsync<JsonDocument>();
@@ -200,10 +202,9 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 	) {
 		var jobType = $"spec.a5.queue.{Guid.NewGuid():N}";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		dbContext.JobQueue.Add(new JobQueueItem {
+		db.Context.JobQueue.Add(new JobQueueItem {
 			JobType = jobType,
 			Payload = "{}",
 			Priority = 0,
@@ -211,7 +212,7 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 			TenantId = tenantId,
 			LastError = lastError,
 		});
-		_ = await dbContext.SaveChangesAsync();
+		_ = await db.Context.SaveChangesAsync();
 
 		return jobType;
 	}
@@ -219,8 +220,7 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 	private async Task<(Guid Id, string Name)> _SeedTenantAsync() {
 		var name = $"Spec job tenant {Guid.NewGuid():N}";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Name = name,
@@ -228,24 +228,22 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 			Status = TenantStatus.Active,
 			MaxUsers = 10,
 		};
-		_ = await dbContext.Tenant.AddAsync(tenant);
-		_ = await dbContext.SaveChangesAsync();
+		_ = await db.Context.Tenant.AddAsync(tenant);
+		_ = await db.Context.SaveChangesAsync();
 
 		return (tenant.GetRequiredId(), name);
 	}
 
 	private async Task _DeleteTenantAsync(Guid tenantId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		_ = await dbContext.Tenant
+		await using var db = this._Fixture.OpenDb();
+		_ = await db.Context.Tenant
 			.Where(row => row.Id == tenantId)
 			.ExecuteDeleteAsync();
 	}
 
 	private async Task _CleanupAsync(string jobType) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		_ = await dbContext.JobQueue
+		await using var db = this._Fixture.OpenDb();
+		_ = await db.Context.JobQueue
 			.Where(row => row.JobType == jobType)
 			.ExecuteDeleteAsync();
 	}
@@ -254,8 +252,7 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-queue-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -266,14 +263,14 @@ public sealed class FindJobQueueItemsForStaffSpec : IClassFixture<ApiFixture> {
 			Status = UserStatus.Active,
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(staffAccount);
+		_ = await db.Context.SaveChangesAsync();
 
 		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);

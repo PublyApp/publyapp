@@ -8,6 +8,7 @@ using Npgsql;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Entities;
@@ -28,10 +29,9 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 		var email = $"verify-unverified-{Guid.NewGuid():N}@example.com";
 		var token = await this._SeedUnverifiedUserAsync(email);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var enqueuer = new RecordingEnqueuer();
-		var service = new VerifyEmailRequestService(dbContext, enqueuer);
+		var service = new VerifyEmailRequestService(db.Context, enqueuer);
 
 		var result = await service.RequestAsync(email, CancellationToken.None);
 
@@ -57,10 +57,9 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 			expiresAt: liveExpiresAt
 		);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var enqueuer = new RecordingEnqueuer();
-		var service = new VerifyEmailRequestService(dbContext, enqueuer);
+		var service = new VerifyEmailRequestService(db.Context, enqueuer);
 
 		var result = await service.RequestAsync(email, CancellationToken.None);
 
@@ -81,10 +80,9 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 		var email = $"verify-rollback-{Guid.NewGuid():N}@example.com";
 		var userId = await this._SeedUnverifiedUserAsync(email);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var service = new VerifyEmailRequestService(
-			dbContext,
+			db.Context,
 			new ThrowingEnqueuer()
 		);
 

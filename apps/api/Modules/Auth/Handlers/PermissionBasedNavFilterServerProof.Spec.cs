@@ -5,7 +5,6 @@ using FluentAssertions;
 
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -50,10 +49,7 @@ public sealed class PermissionBasedNavFilterServerProof
 			TestConstants.SeedPassword
 		);
 
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
+		var (_, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
 			SeedConstants.Tenants.AcmeName
 		);
 
@@ -84,25 +80,18 @@ public sealed class PermissionBasedNavFilterServerProof
 		// depend on the front having hidden the rail item — the two
 		// gates are independent.
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-			.Be("user-does-not-have-the-necessary-permissions");
+		await response.ShouldBeProblemAsync("user-does-not-have-the-necessary-permissions");
 	}
 
 	private async Task<ScopeAuthDataResponse> _FetchScopeAuthDataAsync(
 		string sessionToken,
 		string scope
 	) {
-		using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				$"{Routes.Auth.GetScopeAuthData}?scope={scope}"
-			)
-			.WithSessionToken(sessionToken);
-
-		using var response = await this._Http.SendAsync(request);
+		using var response = await this._Http.SendWithSessionAsync(
+			HttpMethod.Get,
+			$"{Routes.Auth.GetScopeAuthData}?scope={scope}",
+			sessionToken
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		var payload = await response.Content

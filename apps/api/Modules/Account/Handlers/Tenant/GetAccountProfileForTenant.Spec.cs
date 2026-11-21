@@ -7,7 +7,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -46,14 +45,9 @@ public sealed class GetAccountProfileForTenantSpec
 	[Fact]
 	public async Task
 	ItShouldReturnTheTenantScopedProfileForAMember() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (_, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 		var (acmeAdminToken, acmeAdminUserId) =
 			await this._LoginAsAcmeAdminAsync();
 
@@ -83,14 +77,9 @@ public sealed class GetAccountProfileForTenantSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForANonMember() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (_, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 		// TechStart admin is NOT a member of Acme — the TenantAuthFilter
 		// answers 403 before the handler runs (D9: no tenant-id probing).
 		var techStartAdminToken =
@@ -134,17 +123,13 @@ public sealed class GetAccountProfileForTenantSpec
 
 	private async Task<(string Token, Guid UserId)>
 	_LoginAsAcmeAdminAsync() {
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			Routes.Auth.GetUserAuthData
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			Routes.Auth.GetUserAuthData,
+			token
+		);
 		response.EnsureSuccessStatusCode();
 
 		var result = await response.Content
@@ -159,12 +144,9 @@ public sealed class GetAccountProfileForTenantSpec
 	}
 
 	private async Task<UserRow> _GetUserByIdAsync(Guid userId) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.User
+		return await db.Context.User
 			.AsNoTracking()
 			.Where(user => user.Id == userId)
 			.Select(user => new UserRow(

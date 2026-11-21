@@ -39,10 +39,7 @@ public sealed class RevokeSessionForTokenSpec
 	ItShouldRevokeRegularSessionAndInvalidateToken() {
 		// Arrange: log in as a regular (tenant admin) user to obtain
 		// a real, non-impersonation session token.
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var acmeAdminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		// Act I: call the revoke endpoint with that session token.
 		using var revokeRequest = new HttpRequestMessage(
@@ -85,14 +82,8 @@ public sealed class RevokeSessionForTokenSpec
 
 		// Arrange: two independent logins produce two distinct session
 		// tokens for the same tenant admin user.
-		var tokenOne = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
-		var tokenTwo = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var tokenOne = await this._AuthClient.LoginAsAcmeAdminAsync();
+		var tokenTwo = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		// Tokens must be distinct sessions.
 		tokenOne.Should().NotBe(tokenTwo);
@@ -176,10 +167,9 @@ public sealed class RevokeSessionForTokenSpec
 		authedResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
 		// Assert III: no impersonation.ended audit action was emitted.
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var impersonationEndedCount = await dbContext.AuditLog
+		var impersonationEndedCount = await db.Context.AuditLog
 			.CountAsync(a => a.Action == AuditActions.ImpersonationEnded, default);
 
 		impersonationEndedCount.Should().Be(0);

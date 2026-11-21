@@ -1,10 +1,9 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Tenants.Entities;
 
@@ -21,8 +20,7 @@ public sealed class AppDbContextAuditTrackingSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldPreserveSoftDeleteStateForNewBaseAttributesAndPermissionEntities() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenantDeletedAt = new DateTime(2024, 02, 14, 12, 0, 0, DateTimeKind.Utc);
 		var permissionDeletedAt = new DateTime(2024, 02, 13, 12, 0, 0, DateTimeKind.Utc);
@@ -41,23 +39,22 @@ public sealed class AppDbContextAuditTrackingSpec : IClassFixture<ApiFixture> {
 		permission.IsDeleted = true;
 		permission.DeletedAt = permissionDeletedAt;
 
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.Permission.AddAsync(permission);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.Permission.AddAsync(permission);
+		await db.Context.SaveChangesAsync();
 
-		var persistedTenant = await dbContext.Tenant.SingleAsync(t => t.Code == tenant.Code);
+		var persistedTenant = await db.Context.Tenant.SingleAsync(t => t.Code == tenant.Code);
 		persistedTenant.IsDeleted.Should().BeTrue();
 		persistedTenant.DeletedAt.Should().Be(tenantDeletedAt);
 
-		var persistedPermission = await dbContext.Permission.SingleAsync(p => p.Key == permission.Key);
+		var persistedPermission = await db.Context.Permission.SingleAsync(p => p.Key == permission.Key);
 		persistedPermission.IsDeleted.Should().BeTrue();
 		persistedPermission.DeletedAt.Should().Be(permissionDeletedAt);
 	}
 
 	[Fact]
 	public async Task ItShouldNormalizeInconsistentSoftDeletePairValuesOnInsert() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenant = new Tenant {
 			Id = Guid.CreateVersion7(),
@@ -73,15 +70,15 @@ public sealed class AppDbContextAuditTrackingSpec : IClassFixture<ApiFixture> {
 		permission.IsDeleted = true;
 		permission.DeletedAt = null;
 
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.Permission.AddAsync(permission);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.Permission.AddAsync(permission);
+		await db.Context.SaveChangesAsync();
 
-		var persistedTenant = await dbContext.Tenant.SingleAsync(t => t.Code == tenant.Code);
+		var persistedTenant = await db.Context.Tenant.SingleAsync(t => t.Code == tenant.Code);
 		persistedTenant.IsDeleted.Should().BeTrue("an explicit DeletedAt without IsDeleted=true is normalized as soft-deleted");
 		persistedTenant.DeletedAt.Should().Be(tenant.DeletedAt);
 
-		var persistedPermission = await dbContext.Permission.SingleAsync(p => p.Key == permission.Key);
+		var persistedPermission = await db.Context.Permission.SingleAsync(p => p.Key == permission.Key);
 		persistedPermission.IsDeleted.Should().BeTrue();
 		persistedPermission.DeletedAt.Should().NotBeNull();
 		persistedPermission.DeletedAt.Should().BeCloseTo(DateTime.UtcNow, precision: TimeSpan.FromSeconds(5));
@@ -101,8 +98,7 @@ public sealed class AppDbContextAuditTrackingSpec : IClassFixture<ApiFixture> {
 	/// </summary>
 	[Fact]
 	public async Task ItShouldTagAnUnspecifiedDeletedAtAsUtcWithoutShiftingIt() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var wallClock = new DateTime(2024, 02, 12, 12, 0, 0, DateTimeKind.Unspecified);
 
@@ -116,10 +112,10 @@ public sealed class AppDbContextAuditTrackingSpec : IClassFixture<ApiFixture> {
 			DeletedAt = wallClock,
 		};
 
-		await dbContext.Tenant.AddAsync(tenant);
-		await dbContext.SaveChangesAsync();
+		await db.Context.Tenant.AddAsync(tenant);
+		await db.Context.SaveChangesAsync();
 
-		var persisted = await dbContext.Tenant.SingleAsync(t => t.Code == tenant.Code);
+		var persisted = await db.Context.Tenant.SingleAsync(t => t.Code == tenant.Code);
 		persisted.IsDeleted.Should().BeTrue();
 		persisted.DeletedAt.Should().Be(
 			DateTime.SpecifyKind(wallClock, DateTimeKind.Utc),

@@ -4,9 +4,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -301,11 +299,9 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 	}
 
 	private async Task<Guid> _GetStaffAdminIdAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var user = await dbContext.User
+		var user = await db.Context.User
 			.Where(u => u.Email == SeedConstants.Staff.AdminEmail)
 			.FirstAsync();
 		return user.GetRequiredId();
@@ -317,9 +313,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		DateTime createdAt,
 		DateTime startsAt
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var notice = new SystemNotice {
 			Severity = NoticeSeverity.Info,
@@ -332,39 +326,35 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 		// Insert first (interceptor stamps CreatedAt/UpdatedAt = now), then
 		// re-fetch and overwrite CreatedAt as a Modified row. On Modified the
 		// interceptor only touches UpdatedAt, so the seeded CreatedAt sticks.
-		await dbContext.SystemNotice.AddAsync(notice);
-		await dbContext.SaveChangesAsync();
+		await db.Context.SystemNotice.AddAsync(notice);
+		await db.Context.SaveChangesAsync();
 		var id = notice.GetRequiredId();
 
-		var tracked = await dbContext.SystemNotice
+		var tracked = await db.Context.SystemNotice
 			.Where(n => n.Id == id)
 			.FirstAsync();
 		tracked.CreatedAt = createdAt;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return id;
 	}
 
 	private async Task _SetNoticeSeverityAsync(Guid id, NoticeSeverity severity) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var tracked = await dbContext.SystemNotice
+		var tracked = await db.Context.SystemNotice
 			.Where(n => n.Id == id)
 			.FirstAsync();
 		tracked.Severity = severity;
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task<Dictionary<Guid, NoticeSeverity>> _FetchSeveritiesByIdAsync(
 		List<Guid> ids
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.SystemNotice
+		return await db.Context.SystemNotice
 			.Where(n => n.Id.HasValue && ids.Contains(n.Id.Value))
 			.ToDictionaryAsync(
 				n => n.Id.HasValue ? n.Id.Value : Guid.Empty,
@@ -385,16 +375,15 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 	}
 
 	private async Task _SwapSystemNoticeIdsAsync(Guid idA, Guid idB) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var temp = Guid.NewGuid();
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE system_notices SET id = {0} WHERE id = {1}",
 			temp, idA);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE system_notices SET id = {0} WHERE id = {1}",
 			idA, idB);
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"UPDATE system_notices SET id = {0} WHERE id = {1}",
 			idB, temp);
 	}

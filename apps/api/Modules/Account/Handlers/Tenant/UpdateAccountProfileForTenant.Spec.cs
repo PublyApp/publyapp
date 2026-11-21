@@ -7,7 +7,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
@@ -214,11 +213,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("AvatarUrl");
+		await response.ShouldHaveValidationErrorAsync("AvatarUrl");
 	}
 
 	[Fact]
@@ -241,11 +236,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("FirstName");
+		await response.ShouldHaveValidationErrorAsync("FirstName");
 	}
 
 	[Fact]
@@ -271,11 +262,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("FirstName");
+		await response.ShouldHaveValidationErrorAsync("FirstName");
 	}
 
 	[Fact]
@@ -301,11 +288,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("FirstName");
+		await response.ShouldHaveValidationErrorAsync("FirstName");
 	}
 
 	[Fact]
@@ -328,11 +311,7 @@ public sealed class UpdateAccountProfileForTenantSpec
 		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("AvatarUrl");
+		await response.ShouldHaveValidationErrorAsync("AvatarUrl");
 	}
 
 	// Same unreachable-through-HTTP reasoning as
@@ -362,18 +341,10 @@ public sealed class UpdateAccountProfileForTenantSpec
 
 	private async Task<(string Token, Guid UserId, Guid TenantId,
 		UserRow Original)> _PrepareAcmeAdminAsync() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
+		var (_, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
 		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var authDataRequest = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -398,12 +369,9 @@ public sealed class UpdateAccountProfileForTenantSpec
 	}
 
 	private async Task<UserRow> _GetUserRowAsync(Guid userId) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.User
+		return await db.Context.User
 			.AsNoTracking()
 			.Where(user => user.Id == userId)
 			.Select(user => new UserRow(
@@ -418,12 +386,9 @@ public sealed class UpdateAccountProfileForTenantSpec
 		Guid userId,
 		UserRow original
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		await dbContext.User
+		await db.Context.User
 			.Where(user => user.Id == userId)
 			.ExecuteUpdateAsync(setters => setters
 				.SetProperty(user => user.FirstName, original.FirstName)

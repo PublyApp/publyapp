@@ -8,11 +8,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Users.Entities;
@@ -40,10 +40,7 @@ public sealed class CheckEmailVerificationTokenSpec
 		using var response = await this._CheckAsync(user.Email, user.Token);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be("email-verification-token-expired");
+		await response.ShouldBeProblemAsync("email-verification-token-expired");
 	}
 
 	[Fact]
@@ -76,10 +73,7 @@ public sealed class CheckEmailVerificationTokenSpec
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be("invalid-email-verification-token");
+		await response.ShouldBeProblemAsync("invalid-email-verification-token");
 	}
 
 	[Fact]
@@ -93,10 +87,7 @@ public sealed class CheckEmailVerificationTokenSpec
 		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-		var problem = await response.Content.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be("invalid-email-verification-token");
+		await response.ShouldBeProblemAsync("invalid-email-verification-token");
 	}
 
 	[Fact]
@@ -126,9 +117,8 @@ public sealed class CheckEmailVerificationTokenSpec
 		var email = $"check-verification-{Guid.NewGuid():N}@example.com";
 		var token = $"verify-{Guid.NewGuid():N}";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		_ = dbContext.User.Add(new User {
+		await using var db = this._Fixture.OpenDb();
+		_ = db.Context.User.Add(new User {
 			Email = email,
 			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
 			FirstName = "Verification",
@@ -138,7 +128,7 @@ public sealed class CheckEmailVerificationTokenSpec
 			EmailVerifyToken = token,
 			EmailVerifyTokenExpiresAt = expiresAt
 		});
-		_ = await dbContext.SaveChangesAsync();
+		_ = await db.Context.SaveChangesAsync();
 
 		return (email, token);
 	}
