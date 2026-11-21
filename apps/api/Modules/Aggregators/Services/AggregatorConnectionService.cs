@@ -80,6 +80,7 @@ public sealed class AggregatorConnectionService {
 		string apiKey,
 		CancellationToken cancellationToken
 	) {
+		var tenantId = this._ScopedTenantId();
 		var check = await this._Adapters[kind].CheckKeyAsync(apiKey, cancellationToken);
 		if (check is KeyCheck.Rejected rejected) {
 			return new SaveAggregatorKeyResult.Rejected(rejected.Cause);
@@ -89,11 +90,10 @@ public sealed class AggregatorConnectionService {
 			return new SaveAggregatorKeyResult.Unreachable(unreachable.Cause);
 		}
 
-		this._Db.RequireTenantScope();
 		var connection = await this._FindAsync(kind, cancellationToken);
 		if (connection is null) {
 			connection = new AggregatorConnection {
-				TenantId = this._Db.TenantId.GetValueOrDefault(),
+				TenantId = tenantId,
 				Kind = kind,
 				ProtectedApiKey = string.Empty,
 				KeyHint = string.Empty,
@@ -160,5 +160,11 @@ public sealed class AggregatorConnectionService {
 			c => c.Kind == kind && !c.IsDeleted,
 			cancellationToken
 		);
+	}
+
+	// RequireTenantScope throws when there is none, so the id is always set past it.
+	private Guid _ScopedTenantId() {
+		this._Db.RequireTenantScope();
+		return this._Db.TenantId.Value;
 	}
 }

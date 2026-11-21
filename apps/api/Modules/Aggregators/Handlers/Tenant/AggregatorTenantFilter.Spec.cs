@@ -59,11 +59,15 @@ public sealed class AggregatorTenantFilterSpec : IClassFixture<ApiFixture> {
 		var service = scope.ServiceProvider.GetRequiredService<AggregatorConnectionService>();
 		scope.ServiceProvider.GetRequiredService<AppDbContext>().TenantId.Should().BeNull();
 
-		var act = () => service.FindAsync(CancellationToken.None);
-
-		await act.Should().ThrowAsync<InvalidOperationException>();
-		var remove = () => service.RemoveAsync(AggregatorKind.Zernio, CancellationToken.None);
-		await remove.Should().ThrowAsync<InvalidOperationException>();
+		var calls = new Func<Task>[] {
+			() => service.FindAsync(CancellationToken.None),
+			() => service.SaveAsync(AggregatorKind.Zernio, "sk_unscoped", CancellationToken.None),
+			() => service.TestAsync(AggregatorKind.Zernio, CancellationToken.None),
+			() => service.RemoveAsync(AggregatorKind.Zernio, CancellationToken.None),
+		};
+		foreach (var call in calls) {
+			await call.Should().ThrowAsync<InvalidOperationException>();
+		}
 	}
 
 	private async Task<string> _ListTextAsync(Guid tenantId, string token) {
