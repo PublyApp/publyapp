@@ -466,15 +466,16 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnPostNotFoundForAForeignTenantAndWriteNothing() {
 		using var db = await this._NewDbAsync();
 		var (tenantA, _) = await PublishNowServiceSpec._SeedTenantAsync(db);
-		var (_, actorB) = await PublishNowServiceSpec._SeedTenantAsync(db);
+		var (tenantB, actorB) = await PublishNowServiceSpec._SeedTenantAsync(db);
 		var foreignPostId = await PublishNowServiceSpec._SeedPostAsync(db, tenantA, actorB);
-		var service = PublishNowServiceSpec._NewService(db, tenantA, actorB);
+		var service = PublishNowServiceSpec._NewService(db, tenantB, actorB);
+		db.ScopeToTenant(tenantB);
 
 		var beforePublications = await PublishNowServiceSpec._TotalPublicationsAsync(db);
 		var beforeJobs = await db.JobQueue.CountAsync();
 
 		var result = await service.PublishNowAsync(
-			new PublishNowArgs(actorB, foreignPostId, actorB, [Guid.CreateVersion7()]),
+			new PublishNowArgs(tenantB, foreignPostId, actorB, [Guid.CreateVersion7()]),
 			CancellationToken.None
 		);
 
@@ -492,6 +493,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		var known = await PublishNowServiceSpec._SeedAccountAsync(db, tenantId);
 		var foreign = await PublishNowServiceSpec._SeedAccountAsync(db, foreignTenant);
 		var service = PublishNowServiceSpec._NewService(db, tenantId, actorUserId);
+		db.ScopeToTenant(tenantId);
 
 		var beforePublications = await PublishNowServiceSpec._TotalPublicationsAsync(db);
 		var beforeJobs = await PublishNowServiceSpec._JobRowsAsync(db, tenantId);

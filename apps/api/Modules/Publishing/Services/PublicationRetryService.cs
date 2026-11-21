@@ -76,7 +76,6 @@ public sealed class PublicationRetryService : IPublicationRetryService {
 			.AsNoTracking()
 			.SingleOrDefaultAsync(
 				candidate => candidate.Id == publicationId
-					&& candidate.TenantId == tenantId
 					&& !candidate.IsDeleted,
 				cancellationToken
 			);

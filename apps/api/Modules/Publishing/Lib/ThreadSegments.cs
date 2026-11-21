@@ -117,7 +117,6 @@ public static class ThreadSegments {
 			join publication in db.Publication.AsNoTracking()
 				on result.PublicationId equals publication.Id
 			where publication.PostId == postId
-				&& publication.TenantId == tenantId
 				&& (publication.Status == PublicationStatus.Failed || publication.IsDeleted)
 				&& !result.IsDeleted
 				&& accountIds.Contains(publication.SocialAccountId)

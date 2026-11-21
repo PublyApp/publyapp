@@ -69,6 +69,7 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 			SocialAccountStatus.Active, minutesAgo: 10
 		);
 
+		db.ScopeToTenant(tenantId);
 		var service = new PublishTargetService(db);
 
 		var targets = await service.FindForTenantAsync(tenantId);
@@ -101,6 +102,7 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 		});
 		await db.SaveChangesAsync();
 
+		db.ScopeToTenant(tenantId);
 		var service = new PublishTargetService(db);
 
 		var underOne = await service.FindForTenantAsync(tenantId, projectOne);
@@ -125,6 +127,7 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 			SocialAccountStatus.Active, minutesAgo: 1
 		);
 
+		db.ScopeToTenant(tenantId);
 		var service = new PublishTargetService(db);
 
 		var targets = await service.FindForTenantAsync(tenantId);

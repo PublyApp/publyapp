@@ -16,7 +16,6 @@ namespace PublyApp.Api.Modules.Publishing.Lib;
 internal static class PostStatusSummaryQuery {
 	public static async Task<Dictionary<Guid, PostStatusSummary>> SummarizeAsync(
 		AppDbContext db,
-		Guid tenantId,
 		List<Guid> postIds,
 		CancellationToken cancellationToken
 	) {
@@ -36,8 +35,7 @@ internal static class PostStatusSummaryQuery {
 
 		var groups = await db.Publication
 			.AsNoTracking()
-			.Where(publication => publication.TenantId == tenantId
-				&& postIds.Contains(publication.PostId)
+			.Where(publication => postIds.Contains(publication.PostId)
 				&& !publication.IsDeleted)
 			.Where(destination)
 			.GroupBy(publication => publication.PostId)
@@ -65,14 +63,12 @@ internal static class PostStatusSummaryQuery {
 
 	public static async Task<HashSet<Guid>> SupersededIdsAsync(
 		AppDbContext db,
-		Guid tenantId,
 		List<Guid> publicationIds,
 		CancellationToken cancellationToken
 	) {
 		var ids = await db.Publication
 			.AsNoTracking()
-			.Where(publication => publication.TenantId == tenantId
-				&& publication.Id.HasValue
+			.Where(publication => publication.Id.HasValue
 				&& publicationIds.Contains(publication.Id.Value))
 			.Where(PublicationSupersession.IsSupersededIn(db.Publication))
 			.Select(publication => publication.Id)

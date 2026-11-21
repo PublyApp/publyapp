@@ -287,38 +287,13 @@ public sealed class PublicationService : IPublicationService {
 		SchedulePublicationArgs args,
 		CancellationToken cancellationToken = default
 	) {
+		var invalidSchedule = PublicationService._ValidateScheduleInput(args);
+		if (invalidSchedule is not null) {
+			return invalidSchedule;
+		}
+
 		var timeZoneId = args.TimeZone.Trim();
-
-		if (!TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneId, out var zone)
-			|| zone is null) {
-			return new ScheduleResult.InvalidSchedule(
-				$"'{timeZoneId}' is not an IANA time zone identifier.",
-				"timeZone"
-			);
-		}
-
-		_ = zone; // kept for symmetry with later wall-clock conversion needs
-
-		var earliestAllowed = DateTime.UtcNow.AddSeconds(-PublicationService._PastDriftToleranceSeconds);
-		for (var index = 0; index < args.Destinations.Count; index++) {
-			var destination = args.Destinations[index];
-			if (destination.ScheduledAtUtc < earliestAllowed) {
-				// A destination's own instant is keyed on that destination; the shared
-				// default (and the accountIds shape) stays on scheduledAtLocal.
-				return new ScheduleResult.InvalidSchedule(
-					"The requested date is already in the past. Pick a future date and time.",
-					destination.HasOwnInstant
-						? $"destinations[{index}].scheduledAt"
-						: "scheduledAtLocal"
-				);
-			}
-		}
-
-		var post = await this._LoadPostAsync(
-			args.PostId,
-			args.TenantId,
-			cancellationToken
-		);
+		var post = await this._LoadPostAsync(args.PostId, cancellationToken);
 		if (post is null) {
 			return new ScheduleResult.NotFound();
 		}
@@ -335,8 +310,7 @@ public sealed class PublicationService : IPublicationService {
 
 		var accounts = await (
 			from account in this._DbContext.SocialAccount
-			where account.TenantId == args.TenantId
-				&& !account.IsDeleted
+			where !account.IsDeleted
 				&& account.Id != null
 				&& accountIds.Contains(account.Id.Value)
 			select account
@@ -413,15 +387,7 @@ public sealed class PublicationService : IPublicationService {
 			// Nothing is saved, but the new publications and segment copies are still
 			// tracked: drop them so nothing later in the request can persist them.
 			this._DbContext.ChangeTracker.Clear();
-			if (staged is StageRenditionsResult.OverridesInvalid overridesInvalid) {
-				return new ScheduleResult.OverridesInvalid(overridesInvalid.Failure);
-			}
-
-			if (staged is StageRenditionsResult.ContentInvalid contentInvalid) {
-				return new ScheduleResult.ContentInvalid(contentInvalid.Failure);
-			}
-
-			return new ScheduleResult.SegmentsLocked();
+			return PublicationService._ToScheduleFailure(staged);
 		}
 
 		this._AddAuditEntry(args);
@@ -429,6 +395,85 @@ public sealed class PublicationService : IPublicationService {
 		await transaction.CommitAsync(cancellationToken);
 
 		return new ScheduleResult.Scheduled(publications);
+	}
+
+	// Only safe to read the tail row when a next page exists (an empty window used to 500 on an
+	// unconditional rows[^1], round-2 finding): callers guard on hasNextPage.
+	private static string _EncodeCursor(Publication last) {
+		return PublicationService._EncodeCursor(last.ScheduledAtUtc, last.GetRequiredId());
+	}
+
+	private static bool _AllowsCarryover(IReadOnlyList<PublicationStatus>? statuses) {
+		return statuses is { Count: > 0 }
+			&& (statuses.Contains(PublicationStatus.InProgress)
+				|| statuses.Contains(PublicationStatus.Paused));
+	}
+
+	private static FindScheduledResult.InvalidWindow? _ValidateWindow(FindScheduledPublicationsArgs args) {
+		if (args.FromUtc > args.ToUtc) {
+			return new FindScheduledResult.InvalidWindow("publication-window-invalid");
+		}
+
+		return args.ToUtc - args.FromUtc > TimeSpan.FromDays(32)
+			? new FindScheduledResult.InvalidWindow("publication-window-too-wide")
+			: null;
+	}
+
+	private async Task<bool> _CursorAnchorExistsAsync(
+		FindScheduledPublicationsArgs args,
+		Guid cursorId,
+		DateTime cursorInstant,
+		bool carryoverAllowed,
+		CancellationToken cancellationToken
+	) {
+		return await (
+			from p in this._DbContext.Publication.AsNoTracking()
+			where p.Id == cursorId
+				&& !p.IsDeleted
+				&& p.ScheduledAtUtc == cursorInstant
+				&& p.ScheduledAtUtc <= args.ToUtc
+				&& (p.ScheduledAtUtc >= args.FromUtc
+					|| carryoverAllowed)
+			select p.Id
+		).AnyAsync(cancellationToken);
+	}
+
+	private static ScheduleResult.InvalidSchedule? _ValidateScheduleInput(SchedulePublicationArgs args) {
+		var timeZoneId = args.TimeZone.Trim();
+		if (!TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneId, out var zone)
+			|| zone is null) {
+			return new ScheduleResult.InvalidSchedule(
+				$"'{timeZoneId}' is not an IANA time zone identifier.",
+				"timeZone"
+			);
+		}
+
+		var earliestAllowed = DateTime.UtcNow.AddSeconds(-PublicationService._PastDriftToleranceSeconds);
+		for (var index = 0; index < args.Destinations.Count; index++) {
+			var destination = args.Destinations[index];
+			if (destination.ScheduledAtUtc < earliestAllowed) {
+				// A destination's own instant is keyed on that destination; the shared
+				// default (and the accountIds shape) stays on scheduledAtLocal.
+				return new ScheduleResult.InvalidSchedule(
+					"The requested date is already in the past. Pick a future date and time.",
+					destination.HasOwnInstant
+						? $"destinations[{index}].scheduledAt"
+						: "scheduledAtLocal"
+				);
+			}
+		}
+
+		return null;
+	}
+
+	private static ScheduleResult _ToScheduleFailure(StageRenditionsResult staged) {
+		return staged switch {
+			StageRenditionsResult.OverridesInvalid overridesInvalid =>
+				new ScheduleResult.OverridesInvalid(overridesInvalid.Failure),
+			StageRenditionsResult.ContentInvalid contentInvalid =>
+				new ScheduleResult.ContentInvalid(contentInvalid.Failure),
+			_ => new ScheduleResult.SegmentsLocked(),
+		};
 	}
 
 	/// <summary>
@@ -444,11 +489,7 @@ public sealed class PublicationService : IPublicationService {
 		EditPostScheduleArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		var post = await this._LoadPostAsync(
-			args.PostId,
-			args.TenantId,
-			cancellationToken
-		);
+		var post = await this._LoadPostAsync(args.PostId, cancellationToken);
 		if (post is null) {
 			return new EditPostScheduleResult.NotFound();
 		}
@@ -458,7 +499,6 @@ public sealed class PublicationService : IPublicationService {
 		var hasInProgress = await (
 			from p in this._DbContext.Publication.AsNoTracking()
 			where p.PostId == postId
-				&& p.TenantId == args.TenantId
 				&& !p.IsDeleted
 				&& p.Status == PublicationStatus.InProgress
 			select p.Id
@@ -468,57 +508,9 @@ public sealed class PublicationService : IPublicationService {
 		}
 
 		// Build the schedule value object ONCE, before any write (plan Step 3).
-		PublicationSchedule? schedule = null;
-		if (args.ScheduledAtLocal.IsPresent) {
-			if (!args.TimeZone.IsPresent) {
-				return new EditPostScheduleResult.InvalidSchedule(
-					"scheduledAtLocal and timeZone must be sent together.",
-					"scheduledAtLocal"
-				);
-			}
-
-			var timeZoneRaw = args.TimeZone.Value;
-			if (timeZoneRaw is null) {
-				return new EditPostScheduleResult.InvalidSchedule(
-					"'null' is not an IANA time zone identifier.",
-					"timeZone"
-				);
-			}
-
-			var timeZoneValue = timeZoneRaw.Trim();
-			if (!TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneValue, out _)) {
-				return new EditPostScheduleResult.InvalidSchedule(
-					$"'{timeZoneValue}' is not an IANA time zone identifier.",
-					"timeZone"
-				);
-			}
-
-			// Past-drift rule on the raw pair, same tolerance as scheduling.
-			if (args.ScheduledAtLocal.Value
-				< DateTime.UtcNow.AddSeconds(-PublicationService._PastDriftToleranceSeconds)) {
-				return new EditPostScheduleResult.InvalidSchedule(
-					"The requested date is already in the past. "
-						+ "Pick a future date and time.",
-					"scheduledAtLocal"
-				);
-			}
-
-			try {
-				schedule = PublicationSchedule.Create(
-					args.ScheduledAtLocal.Value,
-					timeZoneValue
-				);
-			} catch (ArgumentException ex) {
-				// Plain-words cause surfaced verbatim (transparent failure causes).
-				return new EditPostScheduleResult.InvalidSchedule(
-					ex.Message, "timeZone"
-				);
-			}
-		} else if (args.TimeZone.IsPresent) {
-			return new EditPostScheduleResult.InvalidSchedule(
-				"timeZone can only be changed together with scheduledAtLocal.",
-				"timeZone"
-			);
+		var (schedule, scheduleFailure) = PublicationService._ParseEditSchedule(args);
+		if (scheduleFailure is not null) {
+			return scheduleFailure;
 		}
 
 		var targets = await (
@@ -537,42 +529,9 @@ public sealed class PublicationService : IPublicationService {
 		var source = await RenditionResolver.LoadSourceAsync(
 			this._DbContext, post, cancellationToken
 		);
-		var editedSource = args.Body.IsPresent && args.Body.Value is not null
-			? source with { Body = args.Body.Value }
-			: source;
-		var targetIds = targets.Select(target => target.GetRequiredId()).ToList();
-		var renditions = await RenditionResolver.LoadOverridesAsync(
-			this._DbContext, args.TenantId, targetIds, cancellationToken
-		);
-		var targetAccountIds = targets
-			.Select(target => target.SocialAccountId)
-			.Distinct()
-			.ToList();
-		var targetAccounts = await (
-			from account in this._DbContext.SocialAccount.AsNoTracking()
-			where account.TenantId == args.TenantId
-				&& account.Id != null
-				&& targetAccountIds.Contains(account.Id.Value)
-			select account
-		).ToListAsync(cancellationToken);
-		foreach (var target in targets) {
-			var account = targetAccounts.FirstOrDefault(
-				candidate => candidate.GetRequiredId() == target.SocialAccountId
-			);
-			if (account is null) {
-				continue;
-			}
-
-			var contentFailure = PublishValidationService.ValidateDestination(
-				RenditionResolver.Resolve(
-					editedSource,
-					renditions.TryGetValue(target.GetRequiredId(), out var overrides) ? overrides : null
-				),
-				account
-			);
-			if (contentFailure is not null) {
-				return new EditPostScheduleResult.ContentInvalid(contentFailure);
-			}
+		var contentFailure = await this._FindEditContentFailureAsync(args, source, targets, cancellationToken);
+		if (contentFailure is not null) {
+			return new EditPostScheduleResult.ContentInvalid(contentFailure);
 		}
 
 		// A thread whose first segment is already published keeps its text (#2171).
@@ -619,6 +578,106 @@ public sealed class PublicationService : IPublicationService {
 		await this._DbContext.SaveChangesAsync(cancellationToken);
 
 		return new EditPostScheduleResult.Success(post, reschedules);
+	}
+
+	private static (PublicationSchedule? Schedule, EditPostScheduleResult.InvalidSchedule? Failure) _ParseEditSchedule(
+		EditPostScheduleArgs args
+	) {
+		if (!args.ScheduledAtLocal.IsPresent) {
+			return args.TimeZone.IsPresent
+				? (null, new EditPostScheduleResult.InvalidSchedule(
+					"timeZone can only be changed together with scheduledAtLocal.",
+					"timeZone"
+				))
+				: (null, null);
+		}
+
+		if (!args.TimeZone.IsPresent) {
+			return (null, new EditPostScheduleResult.InvalidSchedule(
+				"scheduledAtLocal and timeZone must be sent together.",
+				"scheduledAtLocal"
+			));
+		}
+
+		var timeZoneRaw = args.TimeZone.Value;
+		if (timeZoneRaw is null) {
+			return (null, new EditPostScheduleResult.InvalidSchedule(
+				"'null' is not an IANA time zone identifier.",
+				"timeZone"
+			));
+		}
+
+		var timeZoneValue = timeZoneRaw.Trim();
+		if (!TimeZoneInfo.TryFindSystemTimeZoneById(timeZoneValue, out _)) {
+			return (null, new EditPostScheduleResult.InvalidSchedule(
+				$"'{timeZoneValue}' is not an IANA time zone identifier.",
+				"timeZone"
+			));
+		}
+
+		// Past-drift rule on the raw pair, same tolerance as scheduling.
+		if (args.ScheduledAtLocal.Value
+			< DateTime.UtcNow.AddSeconds(-PublicationService._PastDriftToleranceSeconds)) {
+			return (null, new EditPostScheduleResult.InvalidSchedule(
+				"The requested date is already in the past. "
+					+ "Pick a future date and time.",
+				"scheduledAtLocal"
+			));
+		}
+
+		try {
+			return (PublicationSchedule.Create(args.ScheduledAtLocal.Value, timeZoneValue), null);
+		} catch (ArgumentException ex) {
+			// Plain-words cause surfaced verbatim (transparent failure causes).
+			return (null, new EditPostScheduleResult.InvalidSchedule(ex.Message, "timeZone"));
+		}
+	}
+
+	/// <summary>The first target whose effective content (edited text + its overrides) no longer fits its provider.</summary>
+	private async Task<PublishContentFailure?> _FindEditContentFailureAsync(
+		EditPostScheduleArgs args,
+		SourceContent source,
+		List<Publication> targets,
+		CancellationToken cancellationToken
+	) {
+		var editedSource = args.Body.IsPresent && args.Body.Value is not null
+			? source with { Body = args.Body.Value }
+			: source;
+		var targetIds = targets.Select(target => target.GetRequiredId()).ToList();
+		var renditions = await RenditionResolver.LoadOverridesAsync(
+			this._DbContext, targetIds, cancellationToken
+		);
+		var targetAccountIds = targets
+			.Select(target => target.SocialAccountId)
+			.Distinct()
+			.ToList();
+		var targetAccounts = await (
+			from account in this._DbContext.SocialAccount.AsNoTracking()
+			where account.Id != null
+				&& targetAccountIds.Contains(account.Id.Value)
+			select account
+		).ToListAsync(cancellationToken);
+		foreach (var target in targets) {
+			var account = targetAccounts.FirstOrDefault(
+				candidate => candidate.GetRequiredId() == target.SocialAccountId
+			);
+			if (account is null) {
+				continue;
+			}
+
+			var contentFailure = PublishValidationService.ValidateDestination(
+				RenditionResolver.Resolve(
+					editedSource,
+					renditions.TryGetValue(target.GetRequiredId(), out var overrides) ? overrides : null
+				),
+				account
+			);
+			if (contentFailure is not null) {
+				return contentFailure;
+			}
+		}
+
+		return null;
 	}
 
 	/// <summary>
@@ -724,7 +783,6 @@ public sealed class PublicationService : IPublicationService {
 		var postExists = await (
 			from p in this._DbContext.Post.AsNoTracking()
 			where p.Id == postId
-				&& p.TenantId == tenantId
 				&& !p.IsDeleted
 			select p.Id
 		).AnyAsync(cancellationToken);
@@ -742,7 +800,6 @@ public sealed class PublicationService : IPublicationService {
 		var withProgressCount = await (
 			from p in this._DbContext.Publication
 			where p.PostId == postId
-				&& p.TenantId == tenantId
 				&& !p.IsDeleted
 				&& p.Status == PublicationStatus.Scheduled
 				&& this._DbContext.PublicationSegmentResult.Any(result =>
@@ -758,7 +815,6 @@ public sealed class PublicationService : IPublicationService {
 		var deletedCount = withProgressCount + await (
 			from p in this._DbContext.Publication
 			where p.PostId == postId
-				&& p.TenantId == tenantId
 				&& !p.IsDeleted
 				&& p.Status == PublicationStatus.Scheduled
 			select p
@@ -767,7 +823,6 @@ public sealed class PublicationService : IPublicationService {
 		var keptCount = await (
 			from p in this._DbContext.Publication.AsNoTracking()
 			where p.PostId == postId
-				&& p.TenantId == tenantId
 				&& !p.IsDeleted
 			select p.Id
 		).CountAsync(cancellationToken);
@@ -796,16 +851,9 @@ public sealed class PublicationService : IPublicationService {
 		FindScheduledPublicationsArgs args,
 		CancellationToken cancellationToken = default
 	) {
-		if (args.FromUtc > args.ToUtc) {
-			return new FindScheduledResult.InvalidWindow(
-				"publication-window-invalid"
-			);
-		}
-
-		if (args.ToUtc - args.FromUtc > TimeSpan.FromDays(32)) {
-			return new FindScheduledResult.InvalidWindow(
-				"publication-window-too-wide"
-			);
+		var invalidWindow = PublicationService._ValidateWindow(args);
+		if (invalidWindow is not null) {
+			return invalidWindow;
 		}
 
 		// Carryover is opt-in: InProgress/Paused rows that sit before FromUtc
@@ -813,14 +861,11 @@ public sealed class PublicationService : IPublicationService {
 		// `Statuses`. The queue (scheduled,in_progress,paused) opts in so the
 		// worker-not-done / reconnect-pending rows keep their place in the
 		// queue; the calendar (no filter) stays strictly bounded.
-		var carryoverAllowed = args.Statuses is { Count: > 0 } carryoverStatuses
-			&& (carryoverStatuses.Contains(PublicationStatus.InProgress)
-				|| carryoverStatuses.Contains(PublicationStatus.Paused));
+		var carryoverAllowed = PublicationService._AllowsCarryover(args.Statuses);
 
 		var baseQuery =
 			from publication in this._DbContext.Publication.AsNoTracking()
-			where publication.TenantId == args.TenantId
-				&& !publication.IsDeleted
+			where !publication.IsDeleted
 				&& publication.ScheduledAtUtc <= args.ToUtc
 				&& (publication.ScheduledAtUtc >= args.FromUtc
 					|| (carryoverAllowed
@@ -856,17 +901,9 @@ public sealed class PublicationService : IPublicationService {
 			// already accepted that pre-FromUtc rows participate, so re-applying
 			// the window here would re-break the cursor as soon as the worker
 			// mutates the anchor's status out of InProgress/Paused.
-			var cursorExists = await (
-				from p in this._DbContext.Publication.AsNoTracking()
-				where p.Id == cursorId
-					&& p.TenantId == args.TenantId
-					&& !p.IsDeleted
-					&& p.ScheduledAtUtc == cursorInstant
-					&& p.ScheduledAtUtc <= args.ToUtc
-					&& (p.ScheduledAtUtc >= args.FromUtc
-						|| carryoverAllowed)
-				select p.Id
-			).AnyAsync(cancellationToken);
+			var cursorExists = await this._CursorAnchorExistsAsync(
+				args, cursorId, cursorInstant, carryoverAllowed, cancellationToken
+			);
 			if (!cursorExists) {
 				return new FindScheduledResult.CursorNotFound();
 			}
@@ -885,30 +922,17 @@ public sealed class PublicationService : IPublicationService {
 			.ToListAsync(cancellationToken);
 
 		var hasNextPage = rows.Count > args.Limit;
-		if (hasNextPage) {
-			rows.RemoveAt(rows.Count - 1);
-		}
+		var pageRows = rows.Take(args.Limit).ToList();
 
 		var items = await this._ToItemsAsync(
-			args.TenantId,
-			rows.Select(row => (row.Publication, row.AccountHandle)).ToList(),
+			pageRows.Select(row => (row.Publication, row.AccountHandle)).ToList(),
 			cancellationToken
 		);
 
 		var page = new CursorPaginatedResult<ScheduledPublicationItem> {
 			Data = items,
-			NextCursor = null,
+			NextCursor = hasNextPage ? PublicationService._EncodeCursor(pageRows[^1].Publication) : null,
 		};
-		if (hasNextPage) {
-			// rows.Count > args.Limit implies at least one row: the tail index is
-			// only safe to read when a next page actually exists (round-2 finding:
-			// an empty window used to 500 on an unconditional rows[^1]).
-			var last = rows[^1].Publication;
-			page.NextCursor = PublicationService._EncodeCursor(
-				last.ScheduledAtUtc,
-				last.GetRequiredId()
-			);
-		}
 		return new FindScheduledResult.Success(page);
 	}
 
@@ -917,7 +941,6 @@ public sealed class PublicationService : IPublicationService {
 	/// list surface shares (queue, calendar, a post's own list).
 	/// </summary>
 	private async Task<List<ScheduledPublicationItem>> _ToItemsAsync(
-		Guid tenantId,
 		List<(Publication Publication, string AccountHandle)> rows,
 		CancellationToken cancellationToken,
 		bool knownNotSuperseded = false
@@ -944,8 +967,7 @@ public sealed class PublicationService : IPublicationService {
 		var pagePublicationIds = rows.Select(row => row.Publication.GetRequiredId()).ToList();
 		var renditionTexts = await this._DbContext.Rendition
 			.AsNoTracking()
-			.Where(rendition => rendition.TenantId == tenantId
-				&& pagePublicationIds.Contains(rendition.PublicationId))
+			.Where(rendition => pagePublicationIds.Contains(rendition.PublicationId))
 			.ToDictionaryAsync(
 				rendition => rendition.PublicationId,
 				rendition => rendition.TextOverrides,
@@ -954,13 +976,13 @@ public sealed class PublicationService : IPublicationService {
 
 		// SQL aggregates (soft-deleted newer rows still supersede, as PublicationSupersession).
 		var summaries = await PostStatusSummaryQuery.SummarizeAsync(
-			this._DbContext, tenantId, postIds, cancellationToken
+			this._DbContext, postIds, cancellationToken
 		);
 		// The post's own list already left replaced rows out: nothing to look up.
 		var supersededIds = knownNotSuperseded
 			? []
 			: await PostStatusSummaryQuery.SupersededIdsAsync(
-				this._DbContext, tenantId, pagePublicationIds, cancellationToken
+				this._DbContext, pagePublicationIds, cancellationToken
 			);
 
 		var items = new List<ScheduledPublicationItem>(rows.Count);
@@ -1015,7 +1037,7 @@ public sealed class PublicationService : IPublicationService {
 		Guid postId,
 		CancellationToken cancellationToken = default
 	) {
-		if (await this._LoadPostAsync(postId, tenantId, cancellationToken) is null) {
+		if (await this._LoadPostAsync(postId, cancellationToken) is null) {
 			return null;
 		}
 
@@ -1024,8 +1046,7 @@ public sealed class PublicationService : IPublicationService {
 		var rows = await (
 			from publication in this._DbContext.Publication.AsNoTracking()
 				.Where(PublicationSupersession.IsNotSupersededIn(this._DbContext.Publication))
-			where publication.TenantId == tenantId
-				&& publication.PostId == postId
+			where publication.PostId == postId
 				&& !publication.IsDeleted
 			orderby publication.ScheduledAtUtc, publication.Id
 			select new {
@@ -1038,7 +1059,6 @@ public sealed class PublicationService : IPublicationService {
 		).Take(PublicationService._PostListCap).ToListAsync(cancellationToken);
 
 		return await this._ToItemsAsync(
-			tenantId,
 			rows.Select(row => (row.Publication, row.AccountHandle)).ToList(),
 			cancellationToken,
 			knownNotSuperseded: true
@@ -1047,13 +1067,11 @@ public sealed class PublicationService : IPublicationService {
 
 	private async Task<Post?> _LoadPostAsync(
 		Guid postId,
-		Guid tenantId,
 		CancellationToken cancellationToken
 	) {
 		return await (
 			from p in this._DbContext.Post
 			where p.Id == postId
-				&& p.TenantId == tenantId
 				&& !p.IsDeleted
 			select p
 		).FirstOrDefaultAsync(cancellationToken);

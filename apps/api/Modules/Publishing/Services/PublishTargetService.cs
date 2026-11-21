@@ -126,8 +126,7 @@ public sealed class PublishTargetService : IPublishTargetService {
 	) {
 		IQueryable<SocialAccount> query =
 			from a in this._Db.SocialAccount.AsNoTracking()
-			where a.TenantId == tenantId
-				&& !a.IsDeleted
+			where !a.IsDeleted
 				&& a.Status == SocialAccountStatus.Active
 			orderby a.CreatedAt descending, a.Id descending
 			select a;

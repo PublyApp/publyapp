@@ -91,7 +91,6 @@ public sealed class PublishNowService : IPublishNowService {
 
 		var post = await this._Db.Post.SingleOrDefaultAsync(
 			p => p.Id == args.PostId
-				&& p.TenantId == args.TenantId
 				&& !p.IsDeleted,
 			cancellationToken
 		);
@@ -100,8 +99,7 @@ public sealed class PublishNowService : IPublishNowService {
 		}
 
 		var candidates = await this._Db.SocialAccount
-			.Where(account => account.TenantId == args.TenantId
-				&& account.Id != null
+			.Where(account => account.Id != null
 				&& requestedIds.Contains(account.Id.Value))
 			.ToListAsync(cancellationToken);
 		await this._AttachProjectLinksAsync(candidates, cancellationToken);

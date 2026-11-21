@@ -142,6 +142,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.Paused
 		);
+		db.ScopeToTenant(tenantId);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		var result = await service.FindScheduledAsync(
@@ -171,6 +172,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.InProgress
 		);
+		db.ScopeToTenant(tenantId);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		var result = await service.FindScheduledAsync(
@@ -201,6 +203,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.InProgress
 		);
+		db.ScopeToTenant(tenantId);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		var result = await service.FindScheduledAsync(
@@ -239,6 +242,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		);
 		publication.LastError = "stale pause cause";
 		await db.SaveChangesAsync();
+		db.ScopeToTenant(tenantId);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		var result = await service.FindScheduledAsync(
@@ -273,6 +277,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.Paused
 		);
+		db.ScopeToTenant(tenantId);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		var result = await service.FindScheduledAsync(
@@ -308,6 +313,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.InProgress
 		);
+		db.ScopeToTenant(tenantId);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		var result = await service.FindScheduledAsync(
@@ -335,6 +341,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.Scheduled
 		);
+		db.ScopeToTenant(tenantId);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		var result = await service.FindScheduledAsync(
@@ -372,6 +379,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			dueSecondsBeforePageOpen,
 			seedStatus: PublicationStatus.Scheduled
 		);
+		db.ScopeToTenant(tenantId);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		// Strict window anchored at the page open instant: the row is just
@@ -416,6 +424,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		await using var db = await this._NewDbAsync();
 		var (tenantId, accountId, userId) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		var from = new DateTime(2099, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+		db.ScopeToTenant(tenantId);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		var result = await service.FindScheduledAsync(
@@ -441,6 +450,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.InProgress
 		);
+		db.ScopeToTenant(tenantId);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		var forgedInstant = new DateTime(2099, 6, 1, 9, 0, 0, DateTimeKind.Utc);
@@ -466,6 +476,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			db, tenantA, accountA, userA,
 			new DateTime(2099, 6, 1, 10, 0, 0, DateTimeKind.Utc)
 		);
+		db.ScopeToTenant(tenantA);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		// Round-2 finding: rows[^1] was read unconditionally, so a window with no
@@ -497,6 +508,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			db, tenantA, accountA, userA,
 			new DateTime(2100, 1, 15, 8, 0, 0, DateTimeKind.Utc)
 		);
+		db.ScopeToTenant(tenantB);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		// Round-2 finding: the cursor-existence probe was not tenant-scoped while
@@ -542,6 +554,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 			new DateTime(2100, 1, 20, 10, 0, 0, DateTimeKind.Utc),
 			seedStatus: PublicationStatus.Scheduled
 		);
+		db.ScopeToTenant(tenantId);
 		var service = PublicationServiceFindScheduledSpec._NewService(db);
 
 		var statuses = new List<PublicationStatus> {

@@ -426,7 +426,6 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 				on attempt.PublicationId equals earlier.Id
 			where earlier.PostId == publication.PostId
 				&& earlier.SocialAccountId == publication.SocialAccountId
-				&& earlier.TenantId == publication.TenantId
 				&& earlier.Id != publicationId
 				&& earlier.CreatedAt < publication.CreatedAt
 				&& (earlier.Status == PublicationStatus.Failed || earlier.IsDeleted)
@@ -734,7 +733,6 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		// go through the transition service, so the architecture writer-scan stays green.
 		var siblings = await this._Db.Publication
 			.Where(p => p.SocialAccountId == publication.SocialAccountId
-				&& p.TenantId == publication.TenantId
 				&& p.Status == PublicationStatus.Scheduled)
 			.ToListAsync(cancellationToken);
 		foreach (var sibling in siblings) {

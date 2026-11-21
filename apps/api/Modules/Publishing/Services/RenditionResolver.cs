@@ -192,15 +192,13 @@ public static class RenditionResolver {
 	/// <summary>The overrides stored for one publication, or null when it inherits everything.</summary>
 	public static async Task<RenditionOverrides?> LoadOverridesAsync(
 		AppDbContext db,
-		Guid tenantId,
 		Guid publicationId,
 		CancellationToken cancellationToken
 	) {
 		var row = await db.Rendition
 			.AsNoTracking()
 			.FirstOrDefaultAsync(
-				candidate => candidate.PublicationId == publicationId
-					&& candidate.TenantId == tenantId,
+				candidate => candidate.PublicationId == publicationId,
 				cancellationToken
 			);
 		return row is null ? null : RenditionOverrides.FromRow(row);
@@ -209,14 +207,12 @@ public static class RenditionResolver {
 	/// <summary>Batch form of the single-publication overload: publications without a row are absent.</summary>
 	public static async Task<IReadOnlyDictionary<Guid, RenditionOverrides>> LoadOverridesAsync(
 		AppDbContext db,
-		Guid tenantId,
 		IReadOnlyCollection<Guid> publicationIds,
 		CancellationToken cancellationToken
 	) {
 		var rows = await db.Rendition
 			.AsNoTracking()
-			.Where(candidate => candidate.TenantId == tenantId
-				&& publicationIds.Contains(candidate.PublicationId))
+			.Where(candidate => publicationIds.Contains(candidate.PublicationId))
 			.ToListAsync(cancellationToken);
 		return rows.ToDictionary(row => row.PublicationId, RenditionOverrides.FromRow);
 	}
@@ -248,30 +244,20 @@ public static class RenditionResolver {
 			.Select(entry => entry.SourcePublicationId)
 			.Distinct()
 			.ToList();
-		if (sourceIds.Count > 0) {
-			// Ordered by id so two re-issues locking the same rows cannot deadlock.
-			_ = await db.Database
-				.SqlQuery<Guid>($"""
-					SELECT id AS "Value" FROM publications
-					WHERE id = ANY({sourceIds}) AND tenant_id = {tenantId}
-					ORDER BY id
-					FOR SHARE
-					""")
-				.ToListAsync(cancellationToken);
-		}
+		await RenditionResolver._LockCarriedSourcesAsync(db, tenantId, sourceIds, cancellationToken);
 
 		var previous = await RenditionResolver.LoadOverridesAsync(
-			db, tenantId, sourceIds, cancellationToken
+			db, sourceIds, cancellationToken
 		);
 		foreach (var (publicationId, requested, account) in fresh) {
 			var overrides = requested is { IsEmpty: false } ? requested : null;
 			if (carried.TryGetValue(publicationId, out var from)) {
-				var before = previous.GetValueOrDefault(from.SourcePublicationId) ?? RenditionOverrides.None;
-				if (overrides is null) {
-					overrides = before.IsEmpty ? null : before;
-				} else if (before.ChangesPublishedSegments(overrides, from.Carried)) {
+				var (inherited, locked) = RenditionResolver._InheritCarried(overrides, previous, from);
+				if (locked) {
 					return new StageRenditionsResult.SegmentsLocked();
 				}
+
+				overrides = inherited;
 			}
 
 			var invalid = RenditionResolver._Validate(source, overrides, account, isProviderEnabled);
@@ -289,6 +275,41 @@ public static class RenditionResolver {
 		}
 
 		return new StageRenditionsResult.Staged();
+	}
+
+	// Ordered by id so two re-issues locking the same rows cannot deadlock.
+	private static async Task _LockCarriedSourcesAsync(
+		AppDbContext db,
+		Guid tenantId,
+		List<Guid> sourceIds,
+		CancellationToken cancellationToken
+	) {
+		if (sourceIds.Count == 0) {
+			return;
+		}
+
+		_ = await db.Database
+			.SqlQuery<Guid>($"""
+				SELECT id AS "Value" FROM publications
+				WHERE id = ANY({sourceIds}) AND tenant_id = {tenantId}
+				ORDER BY id
+				FOR SHARE
+				""")
+			.ToListAsync(cancellationToken);
+	}
+
+	/// <summary>A re-issue with no overrides of its own inherits the carried source's; changing the published part locks.</summary>
+	private static (RenditionOverrides? Overrides, bool Locked) _InheritCarried(
+		RenditionOverrides? overrides,
+		IReadOnlyDictionary<Guid, RenditionOverrides> previous,
+		(Guid SourcePublicationId, int Carried) from
+	) {
+		var before = previous.GetValueOrDefault(from.SourcePublicationId) ?? RenditionOverrides.None;
+		if (overrides is null) {
+			return (before.IsEmpty ? null : before, false);
+		}
+
+		return (overrides, before.ChangesPublishedSegments(overrides, from.Carried));
 	}
 
 	private static StageRenditionsResult? _Validate(
@@ -316,6 +337,10 @@ public static class RenditionResolver {
 	}
 
 	/// <summary>The effective content of an existing publication: post + its rendition, now.</summary>
+	// ponytail: tenantId is unused now that the tenant filter scopes the lookup. It stays only so
+	// PublishPublicationJobHandler.HandleAsync (cognitive complexity 41) is not touched by this
+	// refactor; drop it together with the HandleAsync split.
+#pragma warning disable IDE0060
 	public static async Task<EffectiveContent> ResolveForPublicationAsync(
 		AppDbContext db,
 		Guid tenantId,
@@ -325,8 +350,9 @@ public static class RenditionResolver {
 	) {
 		var source = await RenditionResolver.LoadSourceAsync(db, post, cancellationToken);
 		var overrides = await RenditionResolver.LoadOverridesAsync(
-			db, tenantId, publicationId, cancellationToken
+			db, publicationId, cancellationToken
 		);
 		return RenditionResolver.Resolve(source, overrides);
 	}
+#pragma warning restore IDE0060
 }
