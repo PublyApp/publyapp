@@ -38,7 +38,7 @@ public sealed class GetPostForTenant {
 		}
 
 		var post = await postService.GetByIdForTenantAsync(
-			tenantId, postIdGuid, cancellationToken
+			postIdGuid, cancellationToken
 		);
 
 		if (post is null) {
@@ -53,7 +53,7 @@ public sealed class GetPostForTenant {
 		);
 
 		var segments = await postService.FindSegmentsAsync(
-			tenantId, postIdGuid, cancellationToken
+			postIdGuid, cancellationToken
 		);
 		var publishedSegmentCount = segments.Count > 0
 			? await postService.GetPublishedSegmentCountAsync(postIdGuid, cancellationToken)

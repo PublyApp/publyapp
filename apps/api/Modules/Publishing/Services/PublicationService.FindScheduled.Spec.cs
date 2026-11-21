@@ -147,7 +147,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: null,
@@ -177,7 +176,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: null,
@@ -208,7 +206,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: [
@@ -247,7 +244,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: null,
@@ -282,7 +278,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: [
@@ -318,7 +313,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: [PublicationStatus.Scheduled],
@@ -346,7 +340,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2100, 1, 31, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: null,
@@ -387,7 +380,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		// here, hiding a due-now publication from the operator).
 		var strictResult = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: pageOpen,
 				ToUtc: pageOpen.AddDays(31),
 				Statuses: null,
@@ -403,7 +395,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		// polling for its in-flight transition.
 		var graceResult = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: pageOpen.AddHours(-24),
 				ToUtc: pageOpen.AddDays(31).AddHours(-24),
 				Statuses: null,
@@ -429,7 +420,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: from,
 				ToUtc: from.AddDays(32),
 				Statuses: null,
@@ -456,7 +446,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		var forgedInstant = new DateTime(2099, 6, 1, 9, 0, 0, DateTimeKind.Utc);
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: new DateTime(2099, 6, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2099, 7, 1, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: null,
@@ -484,7 +473,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		// page with no next cursor.
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantA,
 				FromUtc: new DateTime(2100, 3, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2100, 3, 31, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: null,
@@ -517,7 +505,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		// nothing.
 		var result = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantB,
 				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2100, 2, 1, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: null,
@@ -565,7 +552,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 		var page1 = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2100, 2, 1, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: statuses,
@@ -603,7 +589,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		// anchor's mutated status is irrelevant.
 		var page2 = await service.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: new DateTime(2100, 1, 1, 0, 0, 0, DateTimeKind.Utc),
 				ToUtc: new DateTime(2100, 2, 1, 0, 0, 0, DateTimeKind.Utc),
 				Statuses: statuses,

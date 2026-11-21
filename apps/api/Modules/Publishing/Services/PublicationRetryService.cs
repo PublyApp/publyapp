@@ -45,7 +45,6 @@ public abstract record RetryEligibility {
 /// </summary>
 public interface IPublicationRetryService {
 	Task<RetryEligibility> CheckAsync(
-		Guid tenantId,
 		Guid publicationId,
 		CancellationToken cancellationToken
 	);
@@ -68,7 +67,6 @@ public sealed class PublicationRetryService : IPublicationRetryService {
 	}
 
 	public async Task<RetryEligibility> CheckAsync(
-		Guid tenantId,
 		Guid publicationId,
 		CancellationToken cancellationToken
 	) {

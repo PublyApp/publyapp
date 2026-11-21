@@ -138,7 +138,6 @@ public sealed class ScheduledPublicationItem {
 
 /// <summary>Arguments for the queue/calendar list (D3 Task 4).</summary>
 public record FindScheduledPublicationsArgs(
-	Guid TenantId,
 	DateTime FromUtc,
 	DateTime ToUtc,
 	IReadOnlyList<PublicationStatus>? Statuses,
@@ -249,7 +248,6 @@ public interface IPublicationService {
 	/// post does not exist in the tenant.
 	/// </summary>
 	Task<IReadOnlyList<ScheduledPublicationItem>?> FindForPostAsync(
-		Guid tenantId,
 		Guid postId,
 		CancellationToken cancellationToken = default
 	);
@@ -1033,7 +1031,6 @@ public sealed class PublicationService : IPublicationService {
 	private const int _PostListCap = 100;
 
 	public async Task<IReadOnlyList<ScheduledPublicationItem>?> FindForPostAsync(
-		Guid tenantId,
 		Guid postId,
 		CancellationToken cancellationToken = default
 	) {

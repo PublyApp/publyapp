@@ -117,7 +117,7 @@ public sealed class AddRenditionsSpec : IAsyncLifetime {
 		(await db.Rendition.CountAsync()).Should().Be(0, "no backfill: no row means no overrides");
 		var reloaded = await db.Post.AsNoTracking().SingleAsync(p => p.Id == post.Id);
 		var effective = await RenditionResolver.ResolveForPublicationAsync(
-			db, tenantId, publicationId, reloaded, CancellationToken.None
+			db, publicationId, reloaded, CancellationToken.None
 		);
 		effective.Texts.Should().Equal("legacy post");
 

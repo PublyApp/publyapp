@@ -337,13 +337,8 @@ public static class RenditionResolver {
 	}
 
 	/// <summary>The effective content of an existing publication: post + its rendition, now.</summary>
-	// ponytail: tenantId is unused now that the tenant filter scopes the lookup. It stays only so
-	// PublishPublicationJobHandler.HandleAsync (cognitive complexity 41) is not touched by this
-	// refactor; drop it together with the HandleAsync split.
-#pragma warning disable IDE0060
 	public static async Task<EffectiveContent> ResolveForPublicationAsync(
 		AppDbContext db,
-		Guid tenantId,
 		Guid publicationId,
 		Post post,
 		CancellationToken cancellationToken
@@ -354,5 +349,4 @@ public static class RenditionResolver {
 		);
 		return RenditionResolver.Resolve(source, overrides);
 	}
-#pragma warning restore IDE0060
 }

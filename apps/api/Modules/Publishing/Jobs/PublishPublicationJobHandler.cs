@@ -101,7 +101,7 @@ public sealed class PublishPublicationJobHandler : IJobHandler {
 		// The EFFECTIVE content of this destination (post + its rendition, #2172): every
 		// text, image and alt text below comes from here, never from the post directly.
 		var effective = await RenditionResolver.ResolveForPublicationAsync(
-			this._Db, publication.TenantId, publicationId, post, cancellationToken
+			this._Db, publicationId, post, cancellationToken
 		);
 		var followUps = effective.FollowUps;
 		var storedResults = await this._Db.PublicationSegmentResult

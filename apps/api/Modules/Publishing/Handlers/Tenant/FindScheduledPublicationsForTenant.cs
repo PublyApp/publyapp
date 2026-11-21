@@ -179,7 +179,7 @@ public sealed class FindScheduledPublicationsForTenant {
 		[FromServices] IPublicationService publicationService,
 		CancellationToken cancellationToken = default
 	) {
-		if (!Guid.TryParse(authContext.TenantId, out var tenantId)) {
+		if (!Guid.TryParse(authContext.TenantId, out _)) {
 			throw new InvalidOperationException(
 				$"{nameof(authContext.TenantId)} is not a GUID"
 			);
@@ -218,7 +218,6 @@ public sealed class FindScheduledPublicationsForTenant {
 
 		var result = await publicationService.FindScheduledAsync(
 			new FindScheduledPublicationsArgs(
-				TenantId: tenantId,
 				FromUtc: fromUtc,
 				ToUtc: toUtc,
 				Statuses: statuses.Count > 0 ? statuses : null,

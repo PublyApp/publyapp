@@ -108,7 +108,7 @@ public sealed class CreatePostForTenant {
 		if (projectId.HasValue) {
 			var projectExists = await postService
 				.ProjectExistsForTenantAsync(
-					tenantId, projectId.Value, cancellationToken
+					projectId.Value, cancellationToken
 				);
 			if (!projectExists) {
 				return TypedProblems.ValidationProblem(

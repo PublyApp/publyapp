@@ -46,7 +46,7 @@ public sealed class RetryPublicationForTenant {
 		}
 
 		var eligibility = await retryService.CheckAsync(
-			tenantId, publicationIdGuid, cancellationToken
+			publicationIdGuid, cancellationToken
 		);
 
 		if (eligibility is RetryEligibility.NotFound) {
