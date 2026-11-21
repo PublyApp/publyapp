@@ -93,17 +93,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 				url += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content
-				.ReadFromJsonAsync<FindSystemNoticesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindSystemNoticesResponse>(url, token);
 			pages++;
 			visitedIds.AddRange(page.Data.Select(notice => notice.Id));
 			visitedCreatedAtOrder.AddRange(page.Data.Select(notice => notice.CreatedAt));
@@ -184,17 +174,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 				url += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content
-				.ReadFromJsonAsync<FindSystemNoticesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindSystemNoticesResponse>(url, token);
 			pages++;
 			visitedIds.AddRange(page.Data.Select(notice => notice.Id));
 			visitedStartsAtOrder.AddRange(page.Data.Select(notice => notice.StartsAt));
@@ -261,17 +241,7 @@ public sealed class FindSystemNoticesCursorBehaviorSpec
 				url += $"&cursor={Uri.EscapeDataString(cursor)}";
 			}
 
-			var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content
-				.ReadFromJsonAsync<FindSystemNoticesResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindSystemNoticesResponse>(url, token);
 			pages++;
 			visitedIds.AddRange(page.Data.Select(notice => notice.Id));
 			cursor = page.NextCursor;

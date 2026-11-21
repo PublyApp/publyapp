@@ -152,18 +152,10 @@ public sealed class GetStaffUserRolesSpec : IClassFixture<ApiFixture> {
 			updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetStaffUserRolesSpec._GetUrl(userId)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<GetStaffUserRolesResult>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<GetStaffUserRolesResult>(
+			GetStaffUserRolesSpec._GetUrl(userId),
+			token
+		);
 		result.MaxRolesPerUser.Should().BeGreaterThan(0);
 		result.AssignedRoles.Should().Contain(p => p.Id == Guid.Parse(roleId));
 	}
@@ -207,18 +199,10 @@ public sealed class GetStaffUserRolesSpec : IClassFixture<ApiFixture> {
 			suspendResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetStaffUserRolesSpec._GetUrl(userId)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<GetStaffUserRolesResult>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<GetStaffUserRolesResult>(
+			GetStaffUserRolesSpec._GetUrl(userId),
+			token
+		);
 		result.AssignedRoles.Should().Contain(p => p.Id == Guid.Parse(roleId));
 	}
 

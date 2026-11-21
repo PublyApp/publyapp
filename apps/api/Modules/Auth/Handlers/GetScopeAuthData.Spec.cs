@@ -55,20 +55,7 @@ public sealed class GetScopeAuthDataSpec
 
 		var url = $"{Routes.Auth.GetScopeAuthData}"
 			+ $"?scope={acmeId}";
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			url
-		).WithSessionToken(acmeAdminToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<TenantScopeAuthDataResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<TenantScopeAuthDataResponse>(url, acmeAdminToken);
 		result.Id.Should().Be(acmeId);
 		result.Code.Should().Be(
 			SeedConstants.Tenants.AcmeCode
@@ -240,20 +227,10 @@ public sealed class GetScopeAuthDataSpec
 
 			var url = $"{Routes.Auth.GetScopeAuthData}"
 				+ $"?scope={acmeId}";
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				url
-			).WithSessionToken(acmeMemberToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<TenantScopeAuthDataResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<TenantScopeAuthDataResponse>(
+				url,
+				acmeMemberToken
+			);
 			result.Permissions.Should().BeEquivalentTo(
 							[AppPermissions.Tenant.Modules.ACCESS_DASHBOARD.Key]
 						);
@@ -305,20 +282,10 @@ public sealed class GetScopeAuthDataSpec
 
 			var url = $"{Routes.Auth.GetScopeAuthData}"
 				+ $"?scope={acmeId}";
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get,
-				url
-			).WithSessionToken(acmeMemberToken);
-
-			using var response =
-				await this._Http.SendAsync(request);
-
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var result = await response.Content
-				.ReadFromJsonAsync<TenantScopeAuthDataResponse>();
-			result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<TenantScopeAuthDataResponse>(
+				url,
+				acmeMemberToken
+			);
 			result.Roles.Should().HaveCount(requestedRoleCount);
 			result.Roles.Select(role => role.Id)
 				.Should()
@@ -336,20 +303,7 @@ public sealed class GetScopeAuthDataSpec
 
 		var url = $"{Routes.Auth.GetScopeAuthData}"
 			+ "?scope=staff";
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			url
-		).WithSessionToken(staffToken);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<StaffScopeAuthDataResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<StaffScopeAuthDataResponse>(url, staffToken);
 		result.Code.Should().Be("staff");
 		result.IsAdmin.Should().BeTrue();
 	}

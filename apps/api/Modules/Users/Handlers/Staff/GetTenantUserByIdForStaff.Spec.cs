@@ -137,18 +137,10 @@ public sealed class GetTenantUserByIdForStaffSpec
 			userId
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetTenantUserByIdForStaffSpec._GetUrl(userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var result = await response.Content
-			.ReadFromJsonAsync<TenantUserDetailsResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<TenantUserDetailsResponse>(
+			GetTenantUserByIdForStaffSpec._GetUrl(userId),
+			staffToken
+		);
 		result.Id.ToString().Should().Be(userId);
 		result.Email.Should().Be(SeedConstants.CrossTenant.BobEmail);
 		result.CompanyCount.Should().Be(0);

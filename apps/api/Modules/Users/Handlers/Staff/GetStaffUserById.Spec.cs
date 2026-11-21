@@ -43,20 +43,10 @@ public sealed class GetStaffUserByIdSpec
 			TestConstants.StaffAdminEmail
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetStaffUserByIdSpec._GetUrl(userId.ToString())
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var details = await response.Content
-			.ReadFromJsonAsync<GetStaffUserByIdResult>();
-		details.Should().NotBeNull();
-		Assert.NotNull(details);
+		var details = await this._Http.GetOkAsync<GetStaffUserByIdResult>(
+			GetStaffUserByIdSpec._GetUrl(userId.ToString()),
+			token
+		);
 		details.Id.Should().Be(userId);
 		details.Email.Should().Be(TestConstants.StaffAdminEmail);
 		details.IsFullAccess.Should().BeTrue();

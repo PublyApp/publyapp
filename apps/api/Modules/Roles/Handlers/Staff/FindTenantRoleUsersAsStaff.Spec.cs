@@ -183,18 +183,11 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		var memberBId = await this._CreateTenantMemberAsync(tenantBId);
 		await this._AssignAsync(token, tenantBId, roleBId, memberBId);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantAId.ToString(), roleAId.ToString()) + "?limit=50"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindTenantRoleUsersAsStaffResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRoleUsersAsStaffResponse>(
+			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantAId.ToString(), roleAId.ToString())
+				+ "?limit=50",
+			token
+		);
 
 		result.Users.Should().ContainSingle(u => u.Id == memberAId);
 		result.Users.Should().NotContain(u => u.Id == memberBId);
@@ -220,18 +213,11 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		var foreignMemberId = await this._CreateTenantMemberAsync(tenantBId);
 		await this._CreateCorruptCrossTenantJunctionRowAsync(foreignMemberId, roleAId);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantAId.ToString(), roleAId.ToString()) + "?limit=50"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindTenantRoleUsersAsStaffResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRoleUsersAsStaffResponse>(
+			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantAId.ToString(), roleAId.ToString())
+				+ "?limit=50",
+			token
+		);
 
 		result.Users.Should().NotContain(u => u.Id == foreignMemberId);
 	}
@@ -293,18 +279,11 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		var unassignedMemberId = await this._CreateTenantMemberAsync(tenantId);
 		await this._AssignAsync(token, tenantId, roleId, assignedMemberId);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString()) + "?limit=50"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindTenantRoleUsersAsStaffResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRoleUsersAsStaffResponse>(
+			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString())
+				+ "?limit=50",
+			token
+		);
 
 		result.Users.Should().Contain(u => u.Id == assignedMemberId);
 		result.Users.Should().NotContain(u => u.Id == unassignedMemberId);
@@ -351,18 +330,11 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			joinedAt.AddDays(3)
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), currentRoleId.ToString()) + "?limit=50"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindTenantRoleUsersAsStaffResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRoleUsersAsStaffResponse>(
+			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), currentRoleId.ToString())
+				+ "?limit=50",
+			token
+		);
 
 		var memberWithOtherRoles = result.Users
 			.Should()
@@ -399,18 +371,11 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		var (userAccountId, userId) = await this._CreateTenantMemberWithUserIdAsync(tenantId);
 		await this._AssignAsync(token, tenantId, roleId, userAccountId);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString()) + "?limit=50"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindTenantRoleUsersAsStaffResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRoleUsersAsStaffResponse>(
+			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString())
+				+ "?limit=50",
+			token
+		);
 
 		var item = result.Users.Should().ContainSingle(u => u.Id == userAccountId).Subject;
 		item.UserId.Should().Be(userId);
@@ -432,18 +397,11 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await this._AssignAsync(token, tenantId, roleId, alphaMemberId);
 		await this._AssignAsync(token, tenantId, roleId, betaMemberId);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString()) + "?limit=50&q=alpha.tenant-role"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindTenantRoleUsersAsStaffResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRoleUsersAsStaffResponse>(
+			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString())
+				+ "?limit=50&q=alpha.tenant-role",
+			token
+		);
 
 		result.Users.Should().Contain(u =>
 			string.Equals(u.Email, alphaEmail, StringComparison.OrdinalIgnoreCase)
@@ -461,7 +419,8 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString()) + "?limit=50&sort_id=not_real"
+			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString())
+				+ "?limit=50&sort_id=not_real"
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
@@ -483,19 +442,11 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await this._AssignAsync(token, tenantId, roleId, memberB);
 		await this._AssignAsync(token, tenantId, roleId, memberA);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
+		var result = await this._Http.GetOkAsync<FindTenantRoleUsersAsStaffResponse>(
 			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString())
-				+ "?limit=50&sort_id=email&sort_order=asc"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindTenantRoleUsersAsStaffResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+				+ "?limit=50&sort_id=email&sort_order=asc",
+			token
+		);
 		result.Users.Select(u => u.Email).Should().BeInAscendingOrder();
 	}
 
@@ -539,19 +490,11 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await this._AssignAsync(token, tenantId, roleId, fullAccessMemberId);
 		await this._AssignAsync(token, tenantId, roleId, restrictedMemberId);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
+		var result = await this._Http.GetOkAsync<FindTenantRoleUsersAsStaffResponse>(
 			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString())
-				+ "?limit=50&sort_id=is_full_access&sort_order=desc"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindTenantRoleUsersAsStaffResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+				+ "?limit=50&sort_id=is_full_access&sort_order=desc",
+			token
+		);
 
 		var fullAccessIndex = result.Users.FindIndex(u => u.Id == fullAccessMemberId);
 		var restrictedIndex = result.Users.FindIndex(u => u.Id == restrictedMemberId);
@@ -579,18 +522,11 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await this._AssignAsync(token, tenantId, roleId, memberId);
 		await this._SetMemberAccountStatusAsync(memberId, AccountStatus.Suspended);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString()) + "?limit=50"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindTenantRoleUsersAsStaffResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindTenantRoleUsersAsStaffResponse>(
+			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString())
+				+ "?limit=50",
+			token
+		);
 
 		var member = result.Users.Should().ContainSingle(u => u.Id == memberId).Subject;
 		member.Status.Should().Be("Suspended");
@@ -717,7 +653,11 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			FindTenantRoleUsersAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId.ToString(), userAccountId.ToString())
+			FindTenantRoleUsersAsStaffSpec._GetToggleUrl(
+				tenantId.ToString(),
+				roleId.ToString(),
+				userAccountId.ToString()
+			)
 		).WithSessionToken(staffToken);
 
 		using var response = await this._Http.SendAsync(request);
@@ -749,19 +689,11 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		int limit,
 		string sortId
 	) {
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
+		var result = await this._Http.GetOkAsync<FindTenantRoleUsersAsStaffResponse>(
 			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantId.ToString(), roleId.ToString())
-				+ $"?page={page}&limit={limit}&sort_id={sortId}&sort_order=desc"
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindTenantRoleUsersAsStaffResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+				+ $"?page={page}&limit={limit}&sort_id={sortId}&sort_order=desc",
+			staffToken
+		);
 
 		return result;
 	}

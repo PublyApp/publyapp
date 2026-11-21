@@ -92,20 +92,7 @@ public sealed class FindAuditLogsSpec
 				);
 
 		var url = AuditLogTestHelper.GetFindUrl();
-		var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, token);
 		result.Data.Should().NotBeNull();
 		result.Data.Should().Contain(
 			a => a.Id == logId
@@ -135,20 +122,7 @@ public sealed class FindAuditLogsSpec
 		var url = AuditLogTestHelper.GetFindUrl(
 			limit: 2
 		);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, token);
 		result.Data.Count.Should().Be(2);
 		result.NextCursor.Should()
 			.NotBeNullOrEmpty();
@@ -178,21 +152,10 @@ public sealed class FindAuditLogsSpec
 			);
 		}
 
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			AuditLogTestHelper.GetFindUrl(limit: 1)
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			AuditLogTestHelper.GetFindUrl(limit: 1),
+			token
+		);
 
 		// The figures are whole-history facets, not the page's own length.
 		result.Data.Should().HaveCount(1);
@@ -241,21 +204,10 @@ public sealed class FindAuditLogsSpec
 				AuditActions.LoginFailed
 			);
 
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			AuditLogTestHelper.GetFindUrl(unknownActor: true)
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			AuditLogTestHelper.GetFindUrl(unknownActor: true),
+			token
+		);
 
 		result.Data.Should()
 			.Contain(row => row.Id == unknownActorRowId);
@@ -373,20 +325,7 @@ public sealed class FindAuditLogsSpec
 		var url = AuditLogTestHelper.GetFindUrl(
 			actions: [AuditActions.TenantSuspended]
 		);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, token);
 		result.Data.Should().AllSatisfy(
 					a => a.Action.Should()
 						.Be(AuditActions.TenantSuspended)
@@ -430,20 +369,7 @@ public sealed class FindAuditLogsSpec
 				AuditActions.InvitationCreated,
 			]
 		);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, token);
 		result.Data.Should().Contain(
 					a => a.Id == firstLogId
 				);
@@ -605,20 +531,7 @@ public sealed class FindAuditLogsSpec
 		var url = AuditLogTestHelper.GetFindUrl(
 			userId: userId.ToString()
 		);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, token);
 		result.Data.Should().AllSatisfy(
 					a => a.UserId.Should().Be(userId)
 				);
@@ -652,20 +565,7 @@ public sealed class FindAuditLogsSpec
 			startDate: startDate,
 			endDate: endDate
 		);
-		var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, token);
 		result.Data.Should().NotBeEmpty();
 	}
 

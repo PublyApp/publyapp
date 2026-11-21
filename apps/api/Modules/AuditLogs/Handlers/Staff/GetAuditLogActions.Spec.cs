@@ -1,6 +1,5 @@
 
 using System.Net;
-using System.Net.Http.Json;
 
 using FluentAssertions;
 
@@ -32,20 +31,7 @@ public sealed class GetAuditLogActionsSpec
 
 		var url =
 			AuditLogTestHelper.GetActionsUrl();
-		var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(token);
-
-		using var response =
-			await this._Http.SendAsync(request);
-
-		response.StatusCode.Should()
-			.Be(HttpStatusCode.OK);
-
-		var result = await response.Content
-			.ReadFromJsonAsync<ActionsResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<ActionsResponse>(url, token);
 		result.Actions.Should().NotBeEmpty();
 		result.Actions.Should().Contain(
 			AuditActions.InvitationCreated

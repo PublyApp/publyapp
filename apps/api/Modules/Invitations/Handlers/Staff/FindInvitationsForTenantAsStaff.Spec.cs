@@ -47,20 +47,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					);
 
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().NotBeNull();
 		}
 
@@ -87,20 +74,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			);
 
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 50);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().NotBeEmpty();
 
 			InvitationListItemDto? invitation = result.Data
@@ -171,19 +145,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			}
 
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 50);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 
 			InvitationListItemDto? invitation = result.Data
 				.FirstOrDefault(i => i.Email.Equals(inviteeEmail, StringComparison.OrdinalIgnoreCase));
@@ -235,20 +197,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			// Query Acme invitations
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(acmeTenantId, limit: 50);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().Contain(
 							i => i.Email.Equals(acmeEmail, StringComparison.OrdinalIgnoreCase)
 						);
@@ -286,20 +235,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			}
 
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 1);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().HaveCount(1);
 			_ = result.NextCursor.Should()
 				.NotBeNullOrEmpty();
@@ -568,20 +504,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				sortOrder: "asc",
 				limit: 10
 			);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().NotBeNull();
 		}
 
@@ -604,20 +527,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				sortOrder: "desc",
 				limit: 10
 			);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().NotBeNull();
 		}
 
@@ -649,20 +559,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				sortOrder: "desc",
 				limit: 20
 			);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().NotBeNull();
 		}
 
@@ -713,18 +610,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				sortOrder: "asc",
 				limit: 50
 			);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Select(invitation => invitation.Email)
 				.Should()
 				.Equal(firstEmail, secondEmail);
@@ -755,20 +641,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			);
 
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, status: "pending");
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().Contain(
 							i =>
 								i.Email.Equals(pendingEmail, StringComparison.OrdinalIgnoreCase) &&
@@ -812,20 +685,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			}
 
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, status: "accepted");
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().Contain(
 							i =>
 								i.Email.Equals(acceptedEmail, StringComparison.OrdinalIgnoreCase) &&
@@ -862,20 +722,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			);
 
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, status: "revoked");
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().Contain(
 							i =>
 								i.Email.Equals(revokedEmail, StringComparison.OrdinalIgnoreCase) &&
@@ -928,20 +775,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			}
 
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, status: "expired");
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().Contain(
 							i =>
 								i.Email.Equals(expiredEmail, StringComparison.OrdinalIgnoreCase) &&
@@ -991,20 +825,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 				tenantId,
 				status: "pending,revoked"
 			);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().Contain(
 							i =>
 								i.Email.Equals(pendingEmail, StringComparison.OrdinalIgnoreCase) &&
@@ -1113,20 +934,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			string searchTerm = targetEmail.Split('@')[0];
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, q: searchTerm);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().Contain(
 							i => i.Email.Equals(targetEmail, StringComparison.OrdinalIgnoreCase)
 						);
@@ -1158,20 +966,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			string searchTerm = "  " + targetEmail.Split('@')[0] + "  ";
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, q: searchTerm);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().Contain(
 							i => i.Email.Equals(targetEmail, StringComparison.OrdinalIgnoreCase)
 						);
@@ -1202,20 +997,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			string uppercaseSearchTerm =
 				targetEmail.Split('@')[0].ToUpperInvariant();
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, q: uppercaseSearchTerm);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().Contain(
 							i => i.Email.Equals(targetEmail, StringComparison.OrdinalIgnoreCase)
 						);
@@ -1252,20 +1034,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			// No seeded/created email literally contains "%". If the wildcard were
 			// left unescaped, "%" would match every email in the tenant.
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, q: "%", limit: 50);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().NotContain(
 							i => i.Email.Equals(firstEmail, StringComparison.OrdinalIgnoreCase)
 						);
@@ -1407,20 +1176,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 
 			// Now find it via the list endpoint
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 50);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			_ = result.Data.Should().Contain(
 							i => i.Email.Equals(inviteeEmail, StringComparison.OrdinalIgnoreCase)
 						);
@@ -1471,21 +1227,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			}
 
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 50);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should()
-				.Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 			InvitationListItemDto? foundInvitation = result.Data
 							.FirstOrDefault(i =>
 								i.Email.Equals(noRoleEmail, StringComparison.OrdinalIgnoreCase)
@@ -1536,19 +1278,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 			}
 
 			string url = FindInvitationsForTenantAsStaffSpec._GetFindUrl(tenantId, limit: 50);
-			HttpRequestMessage request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(staffToken);
-
-			using HttpResponseMessage response =
-				await this._Http.SendAsync(request);
-
-			_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			FindResponse? result = await response.Content
-				.ReadFromJsonAsync<FindResponse>();
-			_ = result.Should().NotBeNull();
-			Assert.NotNull(result);
+			var result = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 
 			InvitationListItemDto? foundInvitation = result.Data
 				.FirstOrDefault(i =>
@@ -1685,20 +1415,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					sortId: "accepted_at",
 					sortOrder: "asc"
 				);
-				HttpRequestMessage request =
-					new HttpRequestMessage(
-						HttpMethod.Get, url
-					).WithSessionToken(staffToken);
-
-				using HttpResponseMessage response =
-					await this._Http.SendAsync(request);
-				_ = response.StatusCode.Should()
-					.Be(HttpStatusCode.OK);
-
-				var page = await response.Content
-					.ReadFromJsonAsync<FindPageResponse>();
-				page.Should().NotBeNull();
-				Assert.NotNull(page);
+				var page = await this._Http.GetOkAsync<FindPageResponse>(url, staffToken);
 				pages++;
 				visitedIds.AddRange(
 					page.Data.Select(i => i.Id)
@@ -1778,20 +1495,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					sortId: "created_at",
 					sortOrder: "asc"
 				);
-				HttpRequestMessage request =
-					new HttpRequestMessage(
-						HttpMethod.Get, url
-					).WithSessionToken(staffToken);
-
-				using HttpResponseMessage response =
-					await this._Http.SendAsync(request);
-				_ = response.StatusCode.Should()
-					.Be(HttpStatusCode.OK);
-
-				var page = await response.Content
-					.ReadFromJsonAsync<FindPageResponse>();
-				page.Should().NotBeNull();
-				Assert.NotNull(page);
+				var page = await this._Http.GetOkAsync<FindPageResponse>(url, staffToken);
 				pages++;
 				visitedIds.AddRange(
 					page.Data.Select(i => i.Id)
@@ -1869,20 +1573,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					sortId: "expires_at",
 					sortOrder: "asc"
 				);
-				HttpRequestMessage request =
-					new HttpRequestMessage(
-						HttpMethod.Get, url
-					).WithSessionToken(staffToken);
-
-				using HttpResponseMessage response =
-					await this._Http.SendAsync(request);
-				_ = response.StatusCode.Should()
-					.Be(HttpStatusCode.OK);
-
-				var page = await response.Content
-					.ReadFromJsonAsync<FindPageResponse>();
-				page.Should().NotBeNull();
-				Assert.NotNull(page);
+				var page = await this._Http.GetOkAsync<FindPageResponse>(url, staffToken);
 				pages++;
 				visitedIds.AddRange(
 					page.Data.Select(i => i.Id)
@@ -1952,20 +1643,7 @@ namespace PublyApp.Api.Modules.Invitations.Handlers.Staff {
 					sortId: "email",
 					sortOrder: "asc"
 				);
-				HttpRequestMessage request =
-					new HttpRequestMessage(
-						HttpMethod.Get, url
-					).WithSessionToken(staffToken);
-
-				using HttpResponseMessage response =
-					await this._Http.SendAsync(request);
-				_ = response.StatusCode.Should()
-					.Be(HttpStatusCode.OK);
-
-				var page = await response.Content
-					.ReadFromJsonAsync<FindResponse>();
-				page.Should().NotBeNull();
-				Assert.NotNull(page);
+				var page = await this._Http.GetOkAsync<FindResponse>(url, staffToken);
 				pages++;
 				visitedIds.AddRange(
 					page.Data.Select(i => i.Id)

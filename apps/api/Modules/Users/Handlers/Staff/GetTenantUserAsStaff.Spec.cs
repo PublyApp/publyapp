@@ -54,18 +54,10 @@ public sealed class GetTenantUserAsStaffSpec
 			TestConstants.AcmeUserEmail
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetTenantUserAsStaffSpec._GetUrl(tenantId.ToString(), userId)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-		var result = await response.Content
-			.ReadFromJsonAsync<TenantUserDetailsResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<TenantUserDetailsResponse>(
+			GetTenantUserAsStaffSpec._GetUrl(tenantId.ToString(), userId),
+			staffToken
+		);
 		result.Id.ToString().Should().Be(userId);
 		result.TenantId.Should().Be(tenantId);
 		result.Email.Should().Be(TestConstants.AcmeUserEmail);

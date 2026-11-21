@@ -136,17 +136,10 @@ public sealed class GetTenantRoleByIdAsStaffSpec : IClassFixture<ApiFixture> {
 		var tenantId = await this._GetTenantIdAsync();
 		var roleId = await this._CreateTenantRoleAsync(token, tenantId);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			GetTenantRoleByIdAsStaffSpec._GetUrl(tenantId.ToString(), roleId)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var payload = await response.Content.ReadFromJsonAsync<GetTenantRoleByIdResponse>();
-		payload.Should().NotBeNull();
-		Assert.NotNull(payload);
+		var payload = await this._Http.GetOkAsync<GetTenantRoleByIdResponse>(
+			GetTenantRoleByIdAsStaffSpec._GetUrl(tenantId.ToString(), roleId),
+			token
+		);
 		payload.Role.Id.Should().Be(Guid.Parse(roleId));
 		payload.Role.Name.Should().StartWith("Tenant Role");
 		payload.Role.IsDefault.Should().BeFalse();

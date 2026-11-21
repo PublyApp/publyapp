@@ -87,18 +87,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		_ = await this._CreateStaffUserAsync(token, alphaEmail);
 		_ = await this._CreateStaffUserAsync(token, betaEmail);
 
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(limit: 20, q: "alpha")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 20, q: "alpha"),
+			token
+		);
 		result.Data.Should().Contain(user =>
 					string.Equals(user.Email, alphaEmail, StringComparison.OrdinalIgnoreCase)
 				);
@@ -125,18 +117,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			lastName: "Staff"
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(limit: 100, q: "%")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 100, q: "%"),
+			token
+		);
 
 		// If '%' were interpolated unescaped into the ILIKE pattern, "%%%"
 		// collapses to a bare wildcard matching every row. Escaped, only the
@@ -160,18 +144,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await this._SetStaffUserStatusAsync(activeId, UserStatus.Active);
 		await this._SetStaffUserStatusAsync(suspendedId, UserStatus.Suspended);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(limit: 50, status: "suspended")
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 50, status: "suspended"),
+			token
+		);
 		result.Data.Should().ContainSingle(user => user.Id == suspendedId);
 		result.Data.Should().NotContain(user => user.Id == activeId);
 	}
@@ -398,18 +374,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 
 		await this._SetStaffUserStatusAsync(userId, UserStatus.Suspended);
 
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(limit: 50)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 50),
+			token
+		);
 		result.Data.Should().Contain(user =>
 					string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase)
 					&& user.Status == "Suspended"
@@ -428,18 +396,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		await this._SetStaffUserDeletedStateAsync(deletedUserId, deleteUser: true);
 		await this._SetStaffUserDeletedStateAsync(deletedAccountId, deleteAccount: true);
 
-		var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(limit: 50)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 50),
+			token
+		);
 		result.Data.Should().NotContain(user =>
 					string.Equals(user.Email, deletedUserEmail, StringComparison.OrdinalIgnoreCase)
 				);
@@ -531,16 +491,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				sortOrder: "asc"
 			);
 
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
 			pages++;
 			visitedEmails.AddRange(page.Data.Select(user => user.Email));
 			cursor = page.NextCursor;
@@ -597,16 +548,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				sortId: "created_at",
 				sortOrder: "asc"
 			);
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
 			pages++;
 			visitedIds.AddRange(page.Data.Select(u => u.Id));
 			cursor = page.NextCursor;
@@ -689,16 +631,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				sortId: "updated_at",
 				sortOrder: "asc"
 			);
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
 			pages++;
 			visitedIds.AddRange(page.Data.Select(u => u.Id));
 			cursor = page.NextCursor;
@@ -773,16 +706,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				sortId: "first_name",
 				sortOrder: "asc"
 			);
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
 			pages++;
 			visitedIds.AddRange(page.Data.Select(u => u.Id));
 			cursor = page.NextCursor;
@@ -836,16 +760,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				sortId: "last_name",
 				sortOrder: "asc"
 			);
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
 			pages++;
 			visitedIds.AddRange(page.Data.Select(u => u.Id));
 			cursor = page.NextCursor;
@@ -889,16 +804,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 				sortId: "status",
 				sortOrder: "asc"
 			);
-			using var request = new HttpRequestMessage(
-				HttpMethod.Get, url
-			).WithSessionToken(token);
-
-			using var response = await this._Http.SendAsync(request);
-			response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-			var page = await response.Content.ReadFromJsonAsync<FindResponse>();
-			page.Should().NotBeNull();
-			Assert.NotNull(page);
+			var page = await this._Http.GetOkAsync<FindResponse>(url, token);
 			pages++;
 			visitedIds.AddRange(page.Data.Select(u => u.Id));
 			cursor = page.NextCursor;
@@ -945,16 +851,7 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			sortId: "is_full_access",
 			sortOrder: "asc"
 		);
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get, url
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(url, token);
 
 		var visitedOrder = result.Data
 			.Select(user => user.Id)
@@ -1011,17 +908,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 			status: UserStatus.Suspended
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(limit: 1, q: marker)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 1, q: marker),
+			token
+		);
 
 		// limit=1 proves the counts are not the page length.
 		result.Data.Should().HaveCount(1);
@@ -1168,17 +1058,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 		var roleName = $"Support-{marker}";
 		await this._AttachStaffRoleAsync(userId, roleName);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(limit: 20, q: marker)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 20, q: marker),
+			token
+		);
 
 		var row = result.Data.Should()
 			.ContainSingle(user => user.Email == $"{marker}@example.com")
@@ -1511,17 +1394,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<FindResponse> _FindAsync(string token, string marker, int limit = 50) {
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(limit: limit, q: marker)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: limit, q: marker),
+			token
+		);
 		return result;
 	}
 
@@ -1688,17 +1564,10 @@ public sealed class FindStaffUserSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<StaffUserCountsDto> _ReadCountsAsync(string token) {
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffUserSpec._GetFindUrl(limit: 1)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindResponse>(
+			FindStaffUserSpec._GetFindUrl(limit: 1),
+			token
+		);
 		return result.Counts;
 	}
 

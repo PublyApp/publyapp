@@ -157,19 +157,13 @@ public sealed class FindStaffRoleUsersSpec
 
 		var url = FindStaffRoleUsersSpec._GetUrl(roleId) + "?limit=50&sort_id=created_at&sort_order=desc";
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			url
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindStaffRoleUsersResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindStaffRoleUsersResponse>(url, token);
 		result.Users.Should().Contain(u =>
-					string.Equals(u.Email, TestConstants.StaffUserEmail, StringComparison.OrdinalIgnoreCase)
+					string.Equals(
+						u.Email,
+						TestConstants.StaffUserEmail,
+						StringComparison.OrdinalIgnoreCase
+					)
 				);
 		result.Count.Should().BeGreaterThan(0);
 	}
@@ -188,17 +182,10 @@ public sealed class FindStaffRoleUsersSpec
 		await this._AssignRoleToStaffUserAsync(token, alphaUserId, roleId);
 		await this._AssignRoleToStaffUserAsync(token, betaUserId, roleId);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffRoleUsersSpec._GetUrl(roleId) + "?limit=50&q=alpha.role"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindStaffRoleUsersResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindStaffRoleUsersResponse>(
+			FindStaffRoleUsersSpec._GetUrl(roleId) + "?limit=50&q=alpha.role",
+			token
+		);
 		result.Users.Should().Contain(u =>
 					string.Equals(u.Email, alphaEmail, StringComparison.OrdinalIgnoreCase)
 				);
@@ -226,17 +213,10 @@ public sealed class FindStaffRoleUsersSpec
 		await this._AssignRoleToStaffUserAsync(token, withPercentUserId, roleId);
 		await this._AssignRoleToStaffUserAsync(token, withoutPercentUserId, roleId);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffRoleUsersSpec._GetUrl(roleId) + $"?limit=50&q={Uri.EscapeDataString("%")}"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindStaffRoleUsersResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindStaffRoleUsersResponse>(
+			FindStaffRoleUsersSpec._GetUrl(roleId) + $"?limit=50&q={Uri.EscapeDataString("%")}",
+			token
+		);
 
 		// If '%' were interpolated unescaped into the ILIKE pattern, "%%%"
 		// collapses to a bare wildcard matching every row. Escaped, only the
@@ -277,17 +257,10 @@ public sealed class FindStaffRoleUsersSpec
 		await this._AssignRoleToStaffUserAsync(token, userIdB, roleId);
 		await this._AssignRoleToStaffUserAsync(token, userIdA, roleId);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			FindStaffRoleUsersSpec._GetUrl(roleId) + "?limit=50&sort_id=email&sort_order=asc"
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindStaffRoleUsersResponse>();
-		result.Should().NotBeNull();
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindStaffRoleUsersResponse>(
+			FindStaffRoleUsersSpec._GetUrl(roleId) + "?limit=50&sort_id=email&sort_order=asc",
+			token
+		);
 		result.Users.Select(u => u.Email).Should().BeInAscendingOrder();
 	}
 
@@ -346,7 +319,8 @@ public sealed class FindStaffRoleUsersSpec
 		foreach (var sortId in sortIds) {
 			using var request = new HttpRequestMessage(
 				HttpMethod.Get,
-				FindStaffRoleUsersSpec._GetUrl(roleId) + $"?limit=50&sort_id={sortId}&sort_order=desc"
+				FindStaffRoleUsersSpec._GetUrl(roleId)
+					+ $"?limit=50&sort_id={sortId}&sort_order=desc"
 			).WithSessionToken(token);
 
 			using var response = await this._Http.SendAsync(request);

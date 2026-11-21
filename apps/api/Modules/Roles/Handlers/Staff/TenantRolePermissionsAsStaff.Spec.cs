@@ -59,7 +59,10 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		var tenantId = await this._GetTenantIdAsync();
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TenantRolePermissionsAsStaffSpec._GetListUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			TenantRolePermissionsAsStaffSpec._GetListUrl(
+				tenantId.ToString(),
+				Guid.NewGuid().ToString()
+			)
 		);
 
 		using var response = await this._Http.SendAsync(request);
@@ -76,7 +79,10 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TenantRolePermissionsAsStaffSpec._GetListUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			TenantRolePermissionsAsStaffSpec._GetListUrl(
+				tenantId.ToString(),
+				Guid.NewGuid().ToString()
+			)
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
@@ -93,7 +99,10 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TenantRolePermissionsAsStaffSpec._GetListUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			TenantRolePermissionsAsStaffSpec._GetListUrl(
+				tenantId.ToString(),
+				Guid.NewGuid().ToString()
+			)
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
@@ -381,7 +390,10 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
-			TenantRolePermissionsAsStaffSpec._GetListUrl(tenantId.ToString(), Guid.NewGuid().ToString())
+			TenantRolePermissionsAsStaffSpec._GetListUrl(
+				tenantId.ToString(),
+				Guid.NewGuid().ToString()
+			)
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
@@ -407,17 +419,10 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 			AppPermissions.Tenant.Modules.ACCESS_SETTINGS.Key
 		);
 
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			TenantRolePermissionsAsStaffSpec._GetListUrl(tenantId.ToString(), roleId)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var payload = await response.Content.ReadFromJsonAsync<ListPermissionsResponse>();
-		payload.Should().NotBeNull();
-		Assert.NotNull(payload);
+		var payload = await this._Http.GetOkAsync<ListPermissionsResponse>(
+			TenantRolePermissionsAsStaffSpec._GetListUrl(tenantId.ToString(), roleId),
+			token
+		);
 		payload.PermissionKeys.Should().BeInAscendingOrder();
 	}
 
@@ -431,7 +436,11 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 		using (var assignRequest = new HttpRequestMessage(
 			HttpMethod.Post,
-			TenantRolePermissionsAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId, permissionKey)
+			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
+				tenantId.ToString(),
+				roleId,
+				permissionKey
+			)
 		).WithSessionToken(token)) {
 			using var assignResponse = await this._Http.SendAsync(assignRequest);
 			assignResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -456,7 +465,11 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 		using (var unassignRequest = new HttpRequestMessage(
 			HttpMethod.Delete,
-			TenantRolePermissionsAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId, permissionKey)
+			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
+				tenantId.ToString(),
+				roleId,
+				permissionKey
+			)
 		).WithSessionToken(token)) {
 			using var unassignResponse = await this._Http.SendAsync(unassignRequest);
 			unassignResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
@@ -497,7 +510,11 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
-			TenantRolePermissionsAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId, "staff.this.does.not.exist")
+			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
+				tenantId.ToString(),
+				roleId,
+				"staff.this.does.not.exist"
+			)
 		).WithSessionToken(token);
 
 		using var response = await this._Http.SendAsync(request);
@@ -556,7 +573,11 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	) {
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
-			TenantRolePermissionsAsStaffSpec._GetToggleUrl(tenantId.ToString(), roleId, permissionKey)
+			TenantRolePermissionsAsStaffSpec._GetToggleUrl(
+				tenantId.ToString(),
+				roleId,
+				permissionKey
+			)
 		).WithSessionToken(staffToken);
 
 		using var response = await this._Http.SendAsync(request);

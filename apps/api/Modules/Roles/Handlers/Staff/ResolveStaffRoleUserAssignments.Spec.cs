@@ -183,18 +183,10 @@ public sealed class ResolveStaffRoleUserAssignmentsSpec
 		string email,
 		string staffToken
 	) {
-		using var request = new HttpRequestMessage(
-			HttpMethod.Get,
-			ResolveStaffRoleUserAssignmentsSpec._GetFindStaffUsersUrl(email)
-		).WithSessionToken(staffToken);
-
-		using var response = await this._Http.SendAsync(request);
-		response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-		var result = await response.Content.ReadFromJsonAsync<FindStaffUsersResponse>();
-		result.Should().NotBeNull();
-
-		Assert.NotNull(result);
+		var result = await this._Http.GetOkAsync<FindStaffUsersResponse>(
+			ResolveStaffRoleUserAssignmentsSpec._GetFindStaffUsersUrl(email),
+			staffToken
+		);
 		var user = result.Data.FirstOrDefault(u =>
 					string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase)
 				);
