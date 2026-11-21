@@ -41,10 +41,12 @@ const CAPABILITY_FACTS: readonly CapabilityFact[] = [
 	{ key: 'calendar', Icon: IconCalendar },
 	{ key: 'composer', Icon: IconPencil },
 	{ key: 'approvals', Icon: IconShieldCheck },
-	{ key: 'roles', Icon: IconUsersGroup },
+	{ key: 'profiles', Icon: IconUsersGroup },
 	{ key: 'dashboards', Icon: IconLayoutDashboard },
 	{ key: 'permissions', Icon: IconKey },
 ];
+
+export const CAPABILITY_FACT_KEYS = CAPABILITY_FACTS.map((fact) => fact.key);
 
 export const LandingCapabilities = () => {
 	const { t } = useTranslation('landing');
