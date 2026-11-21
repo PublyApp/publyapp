@@ -1362,6 +1362,161 @@ const localConstInitializer = (
 	return found;
 };
 
+type SpecContext = {
+	specFile: ParsedFile;
+	declaration: ts.VariableDeclaration | ts.FunctionDeclaration;
+	root: ts.Node;
+	depth: number;
+	visited: Set<string>;
+	result: SpecResult;
+};
+
+const specLocation = (context: SpecContext, node: ts.Node) =>
+	`${context.specFile.relativePath}:${lineOf(context.specFile, node)}`;
+
+const collectSpecEntry = (
+	context: SpecContext,
+	node: ts.ObjectLiteralExpression,
+): void => {
+	const { result, specFile } = context;
+	const property = objectProperty(node, 'options');
+	let initializer: ts.Expression | undefined;
+	if (property && ts.isPropertyAssignment(property)) {
+		initializer = property.initializer;
+	} else if (property && ts.isShorthandPropertyAssignment(property)) {
+		initializer = property.name;
+	}
+	if (!initializer || !ts.isIdentifier(initializer)) {
+		result.errors.push(
+			`${specLocation(context, node)}: spec entry \`options\` must be a bare lib/query factory identifier — the guard cannot resolve it`,
+		);
+		return;
+	}
+	const binding = specFile.bindings.get(initializer.text);
+	if (binding && isLibModule(binding.module)) {
+		result.identities.push({
+			kind: 'factory',
+			module: binding.module,
+			name: binding.exportedName,
+		});
+	} else {
+		result.errors.push(
+			`${specLocation(context, node)}: spec entry \`options: ${initializer.text}\` is not imported from a lib/** module — a loader may only warm query-options factories`,
+		);
+	}
+};
+
+const resolveSpecIdentifier = async (
+	context: SpecContext,
+	node: ts.Identifier,
+	wanted: string | undefined,
+	hops: number,
+): Promise<void> => {
+	const initializer = localConstInitializer(context.root, node.text);
+	if (initializer && hops < MAX_REACH_DEPTH * 4) {
+		await resolveSpecValue(context, initializer, wanted, hops + 1);
+	} else if (node.text !== 'undefined') {
+		context.result.errors.push(
+			`${specLocation(context, node)}: spec value '${node.text}' is not a const of the spec function — the guard cannot resolve it`,
+		);
+	}
+};
+
+const resolveSpecCall = async (
+	context: SpecContext,
+	node: ts.CallExpression & { expression: ts.Identifier },
+	wanted: string | undefined,
+): Promise<void> => {
+	if (context.depth >= MAX_REACH_DEPTH) {
+		return;
+	}
+	const nested = await followSpecCall(
+		context.specFile,
+		node.expression.text,
+		context.declaration,
+		wanted,
+		context.depth,
+		context.visited,
+	);
+	context.result.identities.push(...nested.identities);
+	context.result.errors.push(...nested.errors);
+};
+
+/** One member of a returned object literal; `wanted` narrows it to one key. */
+const resolveSpecProperty = async (
+	context: SpecContext,
+	property: ts.ObjectLiteralElementLike,
+	wanted: string | undefined,
+	hops: number,
+): Promise<void> => {
+	if (ts.isShorthandPropertyAssignment(property)) {
+		if (!wanted || property.name.text === wanted) {
+			await resolveSpecValue(context, property.name, undefined, hops);
+		}
+	} else if (ts.isPropertyAssignment(property)) {
+		if (
+			!wanted ||
+			(ts.isIdentifier(property.name) && property.name.text === wanted)
+		) {
+			await resolveSpecValue(context, property.initializer, undefined, hops);
+		}
+	} else if (ts.isSpreadAssignment(property)) {
+		if (!wanted) {
+			await resolveSpecValue(context, property.expression, undefined, hops);
+		}
+	} else if (!wanted) {
+		context.result.errors.push(
+			`${specLocation(context, property)}: spec object member cannot be resolved — the guard reads only plain properties`,
+		);
+	}
+};
+
+const resolveSpecObject = async (
+	context: SpecContext,
+	node: ts.ObjectLiteralExpression,
+	wanted: string | undefined,
+	hops: number,
+): Promise<void> => {
+	if (
+		!wanted &&
+		objectProperty(node, 'options') &&
+		objectProperty(node, 'variables')
+	) {
+		collectSpecEntry(context, node);
+		return;
+	}
+	for (const property of node.properties) {
+		await resolveSpecProperty(context, property, wanted, hops);
+	}
+};
+
+const resolveSpecValue = async (
+	context: SpecContext,
+	raw: ts.Expression,
+	wanted: string | undefined,
+	hops: number,
+): Promise<void> => {
+	const node = stripWrappers(raw);
+	if (ts.isConditionalExpression(node)) {
+		await resolveSpecValue(context, node.whenTrue, wanted, hops);
+		await resolveSpecValue(context, node.whenFalse, wanted, hops);
+	} else if (ts.isIdentifier(node)) {
+		await resolveSpecIdentifier(context, node, wanted, hops);
+	} else if (ts.isObjectLiteralExpression(node)) {
+		await resolveSpecObject(context, node, wanted, hops);
+	} else if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+		await resolveSpecCall(
+			context,
+			node as ts.CallExpression & { expression: ts.Identifier },
+			wanted,
+		);
+	} else {
+		context.result.errors.push(
+			`${specLocation(context, node)}: a returned spec value is a ${ts.SyntaxKind[node.kind]} — the guard cannot resolve it`,
+		);
+	}
+};
+
 /** The `{ options: <factory>, variables }` entries a spec function RETURNS —
  * resolved from its returned value(s) only (for `.spec`, the `spec` property),
  * through local consts and calls in returned-value position (same file or a
@@ -1384,106 +1539,16 @@ const collectSpecEntries = async (
 	if (!root) {
 		return result;
 	}
-	const at = (node: ts.Node) =>
-		`${specFile.relativePath}:${lineOf(specFile, node)}`;
-
-	const resolve = async (
-		raw: ts.Expression,
-		wanted: string | undefined,
-		hops: number,
-	): Promise<void> => {
-		const node = stripWrappers(raw);
-		if (ts.isConditionalExpression(node)) {
-			await resolve(node.whenTrue, wanted, hops);
-			await resolve(node.whenFalse, wanted, hops);
-		} else if (ts.isIdentifier(node)) {
-			const initializer = localConstInitializer(root, node.text);
-			if (initializer && hops < MAX_REACH_DEPTH * 4) {
-				await resolve(initializer, wanted, hops + 1);
-			} else if (node.text !== 'undefined') {
-				result.errors.push(
-					`${at(node)}: spec value '${node.text}' is not a const of the spec function — the guard cannot resolve it`,
-				);
-			}
-		} else if (ts.isObjectLiteralExpression(node)) {
-			if (
-				!wanted &&
-				objectProperty(node, 'options') &&
-				objectProperty(node, 'variables')
-			) {
-				collectEntry(node);
-				return;
-			}
-			for (const property of node.properties) {
-				if (ts.isShorthandPropertyAssignment(property)) {
-					if (!wanted || property.name.text === wanted) {
-						await resolve(property.name, undefined, hops);
-					}
-				} else if (ts.isPropertyAssignment(property)) {
-					if (
-						!wanted ||
-						(ts.isIdentifier(property.name) && property.name.text === wanted)
-					) {
-						await resolve(property.initializer, undefined, hops);
-					}
-				} else if (ts.isSpreadAssignment(property) && !wanted) {
-					await resolve(property.expression, undefined, hops);
-				} else if (!wanted) {
-					result.errors.push(
-						`${at(property)}: spec object member cannot be resolved — the guard reads only plain properties`,
-					);
-				}
-			}
-		} else if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-			if (depth < MAX_REACH_DEPTH) {
-				const nested = await followSpecCall(
-					specFile,
-					node.expression.text,
-					declaration,
-					wanted,
-					depth,
-					visited,
-				);
-				result.identities.push(...nested.identities);
-				result.errors.push(...nested.errors);
-			}
-		} else {
-			result.errors.push(
-				`${at(node)}: a returned spec value is a ${ts.SyntaxKind[node.kind]} — the guard cannot resolve it`,
-			);
-		}
+	const context: SpecContext = {
+		specFile,
+		declaration,
+		root,
+		depth,
+		visited,
+		result,
 	};
-
-	const collectEntry = (node: ts.ObjectLiteralExpression): void => {
-		const property = objectProperty(node, 'options');
-		let initializer: ts.Expression | undefined;
-		if (property && ts.isPropertyAssignment(property)) {
-			initializer = property.initializer;
-		} else if (property && ts.isShorthandPropertyAssignment(property)) {
-			initializer = property.name;
-		}
-		if (!initializer || !ts.isIdentifier(initializer)) {
-			result.errors.push(
-				`${at(node)}: spec entry \`options\` must be a bare lib/query factory identifier — the guard cannot resolve it`,
-			);
-			return;
-		}
-		const binding = specFile.bindings.get(initializer.text);
-		if (binding && isLibModule(binding.module)) {
-			result.identities.push({
-				kind: 'factory',
-				module: binding.module,
-				name: binding.exportedName,
-			});
-		} else {
-			result.errors.push(
-				`${at(node)}: spec entry \`options: ${initializer.text}\` is not imported from a lib/** module — a loader may only warm query-options factories`,
-			);
-		}
-	};
-
 	for (const returned of returnedExpressions(root)) {
-		await resolve(returned, pick, 0);
+		await resolveSpecValue(context, returned, pick, 0);
 	}
 	return result;
 };
