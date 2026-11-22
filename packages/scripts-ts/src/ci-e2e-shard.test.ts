@@ -221,10 +221,24 @@ if (args[0] === 'api') {
 	process.exit(0);
 }
 if (process.env.FAKE_GH_DOWNLOAD === 'true') {
-	const name = args[args.indexOf('-n') + 1] ?? '';
+	const name = args.includes('-n') ? args[args.indexOf('-n') + 1] : '';
+	const pattern = args.includes('-p') ? args[args.indexOf('-p') + 1] : '';
 	const dir = args[args.indexOf('-D') + 1] ?? process.env.E2E_ARTIFACTS;
 	fs.mkdirSync(dir, { recursive: true });
-	if (name.startsWith('e2e-shard-plan')) {
+	if (pattern.length > 0) {
+		for (const artifact of ['e2e-shard-report-1-1', 'e2e-shard-report-1-3', 'e2e-shard-report-2-1']) {
+			const target = path.join(dir, artifact);
+			fs.mkdirSync(target, { recursive: true });
+			fs.writeFileSync(
+				path.join(target, 'playwright-' + artifact.split('-')[3] + '-of-6.json'),
+				JSON.stringify({ attempt: Number(artifact.split('-')[4]) }),
+			);
+		}
+	} else if (name.startsWith('e2e-shard-plan')) {
+		if (process.env.FAKE_GH_PLAN_ATTEMPT !== undefined && name !== 'e2e-shard-plan-' + process.env.FAKE_GH_PLAN_ATTEMPT) {
+			process.stderr.write('gh: no valid artifacts found to download\\n');
+			process.exit(1);
+		}
 		fs.writeFileSync(path.join(dir, 'e2e-shard-plan.json'), process.env.FAKE_GH_PLAN ?? '{}');
 	} else if (name.startsWith('e2e-file-durations')) {
 		fs.writeFileSync(path.join(dir, 'durations.json'), process.env.FAKE_GH_DURATIONS ?? '{}');
@@ -467,7 +481,7 @@ test('verify refuses to run without the plan artifact instead of certifying noth
 	}
 });
 
-test('download is a no-op outside the merge queue and flattens this attempt reports inside it', () => {
+test('download keeps the latest report per shard and falls back to the attempt that has the plan', () => {
 	const sandbox = makeSandbox();
 	const artifacts = path.join(sandbox.root, 'e2e-artifacts');
 	try {
@@ -486,16 +500,34 @@ test('download is a no-op outside the merge queue and flattens this attempt repo
 		const mergeQueue = runShardCli(sandbox, 'download', {
 			GITHUB_EVENT_NAME: 'merge_group',
 			GITHUB_RUN_ID: '77',
-			GITHUB_RUN_ATTEMPT: '3',
+			// A re-run attempt: only attempt 1 holds the plan artifact.
+			GITHUB_RUN_ATTEMPT: '2',
 			E2E_ARTIFACTS: artifacts,
 			FAKE_GH_DOWNLOAD: 'true',
+			FAKE_GH_PLAN_ATTEMPT: '1',
 		});
 		assert.equal(
 			mergeQueue.status,
 			0,
 			`${mergeQueue.stdout}\n${mergeQueue.stderr}`,
 		);
-		assert.deepEqual(readdirSync(artifacts), ['playwright-1-of-6.json']);
+		assert.deepEqual(readdirSync(artifacts).sort(), [
+			'playwright-1-of-6.json',
+			'playwright-2-of-6.json',
+		]);
+		const attempts = readdirSync(artifacts)
+			.sort()
+			.map(
+				(file) =>
+					JSON.parse(readFileSync(path.join(artifacts, file), 'utf8')) as {
+						attempt: number;
+					},
+			);
+		assert.deepEqual(
+			attempts.map((entry) => entry.attempt),
+			[3, 1],
+			'shard 1 keeps attempt 3, shard 2 keeps attempt 1',
+		);
 		const ghArgs = readFileSync(sandbox.ghLog, 'utf8')
 			.trim()
 			.split('\n')
@@ -503,13 +535,13 @@ test('download is a no-op outside the merge queue and flattens this attempt repo
 		const pattern = ghArgs[0]?.[ghArgs[0].indexOf('-p') + 1];
 		assert.equal(
 			pattern,
-			'e2e-shard-report-*-3',
-			'the download must only read this attempt reports',
+			'e2e-shard-report-*',
+			'non-re-run shards only exist in earlier attempts',
 		);
-		assert.equal(
-			ghArgs[1]?.[ghArgs[1].indexOf('-n') + 1],
-			'e2e-shard-plan-3',
-			'the verify input plan is this attempt artifact',
+		assert.deepEqual(
+			ghArgs.slice(1).map((args) => args[args.indexOf('-n') + 1]),
+			['e2e-shard-plan-2', 'e2e-shard-plan-1'],
+			'the re-run attempt falls back to the attempt that uploaded the plan',
 		);
 		assert.ok(existsSync(planFilePath(sandbox)));
 

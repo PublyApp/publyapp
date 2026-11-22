@@ -333,7 +333,16 @@ const readPlan = (): Plan => {
 	}
 	return parsed as Plan;
 };
-/** Fetches this attempt's plan artifact into `planFile()`. */
+/**
+ * A "re-run failed jobs" attempt does not re-run `e2e-build`, so its plan
+ * artifact does not exist: try this attempt first, then every earlier one.
+ */
+const planAttempts = (): string[] => {
+	const attempt = Number(process.env.GITHUB_RUN_ATTEMPT ?? '1');
+	const last = Number.isInteger(attempt) && attempt > 0 ? attempt : 1;
+	return Array.from({ length: last }, (_, index) => String(last - index));
+};
+/** Fetches the plan artifact (any attempt of this run) into `planFile()`. */
 export const downloadPlan = () => {
 	const runId = process.env.GITHUB_RUN_ID;
 	if (runId === undefined || runId.length === 0) {
@@ -341,39 +350,73 @@ export const downloadPlan = () => {
 	}
 	const dir = path.dirname(planFile());
 	mkdirSync(dir, { recursive: true });
-	execFileSync(
-		'gh',
-		[
-			'run',
-			'download',
-			runId,
-			'-n',
-			`e2e-shard-plan-${process.env.GITHUB_RUN_ATTEMPT ?? '1'}`,
-			'-D',
-			dir,
-			'--clobber',
-		],
-		{ stdio: 'inherit' },
-	);
+	for (const attempt of planAttempts()) {
+		const download = spawnSync(
+			'gh',
+			[
+				'run',
+				'download',
+				runId,
+				'-n',
+				`e2e-shard-plan-${attempt}`,
+				'-D',
+				dir,
+				'--clobber',
+			],
+			{ encoding: 'utf8' },
+		);
+		if (download.status === 0) {
+			return;
+		}
+		console.log(
+			`::warning::plan artifact e2e-shard-plan-${attempt} is unavailable; trying an earlier attempt`,
+		);
+	}
+	throw new Error(`no plan artifact found for run ${runId}`);
 };
 const artifactsDir = (): string => process.env.E2E_ARTIFACTS ?? 'e2e-artifacts';
 const isNonMergeQueueEvent = (): boolean => {
 	const event = process.env.GITHUB_EVENT_NAME;
 	return event !== undefined && event !== '' && event !== 'merge_group';
 };
+const REPORT_ARTIFACT = /^e2e-shard-report-(\d+)-(\d+)$/;
+/** One report per shard: the highest attempt wins when a shard was re-run. */
+export const latestShardReports = (names: string[]): string[] => {
+	const latest = new Map<number, { attempt: number; name: string }>();
+	for (const name of names) {
+		const match = REPORT_ARTIFACT.exec(name);
+		if (match === null) {
+			continue;
+		}
+		const shard = Number(match[1]);
+		const attempt = Number(match[2]);
+		const current = latest.get(shard);
+		if (current === undefined || attempt > current.attempt) {
+			latest.set(shard, { attempt, name });
+		}
+	}
+	return [...latest.values()]
+		.sort((left, right) => left.name.localeCompare(right.name))
+		.map((entry) => entry.name);
+};
 const flattenDownloadedArtifacts = (dir: string) => {
+	const keep = new Set(latestShardReports(readdirSync(dir)));
 	for (const entry of readdirSync(dir, { withFileTypes: true })) {
 		if (!entry.isDirectory()) {
 			continue;
 		}
 		const nested = path.join(dir, entry.name);
+		if (!keep.has(entry.name)) {
+			rmSync(nested, { recursive: true, force: true });
+			continue;
+		}
 		for (const file of readdirSync(nested)) {
 			renameSync(path.join(nested, file), path.join(dir, file));
 		}
 		rmSync(nested, { recursive: true, force: true });
 	}
 };
-/** Downloads this attempt's shard reports; a no-op outside the merge queue. */
+/** Downloads every shard report of this run, keeping the latest per shard. */
 export const downloadShards = () => {
 	if (isNonMergeQueueEvent()) {
 		console.log('not a merge_queue entry: no shard reports to download');
@@ -393,7 +436,7 @@ export const downloadShards = () => {
 			'download',
 			runId,
 			'-p',
-			`e2e-shard-report-*-${process.env.GITHUB_RUN_ATTEMPT ?? '1'}`,
+			'e2e-shard-report-*',
 			'-D',
 			dir,
 			'--clobber',
@@ -521,9 +564,8 @@ const spawnPlaywright = (args: string[]) => {
 };
 export const runShard = () => {
 	const shard = Number(process.argv[2] ?? process.env.MATRIX_SHARD ?? 0);
-	if (!existsSync(planFile())) {
-		downloadPlan();
-	}
+	// The plan lives only in the run's artifact: never read a checked-out file.
+	downloadPlan();
 	const plan = readPlan();
 	const entry = plan.shards.find((candidate) => candidate.shard === shard);
 	if (entry === undefined) {

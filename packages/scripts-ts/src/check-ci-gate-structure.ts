@@ -1994,10 +1994,7 @@ const checkCentralClassifierEdges = (
 				const isSentinel = expectedStepId.endsWith('.not-applicable');
 				const isFailureOnly =
 					expectedStepId.endsWith('.report_upload') ||
-					expectedStepId.endsWith('.test_results') ||
-					// The plan only exists on a merge_queue entry; its exact
-					// producer contract below pins the merge_group condition.
-					expectedStepId.endsWith('.plan_upload');
+					expectedStepId.endsWith('.test_results');
 				const isIntentionallyUnconditional =
 					intentionallyUnconditionalClassifierSteps.has(expectedStepId);
 				if (condition.length === 0) {
@@ -2491,12 +2488,12 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 			stepName: 'Upload the shard plan',
 			stepId: 'plan-upload',
 			condition:
-				"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'",
+				"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'",
 			with: {
 				name: 'e2e-shard-plan-\${{ github.run_attempt }}',
 				path: 'apps/front/e2e-artifacts/e2e-shard-plan.json',
 				'retention-days': 7,
-				'if-no-files-found': 'error',
+				'if-no-files-found': 'ignore',
 			},
 		},
 		{

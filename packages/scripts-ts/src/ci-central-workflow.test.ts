@@ -2384,8 +2384,11 @@ test('e2e evidence artifacts are attempt-scoped and the plan install is not mask
 	);
 	assert.equal(
 		planUpload.with?.['if-no-files-found'],
-		'error',
-		'a missing plan must fail the upload, not hide it',
+		'ignore',
+		// The plan step only writes on merge_group; on a pull_request this
+		// upload is the documented no-op. On merge_group a missing plan still
+		// reds the `plan` step and `verify`, so nothing is hidden.
+		'a missing plan cannot fail the pull_request no-op upload',
 	);
 	const planInstall = step('e2e-build', 'plan-install-deps');
 	assert.equal(

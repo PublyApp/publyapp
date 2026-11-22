@@ -98,15 +98,11 @@ test('the runner installs Chromium with its shared libraries and runs four proje
 			expected: [],
 			durations: {},
 		};
-		const planFile = path.join(
-			dir,
-			'apps',
-			'front',
-			'e2e-artifacts',
-			'e2e-shard-plan.json',
+		const ghLog = path.join(dir, 'gh.log');
+		writeExecutable(
+			path.join(bin, 'gh'),
+			`const fs = require('node:fs');\nconst path = require('node:path');\nconst args = process.argv.slice(2);\nfs.appendFileSync(process.env.FAKE_GH_LOG, args.join(' ') + '\\n');\nconst out = args[args.indexOf('-D') + 1];\nfs.mkdirSync(out, { recursive: true });\nfs.writeFileSync(path.join(out, 'e2e-shard-plan.json'), process.env.FAKE_GH_PLAN);\n`,
 		);
-		mkdirSync(path.dirname(planFile), { recursive: true });
-		writeFileSync(planFile, JSON.stringify(plan));
 		const run = spawnSync(process.execPath, [runnerScript, '1', '6'], {
 			cwd: dir,
 			encoding: 'utf8',
@@ -114,9 +110,14 @@ test('the runner installs Chromium with its shared libraries and runs four proje
 				...process.env,
 				PATH: `${bin}${path.delimiter}${process.env.PATH ?? ''}`,
 				FAKE_PNPM_LOG: log,
+				FAKE_GH_LOG: ghLog,
+				FAKE_GH_PLAN: JSON.stringify(plan),
+				GITHUB_RUN_ID: '123',
+				GITHUB_RUN_ATTEMPT: '1',
 			},
 		});
 		assert.equal(run.status, 0, `${run.stdout}\n${run.stderr}`);
+		assert.match(readFileSync(ghLog, 'utf8'), /-n e2e-shard-plan-1 /);
 		const calls = readFileSync(log, 'utf8')
 			.trim()
 			.split('\n')
