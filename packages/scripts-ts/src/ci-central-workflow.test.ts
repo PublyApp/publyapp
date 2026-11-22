@@ -2330,6 +2330,13 @@ test('every e2e job step is bound to a lane contract step', async () => {
 			if (step.id === undefined) {
 				continue;
 			}
+			// #2492's attestation steps are gated by the image build/reuse
+			// outcome, not by the classifier, and are not part of the lane's
+			// transport contract. Their failure still fails the job, so the
+			// aggregate gate stays red without a lane-evidence entry.
+			if (String(step.id).startsWith('attest-')) {
+				continue;
+			}
 			const id =
 				step.id === 'sentinel'
 					? `${jobId}.not-applicable`

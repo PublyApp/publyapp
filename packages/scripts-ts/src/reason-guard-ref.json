@@ -1,4 +1,53 @@
 {
+	"$comment": [
+		"Reference fingerprints for the reason guard. Read by packages/scripts-ts/src/check-ci-drift.ts.",
+		"",
+		"One entry per step in ci-gate-manifest.json, keyed identically.",
+		"  reason_hash - SHA-256 (first 16 hex chars) of the reason text.",
+		"  reason      - the full reason text itself.",
+		"",
+		"The reason text is stored in full so that regenerating this file is",
+		"visible in the diff: a reviewer sees the actual reason text, not just a",
+		"hash and length. This closes the #1736 bypass where a 24-character bogus",
+		"reason + regenerated ref was invisible in the diff.",
+		"",
+		"After JSON.parse, escape sequences like \\u2014 are already decoded to their",
+		"UTF-8 characters, so no normalization step is needed.",
+		"",
+		"The guard fails when a reason changes (especially SHRINKS) while the step hash",
+		"is unchanged. A deliberate rewrite is possible by regenerating this file",
+		"in the same commit as the manifest change — same mechanism as the complexity",
+		"ceilings (cyclomatic-bound-ref.json).",
+		"",
+		"pinned_step_ids - ratchet floor (#1709). This array grows monotonically.",
+		"Regeneration can only ADD step IDs, never remove them. To deliberately",
+		"remove a step, confess it in ci-gate-removals.json with a reason.",
+		"",
+		"The floor is derived from the merge-base of origin/develop and HEAD (the",
+		"last reviewed-and-merged state of the target branch), not from HEAD or the",
+		"working tree. This prevents a contributor from lowering pinned_step_ids in",
+		"the same commit as a step removal — in a PR, HEAD IS the attacker commit.",
+		"Enforcement (check-ci-drift.ts) refuses to run if the merge-base cannot be",
+		"resolved, and so does generation: gen-reason-ref.ts exits non-zero without",
+		"touching this file when the merge-base is unavailable (e.g., local without",
+		"fetched origin/develop). It never falls back to HEAD or the working tree.",
+		"",
+		"pinned_step_ids is a subset of steps{}. A pinned step dropped from",
+		"steps{} is a floor-lowering attack. Extra steps in steps{} that exist",
+		"in ci-gate-manifest.json are legitimate growth (the ratchet absorbs",
+		"them). Extra steps NOT in the manifest are phantom steps — tampering.",
+		"",
+		"pinned_step_ids also covers every step in ci-gate-manifest.json",
+		"(completeness, #1809 r13): a step that is reconciled but not pinned is",
+		"a floor with a hole — its removal needs no confession and trips no",
+		"RATCHET. check-ci-drift.ts emits an UNPINNED finding for any such step,",
+		"and gen-reason-ref.ts asserts the generated floor is complete. This",
+		"closes the r13 defect where the retired docs archive workflow's",
+		"prune-inventory guard fixture tests sat covered but unpinned.",
+		"",
+		"Regenerate with: node packages/scripts-ts/src/gen-reason-ref.ts",
+		"See docs/guides/local-ci-gate.md."
+	],
 	"pinned_step_ids": [
 		"ci.yml::api::Build API and OpenAPI document",
 		"ci.yml::api::CI lane not applicable",
@@ -726,8 +775,8 @@
 			"reason": "No exact local command match for run step \"Pull stack images\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-image-trust.ts pull\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Run Playwright shard": {
-			"reason_hash": "3ec3faf34e2746da",
-			"reason": "No exact local command match for run step \"Run Playwright shard\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-playwright-shard.ts ${{ matrix.shard }} 2\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason_hash": "4aa814b50d1a5d33",
+			"reason": "No exact local command match for run step \"Run Playwright shard\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-playwright-shard.ts ${{ matrix.shard }} 6\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Setup Node": {
 			"reason_hash": "4e8ec84731dc50a2",
@@ -746,8 +795,8 @@
 			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-test-${{ matrix.shard }}\",\"path\":\"ci-results/e2e-test-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Upload Playwright report": {
-			"reason_hash": "7174eee62f0264ae",
-			"reason": "Hosted-only action step \"Upload Playwright report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')\",\"with\":{\"name\":\"front-e2e-playwright-report-${{ matrix.shard }}-of-2\",\"path\":\"apps/front/playwright-report\\napps/front/test-results\\n\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
+			"reason_hash": "d5b5104307e4e6d2",
+			"reason": "Hosted-only action step \"Upload Playwright report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')\",\"with\":{\"name\":\"front-e2e-playwright-report-${{ matrix.shard }}-of-6\",\"path\":\"apps/front/playwright-report\\napps/front/test-results\\n\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Wait for e2e stack health": {
 			"reason_hash": "82f2249638b7d097",
