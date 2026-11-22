@@ -43,12 +43,17 @@ export type PreloadSuite = {
 	linkTo: string;
 	path: string;
 	linkLabel: string;
+	/** A bare layout parent the destination nests under (the jobs index). */
+	parentPath?: string;
 	/** A REAL parent route the destination nests under. */
 	parent?: { path: string; childPath: string; options: unknown };
 	/** Payloads the page needs to mount its queries; other calls get `{}`. */
 	responses?: readonly PreloadResponse[];
 	/** Each endpoint the page reads on the default URL. */
 	endpoints: readonly PreloadEndpoint[];
+	/** Endpoint counts after the click on every URL (default: `endpoints`), for
+	 * a page that reads one endpoint again that the loader warmed once. */
+	clickEndpoints?: readonly PreloadEndpoint[];
 	/** How many queries the loader warms on the default URL. */
 	warmed: number;
 	/** Extra URL states; the default URL is always checked first. */
@@ -72,6 +77,7 @@ const buildDestination = (suite: PreloadSuite, search?: Search) =>
 		linkTo: suite.linkTo,
 		linkSearch: search,
 		path: suite.path,
+		parentPath: suite.parentPath,
 		parent: suite.parent,
 		options: suite.route.options,
 	});
@@ -84,9 +90,13 @@ const expectEndpointCalls = (
 		expect(countCallsByPath(respond, ...suffix)).toBe(count);
 	}
 	if (scenario.request !== undefined) {
+		// Exactly one call carries the filters (a stat-card count must not).
+		const matcher = expect.objectContaining(scenario.request.params);
 		expect(
-			requestQueryParameters(respond, ...scenario.request.suffix),
-		).toContainEqual(expect.objectContaining(scenario.request.params));
+			requestQueryParameters(respond, ...scenario.request.suffix).filter(
+				(parameters) => matcher.asymmetricMatch(parameters),
+			),
+		).toHaveLength(1);
 	}
 };
 
@@ -153,6 +163,7 @@ const toScenario = (
 	...variant,
 	endpoints: variant.endpoints ?? suite.endpoints,
 	warmed: variant.warmed ?? suite.warmed,
+	clickEndpoints: variant.clickEndpoints ?? suite.clickEndpoints,
 });
 
 const respondFrom =
