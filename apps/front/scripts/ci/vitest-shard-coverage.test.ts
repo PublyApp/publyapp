@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
-import { globSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { BaseSequencer, type TestSpecification } from 'vitest/node';
 import { parse } from 'yaml';
 
 /**
@@ -20,13 +21,16 @@ import { parse } from 'yaml';
  * property statically, in well under a second:
  *
  *   - discovery is computed from the REAL vitest config globs
- *     (`vitest.config.ts` include/exclude), with Node's native glob, so no
- *     config filter is restated here;
+ *     (`vitest.config.ts` include/exclude) with the same library and options
+ *     Vitest's own `globFiles` uses (tinyglobby, `dot: true`, `ignore`,
+ *     `expandDirectories: false`), resolved from the installed vitest package,
+ *     so dotfiles, node_modules and `!` negations behave as they do in the
+ *     real run instead of being restated here;
  *   - the shard count comes from the REAL workflow matrix, and the shard
  *     step's argument list is pinned to exactly `--shard=${{ matrix.shard }}/n`;
- *   - the partition is computed with Vitest 4's own `BaseSequencer.shard`
- *     rule (sha1 of the root-relative file path, contiguous equal slices),
- *     so the per-shard counts are the ones the real matrix produces;
+ *   - the partition is computed by Vitest's own `BaseSequencer.shard`,
+ *     imported from `vitest/node` and given the real root and shard, so a
+ *     vitest bump cannot leave a private copy of the rule drifting;
  *   - no file appears in more than one shard;
  *   - the union of the shards is EXACTLY the configured suite (a file lost by
  *     the shard matrix, or invented by it, is a loud failure);
@@ -37,8 +41,9 @@ import { parse } from 'yaml';
  * gone is only the redundant execution of Vitest's collection five times.
  *
  * An unparseable workflow or vitest config, an empty discovery, or a config
- * shape this guard cannot model (projects, test.dir, a non-front root) all
- * fail loudly — absent or unanalyzable input is never a silent pass.
+ * shape this guard cannot model (projects, test.dir, includeSource, a custom
+ * sequence.sequencer, a non-front root) all fail loudly — absent or
+ * unanalyzable input is never a silent pass.
  */
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -68,6 +73,8 @@ interface VitestConfig {
 		exclude?: unknown;
 		projects?: unknown;
 		dir?: unknown;
+		includeSource?: unknown;
+		sequence?: { sequencer?: unknown };
 	};
 }
 
@@ -170,6 +177,18 @@ const readDiscoveryGlobs = async (): Promise<{
 		);
 	}
 
+	if (config.test.includeSource !== undefined) {
+		throw new Error(
+			'vitest.config.ts declares test.includeSource: those files run in the shards but are not part of test.include, so this guard cannot prove they survive the partition. Extend the guard before enabling in-source tests (unanalyzable input must fail loud, never pass).',
+		);
+	}
+
+	if (config.test.sequence?.sequencer !== undefined) {
+		throw new Error(
+			'vitest.config.ts declares test.sequence.sequencer: a custom sequencer can shard differently from BaseSequencer, which this guard calls. Extend the guard before changing the sequencer (unanalyzable input must fail loud, never pass).',
+		);
+	}
+
 	if (config.root !== undefined) {
 		if (
 			typeof config.root !== 'string' ||
@@ -195,19 +214,51 @@ const readDiscoveryGlobs = async (): Promise<{
 	};
 };
 
+interface TinyGlobbyOptions {
+	dot: boolean;
+	cwd: string;
+	ignore: string[];
+	expandDirectories: boolean;
+}
+
+interface TinyGlobby {
+	glob: (patterns: string[], options: TinyGlobbyOptions) => Promise<string[]>;
+}
+
+/**
+ * Resolves tinyglobby through Vitest's own dependency tree, then imports it
+ * with the exact options Vitest's `globFiles` passes. No private glob copy:
+ * a Vitest bump that moves or replaces the library makes this import fail
+ * loudly instead of leaving the guard on stale semantics.
+ */
+const importVitestGlob = async (): Promise<TinyGlobby['glob']> => {
+	const require = createRequire(import.meta.url);
+	const vitestRequire = createRequire(require.resolve('vitest/package.json'));
+	const tinyGlobby: TinyGlobby = await import(
+		pathToFileURL(vitestRequire.resolve('tinyglobby')).href
+	);
+
+	return tinyGlobby.glob;
+};
+
 /** Computes vitest's discovery from the config globs, with no collection. */
-const discoverTestFiles = (globs: {
+const discoverTestFiles = async (globs: {
 	include: string[];
 	exclude: string[];
-}): string[] => {
-	const files = globSync(globs.include, {
-		cwd: frontDirectory,
-		exclude: globs.exclude,
-	}).map((file) => file.split(path.sep).join('/'));
+}): Promise<string[]> => {
+	const glob = await importVitestGlob();
+	const files = (
+		await glob(globs.include, {
+			dot: true,
+			cwd: frontDirectory,
+			ignore: globs.exclude,
+			expandDirectories: false,
+		})
+	).map((file) => file.replaceAll('\\', '/').replace(/^\.\//, ''));
 
 	if (files.length === 0) {
 		throw new Error(
-			`the configured vitest globs discovered no test files — empty discovery is unanalyzable and must fail loud, never pass.`,
+			'the configured vitest globs discovered no test files — empty discovery is unanalyzable and must fail loud, never pass.',
 		);
 	}
 
@@ -215,70 +266,48 @@ const discoverTestFiles = (globs: {
 };
 
 /**
- * Vitest 4's `BaseSequencer.shard` assigns each file a sha1 of its
- * root-relative path, sorts by that hash, then slices contiguous equal
- * ranges (`calculateShardRange`). Reproduced here so the guard reports the
- * same per-shard counts as the real matrix without running vitest.
+ * Partitions the suite with Vitest's own `BaseSequencer.shard` — the exact
+ * method the real `--shard=i/n` run uses, including its sha1 ordering and
+ * contiguous range slicing. Importing it (instead of copying the rule) means
+ * a vitest bump cannot leave this guard silently modelling an old version.
  */
-const importOrderedFiles = (files: readonly string[]): string[] =>
-	[...files]
-		.map((file) => ({
-			file,
-			hash: createHash('sha1').update(`/${file}`).digest('hex'),
-		}))
-		.sort((a, b) => {
-			if (a.hash < b.hash) {
-				return -1;
-			}
-
-			if (a.hash > b.hash) {
-				return 1;
-			}
-
-			return 0;
-		})
-		.map(({ file }) => file);
-
-const calculateShardRange = (
-	filesCount: number,
-	index: number,
-	count: number,
-): [number, number] => {
-	const baseShardSize = Math.floor(filesCount / count);
-	const remainderTestFilesCount = filesCount % count;
-
-	if (remainderTestFilesCount >= index) {
-		const shardSize = baseShardSize + 1;
-		return [shardSize * (index - 1), shardSize * index];
-	}
-
-	const shardStart =
-		remainderTestFilesCount * (baseShardSize + 1) +
-		(index - remainderTestFilesCount - 1) * baseShardSize;
-	return [shardStart, shardStart + baseShardSize];
-};
-
-const partitionShards = (
+const partitionShards = async (
 	files: readonly string[],
 	shardCount: number,
-): string[][] => {
-	const ordered = importOrderedFiles(files);
+): Promise<string[][]> => {
+	const specs: TestSpecification[] = files.map((file) =>
+		Object.assign(Object.create(null), {
+			moduleId: path.join(frontDirectory, file),
+		}),
+	);
 
-	return Array.from({ length: shardCount }, (_, zeroBasedIndex) => {
-		const [start, end] = calculateShardRange(
-			ordered.length,
-			zeroBasedIndex + 1,
-			shardCount,
-		);
-		return ordered.slice(start, end);
-	});
+	return Promise.all(
+		Array.from({ length: shardCount }, async (_, zeroBasedIndex) => {
+			const context: ConstructorParameters<typeof BaseSequencer>[0] =
+				Object.assign(Object.create(null), {
+					config: {
+						root: frontDirectory,
+						shard: {
+							index: zeroBasedIndex + 1,
+							count: shardCount,
+						},
+					},
+				});
+			const sequencer = new BaseSequencer(context);
+			const shard = await sequencer.shard(specs);
+
+			return shard.map((spec) =>
+				path.relative(frontDirectory, spec.moduleId).split(path.sep).join('/'),
+			);
+		}),
+	);
 };
 
 void test('#1948: the sharded vitest discovery is exactly the configured suite, once per file', async () => {
 	const shardCount = readShardCount();
 	assertVitestRunArgs(shardCount);
-	const full = discoverTestFiles(await readDiscoveryGlobs());
-	const shards = partitionShards(full, shardCount);
+	const full = await discoverTestFiles(await readDiscoveryGlobs());
+	const shards = await partitionShards(full, shardCount);
 
 	const fullSet = new Set(full);
 	const seen = new Set<string>();
