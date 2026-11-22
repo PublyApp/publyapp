@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
  * into one object; `todesktop-05` metric parity keeps the label/detail pair
  * on the same 15/24 grid as the fact strip below it.
  */
-const CLAIM_KEYS = ['plan', 'teamwork', 'traceability'] as const;
+export const CLAIM_KEYS = ['plan', 'teamwork', 'traceability'] as const;
 
 export const LandingClaims = () => {
 	const { t } = useTranslation('landing');

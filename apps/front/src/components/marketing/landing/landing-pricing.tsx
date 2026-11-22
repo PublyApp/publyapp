@@ -44,7 +44,7 @@ import { cn } from '~/lib/utils';
  * weight in full foreground — because the note, not the price, is the true
  * statement in that row.
  */
-const PRICING_TIERS = [
+export const PRICING_TIERS = [
 	{ id: 'studio', featured: false },
 	{ id: 'agency', featured: true },
 	{ id: 'network', featured: false },
