@@ -471,10 +471,8 @@ export const collectChanged = (base: string, cwd = repoRoot): PlanInput => {
 	return { changed, deleted, sizedLines };
 };
 
-const escapeRegExp = (value: string) =>
-	value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const importerPattern = (file: string) =>
-	`[/'"]${escapeRegExp(sourceStem(file))}(\\.(ts|tsx|js|jsx))?['"]`;
+	`[/'"]${sourceStem(file).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\.(ts|tsx|js|jsx))?['"]`;
 
 export const defaultDeps: PlanDeps = {
 	listDir: (dir) => {
