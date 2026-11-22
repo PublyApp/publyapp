@@ -94,6 +94,22 @@ Remove the reusable containers (and their anonymous volumes) with:
 just test-db-down
 ```
 
+### Test database timing and tuning
+
+At test-process exit the fixtures print one line with the measured costs:
+
+```
+[test-db] timings classes=42 clone=3400ms/44 (77ms each) host=41000ms/42 (976ms each) drop=2600ms/42 (62ms each) total=47000ms
+```
+
+The throwaway Testcontainers container (CI, or a bare `dotnet test`) runs from
+tmpfs with `fsync`, `synchronous_commit` and `full_page_writes` off, autovacuum
+off and `initdb --nosync`; the long-lived reused container keeps its volume so
+the cached template survives between runs. Because the throwaway container is
+destroyed with the test process, its per-class `DROP DATABASE` is skipped; the
+reused local container still drops each clone, so clones never accumulate
+across runs.
+
 ### Expected Output
 
 ```
