@@ -23,19 +23,6 @@ vi.mock('~/lib/api-client/client-manager', () =>
 		m.clientManagerModule(),
 	),
 );
-vi.mock('~/lib/hooks/use-logout', () =>
-	import('~/__tests__/support/preload-mocks').then((m) => m.logoutHookModule()),
-);
-vi.mock('~/components/error-views/LogoutRedirect', () =>
-	import('~/__tests__/support/preload-mocks').then((m) =>
-		m.logoutRedirectModule(),
-	),
-);
-vi.mock('react-i18next', (importOriginal) =>
-	import('~/__tests__/support/preload-mocks').then((m) =>
-		m.identityI18nModule(importOriginal),
-	),
-);
 
 const ROLES_PATH = ['staff', 'roles', 'get'] as const;
 const LINK_LABEL = 'open roles';

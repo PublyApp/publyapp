@@ -18,19 +18,6 @@ vi.mock('~/lib/api-client/client-manager', () =>
 		m.tenantClientManagerModule(),
 	),
 );
-vi.mock('~/lib/hooks/use-logout', () =>
-	import('~/__tests__/support/preload-mocks').then((m) => m.logoutHookModule()),
-);
-vi.mock('~/components/error-views/LogoutRedirect', () =>
-	import('~/__tests__/support/preload-mocks').then((m) =>
-		m.logoutRedirectModule(),
-	),
-);
-vi.mock('react-i18next', (importOriginal) =>
-	import('~/__tests__/support/preload-mocks').then((m) =>
-		m.identityI18nModule(importOriginal),
-	),
-);
 
 const PUBLICATIONS = ['publishing', 'publications', 'get'] as const;
 const PERMISSIONS = ['auth', 'scopeAuthData', 'get'] as const;

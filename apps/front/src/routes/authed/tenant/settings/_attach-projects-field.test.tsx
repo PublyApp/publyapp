@@ -16,10 +16,6 @@ vi.mock('~/lib/query/tenant-projects', async (importOriginal) => {
 	};
 });
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 import { AttachProjectsField } from './_attach-projects-field';
 
 // A failed *refetch* keeps the last good data (TanStack v5 flips

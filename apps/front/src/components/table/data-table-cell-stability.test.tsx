@@ -7,11 +7,6 @@
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 import { DropdownMenuItem } from '~/components/ui/dropdown-menu';
 
 import type { ColumnDef } from './column-type';

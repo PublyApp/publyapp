@@ -20,10 +20,6 @@ import {
 	DrawerTrigger,
 } from './drawer';
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 const noop = () => undefined;
 
 const renderDrawer = ({

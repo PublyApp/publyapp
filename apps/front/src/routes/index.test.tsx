@@ -22,12 +22,6 @@ vi.mock('@tanstack/react-router', () => ({
 	),
 }));
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({
-		t: (key: string) => key,
-	}),
-}));
-
 const marketingFlags = vi.hoisted(() => ({
 	customerLogos: false,
 	socialProof: false,

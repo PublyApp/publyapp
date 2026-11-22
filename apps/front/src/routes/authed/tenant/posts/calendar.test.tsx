@@ -37,10 +37,6 @@ vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => mocks.shouldLogout,
 }));
 
-vi.mock('~/components/error-views/LogoutRedirect', () => ({
-	LogoutRedirect: () => <div data-testid="logout-redirect" />,
-}));
-
 vi.mock('@tanstack/react-router', () => ({
 	useRouter: () => ({ invalidate: vi.fn() }),
 	createFileRoute: () => (options: Record<string, unknown>) => ({

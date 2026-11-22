@@ -24,13 +24,6 @@ vi.mock('~/lib/flags', () => ({
 	FEATURES: { dev: { fieldValidationDemoEnabled: true } },
 }));
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({
-		t: (key: string) => key,
-		i18n: { language: 'en' },
-	}),
-}));
-
 vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	toastLocalMutationResult: toastMocks,
 }));

@@ -18,19 +18,6 @@ vi.mock('~/lib/api-client/client-manager', () =>
 		m.clientManagerModule(),
 	),
 );
-vi.mock('~/lib/hooks/use-logout', () =>
-	import('~/__tests__/support/preload-mocks').then((m) => m.logoutHookModule()),
-);
-vi.mock('~/components/error-views/LogoutRedirect', () =>
-	import('~/__tests__/support/preload-mocks').then((m) =>
-		m.logoutRedirectModule(),
-	),
-);
-vi.mock('react-i18next', (importOriginal) =>
-	import('~/__tests__/support/preload-mocks').then((m) =>
-		m.identityI18nModule(importOriginal),
-	),
-);
 
 const DEAD_LETTER_PATH = ['staff', 'jobs', 'deadLetter', 'get'] as const;
 const TENANT_ID = '0192f4c2-7a1b-7c3d-8e4f-5a6b7c8d9e0f';

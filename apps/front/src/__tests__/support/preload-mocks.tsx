@@ -7,7 +7,7 @@ import {
 
 /**
  * Module factories for the staff and tenant `*.preload.test.tsx` suites. `vi.mock` calls
- * are hoisted per file, so each test file keeps its four one-line `vi.mock`
+ * are hoisted per file, so each test file keeps its one-line `vi.mock`
  * registrations and hands the module body to these factories.
  */
 
@@ -32,30 +32,6 @@ export const clientManagerModule = async () => {
 		}),
 	};
 };
-
-type LogoutHookModule = { useLogout: () => { logout: () => void } };
-
-export const logoutHookModule = (): LogoutHookModule => ({
-	useLogout: () => ({ logout: vi.fn() }),
-});
-
-export const logoutRedirectModule = () => ({
-	LogoutRedirect: () => <div data-testid="logout-redirect" />,
-});
-
-export const identityI18nModule = async (
-	importOriginal: () => Promise<typeof import('react-i18next')>,
-): Promise<Record<string, unknown>> => ({
-	...(await importOriginal()),
-	useTranslation: () => ({
-		t: (key: string) => key,
-		i18n: {
-			language: 'en',
-			getFixedT: () => (key: string) => key,
-			t: (key: string) => key,
-		},
-	}),
-});
 
 /** The fake client manager of the tenant routes: tenant-scoped clients prefix
  * every call path with the tenant id they were built for. */

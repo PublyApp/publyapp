@@ -161,9 +161,6 @@ vi.mock('~/lib/query/tenant-projects', () => ({
 }));
 
 // The authed route boundary the thrown 401 ends in.
-vi.mock('~/components/error-views/LogoutRedirect', () => ({
-	LogoutRedirect: () => <div data-testid="logout-redirect" />,
-}));
 vi.mock('@tanstack/react-router', () => ({
 	useRouter: () => ({ invalidate: vi.fn() }),
 }));
