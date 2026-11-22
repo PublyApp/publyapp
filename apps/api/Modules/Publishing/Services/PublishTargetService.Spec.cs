@@ -1,11 +1,11 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Projects.Entities;
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
@@ -45,7 +45,7 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnOnlyActiveTenantTargetsInCreatedAtIdOrder() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, foreignTenantId) = await PublishTargetServiceSpec._SeedTenantsAsync(db);
 
 		var oldActive = await PublishTargetServiceSpec._SeedAccountAsync(
@@ -83,7 +83,7 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldApplyTheSingleVisibilityRulePerProject() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, _) = await PublishTargetServiceSpec._SeedTenantsAsync(db);
 
 		var attached = await PublishTargetServiceSpec._SeedAccountAsync(
@@ -119,7 +119,7 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNeverLeakAnotherTenantsAccounts() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, foreignTenantId) = await PublishTargetServiceSpec._SeedTenantsAsync(db);
 
 		await PublishTargetServiceSpec._SeedAccountAsync(
@@ -139,24 +139,6 @@ public sealed class PublishTargetServiceSpec : IClassFixture<ApiFixture> {
 
 	// ── helpers ────────────────────────────────────────────────────────
 
-	private async Task<AppDbContext> _NewDbAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 
 	private static async Task<(Guid TenantId, Guid ForeignTenantId)> _SeedTenantsAsync(
 		AppDbContext db

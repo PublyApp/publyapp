@@ -67,7 +67,7 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 			service => service.BulkSuspendStaffUsersAsync(
 				[raceUserId, stableUserId]
 			),
-			(dbContext, cancellationToken) => BulkStaffUserLifecycleConcurrencySpec._SetStaffUserStatusAsync(
+			(dbContext, cancellationToken) => StaffUserTestHelper.SetStaffUserStatusAsync(
 				dbContext,
 				raceUserId,
 				UserStatus.Suspended,
@@ -136,7 +136,7 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 			service => service.BulkReactivateStaffUsersAsync(
 				[raceUserId, stableUserId]
 			),
-			(dbContext, cancellationToken) => BulkStaffUserLifecycleConcurrencySpec._SetStaffUserStatusAsync(
+			(dbContext, cancellationToken) => StaffUserTestHelper.SetStaffUserStatusAsync(
 				dbContext,
 				raceUserId,
 				UserStatus.Active,
@@ -205,7 +205,7 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 			service => service.BulkDeleteStaffUsersAsync(
 				[raceUserId, stableUserId]
 			),
-			(dbContext, cancellationToken) => BulkStaffUserLifecycleConcurrencySpec._SetStaffUserStatusAsync(
+			(dbContext, cancellationToken) => StaffUserTestHelper.SetStaffUserStatusAsync(
 				dbContext,
 				raceUserId,
 				UserStatus.Active,
@@ -259,7 +259,7 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 		Func<StaffUserLifecycleService, Task<TResult>> operationAsync,
 		Func<AppDbContext, CancellationToken, Task> mutateAsync
 	) {
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringAsync(this._Fixture);
 		var interceptor = new BeforeUsersUpdateInterceptor(async cancellationToken => {
 			await using var mutateScope = this._Fixture.Factory.Services.CreateAsyncScope();
 			var mutateDbContext = mutateScope.ServiceProvider
@@ -281,18 +281,6 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 		return await operationAsync(service);
 	}
 
-	private async Task<string> _GetConnectionStringAsync() {
-		await using var db = this._Fixture.OpenDb();
-
-		var connectionString = db.Context.Database.GetConnectionString();
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return connectionString;
-	}
 
 	private static async Task _SoftDeleteStaffUserAsync(
 		AppDbContext dbContext,
@@ -326,21 +314,6 @@ public sealed class BulkStaffUserLifecycleConcurrencySpec
 			);
 	}
 
-	private static async Task _SetStaffUserStatusAsync(
-		AppDbContext dbContext,
-		Guid userId,
-		UserStatus status,
-		CancellationToken cancellationToken
-	) {
-		_ = await dbContext.User
-			.Where(x => x.Id == userId && !x.IsDeleted)
-			.ExecuteUpdateAsync(
-				setters => setters
-					.SetProperty(x => x.Status, status)
-					.SetProperty(x => x.UpdatedAt, DateTime.UtcNow),
-				cancellationToken
-			);
-	}
 
 	private async Task<StaffUserState> _GetStaffUserStateAsync(Guid userId) {
 		await using var db = this._Fixture.OpenDb();

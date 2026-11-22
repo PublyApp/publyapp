@@ -1,3 +1,5 @@
+using FluentAssertions;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -6,6 +8,7 @@ using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Roles.Entities;
+using PublyApp.Api.Modules.Users.Entities;
 
 namespace PublyApp.Api.Lib.Testing.Helpers;
 
@@ -109,5 +112,62 @@ internal static class InvitationTestHelper {
 		await db.SaveChangesAsync();
 
 		return invitation.GetRequiredId();
+	}
+
+	/// <summary>Seeds a staff invitation that expired one day ago.</summary>
+	public static async Task<Guid> CreateExpiredStaffInvitationAsync(
+		ApiFixture fixture,
+		string email
+	) {
+		using IServiceScope scope = fixture.Factory.Services.CreateScope();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		Role staffRole = await dbContext.Role
+			.Where(role =>
+				role.Scope == RoleScope.Staff
+				&& !role.IsDeleted
+			)
+			.OrderBy(role => role.Name)
+			.FirstAsync();
+		User staffUser = await dbContext.User
+			.Where(user => user.Email == SeedConstants.Staff.AdminEmail)
+			.FirstAsync();
+
+		Invitation invitation = Invitation.CreateStaffInvitationWithRoles(
+			email,
+			[staffRole.GetRequiredId()],
+			staffUser.GetRequiredId(),
+			DateTime.UtcNow.AddDays(-1),
+			Guid.NewGuid().ToString("N")[..32]
+		);
+
+		_ = await dbContext.Invitation.AddAsync(invitation);
+		_ = await dbContext.SaveChangesAsync();
+
+		return invitation.GetRequiredId();
+	}
+
+	/// <summary>Marks an existing staff invitation accepted and stamps the time.</summary>
+	public static async Task MarkStaffInvitationAcceptedAsync(
+		ApiFixture fixture,
+		Guid invitationId
+	) {
+		using IServiceScope scope = fixture.Factory.Services.CreateScope();
+		AppDbContext dbContext = scope.ServiceProvider
+			.GetRequiredService<AppDbContext>();
+
+		Invitation? invitation = await dbContext.Invitation
+			.Where(inv => inv.Id == invitationId)
+			.FirstOrDefaultAsync();
+		_ = invitation.Should().NotBeNull();
+		if (invitation is null) {
+			return;
+		}
+
+		invitation.Status = InvitationStatus.Accepted;
+		invitation.AcceptedAt = DateTime.UtcNow;
+
+		_ = await dbContext.SaveChangesAsync();
 	}
 }

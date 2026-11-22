@@ -8,7 +8,6 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -44,7 +43,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._BulkRemoveAsync(
 			sessionToken: null,
@@ -58,7 +57,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUser() {
 		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._BulkRemoveAsync(
 			tenantToken,
@@ -77,7 +76,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 				this._AuthClient,
 				"bulk-remove-tenant-user-no-permission"
 			);
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._BulkRemoveAsync(
 			staffToken,
@@ -107,7 +106,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	[MemberData(nameof(BulkRemoveTenantUsersAsStaffSpec.InvalidBodies))]
 	public async Task ItShouldReturnValidationProblemWhenBodyIsInvalid(string body) {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._BulkRemoveRawJsonAsync(
 			staffToken,
@@ -127,7 +126,7 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldReturnValidationProblemWhenUserIdsExceedTheMaximumCount() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		var tooManyUserIds = Enumerable.Range(0, 101).Select(_ => Guid.NewGuid()).ToArray();
 
@@ -315,14 +314,6 @@ public sealed class BulkRemoveTenantUsersAsStaffSpec : IClassFixture<ApiFixture>
 		};
 	}
 
-	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			token,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<(Guid TenantId, Guid AdminUserId)> _SeedTenantWithAdminAsync() {
 		await using var db = this._Fixture.OpenDb();

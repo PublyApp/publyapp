@@ -10,7 +10,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -129,7 +128,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 			AttachPostImageForTenantSpec._AttachImageUrl(postId)
 		)
 			.WithSessionToken(techStartToken)
-			.WithTenantId(await this._GetTechStartTenantIdAsync());
+			.WithTenantId(await TenantTestHelper.GetTechStartIdAsync(this._Http, this._AuthClient));
 		request.Content = AttachPostImageForTenantSpec._BuildFileContent(AttachPostImageForTenantSpec._PngBytes(width: 16, height: 16));
 
 		using var response = await this._Http.SendAsync(request);
@@ -469,7 +468,7 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		// handler already acquired never becomes an attached image. Without the
 		// compensating release that reference stays at 1 forever.
 		var (tenantId, token) = await this._LoginAsAcmeAdminAsync();
-		var foreignTenantId = await this._GetTechStartTenantIdAsync();
+		var foreignTenantId = await TenantTestHelper.GetTechStartIdAsync(this._Http, this._AuthClient);
 		var postId = await this._CreatePostAsync(tenantId, token);
 		var postIdGuid = Guid.Parse(postId);
 
@@ -1109,19 +1108,11 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
-	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private static async Task<Guid> _ResolveAcmeAdminUserIdAsync(AppDbContext db) {
 		var user = await (
@@ -1137,14 +1128,6 @@ public sealed class AttachPostImageForTenantSpec : IClassFixture<ApiFixture> {
 		return user.GetRequiredId();
 	}
 
-	private async Task<Guid> _GetTechStartTenantIdAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.TechStartName
-		);
-	}
 
 	private async Task<string> _CreatePostAsync(Guid tenantId, string token) {
 		using var request = new HttpRequestMessage(HttpMethod.Post, "/posts")

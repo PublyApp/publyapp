@@ -251,7 +251,7 @@ public sealed class ResolveTenantRoleUserAssignmentsAsStaffSpec : IClassFixture<
 
 		var roleAId = await this._CreateTenantRoleAsync(tenantAId);
 		var foreignMemberId = await this._CreateTenantMemberAsync(tenantBId);
-		await this._CreateCorruptCrossTenantJunctionRowAsync(foreignMemberId, roleAId);
+		await RoleTestHelper.CreateCorruptCrossTenantJunctionRowAsync(this._Fixture, foreignMemberId, roleAId);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -461,19 +461,4 @@ public sealed class ResolveTenantRoleUserAssignmentsAsStaffSpec : IClassFixture<
 		response.EnsureSuccessStatusCode();
 	}
 
-	/// <summary>
-	/// Inserts a UserAccountRole junction row directly via the DbContext, bypassing the
-	/// assign endpoint (which itself enforces tenant matching). Used to represent corrupt/legacy
-	/// cross-tenant data for isolation specs that must exercise the service's account-tenant
-	/// predicate rather than relying on an otherwise-empty join.
-	/// </summary>
-	private async Task _CreateCorruptCrossTenantJunctionRowAsync(Guid userAccountId, Guid roleId) {
-		await using var db = this._Fixture.OpenDb();
-
-		_ = db.Context.UserAccountRole.Add(new UserAccountRole {
-			UserAccountId = userAccountId,
-			RoleId = roleId,
-		});
-		_ = await db.Context.SaveChangesAsync();
-	}
 }

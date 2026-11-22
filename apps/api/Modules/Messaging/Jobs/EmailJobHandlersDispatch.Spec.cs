@@ -4,15 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Jobs;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
-using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -51,7 +50,7 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 			send.IdempotencyKey == jobId.ToString("N")
 		);
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await assertDb.JobQueue.AsNoTracking().AnyAsync(job => job.Id == jobId))
 			.Should().BeFalse();
 		var log = await assertDb.EmailLog.AsNoTracking()
@@ -73,7 +72,7 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 		result.Should().Be(new JobQueueProcessor.BatchResult(1, 1, 1, true));
 		sender.Sends.Should().BeEmpty();
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await assertDb.JobQueue.AsNoTracking().AnyAsync(job => job.Id == jobId))
 			.Should().BeFalse();
 		(await assertDb.JobDeadLetter.AsNoTracking()
@@ -105,8 +104,8 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 
 	private async Task<(Guid InvitationId, string Token)> _SeedStaffInvitationAsync() {
 		var token = $"tok-{Guid.NewGuid():N}";
-		await using var db = this._CreateDbContext();
-		var invitedBy = await EmailJobHandlersDispatchSpec._SeedUserInAsync(db);
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
+		var invitedBy = await StaffUserTestHelper.SeedUserAsync(db);
 		var invitation = Invitation.CreateStaffInvitationWithRoles(
 			$"invitee-{Guid.NewGuid():N}@example.com",
 			new List<Guid>(),
@@ -121,7 +120,7 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 	}
 
 	private async Task<Guid> _SeedQueuedStaffInvitationAsync(Guid invitationId) {
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var job = new JobQueueItem {
 			JobType = InvitationEmailJobs.StaffInvitationV1.JobType,
 			Payload = $"{{\"invitationId\":\"{invitationId}\"}}",
@@ -138,31 +137,5 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 		return job.Id.Value;
 	}
 
-	private static async Task<Guid> _SeedUserInAsync(AppDbContext db) {
-		var user = new User {
-			Email = $"inviter-{Guid.NewGuid():N}@example.com",
-			Password = "unused",
-			IsVerified = true
-		};
-		db.User.Add(user);
-		await db.SaveChangesAsync();
-		return user.GetRequiredId();
-	}
 
-	private AppDbContext _CreateDbContext() {
-		using var scope = this._Fixture.Factory.Services.CreateScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 }

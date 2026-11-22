@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -71,7 +70,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 			result.ExternalStateStatus.Should().Be((int)ExternalStateStatus.Missing);
 
 			// Row stamped 4 Missing; recorded bounds kept as evidence.
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 			var row = await verify.JobDeadLetter.SingleAsync(d => d.Id == deadLetterId);
 			row.ExternalStateStatus.Should().Be((int)ExternalStateStatus.Missing);
 			row.ExternalStatePreparedAt.Should().NotBeNull("recorded bounds are kept");
@@ -185,7 +184,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 			response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
 			// Nothing changed: still Unclassified, no event row.
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 			var row = await verify.JobDeadLetter.SingleAsync(d => d.Id == deadLetterId);
 			row.ExternalStateStatus.Should().Be((int)ExternalStateStatus.Unclassified);
 			(await verify.JobDeadLetterEvent.AnyAsync(e => e.DeadLetterId == deadLetterId))
@@ -223,7 +222,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 			problem.RootElement.GetProperty("detail").GetString()
 				.Should().Contain("Missing", "the conflict names the post-resolution state");
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 			(await verify.JobDeadLetterEvent.CountAsync(e => e.DeadLetterId == deadLetterId))
 				.Should().Be(1, "exactly one evidence event exists after the race");
 		} finally {
@@ -246,7 +245,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 
 		try {
 			// Producer leg: dead-letter a real job_queue row through the engine.
-			await using (var dbContext = await this._CreateDbContextAsync()) {
+			await using (var dbContext = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture)) {
 				var row = new JobQueueItem { JobType = jobType };
 				await dbContext.JobQueue.AddAsync(row);
 				await dbContext.SaveChangesAsync();
@@ -289,14 +288,14 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 
 			// Final state: 4 Missing — out of the exempt class, retention-eligible again.
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 			var resolved = await verify.JobDeadLetter.SingleAsync(d => d.Id == deadLetterId);
 			resolved.ExternalStateStatus.Should().Be((int)ExternalStateStatus.Missing);
 		} finally {
 			if (deadLetterId != Guid.Empty) {
 				await this._CleanupAsync(deadLetterId);
 			}
-			await using var sweep = await this._CreateDbContextAsync();
+			await using var sweep = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 			await sweep.Database.ExecuteSqlAsync(
 				$"DELETE FROM job_queue WHERE job_type = {jobType}"
 			);
@@ -400,7 +399,7 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 			"""
 		);
 
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 		var row = await verify.JobDeadLetter.SingleAsync(d => d.JobType == jobType);
 		var deadLetterIdValue = row.Id;
 		if (deadLetterIdValue is null) {
@@ -419,20 +418,6 @@ public sealed class ResolveDeadLetterUnclassifiedForStaffSpec : IClassFixture<Ap
 		);
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString).Options
-		);
-	}
 
 	private sealed record ResolvedResponse {
 		public Guid Id { get; set; }

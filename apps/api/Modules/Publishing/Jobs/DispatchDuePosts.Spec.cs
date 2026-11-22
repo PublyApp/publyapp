@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
@@ -32,24 +31,6 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 		this._Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> _NewDbAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 
 	private static JobContext _NewContext() {
 		return new JobContext {
@@ -156,7 +137,7 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldClaimOnlyPastDueScheduledRowsAndTransitionThem() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var pastDue = await DispatchDuePostsSpec._SeedPublicationAsync(
 			db,
 			PublicationStatus.Scheduled,
@@ -225,7 +206,7 @@ public sealed class DispatchDuePostsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldSucceedWithoutWorkWhenNoRowIsPastDue() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		_ = await DispatchDuePostsSpec._SeedPublicationAsync(
 			db,
 			PublicationStatus.Scheduled,

@@ -34,7 +34,7 @@ public sealed class TenantAsStaffServiceSpec
 		var replacementLogoUrl = "https://cdn.example.com/replaced-logo.png";
 
 		var tenantId = await this._SeedTenantAsync(initialLogoUrl);
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringAsync(this._Fixture);
 		var interceptor = new FailingLogoReferenceCheckAfterUpdateInterceptor();
 
 		await using var serviceDbContext = new AppDbContext(
@@ -102,18 +102,6 @@ public sealed class TenantAsStaffServiceSpec
 		return tenant.GetRequiredId();
 	}
 
-	private async Task<string> _GetConnectionStringAsync() {
-		await using var db = this._Fixture.OpenDb();
-
-		var connectionString = db.Context.Database.GetConnectionString();
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return connectionString;
-	}
 
 	private sealed class FailingLogoReferenceCheckAfterUpdateInterceptor
 		: DbCommandInterceptor {
@@ -240,7 +228,7 @@ public sealed class TenantAsStaffServiceSpec
 	[Fact]
 	public async Task
 	ItShouldNotifyTheOutboxSignalAfterCreatingTenantWithInitialUsers() {
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringAsync(this._Fixture);
 		var fakeOutboxSignal = new FakeInvitationEmailOutboxSignal();
 
 		await using var serviceDbContext = new AppDbContext(

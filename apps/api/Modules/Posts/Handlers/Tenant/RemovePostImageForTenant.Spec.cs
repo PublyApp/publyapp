@@ -7,7 +7,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
 
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -132,7 +131,7 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 			RemovePostImageForTenantSpec._ImageUrl(postId)
 		)
 			.WithSessionToken(techStartToken)
-			.WithTenantId(await this._GetTechStartTenantIdAsync());
+			.WithTenantId(await TenantTestHelper.GetTechStartIdAsync(this._Http, this._AuthClient));
 		using var response = await this._Http.SendAsync(request);
 
 		// Foreign-tenant resources are invisible, never forbidden: 404.
@@ -215,28 +214,12 @@ public sealed class RemovePostImageForTenantSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
-	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
-	private async Task<Guid> _GetTechStartTenantIdAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.TechStartName
-		);
-	}
 
 	private async Task<string> _CreatePostAsync(Guid tenantId, string token) {
 		using var request = new HttpRequestMessage(HttpMethod.Post, "/posts")

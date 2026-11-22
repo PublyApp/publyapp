@@ -10,6 +10,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Invitations.Entities;
 using PublyApp.Api.Modules.Invitations.Jobs;
@@ -42,7 +43,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var handler = EmailJobHandlersSpec._StaffHandler(db, sender);
 		var outcome = await handler.HandleAsync(
 			EmailJobHandlersSpec._StaffContext(jobId, invitationId),
@@ -53,7 +54,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		sender.Sends.Should().HaveCount(1);
 		sender.Sends[0].IdempotencyKey.Should().Be(jobId.ToString("N"));
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 		log.Outcome.Should().Be(EmailLogOutcome.Submitted);
 		log.Kind.Should().Be(EmailKind.StaffInvitation);
@@ -75,7 +76,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var handler = EmailJobHandlersSpec._StaffHandler(db, sender);
 		var outcome = await handler.HandleAsync(
 			EmailJobHandlersSpec._StaffContext(jobId, invitationId),
@@ -85,7 +86,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		outcome.Should().BeOfType<JobOutcome.Cancelled>();
 		sender.Sends.Should().BeEmpty();
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 		log.Outcome.Should().Be(EmailLogOutcome.CancelledIneligible);
 	}
@@ -101,14 +102,14 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var failing = new ControllableSender {
 			FailWith = _ => new EmailProviderTransientException("provider_rejected:transient")
 		};
-		await using (var db1 = this._CreateDbContext()) {
+		await using (var db1 = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			var outcome = await EmailJobHandlersSpec._StaffHandler(db1, failing)
 				.HandleAsync(EmailJobHandlersSpec._StaffContext(jobId, invitationId), CancellationToken.None);
 			outcome.Should().BeOfType<JobOutcome.Retry>();
 		}
 
 		// The frozen envelope persists across the failed attempt.
-		await using (var check = this._CreateDbContext()) {
+		await using (var check = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			(await check.EmailPreparedSend.AsNoTracking().AnyAsync(p => p.JobId == jobId))
 				.Should().BeTrue();
 		}
@@ -117,7 +118,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		await this._RotateInvitationTokenAsync(invitationId);
 
 		var succeeding = new ControllableSender();
-		await using (var db2 = this._CreateDbContext()) {
+		await using (var db2 = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			var outcome = await EmailJobHandlersSpec._StaffHandler(db2, succeeding)
 				.HandleAsync(EmailJobHandlersSpec._StaffContext(jobId, invitationId, attempts: 1), CancellationToken.None);
 			outcome.Should().BeOfType<JobOutcome.Success>();
@@ -136,13 +137,13 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			FailWith = _ => new EmailProviderTransientException("provider_rejected:429")
 		};
 
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var outcome = await EmailJobHandlersSpec._StaffHandler(db, sender)
 			.HandleAsync(EmailJobHandlersSpec._StaffContext(jobId, invitationId), CancellationToken.None);
 
 		outcome.Should().BeOfType<JobOutcome.Retry>();
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		// A failed submit NEVER produces a Submitted row.
 		(await assertDb.EmailLog.AsNoTracking().AnyAsync(e => e.JobId == jobId)).Should().BeFalse();
 	}
@@ -157,7 +158,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 
 		// A real, immediately-due job_queue row for this email job.
 		Guid jobId;
-		await using (var seed = this._CreateDbContext()) {
+		await using (var seed = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			var item = new JobQueueItem {
 				JobType = InvitationEmailJobs.StaffInvitationV1.JobType,
 				Payload = $"{{\"invitationId\":\"{invitationId}\"}}",
@@ -175,7 +176,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 
 		// Claim it (engine transition): Pending -> Processing + a fencing lock_token.
 		Guid lockToken;
-		await using (var claimDb = this._CreateDbContext()) {
+		await using (var claimDb = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			var claimed = await JobQueueProcessor.ClaimBatchAsync(
 				claimDb, "spec-worker", leaseSeconds: 60, batchSize: 50, CancellationToken.None
 			);
@@ -183,7 +184,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		}
 
 		// The handler classifies the provider failure as Retry.
-		await using (var handlerDb = this._CreateDbContext()) {
+		await using (var handlerDb = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			var sender = new ControllableSender {
 				FailWith = _ => new EmailProviderTransientException("provider_rejected:429")
 			};
@@ -193,7 +194,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		}
 
 		// Apply the engine's retry transition — the same call the processor makes.
-		await using (var requeueDb = this._CreateDbContext()) {
+		await using (var requeueDb = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			var requeued = await JobQueueProcessor.TryRequeueAsync(
 				requeueDb, jobId, lockToken, delaySeconds: 300,
 				lastError: "provider_rejected:429", CancellationToken.None
@@ -202,14 +203,14 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		}
 
 		// next_attempt_at is in the future and the attempt counter advanced.
-		await using (var assertDb = this._CreateDbContext()) {
+		await using (var assertDb = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			var row = await assertDb.JobQueue.AsNoTracking().SingleAsync(j => j.Id == jobId);
 			row.NextAttemptAt.Should().BeAfter(DateTime.UtcNow);
 			row.Attempts.Should().Be(1);
 		}
 
 		// NOT claimable before next_attempt_at elapses.
-		await using (var beforeDb = this._CreateDbContext()) {
+		await using (var beforeDb = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			var claimed = await JobQueueProcessor.ClaimBatchAsync(
 				beforeDb, "spec-worker", leaseSeconds: 60, batchSize: 50, CancellationToken.None
 			);
@@ -217,13 +218,13 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		}
 
 		// Move the schedule into the past via SQL (never sleeping) — now claimable.
-		await using (var advanceDb = this._CreateDbContext()) {
+		await using (var advanceDb = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			await advanceDb.Database.ExecuteSqlAsync(
 				$"UPDATE job_queue SET next_attempt_at = now() - make_interval(secs => 1) WHERE id = {jobId}"
 			);
 		}
 
-		await using (var afterDb = this._CreateDbContext()) {
+		await using (var afterDb = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			var claimed = await JobQueueProcessor.ClaimBatchAsync(
 				afterDb, "spec-worker", leaseSeconds: 60, batchSize: 50, CancellationToken.None
 			);
@@ -239,12 +240,12 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			FailWith = _ => new EmailProviderPermanentException("provider_rejected:422")
 		};
 
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var outcome = await EmailJobHandlersSpec._StaffHandler(db, sender)
 			.HandleAsync(EmailJobHandlersSpec._StaffContext(jobId, invitationId), CancellationToken.None);
 
 		outcome.Should().BeOfType<JobOutcome.PermanentFailure>();
-		(await this._CreateDbContext().EmailLog.AsNoTracking().AnyAsync(e => e.JobId == jobId
+		(await SpecDbHelper.CreateDbContext(this._Fixture).EmailLog.AsNoTracking().AnyAsync(e => e.JobId == jobId
 			&& e.Outcome == EmailLogOutcome.Submitted)).Should().BeFalse();
 	}
 
@@ -260,7 +261,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var (invitationId, _) = await this._SeedStaffInvitationAsync();
 		var jobId = Guid.CreateVersion7();
 
-		await using (var seed = this._CreateDbContext()) {
+		await using (var seed = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			seed.EmailLog.Add(new EmailLog {
 				JobId = jobId,
 				Kind = EmailKind.StaffInvitation,
@@ -271,7 +272,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		}
 
 		var sender = new ControllableSender();
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var outcome = await EmailJobHandlersSpec._StaffHandler(db, sender)
 			.HandleAsync(EmailJobHandlersSpec._StaffContext(jobId, invitationId), CancellationToken.None);
 
@@ -297,13 +298,13 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var jobId = Guid.CreateVersion7();
 
 		// First run: ineligible → commits email_log(CancelledIneligible) for this job_id.
-		await using (var first = this._CreateDbContext()) {
+		await using (var first = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			var outcome = await EmailJobHandlersSpec._StaffHandler(first, new ControllableSender())
 				.HandleAsync(EmailJobHandlersSpec._StaffContext(jobId, invitationId), CancellationToken.None);
 			outcome.Should().BeOfType<JobOutcome.Cancelled>();
 		}
 
-		await using (var seeded = this._CreateDbContext()) {
+		await using (var seeded = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			var row = await seeded.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 			row.Outcome.Should().Be(EmailLogOutcome.CancelledIneligible);
 		}
@@ -311,7 +312,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		// The lease is lost and the job is reclaimed: the SAME job_id runs again against the
 		// committed Cancelled row. It must short-circuit — not throw, not resend.
 		var sender = new ControllableSender();
-		await using var reclaimed = this._CreateDbContext();
+		await using var reclaimed = SpecDbHelper.CreateDbContext(this._Fixture);
 		var reRun = async () => await EmailJobHandlersSpec._StaffHandler(reclaimed, sender)
 			.HandleAsync(EmailJobHandlersSpec._StaffContext(jobId, invitationId, attempts: 1), CancellationToken.None);
 
@@ -319,7 +320,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		sender.Sends.Should().BeEmpty();
 
 		// Still exactly one row — no second insert was ever attempted.
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await assertDb.EmailLog.AsNoTracking().CountAsync(e => e.JobId == jobId)).Should().Be(1);
 	}
 
@@ -336,7 +337,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var handler = new SubmittedRaceHandler(
 			db,
 			sender,
@@ -353,7 +354,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		outcome.Should().BeOfType<JobOutcome.Success>();
 		sender.Sends.Should().BeEmpty();
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		// The winner's row is the only one — the loser neither sent nor logged.
 		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 		log.Outcome.Should().Be(EmailLogOutcome.Submitted);
@@ -371,7 +372,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var (invitationId, _) = await this._SeedStaffInvitationAsync();
 		var jobId = Guid.CreateVersion7();
 
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		await using var transaction = await db.Database.BeginTransactionAsync();
 		var context = EmailJobHandlersSpec._StaffContext(jobId, invitationId, lastError: "provider_rejected:422");
 		await EmailJobHandlersSpec._StaffHandler(db, new ControllableSender()).OnTerminalFailureAsync(
@@ -381,7 +382,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		await db.SaveChangesAsync();
 		await transaction.CommitAsync();
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 		log.Outcome.Should().Be(EmailLogOutcome.PermanentlyFailed);
 		log.LastError.Should().Be("provider_rejected:422");
@@ -396,7 +397,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			MaxAttempts = 10
 		};
 
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		db.JobQueue.Add(job);
 		await db.SaveChangesAsync();
 
@@ -431,7 +432,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 
 		await processor.ProcessOneAsync(job, lockToken, CancellationToken.None);
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await assertDb.JobQueue.AsNoTracking().AnyAsync(j => j.Id == jobId))
 			.Should().BeFalse();
 		var deadLetter = await assertDb.JobDeadLetter.AsNoTracking()
@@ -457,7 +458,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			ReachedBarrier = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)
 		};
 
-		await using var handlerDb = this._CreateDbContext();
+		await using var handlerDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		var handlerTask = EmailJobHandlersSpec._StaffHandler(handlerDb, sender)
 			.HandleAsync(EmailJobHandlersSpec._StaffContext(jobId, invitationId), CancellationToken.None);
 
@@ -468,7 +469,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			// A concurrent revoke must hit PostgreSQL's lock timeout while the send owns the
 			// row lock. This proves the database wait directly instead of relying on elapsed
 			// wall-clock timing that can false-green on a slow CI host.
-			await using var revokeDb = this._CreateDbContext();
+			await using var revokeDb = SpecDbHelper.CreateDbContext(this._Fixture);
 			await using var revokeTransaction = await revokeDb.Database.BeginTransactionAsync();
 			await revokeDb.Database.ExecuteSqlRawAsync("SET LOCAL lock_timeout = '250ms'");
 
@@ -494,7 +495,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		(await handlerTask).Should().BeOfType<JobOutcome.Success>();
 		await this._SetInvitationStatusAsync(invitationId, InvitationStatus.Revoked);
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId))
 			.Outcome.Should().Be(EmailLogOutcome.Submitted);
 	}
@@ -507,7 +508,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var handler = new PasswordResetEmailJobHandler(
 			db, sender, new EmailLogWriter(db), EmailJobHandlersSpec._Metrics()
 		);
@@ -532,7 +533,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var outcome = await EmailJobHandlersSpec._JoinedStaffHandler(db, sender)
 			.HandleAsync(EmailJobHandlersSpec._JoinedStaffContext(jobId, userId), CancellationToken.None);
 
@@ -540,7 +541,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		sender.Sends.Should().HaveCount(1);
 		sender.Sends[0].IdempotencyKey.Should().Be(jobId.ToString("N"));
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 		log.Outcome.Should().Be(EmailLogOutcome.Submitted);
 		log.Kind.Should().Be(EmailKind.StaffJoinedNotification);
@@ -556,14 +557,14 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var outcome = await EmailJobHandlersSpec._JoinedStaffHandler(db, sender)
 			.HandleAsync(EmailJobHandlersSpec._JoinedStaffContext(jobId, userId), CancellationToken.None);
 
 		outcome.Should().BeOfType<JobOutcome.Cancelled>();
 		sender.Sends.Should().BeEmpty();
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		var log = await assertDb.EmailLog.AsNoTracking().SingleAsync(e => e.JobId == jobId);
 		log.Outcome.Should().Be(EmailLogOutcome.CancelledIneligible);
 	}
@@ -579,11 +580,11 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using (var db = this._CreateDbContext()) {
+		await using (var db = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			await EmailJobHandlersSpec._JoinedStaffHandler(db, sender)
 				.HandleAsync(EmailJobHandlersSpec._JoinedStaffContext(jobId, userId), CancellationToken.None);
 		}
-		await using (var db = this._CreateDbContext()) {
+		await using (var db = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			await EmailJobHandlersSpec._JoinedStaffHandler(db, sender)
 				.HandleAsync(EmailJobHandlersSpec._JoinedStaffContext(jobId, userId), CancellationToken.None);
 		}
@@ -595,7 +596,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 				"twice they were added."
 		);
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await assertDb.EmailLog.AsNoTracking().CountAsync(e => e.JobId == jobId))
 			.Should().Be(1);
 	}
@@ -613,7 +614,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		var jobId = Guid.CreateVersion7();
 		var sender = new ControllableSender();
 
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var outcome = await EmailJobHandlersSpec._JoinedStaffHandler(db, sender)
 			.HandleAsync(EmailJobHandlersSpec._JoinedStaffContext(jobId, userId), CancellationToken.None);
 
@@ -626,7 +627,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		);
 		sender.Sends.Should().BeEmpty();
 
-		await using var assertDb = this._CreateDbContext();
+		await using var assertDb = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await assertDb.EmailLog.AsNoTracking().AnyAsync(e => e.JobId == jobId))
 			.Should().BeFalse();
 	}
@@ -677,7 +678,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	// --- seeding ------------------------------------------------------------------
 
 	private async Task<Guid> _SeedExistingUserAsync(UserStatus status) {
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var user = new User {
 			Email = $"joined-{Guid.NewGuid():N}@example.com",
 			Password = "unused",
@@ -690,7 +691,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SoftDeleteUserAsync(Guid userId) {
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		await db.Database.ExecuteSqlAsync(
 			$"UPDATE users SET is_deleted = TRUE, deleted_at = now(), updated_at = now() WHERE id = {userId}"
 		);
@@ -698,8 +699,8 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid InvitationId, string Token)> _SeedStaffInvitationAsync() {
 		var token = $"tok-{Guid.NewGuid():N}";
-		await using var db = this._CreateDbContext();
-		var invitedBy = await EmailJobHandlersSpec._SeedUserInAsync(db);
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
+		var invitedBy = await StaffUserTestHelper.SeedUserAsync(db);
 		var invitation = Invitation.CreateStaffInvitationWithRoles(
 			$"invitee-{Guid.NewGuid():N}@example.com",
 			new List<Guid>(),
@@ -716,7 +717,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	// The concurrent worker that won the race: commits an email_log(Submitted) row for the
 	// same job on its OWN connection, exactly as the first SEND transaction would.
 	private async Task _CommitConcurrentSubmittedAsync(Guid jobId, Guid invitationId) {
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		db.EmailLog.Add(new EmailLog {
 			JobId = jobId,
 			Kind = EmailKind.StaffInvitation,
@@ -728,14 +729,14 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SetInvitationStatusAsync(Guid invitationId, InvitationStatus status) {
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		await db.Database.ExecuteSqlAsync(
 			$"UPDATE invitations SET status = {(int)status}, updated_at = now() WHERE id = {invitationId}"
 		);
 	}
 
 	private async Task _RotateInvitationTokenAsync(Guid invitationId) {
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var token = "rotated-" + Guid.NewGuid().ToString("N");
 		await db.Database.ExecuteSqlAsync(
 			$"""
@@ -747,7 +748,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _SeedUserAsync(bool withLiveToken) {
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var user = new User {
 			Email = $"user-{Guid.NewGuid():N}@example.com",
 			Password = "unused",
@@ -760,33 +761,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 		return user.GetRequiredId();
 	}
 
-	private static async Task<Guid> _SeedUserInAsync(AppDbContext db) {
-		var user = new User {
-			Email = $"inviter-{Guid.NewGuid():N}@example.com",
-			Password = "unused",
-			IsVerified = true
-		};
-		db.User.Add(user);
-		await db.SaveChangesAsync();
-		return user.GetRequiredId();
-	}
 
-	private AppDbContext _CreateDbContext() {
-		using var scope = this._Fixture.Factory.Services.CreateScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 
 	// The step-3a probe: a real EmailJobHandlerBase whose locked prepare also runs an
 	// injection hook. PrepareAsync is the seam the spec's race needs — it runs after step

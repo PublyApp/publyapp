@@ -1,7 +1,6 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
@@ -35,24 +34,6 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		this._Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> _NewDbAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 
 	private sealed record SeededPublication(
 		Guid TenantId,
@@ -225,7 +206,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldPublishStampTheAccountLastSuccessAtAndStoreTheRecordLink() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var recordUri = $"at://did:plc:x/app.bsky.feed.post/pub-{seeded.IdempotencyKey}";
 
@@ -263,7 +244,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	[InlineData(SocialProvider.Mastodon, SocialPostVisibility.Private)]
 	[InlineData(SocialProvider.Mastodon, SocialPostVisibility.Public)]
 	public async Task ItShouldPublishWithTheDefaultVisibilityOfTheTargetAccount(SocialProvider provider, SocialPostVisibility visibility) {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		await db.SocialAccount
 			.Where(a => a.Id == seeded.SocialAccountId)
@@ -287,7 +268,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldTreatAlreadyExistsAsSuccessWithTheExistingRecordAndNoDuplicate() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 
 		// Crash-after-create simulation: the remote record ALREADY exists under the
@@ -325,7 +306,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldNeverDowngradeARevokedAccountToNeedsReconnect() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var account = await db.SocialAccount.SingleAsync(a => a.Id == seeded.SocialAccountId);
 		account.Status = SocialAccountStatus.Revoked;
@@ -351,7 +332,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldPublishARetriedPublicationAsAlreadyExistsWithoutASecondRecord() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var transitions = new PublicationStatusTransitionService(db);
 		_ = await transitions.MarkFailedAsync(
@@ -400,7 +381,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFailAtDispatchWithoutAProviderCallWhenTheBodyBecameOverLimit() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var postId = (await db.Publication.SingleAsync(p => p.Id == seeded.PublicationId)).PostId;
 		var post = await db.Post.SingleAsync(p => p.Id == postId);
@@ -432,7 +413,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	// cause the user can read; nothing reaches the provider.
 	[Fact]
 	public async Task ItShouldFailWithAClearCauseAndSendNothingWhenTheOperatorDisabledTheProvider() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var publishProvider = new FakePublishProvider(new PublishResult.Published("remote-1", "https://example/1"));
 		var sessions = FakeSessions.Opened();
@@ -463,7 +444,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	// The scheduled path: a row still Scheduled at dispatch time goes straight to Failed.
 	[Fact]
 	public async Task ItShouldFailAScheduledPublicationOfADisabledProviderAtDispatch() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var publishProvider = new FakePublishProvider(PublishPublicationJobHandlerSpec._Published());
 		var handler = PublishPublicationJobHandlerSpec._NewHandler(
@@ -485,7 +466,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	// A thread that already landed two segments keeps saying so in the disabled cause.
 	[Fact]
 	public async Task ItShouldKeepTheThreadProgressInTheDisabledCause() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
 		db.PublicationSegmentResult.Add(new PublicationSegmentResult {
@@ -513,7 +494,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFailWithoutRetryWhenBlueskyRefusesTheContent() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var publishProvider = new FakePublishProvider(
 			new PublishResult.ContentFailure("the post body exceeds the 300 grapheme limit")
@@ -549,7 +530,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldPauseAndFlagNeedsReconnectWhenTheSessionFailsOnTheAccount() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var sessionProvider = FakeSessions.AccountFailure(
 			"the app password 'correct-horse-battery' was revoked"
@@ -587,7 +568,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldPauseAndFlagNeedsReconnectWhenTheProviderRefusesTheCredential() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var publishProvider = new FakePublishProvider(
 			new PublishResult.AccountFailure("InvalidToken: the session was revoked")
@@ -614,7 +595,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnRetryAndStayInProgressForATransientFailure() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var publishProvider = new FakePublishProvider(
 			new PublishResult.TransientFailure("the PDS returned 503 overloaded")
@@ -643,7 +624,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFailThePublicationAndFlagTheAccountAfterTheFinalAttempt() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var publishProvider = new FakePublishProvider(
 			new PublishResult.TransientFailure("connection reset by peer")
@@ -691,7 +672,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldCancelWhenThePublicationIsMissingOrAlreadyTerminal() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var missingHandler = PublishPublicationJobHandlerSpec._NewHandler(
 			db, new FakePublishProvider(null), FakeSessions.Opened()
 		);
@@ -733,7 +714,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldEnqueueOnlyThroughIJobEnqueuerWithTheDerivedKeyAndDedupInFlight() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var enqueuer = new JobEnqueuer(db, new RequestAuthContext());
 		var payload = new PublishPublicationPayload {
@@ -757,7 +738,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 				.Be(3, "three attempts before the engine dead-letters (brief §5)");
 
 			// Same key while the first is in flight → unique violation (F13 dedup).
-			await using var secondContext = await this._NewDbAsync();
+			await using var secondContext = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 			var secondEnqueuer = new JobEnqueuer(secondContext, new RequestAuthContext());
 			var act = async () => await secondEnqueuer.EnqueueAsync(
 				PublishingJobs.PublishPublicationV1,
@@ -767,7 +748,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			await act.Should().ThrowAsync<DbUpdateException>();
 
 			// A key that does NOT derive from the publication id is refused at enqueue.
-			await using var thirdContext = await this._NewDbAsync();
+			await using var thirdContext = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 			var thirdEnqueuer = new JobEnqueuer(thirdContext, new RequestAuthContext());
 			var forged = async () => await thirdEnqueuer.EnqueueAsync(
 				PublishingJobs.PublishPublicationV1,
@@ -870,7 +851,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldHandEachDestinationItsEffectiveTextImagesAndAltFromTheResolver() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var storage = PublishPublicationJobHandlerSpec._NewStorage();
 		var bytes = await PublishPublicationJobHandlerSpec._SeedImagesAsync(
@@ -918,7 +899,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFlowASharedTextEditIntoNonOverriddenSegmentsOnly() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
 		var destinationB = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
@@ -944,7 +925,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldResumeAThreadAfterTheLastPublishedSegmentWithTheEffectiveTexts() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
 		var destinationB = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
@@ -970,7 +951,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldKeepTheCustomTextOfAFailedThreadWhenItIsReissuedWithoutOverrides() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
 		var failed = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
@@ -1018,7 +999,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldPruneTextOverridesAtPositionsAShrunkenThreadNoLongerHas() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
 		var destination = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
@@ -1038,7 +1019,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldRefuseNewOverridesAtSegmentsAReissuedThreadAlreadyCarried() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two");
 		var failed = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
@@ -1074,7 +1055,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFailOnlyTheDestinationWhoseOverrideBreaksItsLimitAndDeriveFailedForTheMix() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var destinationB = await PublishPublicationJobHandlerSpec._AddDestinationAsync(
 			db, seeded, PublishPublicationJobHandlerSpec._TextOverrides((0, new string('x', 301)))
@@ -1129,7 +1110,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldHandTheProviderTheImagesInOrderWithTheirBytesAndAlt() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var storage = PublishPublicationJobHandlerSpec._NewStorage();
 		var bytes = await PublishPublicationJobHandlerSpec._SeedImagesAsync(
@@ -1168,7 +1149,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFailWithoutRetryNamingTheImageWhenItsFileIsMissingFromStorage() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var storage = PublishPublicationJobHandlerSpec._NewStorage();
 		await PublishPublicationJobHandlerSpec._SeedImagesAsync(
@@ -1207,7 +1188,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFailAtDispatchWhenAnAttachedImageIsOfAnUnacceptedType() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var storage = PublishPublicationJobHandlerSpec._NewStorage();
 		await PublishPublicationJobHandlerSpec._SeedImagesAsync(
@@ -1240,7 +1221,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldPauseAllOtherScheduledPublicationsOfTheSameAccountOnCredentialFailure() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var s1 = await PublishPublicationJobHandlerSpec._SeedSiblingAsync(db, seeded.TenantId, seeded.SocialAccountId, PublicationStatus.Scheduled);
 		var s2 = await PublishPublicationJobHandlerSpec._SeedSiblingAsync(db, seeded.TenantId, seeded.SocialAccountId, PublicationStatus.Scheduled);
@@ -1286,7 +1267,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldKeepSweepCausesSanitised() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		await PublishPublicationJobHandlerSpec._SeedSiblingAsync(db, seeded.TenantId, seeded.SocialAccountId, PublicationStatus.Scheduled);
 
@@ -1351,7 +1332,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldPersistEachSegmentAsItLandsAndNameTheProgressWhenALaterSegmentFails() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
 		var provider = new ThreadPublishProvider(
@@ -1383,7 +1364,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldResumeFromTheStoredSegmentsWithoutRepublishingThem() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
 		var first = new ThreadPublishProvider(2, new PublishResult.TransientFailure("503 later"));
@@ -1416,7 +1397,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFailAtDispatchNamingTheSegmentWhenAFollowUpIsOverTheLimit() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "fine", new string('b', 301));
 		var provider = new FakePublishProvider(null);
@@ -1520,7 +1501,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	private async Task<List<PublishAttempt>> _AttemptsAsync(Guid publicationId) {
-		using var fresh = await this._NewDbAsync();
+		using var fresh = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		return await fresh.PublishAttempt
 			.AsNoTracking()
 			.Where(attempt => attempt.PublicationId == publicationId)
@@ -1536,7 +1517,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldCommitTheJournalRowBeforeTheProviderWriteSoACrashLeavesProofOfTheAttempt() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var provider = new JournalingProvider(async (self, request, token) => {
 			await self.BeginWriteAsync(request, 0, token);
@@ -1558,7 +1539,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldNeverDoubleWriteWhenARecoveredJobFindsTheRecordAfterACrash() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var crashing = new JournalingProvider(async (self, request, token) => {
 			await self.BeginWriteAsync(request, 0, token);
@@ -1574,7 +1555,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			)),
 			new ReconcileResult.Found(found)
 		);
-		using var recoveryDb = await this._NewDbAsync();
+		using var recoveryDb = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(recoveryDb, recovered, seeded, attempts: 1);
 
 		outcome.Should().BeOfType<JobOutcome.Success>();
@@ -1589,7 +1570,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldMarkTheAttemptUnknownAndBackOffOnAnAmbiguousAnswerThenResendOnceWhenConfirmedAbsent() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var first = new JournalingProvider(async (self, request, token) => {
 			await self.BeginWriteAsync(request, 0, token);
@@ -1609,7 +1590,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			},
 			new ReconcileResult.SafeToResend()
 		);
-		using var retryDb = await this._NewDbAsync();
+		using var retryDb = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var secondOutcome = await PublishPublicationJobHandlerSpec._RunAsync(retryDb, second, seeded, attempts: 1);
 
 		secondOutcome.Should().BeOfType<JobOutcome.Success>();
@@ -1621,7 +1602,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldAskTheProviderToVerifyTheSegmentTextWhenResendingUnderTheSameKey() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var first = new JournalingProvider(async (self, request, token) => {
 			await self.BeginWriteAsync(request, 0, token);
@@ -1635,7 +1616,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			},
 			new ReconcileResult.SafeToResend()
 		);
-		using var retryDb = await this._NewDbAsync();
+		using var retryDb = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 
 		await PublishPublicationJobHandlerSpec._RunAsync(retryDb, second, seeded, attempts: 1);
 
@@ -1645,7 +1626,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldKeepAConfirmedLiveStatusInTheJournalWhenItsContentIsRefusedWithoutRetry() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var provider = new JournalingProvider(async (self, request, token) => {
 			await self.BeginWriteAsync(request, 0, token);
@@ -1663,7 +1644,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldNotWriteAndBackOffWhenTheLookupIsUnavailable() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var first = new JournalingProvider(async (self, request, token) => {
 			await self.BeginWriteAsync(request, 0, token);
@@ -1675,7 +1656,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			(_, _, _) => throw new InvalidOperationException("no write expected"),
 			new ReconcileResult.Unavailable("the PDS is down")
 		);
-		using var retryDb = await this._NewDbAsync();
+		using var retryDb = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(retryDb, second, seeded, attempts: 1);
 
 		outcome.Should().BeOfType<JobOutcome.Retry>().Which.Error.Should().Contain("PDS is down");
@@ -1686,7 +1667,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldParkAsNeedsReviewWithoutAnyWriteWhenTheProviderCannotConfirm() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var first = new JournalingProvider(async (self, request, token) => {
 			await self.BeginWriteAsync(request, 0, token);
@@ -1698,7 +1679,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			(_, _, _) => throw new InvalidOperationException("no write expected"),
 			new ReconcileResult.NeedsReview("Mastodon can no longer confirm whether the post went out")
 		);
-		using var retryDb = await this._NewDbAsync();
+		using var retryDb = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(retryDb, second, seeded, attempts: 1);
 
 		outcome.Should().BeOfType<JobOutcome.Success>("zero automatic retries");
@@ -1711,7 +1692,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldAskTheUserInsteadOfFailingWhenAnAmbiguousWriteExhaustsItsAttempts() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var provider = new JournalingProvider(async (self, request, token) => {
 			await self.BeginWriteAsync(request, 0, token);
@@ -1728,7 +1709,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReconcileTheAmbiguousSegmentOfAThreadAndContinueAfterIt() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, seeded, "two", "three");
 		var first = new JournalingProvider(async (self, request, token) => {
@@ -1751,7 +1732,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 			(_, request, _) => Task.FromResult<PublishResult>(new PublishResult.Published("at://r/0", "https://u/0")),
 			new ReconcileResult.Found(new CompletedSegment(1, "at://r/1", "cid-1", "https://u/1"))
 		);
-		using var retryDb = await this._NewDbAsync();
+		using var retryDb = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		await PublishPublicationJobHandlerSpec._RunAsync(retryDb, second, seeded, attempts: 1);
 
 		second.Reconciles.Should().ContainSingle().Which.SegmentPosition.Should().Be(1);
@@ -1766,7 +1747,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldSkipReconciliationOnceTheUserRetriesANeedsReviewPublication() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var first = new JournalingProvider(async (self, request, token) => {
 			await self.BeginWriteAsync(request, 0, token);
@@ -1774,7 +1755,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		});
 		await PublishPublicationJobHandlerSpec._RunAsync(db, first, seeded, attempts: 4, maxAttempts: 5);
 
-		using var retryDb = await this._NewDbAsync();
+		using var retryDb = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		await new PublicationStatusTransitionService(retryDb).RetryAsync(
 			new RetryPublicationArgs(seeded.PublicationId, seeded.TenantId, SupersedeUnresolvedAttempts: true),
 			CancellationToken.None
@@ -1797,7 +1778,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldParkAsNeedsReviewNotFailedWhenTheSessionBlipsOnTheLastAttemptAfterAnAmbiguousWrite() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var first = new JournalingProvider(async (self, request, token) => {
 			await self.BeginWriteAsync(request, 0, token);
@@ -1805,7 +1786,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		});
 		await PublishPublicationJobHandlerSpec._RunAsync(db, first, seeded);
 
-		using var lastDb = await this._NewDbAsync();
+		using var lastDb = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var blip = new FakeSocialSessionProvider(new SocialSessionResult.Transient("auth server blip"));
 		var outcome = await PublishPublicationJobHandlerSpec._NewHandler(
 			lastDb, new FakePublishProvider(null), blip
@@ -1824,14 +1805,14 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldParkAsNeedsReviewNotFailedWhenTheBodyNoLongerFitsAfterAnAmbiguousWrite() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var first = new JournalingProvider(async (self, request, token) => {
 			await self.BeginWriteAsync(request, 0, token);
 			return new PublishResult.Ambiguous("502");
 		});
 		await PublishPublicationJobHandlerSpec._RunAsync(db, first, seeded);
-		using var editDb = await this._NewDbAsync();
+		using var editDb = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var post = await editDb.Post.SingleAsync(p => p.TenantId == seeded.TenantId);
 		post.Body = new string('x', 5000);
 		await editDb.SaveChangesAsync();
@@ -1845,7 +1826,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldTreatASegmentWithAStoredResultAsDeliveredInsteadOfParking() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		// Crash between the segment-result save and the journal resolve.
 		var crashing = new JournalingProvider(async (self, request, token) => {
@@ -1867,7 +1848,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		var second = new JournalingProvider(
 			(_, request, _) => Task.FromResult<PublishResult>(new PublishResult.Published("at://r/0", "https://u/0"))
 		);
-		using var recoveryDb = await this._NewDbAsync();
+		using var recoveryDb = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var outcome = await PublishPublicationJobHandlerSpec._RunAsync(recoveryDb, second, seeded, attempts: 1);
 
 		outcome.Should().BeOfType<JobOutcome.Success>();
@@ -1880,7 +1861,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldLetTheUserMarkANeedsReviewPublicationPublishedButNothingElse() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var provider = new JournalingProvider(async (self, request, token) => {
 			await self.BeginWriteAsync(request, 0, token);
@@ -1951,7 +1932,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldHandEachFollowUpItsOwnImagesAndKeepThemOffTheRootSegment() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var storage = PublishPublicationJobHandlerSpec._NewStorage();
 		var rootBytes = TestImages.Png(12, 12);
@@ -1988,7 +1969,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFailWithoutRetryNamingTheSegmentWhenAFollowUpImageIsMissingFromStorage() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var storage = PublishPublicationJobHandlerSpec._NewStorage();
 		await PublishPublicationJobHandlerSpec._AddSegmentAsync(
@@ -2011,7 +1992,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldFailAtDispatchNamingTheSegmentWhenAFollowUpHasMoreImagesThanTheDestinationTakes() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublishPublicationJobHandlerSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var storage = PublishPublicationJobHandlerSpec._NewStorage();
 		var five = Enumerable.Range(0, 5)
@@ -2075,7 +2056,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldAdoptTheRecordAFailedPublicationWroteButNeverRecordedInsteadOfPostingItAgain() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (failed, fresh) = await PublishPublicationJobHandlerSpec._SeedReissueAsync(db, (0, SubmissionState.Unknown));
 		var found = new CompletedSegment(0, "at://did:plc:x/app.bsky.feed.post/pub-old", "cid-old", "https://bsky.app/p/old");
 		var provider = new JournalingProvider(
@@ -2099,7 +2080,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldWriteNormallyWhenTheFailedPublicationsWriteIsConfirmedAbsent() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (failed, fresh) = await PublishPublicationJobHandlerSpec._SeedReissueAsync(db, (0, SubmissionState.Superseded));
 		var provider = new JournalingProvider(
 			async (self, request, token) => {
@@ -2118,7 +2099,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldTellTheProviderAReissuedResendWouldGoOutUnderANewKey() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (_, fresh) = await PublishPublicationJobHandlerSpec._SeedReissueAsync(db, (0, SubmissionState.Unknown));
 		var provider = new JournalingProvider(
 			(_, _, _) => throw new InvalidOperationException("no write expected"),
@@ -2132,7 +2113,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldParkAReissuedPublicationForReviewWhenTheFailedWriteCannotBeConfirmed() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (_, fresh) = await PublishPublicationJobHandlerSpec._SeedReissueAsync(db, (0, SubmissionState.Unknown));
 		var provider = new JournalingProvider(
 			(_, _, _) => throw new InvalidOperationException("no write expected"),
@@ -2150,7 +2131,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldNotLookUpAFailedWriteThatWasProvablyRefused() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (_, fresh) = await PublishPublicationJobHandlerSpec._SeedReissueAsync(db, (0, SubmissionState.Rejected));
 		var provider = new JournalingProvider(
 			async (self, request, token) => {
@@ -2168,7 +2149,7 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldContinueAReissuedThreadAfterTheSegmentTheFailedPublicationCreatedButNeverRecorded() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (failed, fresh) = await PublishPublicationJobHandlerSpec._SeedReissueAsync(db, (1, SubmissionState.Unknown));
 		await PublishPublicationJobHandlerSpec._AddFollowUpsAsync(db, fresh, "two", "three");
 		// What re-issuing already carried over: segment 1 is recorded on the fresh row.

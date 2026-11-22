@@ -14,6 +14,7 @@ using Npgsql;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Entities;
 
@@ -484,7 +485,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		);
 
 		// Secondary behavioral control: the probe left the lock untouched and available.
-		await using var connection = new NpgsqlConnection(this._GetTestConnectionString());
+		await using var connection = new NpgsqlConnection(SpecDbHelper.GetTestConnectionString(this._Fixture));
 		await connection.OpenAsync();
 		await using var command = new NpgsqlCommand(
 			$"SELECT pg_try_advisory_lock({SchedulerLeaderService.SchedulerLeaderLockKey})",
@@ -507,7 +508,7 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		using var monitor = this._CreateMonitor();
 
 		// A dedicated session holding the real key, standing in for a live leader.
-		await using var leaderConnection = new NpgsqlConnection(this._GetTestConnectionString());
+		await using var leaderConnection = new NpgsqlConnection(SpecDbHelper.GetTestConnectionString(this._Fixture));
 		await leaderConnection.OpenAsync();
 		await using var acquire = new NpgsqlCommand(
 			$"SELECT pg_advisory_lock({SchedulerLeaderService.SchedulerLeaderLockKey})",
@@ -866,18 +867,6 @@ public sealed class JobQueueMonitorServiceSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private string _GetTestConnectionString() {
-		using var scope = this._Fixture.Factory.Services.CreateScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was unexpectedly null.");
-		}
-
-		return connectionString;
-	}
 
 	private static async Task _SeedDueHighAsync(
 		AppDbContext dbContext,

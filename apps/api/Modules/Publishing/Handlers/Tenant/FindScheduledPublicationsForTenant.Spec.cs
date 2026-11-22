@@ -48,14 +48,6 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 		);
 	}
 
-	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<Guid> _GetTechStartIdAsync() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
@@ -197,7 +189,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldKeepFailedAndReportOnePublishedOfTwoDestinationsForAMixedPost() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var created = new DateTime(2098, 11, 1, 8, 0, 0, DateTimeKind.Utc);
 		var published = await this._CreateScheduledRowAsync(
@@ -233,7 +225,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldDeriveFailedNoMoreOnceAReissuedFailedPairIsPublished() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var superseded = await this._CreateScheduledRowAsync(
 			tenantId,
@@ -276,7 +268,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturnScheduledRowsInWindowOrderedByInstant() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var first = await this._CreateScheduledRowAsync(
@@ -331,7 +323,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldFilterByStatusCsv() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		_ = await this._CreateScheduledRowAsync(
@@ -388,7 +380,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldPaginateByKeysetAcrossPages() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		for (var index = 0; index < 3; index++) {
@@ -442,7 +434,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturnInvalidWindowProblemWhenFromAfterTo() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
@@ -462,7 +454,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturnTooWideProblemWhenWindowExceeds32Days() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
@@ -482,7 +474,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldAllowA31DayMonthAcrossADaylightSavingFallback() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
@@ -499,7 +491,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturn400WhenCursorIsUnknown() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		_ = await this._CreateScheduledRowAsync(
@@ -527,7 +519,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturn422WhenStatusCsvIsUnknown() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
@@ -544,7 +536,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturn403WithoutViewPermission() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var userToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
@@ -564,7 +556,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturn401WithoutSessionToken() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -579,7 +571,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturnOnlyCurrentTenantRows() {
-		var acmeId = await this._GetAcmeIdAsync();
+		var acmeId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var techStartId = await this._GetTechStartIdAsync();
 		var acmeToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var techStartToken = await this._AuthClient.LoginAsync(
@@ -618,7 +610,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturn422WhenFromIsMissingOrToIsMalformed() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var missingRequest = new HttpRequestMessage(
@@ -646,7 +638,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldExcludeDeletedAndCancelledPublications() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var seeded = await this._CreateScheduledRowAsync(
@@ -686,7 +678,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldApplyDstAwareZoneOffsetInScheduledAtLocal() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		// Winter instant in Europe/Paris: offset +01:00 (vs summer +02:00).
@@ -720,7 +712,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturnAnEmptyPageWhenTheWindowMatchesNoRows() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		// Deliberately FAR future window: no seeded spec row lands there, so
@@ -745,7 +737,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldRejectALimitAboveThePaginationMax() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		// Round-2 finding: removing the base CursorPaginatedQuery lost the
@@ -767,7 +759,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldRejectALimitBelowTheMinimum() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		// Round-2 finding: with the interval check gone, limit=0 sailed
@@ -790,7 +782,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldRejectANonNumericLimitWithAReadableCause() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		// Rule of the house: an unanalysable input must fail LOUDLY with a
@@ -813,7 +805,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturn400ForCursorWithForgedTimestamp() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var storedInstant = new DateTime(
 			2099, 6, 15, 8, 0, 0, DateTimeKind.Utc
@@ -844,7 +836,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturn400ForCursorOutsideWindow() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var seeded = await this._CreateScheduledRowAsync(
@@ -875,7 +867,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldKeepACursorUsableWhenTheAnchorMovedToAStatusOutsideTheFilter() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		// Anchor row sits BEFORE the window's FromUtc and is already Failed
@@ -941,7 +933,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldReturn400ForCursorPointingToDeletedPublication() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var seeded = await this._CreateScheduledRowAsync(
@@ -981,7 +973,7 @@ public sealed class FindScheduledPublicationsForTenantSpec : IClassFixture<
 
 	[Fact]
 	public async Task ItShouldCarryTheQueuesDestinationCountsInHistory() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		// A published destination, a Failed one replaced by a newer CANCELLED row of the same
 		// account (the pair counts zero), and a plain Failed one: 1 published of 2.

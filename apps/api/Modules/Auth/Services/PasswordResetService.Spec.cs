@@ -13,6 +13,7 @@ using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Messaging.Email;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Messaging.Services;
@@ -307,7 +308,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 
 	private async Task _WaitUntilBackendWaitsOnLockAsync(string applicationName) {
 		var deadline = DateTime.UtcNow.AddSeconds(10);
-		await using var connection = new NpgsqlConnection(this._BaseConnectionString());
+		await using var connection = new NpgsqlConnection(SpecDbHelper.GetBaseConnectionString(this._Fixture));
 		await connection.OpenAsync();
 
 		while (DateTime.UtcNow < deadline) {
@@ -372,7 +373,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private AppDbContext _CreateDbContext(string? applicationName) {
-		var connectionString = this._BaseConnectionString();
+		var connectionString = SpecDbHelper.GetBaseConnectionString(this._Fixture);
 		if (applicationName is not null) {
 			var builder = new NpgsqlConnectionStringBuilder(connectionString) {
 				ApplicationName = applicationName
@@ -387,16 +388,4 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private string _BaseConnectionString() {
-		using var scope = this._Fixture.Factory.Services.CreateScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		return connectionString;
-	}
 }

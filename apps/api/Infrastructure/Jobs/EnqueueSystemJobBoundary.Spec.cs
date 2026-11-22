@@ -1,13 +1,12 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs.Quartz;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 
 using Xunit;
@@ -33,7 +32,7 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 
 		try {
 			await this._SeedDefinitionAsync(jobKey, epoch, isEnabled: true);
-			await using var dbContext = await this._CreateDbContextAsync();
+			await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			var boundary = EnqueueSystemJobBoundarySpec._NewBoundary(dbContext);
 
 			var result = await boundary.EnqueueNowAsync(
@@ -43,7 +42,7 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 			var enqueued = result.Should().BeOfType<BoundaryResult.Enqueued>()
 				.Subject;
 			enqueued.ScheduleEpoch.Should().Be(epoch);
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey))
 				.Should().Be(1);
 			var occurrence = await verify.SystemJobOccurrence
@@ -62,7 +61,7 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 
 		try {
 			await this._SeedDefinitionAsync(jobKey, epoch, isEnabled: false);
-			await using var dbContext = await this._CreateDbContextAsync();
+			await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			var boundary = EnqueueSystemJobBoundarySpec._NewBoundary(dbContext);
 
 			var result = await boundary.EnqueueNowAsync(
@@ -72,7 +71,7 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 			result.Should().BeOfType<BoundaryResult.NoOp>();
 			// Verdict-r1 fix: the disabled short-circuit fires BEFORE the engine
 			// transaction, so neither the ledger nor the queue is touched.
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey))
 				.Should().Be(0);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
@@ -86,7 +85,7 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnNotFoundForAnUnknownKey() {
 		var jobKey = EnqueueSystemJobBoundarySpec._NewJobKey("unknown");
 
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 		var boundary = EnqueueSystemJobBoundarySpec._NewBoundary(dbContext);
 
 		var result = await boundary.EnqueueNowAsync(
@@ -103,7 +102,7 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 
 		try {
 			await this._SeedDefinitionAsync(jobKey, epoch, isEnabled: true);
-			await using var dbContext = await this._CreateDbContextAsync();
+			await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			var boundary = EnqueueSystemJobBoundarySpec._NewBoundary(dbContext);
 
 			var result = await boundary.EnqueueNowAsync(
@@ -130,7 +129,7 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 			var before = await this._ReadScheduleEpochAsync(jobKey);
 			before.Should().Be(epoch);
 
-			await using var dbContext = await this._CreateDbContextAsync();
+			await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			var boundary = EnqueueSystemJobBoundarySpec._NewBoundary(dbContext);
 			await boundary.EnqueueNowAsync(jobKey, CancellationToken.None);
 
@@ -153,7 +152,7 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _ReadScheduleEpochAsync(string jobKey) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 		return await dbContext.SystemJobDefinition
 			.Where(row => row.JobKey == jobKey)
 			.Select(row => row.ScheduleEpoch)
@@ -165,7 +164,7 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 		Guid scheduleEpoch,
 		bool isEnabled
 	) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 		await dbContext.SystemJobDefinition.AddAsync(new SystemJobDefinition {
 			JobKey = jobKey,
 			CronExpression = "0 0/5 * * * ?",
@@ -176,7 +175,7 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _CleanupAsync(string jobKey) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_occurrences WHERE job_key = {jobKey}"
 		);
@@ -192,23 +191,4 @@ public sealed class EnqueueSystemJobBoundarySpec : IClassFixture<ApiFixture> {
 		return $"spec.trigger-now.{suffix}.{Guid.NewGuid():N}";
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync(
-		SaveChangesInterceptor? interceptor = null
-	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString);
-		if (interceptor is not null) {
-			options.AddInterceptors(interceptor);
-		}
-
-		return new AppDbContext(options.Options);
-	}
 }

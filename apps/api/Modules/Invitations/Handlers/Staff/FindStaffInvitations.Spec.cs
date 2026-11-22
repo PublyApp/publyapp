@@ -63,7 +63,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		);
 
 		await this._RevokeStaffInvitationAsync(staffToken, revokedInvitationId);
-		await this._MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+		await InvitationTestHelper.MarkStaffInvitationAcceptedAsync(this._Fixture, acceptedInvitationId);
 
 		using HttpResponseMessage response = await this._Http.SendAsync(
 			FindStaffInvitationsSpec._CreateFindRequest(staffToken, status: "pending,revoked", limit: 100)
@@ -97,7 +97,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		string expiredEmail = $"staff-expired-{Guid.NewGuid():N}@example.com";
 
-		await this._CreateExpiredStaffInvitationAsync(expiredEmail);
+		await InvitationTestHelper.CreateExpiredStaffInvitationAsync(this._Fixture, expiredEmail);
 
 		using HttpResponseMessage response = await this._Http.SendAsync(
 			FindStaffInvitationsSpec._CreateFindRequest(staffToken, status: "expired", limit: 100)
@@ -127,8 +127,8 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			staffToken,
 			acceptedEmail
 		);
-		await this._MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
-		await this._CreateExpiredStaffInvitationAsync(expiredEmail);
+		await InvitationTestHelper.MarkStaffInvitationAcceptedAsync(this._Fixture, acceptedInvitationId);
+		await InvitationTestHelper.CreateExpiredStaffInvitationAsync(this._Fixture, expiredEmail);
 
 		using HttpResponseMessage response = await this._Http.SendAsync(
 			FindStaffInvitationsSpec._CreateFindRequest(staffToken, status: "accepted, expired", limit: 100)
@@ -170,7 +170,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			staffToken,
 			revokedEmail
 		);
-		await this._MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+		await InvitationTestHelper.MarkStaffInvitationAcceptedAsync(this._Fixture, acceptedInvitationId);
 		await this._RevokeStaffInvitationAsync(staffToken, revokedInvitationId);
 
 		using HttpResponseMessage response = await this._Http.SendAsync(
@@ -214,9 +214,9 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			staffToken,
 			revokedEmail
 		);
-		await this._MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+		await InvitationTestHelper.MarkStaffInvitationAcceptedAsync(this._Fixture, acceptedInvitationId);
 		await this._RevokeStaffInvitationAsync(staffToken, revokedInvitationId);
-		await this._CreateExpiredStaffInvitationAsync(expiredEmail);
+		await InvitationTestHelper.CreateExpiredStaffInvitationAsync(this._Fixture, expiredEmail);
 
 		using HttpResponseMessage response = await this._Http.SendAsync(
 			FindStaffInvitationsSpec._CreateFindRequest(
@@ -274,7 +274,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			staffToken,
 			acceptedEmail
 		);
-		await this._MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+		await InvitationTestHelper.MarkStaffInvitationAcceptedAsync(this._Fixture, acceptedInvitationId);
 
 		using HttpResponseMessage dedupedResponse = await this._Http.SendAsync(
 			FindStaffInvitationsSpec._CreateFindRequest(staffToken, status: "pending,pending", limit: 100)
@@ -326,7 +326,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			staffToken,
 			revokedEmail
 		);
-		await this._MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+		await InvitationTestHelper.MarkStaffInvitationAcceptedAsync(this._Fixture, acceptedInvitationId);
 		await this._RevokeStaffInvitationAsync(staffToken, revokedInvitationId);
 
 		using HttpResponseMessage response = await this._Http.SendAsync(
@@ -398,7 +398,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			staffToken,
 			$"staff-page-{tag}-accepted-{Guid.NewGuid():N}@example.com"
 		);
-		await this._MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+		await InvitationTestHelper.MarkStaffInvitationAcceptedAsync(this._Fixture, acceptedInvitationId);
 
 		// Page 1: limit=2 to force a nextCursor with at least one extra row left.
 		using HttpResponseMessage page1Response = await this._Http.SendAsync(
@@ -793,7 +793,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 			$"{marker}-accepted@example.com"
 		);
 		await this._RevokeStaffInvitationAsync(staffToken, revokedId);
-		await this._MarkStaffInvitationAcceptedAsync(acceptedId);
+		await InvitationTestHelper.MarkStaffInvitationAcceptedAsync(this._Fixture, acceptedId);
 
 		using var response = await this._Http.SendAsync(
 			FindStaffInvitationsSpec._CreateFindRequest(staffToken, limit: 1, q: marker)
@@ -1058,7 +1058,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		string staffToken,
 		string email
 	) {
-		Guid roleId = await this._GetAnyStaffRoleIdAsync();
+		Guid roleId = await StaffUserTestHelper.GetAnyStaffRoleIdAsync(this._Fixture);
 		HttpRequestMessage request = new HttpRequestMessage(
 			HttpMethod.Post,
 			PathUtils.Join(Routes.Staff.Root, Routes.Invitations.ForStaff.Root)
@@ -1140,54 +1140,7 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = response.StatusCode.Should().Be(HttpStatusCode.OK);
 	}
 
-	private async Task _MarkStaffInvitationAcceptedAsync(Guid invitationId) {
-		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
-		AppDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
 
-		Invitation? invitation = await dbContext.Invitation
-			.Where(inv => inv.Id == invitationId)
-			.FirstOrDefaultAsync();
-		_ = invitation.Should().NotBeNull();
-		if (invitation is null) {
-			return;
-		}
-
-		invitation.Status = InvitationStatus.Accepted;
-		invitation.AcceptedAt = DateTime.UtcNow;
-
-		_ = await dbContext.SaveChangesAsync();
-	}
-
-	private async Task<Guid> _CreateExpiredStaffInvitationAsync(string email) {
-		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
-		AppDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-
-		Role staffRole = await dbContext.Role
-			.Where(role =>
-				role.Scope == RoleScope.Staff
-				&& !role.IsDeleted
-			)
-			.OrderBy(role => role.Name)
-			.FirstAsync();
-		User staffUser = await dbContext.User
-			.Where(user => user.Email == SeedConstants.Staff.AdminEmail)
-			.FirstAsync();
-
-		Invitation invitation = Invitation.CreateStaffInvitationWithRoles(
-			email,
-			[staffRole.GetRequiredId()],
-			staffUser.GetRequiredId(),
-			DateTime.UtcNow.AddDays(-1),
-			Guid.NewGuid().ToString("N")[..32]
-		);
-
-		_ = await dbContext.Invitation.AddAsync(invitation);
-		_ = await dbContext.SaveChangesAsync();
-
-		return invitation.GetRequiredId();
-	}
 
 	private async Task _SetAcceptedAtAsync(Guid invitationId, DateTime acceptedAt) {
 		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
@@ -1207,21 +1160,6 @@ public sealed class FindStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = await dbContext.SaveChangesAsync();
 	}
 
-	private async Task<Guid> _GetAnyStaffRoleIdAsync() {
-		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
-		AppDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-
-		Role role = await dbContext.Role
-			.Where(role =>
-				role.Scope == RoleScope.Staff
-				&& !role.IsDeleted
-			)
-			.OrderBy(role => role.Name)
-			.FirstAsync();
-
-		return role.GetRequiredId();
-	}
 
 	private async Task<string> _CreateUnprivilegedStaffTokenAsync() {
 		var email = $"no-perms-invitations-{Guid.NewGuid():N}@example.com";
