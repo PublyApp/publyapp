@@ -63,6 +63,10 @@ export const EXPECTED_UPSTREAM_JOB_KEYS = [
 	'e2e-smoke',
 	'e2e-test/1',
 	'e2e-test/2',
+	'e2e-test/3',
+	'e2e-test/4',
+	'e2e-test/5',
+	'e2e-test/6',
 	'e2e-cleanup',
 ] as const;
 
@@ -438,6 +442,10 @@ const baseJobLaneContracts = {
 			'e2e',
 			[
 				'e2e-build.checkout',
+				'e2e-build.plan_install_pnpm',
+				'e2e-build.plan_setup_node',
+				'e2e-build.plan_install_deps',
+				'e2e-build.plan',
 				'e2e-build.image_tag',
 				'e2e-build.image_root',
 				'e2e-build.image_fork',
@@ -486,6 +494,10 @@ const baseJobLaneContracts = {
 			'e2e',
 			[
 				'e2e-cleanup.checkout',
+				'e2e-cleanup.download_shards',
+				'e2e-cleanup.coverage_proof',
+				'e2e-cleanup.record_durations',
+				'e2e-cleanup.upload_durations',
 				'e2e-cleanup.cleanup',
 				'e2e-cleanup.not-applicable',
 			],
@@ -556,7 +568,7 @@ const matrixJobLaneContracts = Object.fromEntries(
  */
 const e2eMatrixJobLaneContracts = Object.fromEntries(
 	[
-		[1, 2].map((shard) => [
+		[1, 2, 3, 4, 5, 6].map((shard) => [
 			`e2e-test/${shard}`,
 			[
 				contract(
@@ -578,6 +590,7 @@ const e2eMatrixJobLaneContracts = Object.fromEntries(
 						'e2e-test.wait_health',
 						'e2e-test.playwright',
 						'e2e-test.report_upload',
+						'e2e-test.evidence_upload',
 						'e2e-test.teardown',
 						'e2e-test.not-applicable',
 					],
@@ -602,7 +615,7 @@ export const getExpectedJobLanes = (
 
 // 12 central jobs with a fixed contract + four api shards + four front-vitest
 // shards + two full-e2e shards (the smoke lane is one of the twelve).
-const expectedJobLaneContractCount = 12 + 4 + 4 + 2;
+const expectedJobLaneContractCount = 12 + 4 + 4 + 6;
 if (Object.keys(EXPECTED_JOB_LANES).length !== expectedJobLaneContractCount) {
 	throw new Error('CI job lane contract table has an unexpected job count');
 }

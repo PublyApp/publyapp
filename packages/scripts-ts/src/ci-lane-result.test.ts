@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { test } from 'vitest';
 
+import { getExpectedJobLanes } from './check-ci-gate-aggregation.ts';
 import { createCiLaneResult, type StepResult } from './ci-lane-result.ts';
 
 const repoRoot = path.resolve(
@@ -677,4 +678,50 @@ test('e2e-test missing transport outcome throws before evaluation', () => {
 			}),
 		/missing workflow outcome for e2e-test\.load_images/,
 	);
+});
+
+const laneWith = (jobKey: string, failed: string, skipped: string[]) => {
+	const contract = getExpectedJobLanes(jobKey)?.[0];
+	assert.ok(contract, `${jobKey} has a lane contract`);
+	const stepResults = Object.fromEntries(
+		contract.expectedSteps.map((id) => [id, { outcome: 'success' }]),
+	) as Record<string, StepResult>;
+	for (const id of skipped) {
+		stepResults[id] = { outcome: 'skipped' };
+	}
+	stepResults[failed] = { outcome: 'failure' };
+	const job = createCiLaneResult({
+		jobKey,
+		lane: contract.lane,
+		expectedSteps: contract.expectedSteps,
+		mode: 'relevant',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults,
+	});
+	const lane = job.job.lanes[contract.lane];
+	assert.ok(lane);
+	return { job, lane };
+};
+
+test('a failed evidence upload turns the shard lane record red', () => {
+	const { job } = laneWith('e2e-test/1', 'e2e-test.evidence_upload', [
+		'e2e-test.download_images',
+		'e2e-test.load_images',
+		'e2e-test.not-applicable',
+	]);
+	assert.equal(job.job.conclusion, 'failure');
+});
+
+test('a failed plan or coverage proof turns its lane record red', () => {
+	const build = laneWith('e2e-build', 'e2e-build.plan', [
+		'e2e-build.upload_images',
+		'e2e-build.not-applicable',
+	]);
+	assert.equal(build.job.job.conclusion, 'failure');
+	const cleanup = laneWith('e2e-cleanup', 'e2e-cleanup.coverage_proof', [
+		'e2e-cleanup.not-applicable',
+	]);
+	assert.equal(cleanup.job.job.conclusion, 'failure');
 });
