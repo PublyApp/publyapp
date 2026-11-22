@@ -526,7 +526,11 @@ const readSnapshot = (): CoderotSnapshot => {
 };
 
 export type EventPayload = {
-	pull_request?: { base?: { sha?: string }; labels?: { name: string }[] };
+	pull_request?: {
+		base?: { sha?: string };
+		head?: { sha?: string };
+		labels?: { name: string }[];
+	};
 	merge_group?: { base_sha?: string };
 };
 
@@ -541,15 +545,19 @@ export const baseRef = (event: EventPayload): string =>
 	event.merge_group?.base_sha ??
 	'origin/develop';
 
-/** A pull_request checkout of refs/pull/N/merge is a synthetic merge: HEAD^1 is the target tip it was built on. */
+/**
+ * A pull_request checkout of refs/pull/N/merge is a synthetic merge: HEAD^1 is the target tip and HEAD^2 the PR head.
+ * A PR head that is itself a merge commit also has two parents, so HEAD^1 is only trusted when HEAD^2 is the event head.
+ */
 const mergeParent = (event: EventPayload, cwd = repoRoot): string | null => {
-	if (!event.pull_request?.base?.sha) {
+	const head = event.pull_request?.head?.sha;
+	if (!event.pull_request?.base?.sha || !head) {
 		return null;
 	}
 	const parents = run('git', ['rev-list', '--parents', '-n', '1', 'HEAD'], cwd)
 		.trim()
 		.split(' ');
-	return parents.length === 3 ? parents[1] : null;
+	return parents.length === 3 && parents[2] === head ? parents[1] : null;
 };
 
 /** Diff base: the commit the checkout was actually built on (QUALITY_BASE overrides both this and the baseline tip). */

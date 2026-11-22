@@ -436,10 +436,12 @@ describe('resolveBase on a pull_request checkout', () => {
 			const developTip = commit(dir, 'merged elsewhere');
 			git(dir, 'checkout', '-q', '-b', 'pr', staleBase);
 			write(dir, 'pr.ts', lines(591, 'p'));
-			commit(dir, 'pr');
+			const prHead = commit(dir, 'pr');
 			git(dir, 'checkout', '-q', 'develop');
 			git(dir, 'merge', '--no-ff', '-q', '-m', 'Merge pr into develop', 'pr');
-			const event = { pull_request: { base: { sha: staleBase } } };
+			const event = {
+				pull_request: { base: { sha: staleBase }, head: { sha: prHead } },
+			};
 			expect(sized(dir, staleBase)).toBe(1310);
 			expect(resolveBase(event, dir)).toBe(developTip);
 			expect(sized(dir, resolveBase(event, dir))).toBe(591);
@@ -459,11 +461,95 @@ describe('resolveBase on a pull_request checkout', () => {
 			commit(dir, 'merged elsewhere');
 			git(dir, 'checkout', '-q', '-b', 'pr', staleBase);
 			write(dir, 'pr.ts', lines(591, 'p'));
-			commit(dir, 'pr');
+			const prHead = commit(dir, 'pr');
 			expect(
-				resolveBase({ pull_request: { base: { sha: staleBase } } }, dir),
+				resolveBase(
+					{
+						pull_request: { base: { sha: staleBase }, head: { sha: prHead } },
+					},
+					dir,
+				),
 			).toBe(staleBase);
 			expect(sized(dir, staleBase)).toBe(591);
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('does not trust HEAD^1 when HEAD^2 is not the PR head', () => {
+		const dir = init();
+		try {
+			delete process.env.QUALITY_BASE;
+			git(dir, 'init', '-q', '-b', 'develop');
+			write(dir, 'base.ts', 'export const base = 1;\n');
+			const staleBase = commit(dir, 'base');
+			write(dir, 'merged.ts', lines(20, 'd'));
+			const developTip = commit(dir, 'merged elsewhere');
+			git(dir, 'checkout', '-q', '-b', 'pr', staleBase);
+			write(dir, 'pr.ts', lines(500, 'p'));
+			commit(dir, 'pr work');
+			git(
+				dir,
+				'merge',
+				'--no-ff',
+				'-q',
+				'-m',
+				'Merge develop into pr',
+				'develop',
+			);
+			const prHead = git(dir, 'rev-parse', 'HEAD');
+			const event = {
+				pull_request: { base: { sha: staleBase }, head: { sha: prHead } },
+			};
+			expect(resolveBase(event, dir)).toBe(staleBase);
+			expect(resolveBase(event, dir)).not.toBe(developTip);
+			expect(sized(dir, resolveBase(event, dir))).toBe(520);
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('uses HEAD^1 for a stacked base branch', () => {
+		const dir = init();
+		try {
+			delete process.env.QUALITY_BASE;
+			git(dir, 'init', '-q', '-b', 'develop');
+			write(dir, 'base.ts', 'export const base = 1;\n');
+			commit(dir, 'base');
+			git(dir, 'checkout', '-q', '-b', 'feat-a');
+			write(dir, 'a.ts', lines(50, 'a'));
+			const stackedBase = commit(dir, 'feat a');
+			git(dir, 'checkout', '-q', '-b', 'feat-b');
+			write(dir, 'b.ts', lines(30, 'b'));
+			const prHead = commit(dir, 'feat b');
+			git(dir, 'checkout', '-q', 'feat-a');
+			git(dir, 'merge', '--no-ff', '-q', '-m', 'Merge feat-b', 'feat-b');
+			const event = {
+				pull_request: { base: { sha: stackedBase }, head: { sha: prHead } },
+			};
+			expect(resolveBase(event, dir)).toBe(stackedBase);
+			expect(sized(dir, stackedBase)).toBe(30);
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('keeps the merge-base when the event is a merge_group', () => {
+		const dir = init();
+		try {
+			delete process.env.QUALITY_BASE;
+			git(dir, 'init', '-q', '-b', 'develop');
+			write(dir, 'base.ts', 'export const base = 1;\n');
+			const baseSha = commit(dir, 'base');
+			git(dir, 'checkout', '-q', '-b', 'pr');
+			write(dir, 'pr.ts', lines(5, 'p'));
+			commit(dir, 'pr');
+			git(dir, 'checkout', '-q', 'develop');
+			git(dir, 'merge', '--no-ff', '-q', '-m', 'Merge pr', 'pr');
+			expect(resolveBase({ merge_group: { base_sha: baseSha } }, dir)).toBe(
+				baseSha,
+			);
+			expect(policyFor('merge_group').size).toBe(false);
 		} finally {
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
