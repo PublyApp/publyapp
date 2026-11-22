@@ -224,6 +224,9 @@ test-analyzers:
 #
 # See docs/guides/local-ci-gate.md.
 
+verify *args:
+  node packages/scripts-ts/src/verify-local.ts {{args}}
+
 # Fail if .github/workflows has a step the local gate is not reconciled with,
 # if the #1017 changed-path classifier's fail-closed logic regresses, or if
 # an aggregate gate's job graph (needs/if/permissions/outputs — the metadata
