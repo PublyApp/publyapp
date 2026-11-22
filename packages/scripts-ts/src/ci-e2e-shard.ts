@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import {
-	appendFileSync,
+	existsSync,
 	mkdirSync,
 	mkdtempSync,
 	readFileSync,
@@ -18,9 +18,11 @@ import type { JsonValue } from './json-value.ts';
 // Time-balanced Playwright shards planned ONCE per queue entry.
 //
 // The plan is computed in `e2e-build` from the same `--list` Playwright would
-// run, then every shard consumes that single JSON. The reports the shards
-// upload are re-read here: `verify` proves every expected test ran exactly
-// once, `record` stores per-file durations for the next plan.
+// run and uploaded as an artifact: a 339-test plan is ~138 kB, above Linux's
+// 131,072-byte per-execve-string limit, so it never travels through an
+// environment variable. The reports the shards upload are re-read here:
+// `verify` proves every expected test actually ran exactly once, `record`
+// stores per-file durations for the next plan.
 
 export const SHARD_COUNT = 6;
 
@@ -50,13 +52,22 @@ type JsonNode = {
 	specs?: {
 		file?: string;
 		title?: string;
-		tests?: { projectName?: string }[];
+		tests?: {
+			projectName?: string;
+			results?: { status?: string; duration?: number }[];
+		}[];
 	}[];
 };
 
+/**
+ * `onlyPassed` is the coverage proof: a report record exists for a test that
+ * was skipped or failed too, so only a `passed` result counts as executed.
+ * `--list` reports carry no results, hence the default `false` for the plan.
+ */
 export const flattenTests = (
 	report: JsonNode,
 	titles: string[] = [],
+	onlyPassed = false,
 ): TestRef[] => {
 	const path = report.title ? [...titles, report.title] : titles;
 	const out: TestRef[] = [];
@@ -78,11 +89,17 @@ export const flattenTests = (
 			if (project === 'setup') {
 				continue;
 			}
+			const passed = (test.results ?? []).some(
+				(result) => result.status === 'passed',
+			);
+			if (onlyPassed && !passed) {
+				continue;
+			}
 			out.push({ key: `${file}::${project}::${title}`, file, project, title });
 		}
 	}
 	for (const child of report.suites ?? []) {
-		out.push(...flattenTests(child, path));
+		out.push(...flattenTests(child, path, onlyPassed));
 	}
 	return out;
 };
@@ -145,13 +162,6 @@ export const buildPlan = (
 };
 const reportOf = (file: string): JsonNode =>
 	JSON.parse(readFileSync(file, 'utf8')) as JsonNode;
-const writeOutput = (name: string, value: string) => {
-	const output = process.env.GITHUB_OUTPUT;
-	if (output === undefined) {
-		throw new Error('GITHUB_OUTPUT is not set');
-	}
-	appendFileSync(output, `${name}=${value}\n`);
-};
 const isDurations = (value: JsonValue): value is Durations =>
 	typeof value === 'object' &&
 	value !== null &&
@@ -160,33 +170,29 @@ const isDurations = (value: JsonValue): value is Durations =>
 		(entry) =>
 			typeof entry === 'number' && Number.isFinite(entry) && entry >= 0,
 	);
+/**
+ * `gh run list --json` has no `runAttempt` field (nor `attempt`); the REST
+ * runs endpoint exposes `id` and `run_attempt` on every run, which is what the
+ * `e2e-file-durations-<attempt>` artifact name needs.
+ */
 const listSuccessfulMergeQueueRuns = (): { id: string; attempt: string }[] => {
 	const listed = execFileSync(
 		'gh',
 		[
-			'run',
-			'list',
-			'--workflow',
-			'ci.yml',
-			'--event',
-			'merge_group',
-			'--status',
-			'success',
-			'--limit',
-			'10',
-			'--json',
-			'databaseId,runAttempt',
-			'--jq',
-			'.[] | "\\(.databaseId) \\(.runAttempt)"',
+			'api',
+			'repos/{owner}/{repo}/actions/workflows/ci.yml/runs?event=merge_group&status=success&per_page=10',
 		],
 		{ encoding: 'utf8' },
 	);
+	const parsed = JSON.parse(listed) as {
+		workflow_runs?: { id?: number; run_attempt?: number }[];
+	};
 	const runs: { id: string; attempt: string }[] = [];
-	for (const line of listed.split('\n')) {
-		const [id, attempt] = line.trim().split(/\s+/);
-		if (id !== undefined && id.length > 0) {
-			runs.push({ id, attempt: attempt ?? '1' });
+	for (const run of parsed.workflow_runs ?? []) {
+		if (typeof run.id !== 'number' || typeof run.run_attempt !== 'number') {
+			continue;
 		}
+		runs.push({ id: String(run.id), attempt: String(run.run_attempt) });
 	}
 	return runs;
 };
@@ -259,6 +265,9 @@ const restoreDurations = () => {
  * config directory (`apps/front`), not against this script's cwd. */
 export const specListFile = (): string =>
 	path.resolve('apps/front', 'e2e-artifacts', 'spec-list.json');
+/** The plan travels as an attempt-scoped artifact, never as an env var. */
+export const planFile = (): string =>
+	path.resolve('apps/front', 'e2e-artifacts', 'e2e-shard-plan.json');
 const listTests = (listFile: string): TestRef[] => {
 	mkdirSync(path.dirname(listFile), { recursive: true });
 	const listed = spawnSync(
@@ -283,7 +292,6 @@ const listTests = (listFile: string): TestRef[] => {
 const plan = () => {
 	if (process.env.GITHUB_EVENT_NAME !== 'merge_group') {
 		console.log('not a merge_queue entry: no partition to compute');
-		writeOutput('plan', '');
 		return;
 	}
 	const tests = listTests(specListFile());
@@ -298,18 +306,45 @@ const plan = () => {
 			`shard ${shard.shard}/${SHARD_COUNT}: ${shard.files.length} files, ${shard.tests} tests, weight ${shard.weight}`,
 		);
 	}
-	writeOutput('plan', JSON.stringify(result));
+	mkdirSync(path.dirname(planFile()), { recursive: true });
+	writeFileSync(planFile(), `${JSON.stringify(result)}\n`);
+	console.log(`plan written to ${planFile()}`);
 };
 const readPlan = (): Plan => {
-	const raw = process.env.E2E_SHARD_PLAN;
-	if (raw === undefined || raw.length === 0) {
-		throw new Error('E2E_SHARD_PLAN is not set: no shard plan to consume');
+	const file = planFile();
+	if (!existsSync(file)) {
+		throw new Error(
+			`${file} is missing: download the e2e-shard-plan artifact before consuming it`,
+		);
 	}
-	const parsed = JSON.parse(raw) as Partial<Plan>;
+	const parsed = JSON.parse(readFileSync(file, 'utf8')) as Partial<Plan>;
 	if (!Array.isArray(parsed.shards) || !Array.isArray(parsed.expected)) {
-		throw new Error('E2E_SHARD_PLAN is not a shard plan');
+		throw new Error(`${file} is not a shard plan`);
 	}
 	return parsed as Plan;
+};
+/** Fetches this attempt's plan artifact into `planFile()`. */
+export const downloadPlan = () => {
+	const runId = process.env.GITHUB_RUN_ID;
+	if (runId === undefined || runId.length === 0) {
+		throw new Error('GITHUB_RUN_ID is not set');
+	}
+	const dir = path.dirname(planFile());
+	mkdirSync(dir, { recursive: true });
+	execFileSync(
+		'gh',
+		[
+			'run',
+			'download',
+			runId,
+			'-n',
+			`e2e-shard-plan-${process.env.GITHUB_RUN_ATTEMPT ?? '1'}`,
+			'-D',
+			dir,
+			'--clobber',
+		],
+		{ stdio: 'inherit' },
+	);
 };
 const artifactsDir = (): string => process.env.E2E_ARTIFACTS ?? 'e2e-artifacts';
 const isNonMergeQueueEvent = (): boolean => {
@@ -356,6 +391,7 @@ export const downloadShards = () => {
 		{ stdio: 'inherit' },
 	);
 	flattenDownloadedArtifacts(dir);
+	downloadPlan();
 };
 const verify = () => {
 	if (isNonMergeQueueEvent()) {
@@ -370,9 +406,13 @@ const verify = () => {
 		);
 	}
 	const dir = artifactsDir();
+	// Only a `passed` result counts: a skipped/fixme test is still listed in
+	// the report, with a `skipped` result, and it never ran.
 	const observed: TestRef[] = readdirSync(dir)
 		.filter((file) => file.endsWith('.json') && file.startsWith('playwright-'))
-		.flatMap((file) => flattenTests(reportOf(path.join(dir, file))));
+		.flatMap((file) =>
+			flattenTests(reportOf(path.join(dir, file)), [], true),
+		);
 	const counts = new Map<string, number>();
 	for (const test of observed) {
 		counts.set(test.key, (counts.get(test.key) ?? 0) + 1);
@@ -473,6 +513,9 @@ const spawnPlaywright = (args: string[]) => {
 };
 export const runShard = () => {
 	const shard = Number(process.argv[2] ?? process.env.MATRIX_SHARD ?? 0);
+	if (!existsSync(planFile())) {
+		downloadPlan();
+	}
 	const plan = readPlan();
 	const entry = plan.shards.find((candidate) => candidate.shard === shard);
 	if (entry === undefined) {
@@ -516,6 +559,6 @@ if (process.argv[1]?.endsWith('ci-e2e-shard.ts')) {
 			console.log('the full e2e lane did not succeed: skipping durations');
 		}
 	} else {
-		throw new Error('usage: ci-e2e-shard.ts <plan|run|download|verify|record>');
+		throw new Error('usage: ci-e2e-shard.ts <plan|download|verify|record>');
 	}
 }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+	existsSync,
 	mkdirSync,
 	mkdtempSync,
 	readFileSync,
@@ -209,11 +210,29 @@ const makeSandbox = (): CliSandbox => {
 		`#!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
+const args = process.argv.slice(2);
+fs.appendFileSync(process.env.FAKE_GH_LOG, JSON.stringify(args) + '\\n');
+if (args[0] === 'api') {
+	if (process.env.FAKE_GH_API_FAIL === 'true') {
+		process.stderr.write('gh: HTTP 403 rate limit exceeded\\n');
+		process.exit(1);
+	}
+	process.stdout.write(process.env.FAKE_GH_RUNS ?? '{"workflow_runs":[]}');
+	process.exit(0);
+}
 if (process.env.FAKE_GH_DOWNLOAD === 'true') {
-	fs.appendFileSync(process.env.FAKE_GH_LOG, JSON.stringify(process.argv.slice(2)) + '\\n');
-	const target = path.join(process.env.E2E_ARTIFACTS, 'e2e-shard-report-1-3');
-	fs.mkdirSync(target, { recursive: true });
-	fs.writeFileSync(path.join(target, 'playwright-1-of-6.json'), '{}');
+	const name = args[args.indexOf('-n') + 1] ?? '';
+	const dir = args[args.indexOf('-D') + 1] ?? process.env.E2E_ARTIFACTS;
+	fs.mkdirSync(dir, { recursive: true });
+	if (name.startsWith('e2e-shard-plan')) {
+		fs.writeFileSync(path.join(dir, 'e2e-shard-plan.json'), process.env.FAKE_GH_PLAN ?? '{}');
+	} else if (name.startsWith('e2e-file-durations')) {
+		fs.writeFileSync(path.join(dir, 'durations.json'), process.env.FAKE_GH_DURATIONS ?? '{}');
+	} else {
+		const target = path.join(dir, name);
+		fs.mkdirSync(target, { recursive: true });
+		fs.writeFileSync(path.join(target, 'playwright-1-of-6.json'), '{}');
+	}
 	process.exit(0);
 }
 process.stderr.write('gh: HTTP 403 rate limit exceeded\\n');
@@ -254,18 +273,17 @@ const runShardCli = (
 		env: { ...sandbox.env, ...extraEnv },
 	});
 
-test('plan reads the report Playwright writes under apps/front even when gh cannot list runs', () => {
+const planFilePath = (sandbox: CliSandbox) =>
+	path.join(sandbox.root, 'apps', 'front', 'e2e-artifacts', 'e2e-shard-plan.json');
+
+test('plan writes the plan to a file, never to an output/env string', () => {
 	const sandbox = makeSandbox();
 	try {
-		const run = runShardCli(sandbox, 'plan');
+		const run = runShardCli(sandbox, 'plan', { FAKE_GH_API_FAIL: 'true' });
 		assert.equal(run.status, 0, `${run.stdout}\n${run.stderr}`);
 		assert.match(run.stdout, /cold-start weights/);
-		const output = readFileSync(sandbox.output, 'utf8');
-		const planLine = output
-			.split('\n')
-			.find((line) => line.startsWith('plan='));
-		assert.ok(planLine, `GITHUB_OUTPUT must carry the plan, got: ${output}`);
-		const plan = JSON.parse(planLine.slice('plan='.length)) as {
+		assert.equal(readFileSync(sandbox.output, 'utf8'), '');
+		const plan = JSON.parse(readFileSync(planFilePath(sandbox), 'utf8')) as {
 			shards: { files: string[] }[];
 			expected: { key: string }[];
 			durations: Record<string, number>;
@@ -282,6 +300,35 @@ test('plan reads the report Playwright writes under apps/front even when gh cann
 	}
 });
 
+test('plan weights files by the durations of the runs the REST endpoint lists', () => {
+	const sandbox = makeSandbox();
+	try {
+		const run = runShardCli(sandbox, 'plan', {
+			FAKE_GH_RUNS: '{"workflow_runs":[{"id":42,"run_attempt":3}]}',
+			FAKE_GH_DOWNLOAD: 'true',
+			FAKE_GH_DURATIONS: '{"e2e/aggregator-key.spec.ts":120}',
+		});
+		assert.equal(run.status, 0, `${run.stdout}\n${run.stderr}`);
+		const plan = JSON.parse(readFileSync(planFilePath(sandbox), 'utf8')) as {
+			shards: { weight: number }[];
+			durations: Record<string, number>;
+		};
+		assert.deepEqual(plan.durations, { 'e2e/aggregator-key.spec.ts': 120 });
+		assert.equal(plan.shards[0]?.weight, 120);
+		const ghArgs = readFileSync(sandbox.ghLog, 'utf8')
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line) as string[]);
+		assert.deepEqual(ghArgs[0]?.slice(0, 2), [
+			'api',
+			'repos/{owner}/{repo}/actions/workflows/ci.yml/runs?event=merge_group&status=success&per_page=10',
+		]);
+		assert.equal(ghArgs[1]?.[ghArgs[1].indexOf('-n') + 1], 'e2e-file-durations-3');
+	} finally {
+		rmSync(sandbox.root, { recursive: true, force: true });
+	}
+});
+
 test('plan refuses to publish an empty test list instead of creating six empty shards', () => {
 	const sandbox = makeSandbox();
 	try {
@@ -291,7 +338,7 @@ test('plan refuses to publish an empty test list instead of creating six empty s
 			`${run.stdout}${run.stderr}`,
 			/refusing to publish an empty plan/,
 		);
-		assert.equal(readFileSync(sandbox.output, 'utf8'), '');
+		assert.equal(existsSync(planFilePath(sandbox)), false);
 	} finally {
 		rmSync(sandbox.root, { recursive: true, force: true });
 	}
@@ -312,7 +359,7 @@ const verifyPlan = (expected: (typeof expectedTest)[]) => ({
 	durations: {},
 });
 
-const writeObservedReport = (dir: string, withTest: boolean) => {
+const writeObservedReport = (dir: string, status: string | null) => {
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(
 		path.join(dir, 'playwright-1-of-6.json'),
@@ -325,7 +372,15 @@ const writeObservedReport = (dir: string, withTest: boolean) => {
 						{
 							file: 'e2e/a.spec.ts',
 							title: 'x',
-							tests: withTest ? [{ projectName: 'chromium' }] : [],
+							tests:
+								status === null
+									? [{ projectName: 'chromium' }]
+									: [
+											{
+												projectName: 'chromium',
+												results: [{ status, duration: 10 }],
+											},
+										],
 						},
 					],
 				},
@@ -334,17 +389,40 @@ const writeObservedReport = (dir: string, withTest: boolean) => {
 	);
 };
 
+const writePlanFile = (sandbox: CliSandbox, expected: (typeof expectedTest)[]) => {
+	mkdirSync(path.dirname(planFilePath(sandbox)), { recursive: true });
+	writeFileSync(
+		planFilePath(sandbox),
+		JSON.stringify(verifyPlan(expected)),
+	);
+};
+
 test('verify accepts a plan whose every expected test ran exactly once', () => {
 	const sandbox = makeSandbox();
 	const artifacts = path.join(sandbox.root, 'e2e-artifacts');
 	try {
-		writeObservedReport(artifacts, true);
-		const run = runShardCli(sandbox, 'verify', {
-			E2E_ARTIFACTS: artifacts,
-			E2E_SHARD_PLAN: JSON.stringify(verifyPlan([expectedTest])),
-		});
+		writeObservedReport(artifacts, 'passed');
+		writePlanFile(sandbox, [expectedTest]);
+		const run = runShardCli(sandbox, 'verify', { E2E_ARTIFACTS: artifacts });
 		assert.equal(run.status, 0, `${run.stdout}\n${run.stderr}`);
 		assert.match(run.stdout, /every expected test ran exactly once/);
+	} finally {
+		rmSync(sandbox.root, { recursive: true, force: true });
+	}
+});
+
+test('verify refuses a skipped test instead of counting it as executed', () => {
+	const sandbox = makeSandbox();
+	const artifacts = path.join(sandbox.root, 'e2e-artifacts');
+	try {
+		writeObservedReport(artifacts, 'skipped');
+		writePlanFile(sandbox, [expectedTest]);
+		const run = runShardCli(sandbox, 'verify', { E2E_ARTIFACTS: artifacts });
+		assert.notEqual(run.status, 0, 'a skipped test did not run');
+		assert.match(
+			`${run.stdout}${run.stderr}`,
+			/missing test e2e\/a\.spec\.ts::chromium::a\.spec\.ts > x \(ran 0 times\)/,
+		);
 	} finally {
 		rmSync(sandbox.root, { recursive: true, force: true });
 	}
@@ -353,12 +431,25 @@ test('verify accepts a plan whose every expected test ran exactly once', () => {
 test('verify refuses an empty plan instead of certifying 0 of 0', () => {
 	const sandbox = makeSandbox();
 	try {
+		writePlanFile(sandbox, []);
 		const run = runShardCli(sandbox, 'verify', {
 			E2E_ARTIFACTS: sandbox.root,
-			E2E_SHARD_PLAN: JSON.stringify(verifyPlan([])),
 		});
 		assert.notEqual(run.status, 0);
 		assert.match(`${run.stdout}${run.stderr}`, /no expected tests/);
+	} finally {
+		rmSync(sandbox.root, { recursive: true, force: true });
+	}
+});
+
+test('verify refuses to run without the plan artifact instead of certifying nothing', () => {
+	const sandbox = makeSandbox();
+	try {
+		const run = runShardCli(sandbox, 'verify', {
+			E2E_ARTIFACTS: sandbox.root,
+		});
+		assert.notEqual(run.status, 0);
+		assert.match(`${run.stdout}${run.stderr}`, /e2e-shard-plan\.json is missing/);
 	} finally {
 		rmSync(sandbox.root, { recursive: true, force: true });
 	}
@@ -403,6 +494,12 @@ test('download is a no-op outside the merge queue and flattens this attempt repo
 			'e2e-shard-report-*-3',
 			'the download must only read this attempt reports',
 		);
+		assert.equal(
+			ghArgs[1]?.[ghArgs[1].indexOf('-n') + 1],
+			'e2e-shard-plan-3',
+			'the verify input plan is this attempt artifact',
+		);
+		assert.ok(existsSync(planFilePath(sandbox)));
 
 		const failed = runShardCli(sandbox, 'download', {
 			GITHUB_EVENT_NAME: 'merge_group',
