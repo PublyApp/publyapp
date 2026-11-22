@@ -11,7 +11,6 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
@@ -123,9 +122,8 @@ public sealed partial class CreateStaffUploadSpec : IClassFixture<ApiFixture> {
 		var uploaderUserId = await AuditLogTestHelper.GetUserIdByEmailAsync(
 			this._Fixture.Factory, TestConstants.StaffAdminEmail
 		);
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var auditLogExists = await dbContext.AuditLog.AnyAsync(a =>
+		await using var db = this._Fixture.OpenDb();
+		var auditLogExists = await db.Context.AuditLog.AnyAsync(a =>
 			a.Action == AuditActions.UploadCreated
 			&& a.UserId == uploaderUserId
 				&& a.Details != null

@@ -5,9 +5,7 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
@@ -39,19 +37,11 @@ public sealed class GetScopeAuthDataSpec
 	[Fact]
 	public async Task
 	ItShouldReturnOkForActiveTenant() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
-
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
+		var (_, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
 		);
+
+		var acmeAdminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url = $"{Routes.Auth.GetScopeAuthData}"
 			+ $"?scope={acmeId}";
@@ -69,14 +59,9 @@ public sealed class GetScopeAuthDataSpec
 	[Fact]
 	public async Task
 	ItShouldReturnCanonicalTenantModulePermissionKeys() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var rolePermissions = new[] {
 			new[] {
@@ -162,14 +147,9 @@ public sealed class GetScopeAuthDataSpec
 	[Fact]
 	public async Task
 	ItShouldExcludeRevokedDeletedAndWrongScopePermissionsFromTenantScopeAuthData() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (_, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var createdRoleIds = new List<Guid>();
 
@@ -242,14 +222,9 @@ public sealed class GetScopeAuthDataSpec
 	[Fact]
 	public async Task
 	ItShouldReturnAllAssignedTenantRolesEvenWhenTheyExceedConfiguredCap() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var createdRoleIds = new List<Guid>();
 		var requestedRoleCount = AppEnvironment.Instance.MAX_ROLES_PER_USER + 1;
@@ -311,10 +286,7 @@ public sealed class GetScopeAuthDataSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenWhenNonStaffAccessesStaffScope() {
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var acmeAdminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url = $"{Routes.Auth.GetScopeAuthData}"
 			+ "?scope=staff";
@@ -329,21 +301,13 @@ public sealed class GetScopeAuthDataSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be("not-a-staff-user");
+		await response.ShouldBeProblemAsync("not-a-staff-user");
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForInvalidTenantGuid() {
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var acmeAdminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url = $"{Routes.Auth.GetScopeAuthData}"
 			+ "?scope=not-a-valid-guid";
@@ -358,24 +322,15 @@ public sealed class GetScopeAuthDataSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be("forbidden");
+		await response.ShouldBeProblemAsync("forbidden");
 	}
 
 	[Fact]
 	public async Task
 	ItShouldReturn403WithKeyForSuspendedTenant() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// Suspend Acme
 		using var suspend =
@@ -386,10 +341,7 @@ public sealed class GetScopeAuthDataSpec
 
 		try {
 			var acmeAdminToken =
-				await this._AuthClient.LoginAsync(
-					TestConstants.AcmeAdminEmail,
-					TestConstants.SeedPassword
-				);
+				await this._AuthClient.LoginAsAcmeAdminAsync();
 
 			var url = $"{Routes.Auth.GetScopeAuthData}"
 				+ $"?scope={acmeId}";
@@ -404,12 +356,7 @@ public sealed class GetScopeAuthDataSpec
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.Forbidden);
 
-			var problem = await response.Content
-				.ReadFromJsonAsync<AppProblemDetails>();
-			problem.Should().NotBeNull();
-			Assert.NotNull(problem);
-			problem.TranslationKey.Should()
-							.Be("tenant-suspended");
+			await response.ShouldBeProblemAsync("tenant-suspended");
 		} finally {
 			using var cleanup =
 				await TenantTestHelper
@@ -422,20 +369,12 @@ public sealed class GetScopeAuthDataSpec
 	[Fact]
 	public async Task
 	ItShouldReturn403ForNonMember() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var techStartId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.TechStartName
-			);
+		var (_, techStartId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.TechStartName
+		);
 
 		// Acme admin is NOT a member of TechStart
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var acmeAdminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url = $"{Routes.Auth.GetScopeAuthData}"
 			+ $"?scope={techStartId}";
@@ -462,14 +401,9 @@ public sealed class GetScopeAuthDataSpec
 	[Fact]
 	public async Task
 	ItShouldReturnOkAfterReactivation() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		// Suspend then reactivate
 		using var suspend =
@@ -486,10 +420,7 @@ public sealed class GetScopeAuthDataSpec
 			.Be(HttpStatusCode.OK);
 
 		// Now access should work again
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var acmeAdminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url = $"{Routes.Auth.GetScopeAuthData}"
 			+ $"?scope={acmeId}";
@@ -507,19 +438,11 @@ public sealed class GetScopeAuthDataSpec
 	[Fact]
 	public async Task
 	ItShouldReturnUnauthorizedForGloballySuspendedUser() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
-
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
+		var (_, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
 		);
+
+		var acmeAdminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		await this._SetUserSuspendedByEmailAsync(
 			TestConstants.AcmeAdminEmail,
@@ -553,13 +476,10 @@ public sealed class GetScopeAuthDataSpec
 	) {
 		var trimmedEmail = email.Trim();
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var matchedUser = await (
-			from u in dbContext.User
+			from u in db.Context.User
 			where !u.IsDeleted
 			select new UserEmailLookup(u.Id, u.Email)
 		).ToListAsync();
@@ -585,7 +505,7 @@ public sealed class GetScopeAuthDataSpec
 			);
 		}
 
-		var updatedCount = await dbContext.User
+		var updatedCount = await db.Context.User
 			.Where(u => u.Id == userId)
 			.ExecuteUpdateAsync(setters => setters
 				.SetProperty(
@@ -603,10 +523,7 @@ public sealed class GetScopeAuthDataSpec
 		Guid tenantId,
 		IEnumerable<string> permissionKeys
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(
 			tenantId,
@@ -615,13 +532,13 @@ public sealed class GetScopeAuthDataSpec
 		);
 		role.ValidateRoleType();
 
-		_ = await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		_ = await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		var roleId = role.GetRequiredId();
 
 		foreach (var permissionKey in permissionKeys) {
-			_ = await dbContext.RolePermission.AddAsync(
+			_ = await db.Context.RolePermission.AddAsync(
 				new RolePermission {
 					RoleId = roleId,
 					PermissionKey = permissionKey
@@ -629,7 +546,7 @@ public sealed class GetScopeAuthDataSpec
 			);
 		}
 
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return roleId;
 	}
@@ -637,10 +554,7 @@ public sealed class GetScopeAuthDataSpec
 	// Seeds a tenant member with no role assignments, so a role-derived permission
 	// assertion is not polluted by the seeded admin's full-access Owner role.
 	private async Task<string> _CreateBareTenantMemberAsync(Guid tenantId) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var email = $"auth-data-{Guid.NewGuid():N}@example.com";
 		var user = new User {
@@ -651,13 +565,13 @@ public sealed class GetScopeAuthDataSpec
 			Status = UserStatus.Active,
 			IsVerified = true,
 		};
-		_ = await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		_ = await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 
 		var account = UserAccount.CreateTenantAccount(user.GetRequiredId(), tenantId);
 		account.ValidateAccountType();
-		_ = await dbContext.UserAccount.AddAsync(account);
-		await dbContext.SaveChangesAsync();
+		_ = await db.Context.UserAccount.AddAsync(account);
+		await db.Context.SaveChangesAsync();
 
 		return email;
 	}
@@ -669,13 +583,10 @@ public sealed class GetScopeAuthDataSpec
 	) {
 		var trimmedEmail = email.Trim();
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenantUserAccounts = await (
-			from ua in dbContext.UserAccount
+			from ua in db.Context.UserAccount
 			where ua.Scope == AccountScope.Tenant
 				&& ua.TenantId == tenantId
 				&& !ua.IsDeleted
@@ -707,7 +618,7 @@ public sealed class GetScopeAuthDataSpec
 		}
 
 		foreach (var roleId in roleIds) {
-			_ = await dbContext.UserAccountRole.AddAsync(
+			_ = await db.Context.UserAccountRole.AddAsync(
 				new UserAccountRole {
 					UserAccountId = tenantUserAccount.Id.Value,
 					RoleId = roleId
@@ -715,7 +626,7 @@ public sealed class GetScopeAuthDataSpec
 			);
 		}
 
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _ConfigureTenantAuthPermissionLeakScenarioAsync(
@@ -729,13 +640,10 @@ public sealed class GetScopeAuthDataSpec
 	) {
 		var trimmedEmail = email.Trim();
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenantUserAccounts = await (
-			from ua in dbContext.UserAccount
+			from ua in db.Context.UserAccount
 			where ua.Scope == AccountScope.Tenant
 				&& ua.TenantId == tenantId
 				&& !ua.IsDeleted
@@ -761,7 +669,7 @@ public sealed class GetScopeAuthDataSpec
 		}
 
 		var revokedPermission = await (
-			from pp in dbContext.RolePermission
+			from pp in db.Context.RolePermission
 			where pp.RoleId == revokedPermissionRoleId
 				&& pp.PermissionKey == revokedPermissionKey
 			select pp
@@ -774,10 +682,10 @@ public sealed class GetScopeAuthDataSpec
 		}
 
 		// Revoked permission membership is represented by no RolePermission row.
-		dbContext.RolePermission.Remove(revokedPermission);
+		db.Context.RolePermission.Remove(revokedPermission);
 
 		var softDeletedLink = await (
-			from uap in dbContext.UserAccountRole
+			from uap in db.Context.UserAccountRole
 			where uap.RoleId == softDeletedLinkRoleId
 				&& uap.UserAccountId == tenantUserAccount.Id
 			select uap
@@ -790,16 +698,16 @@ public sealed class GetScopeAuthDataSpec
 		}
 
 		// Revoked role membership is represented by no UserAccountRole row.
-		dbContext.UserAccountRole.Remove(softDeletedLink);
+		db.Context.UserAccountRole.Remove(softDeletedLink);
 
-		_ = await dbContext.RolePermission.AddAsync(
+		_ = await db.Context.RolePermission.AddAsync(
 			new RolePermission {
 				RoleId = wrongScopeRoleId,
 				PermissionKey = wrongScopePermissionKey
 			}
 		);
 
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _CleanupScopeAuthDataTestArtifactsAsync(
@@ -809,43 +717,40 @@ public sealed class GetScopeAuthDataSpec
 			return;
 		}
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var roleIdList = roleIds.ToList();
 
 		var linksToRemove = await (
-			from uap in dbContext.UserAccountRole
+			from uap in db.Context.UserAccountRole
 			where roleIdList.Contains(uap.RoleId)
 			select uap
 		).ToListAsync();
 
 		if (linksToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(linksToRemove);
+			db.Context.ForceHardDeleteRange(linksToRemove);
 		}
 
 		var permissionsToRemove = await (
-			from pp in dbContext.RolePermission
+			from pp in db.Context.RolePermission
 			where roleIdList.Contains(pp.RoleId)
 			select pp
 		).ToListAsync();
 
 		if (permissionsToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(permissionsToRemove);
+			db.Context.ForceHardDeleteRange(permissionsToRemove);
 		}
 
 		var rolesToRemove = (await (
-			from p in dbContext.Role
+			from p in db.Context.Role
 			select p
 		).ToListAsync())
 			.Where(role => roleIdList.Contains(role.GetRequiredId()))
 			.ToList();
 
 		if (rolesToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(rolesToRemove);
-			await dbContext.SaveChangesAsync();
+			db.Context.ForceHardDeleteRange(rolesToRemove);
+			await db.Context.SaveChangesAsync();
 		}
 	}
 

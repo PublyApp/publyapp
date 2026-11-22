@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.RateLimiting;
@@ -122,8 +121,7 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<string> _SeedDisabledDefinitionAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var definition = new SystemJobDefinition {
 			JobKey = $"spec.a5.trigger-limit.{Guid.NewGuid():N}",
@@ -132,8 +130,8 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 			IsEnabled = false,
 			Description = "A5 rate-limit spec row",
 		};
-		dbContext.SystemJobDefinition.Add(definition);
-		_ = await dbContext.SaveChangesAsync();
+		db.Context.SystemJobDefinition.Add(definition);
+		_ = await db.Context.SaveChangesAsync();
 
 		var id = definition.Id;
 		if (id is null) {
@@ -146,12 +144,11 @@ public sealed class SystemJobTriggerRateLimitSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _CleanupAsync(string definitionId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await dbContext.Database.ExecuteSqlAsync(
+		await using var db = this._Fixture.OpenDb();
+		await db.Context.Database.ExecuteSqlAsync(
 			$"DELETE FROM audit_logs WHERE target_id = {Guid.Parse(definitionId)}"
 		);
-		await dbContext.Database.ExecuteSqlAsync(
+		await db.Context.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_definitions WHERE id = {Guid.Parse(definitionId)}"
 		);
 	}

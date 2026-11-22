@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Permissions.Entities;
 using PublyApp.Api.Modules.Permissions.Services;
 using PublyApp.Api.Modules.Users.Entities;
@@ -97,10 +98,9 @@ public sealed class PermissionFilterTenantScopeSpec : IClassFixture<ApiFixture> 
 	[Fact]
 	public async Task ItShouldShowOnlyTheRouteTenantsDataToTheHandlerWhenStaffIsAuthorized() {
 		var permission = AppPermissions.Staff.Tenants.GET;
-		await using var seedScope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var seedDb = seedScope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var (tenantA, postA) = await AppDbContextTenantFilterSpec.SeedAsync(seedDb);
-		var (_, postB) = await AppDbContextTenantFilterSpec.SeedAsync(seedDb);
+		await using var db = this._Fixture.OpenDb();
+		var (tenantA, postA) = await AppDbContextTenantFilterSpec.SeedAsync(db.Context);
+		var (_, postB) = await AppDbContextTenantFilterSpec.SeedAsync(db.Context);
 
 		var (_, probe, cleanup, http) = await this._BuildAsync([permission.Key], tenantA.ToString());
 		await using var _ = cleanup;

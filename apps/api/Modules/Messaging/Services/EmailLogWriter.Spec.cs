@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Messaging.Entities;
 
 using Xunit;
@@ -76,9 +77,8 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 
 			// …and NEVER in audit_logs, which cannot carry it (NOT NULL user_id FK; a
 			// webhook has no user). This assertion is the #866 defect stated as a test.
-			await using var countScope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var countContext = countScope.ServiceProvider.GetRequiredService<AppDbContext>();
-			var auditCountBefore = await EmailLogWriterSpec._CountAuditLogsAsync(countContext);
+			await using var db = this._Fixture.OpenDb();
+			var auditCountBefore = await EmailLogWriterSpec._CountAuditLogsAsync(db.Context);
 			auditCountBefore.Should().BeGreaterOrEqualTo(0,
 				"the suite may legitimately contain unrelated audit rows; what matters "
 				+ "is that THIS transition added none");
@@ -108,9 +108,8 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 				Actor = EmailLogActor.ProviderWebhook($"evt-{jobId:N}"),
 			});
 
-			await using var verifyScope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var verify = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
-			var after = await verify.AuditLog.LongCountAsync();
+			await using var db = this._Fixture.OpenDb();
+			var after = await db.Context.AuditLog.LongCountAsync();
 
 			after.Should().Be(before,
 				"#866: audit_logs cannot record actor-less transitions (user_id NOT NULL "
@@ -265,17 +264,16 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 
 	private async Task<Guid> _SeedEmailLogAsync(EmailLogOutcome outcome) {
 		var jobId = Guid.NewGuid();
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		dbContext.EmailLog.Add(new EmailLog {
+		db.Context.EmailLog.Add(new EmailLog {
 			JobId = jobId,
 			Kind = EmailKind.TenantInvitation,
 			Recipient = $"evidence-{jobId:N}@example.com",
 			Outcome = outcome,
 			Attempts = 1,
 		});
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return jobId;
 	}
@@ -296,9 +294,8 @@ public sealed class EmailLogWriterSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _CleanupAsync(Guid jobId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await dbContext.EmailLog
+		await using var db = this._Fixture.OpenDb();
+		await db.Context.EmailLog
 			.Where(e => e.JobId == jobId)
 			.ExecuteDeleteAsync();
 	}

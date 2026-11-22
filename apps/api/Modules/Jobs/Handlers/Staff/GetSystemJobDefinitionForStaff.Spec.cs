@@ -5,9 +5,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -129,8 +127,7 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 		var jobKey = $"spec.a5.sys-detail.{Guid.NewGuid():N}";
 		var epoch = Guid.NewGuid();
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var definition = new SystemJobDefinition {
 			JobKey = jobKey,
@@ -139,8 +136,8 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 			IsEnabled = true,
 			Description = "A5 endpoint spec row",
 		};
-		dbContext.SystemJobDefinition.Add(definition);
-		_ = await dbContext.SaveChangesAsync();
+		db.Context.SystemJobDefinition.Add(definition);
+		_ = await db.Context.SaveChangesAsync();
 
 		var id = definition.Id;
 		if (id is null) {
@@ -149,23 +146,22 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 			);
 		}
 
-		dbContext.SystemJobOccurrence.Add(new SystemJobOccurrence {
+		db.Context.SystemJobOccurrence.Add(new SystemJobOccurrence {
 			JobKey = jobKey,
 			ScheduledFireAt = DateTime.UtcNow.AddMinutes(-10),
 			EnqueuedAt = DateTime.UtcNow.AddMinutes(-10),
 		});
-		_ = await dbContext.SaveChangesAsync();
+		_ = await db.Context.SaveChangesAsync();
 
 		return (jobKey, id.Value.ToString());
 	}
 
 	private async Task _CleanupAsync(string jobKey) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		await dbContext.Database.ExecuteSqlAsync(
+		await using var db = this._Fixture.OpenDb();
+		await db.Context.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_occurrences WHERE job_key = {jobKey}"
 		);
-		await dbContext.Database.ExecuteSqlAsync(
+		await db.Context.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_definitions WHERE job_key = {jobKey}"
 		);
 	}
@@ -174,8 +170,7 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-sys-detail-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -186,14 +181,14 @@ public sealed class GetSystemJobDefinitionForStaffSpec : IClassFixture<ApiFixtur
 			Status = UserStatus.Active,
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(staffAccount);
+		_ = await db.Context.SaveChangesAsync();
 
 		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);

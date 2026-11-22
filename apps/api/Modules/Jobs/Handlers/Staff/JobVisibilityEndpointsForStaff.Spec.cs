@@ -109,8 +109,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		var requeuedJobId = Guid.Empty;
 
 		try {
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+			await using var db = this._Fixture.OpenDb();
 
 			// --- privileged walk: ten routes, ten successes -------------------
 
@@ -146,7 +145,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 
 			// Route 8 (trigger) produced a queue copy; cleanup covers it via
 			// the requeue lineage delete + tracked job types below.
-			var requeuedRow = await dbContext.JobQueue
+			var requeuedRow = await db.Context.JobQueue
 				.AsNoTracking()
 				.SingleAsync(j => j.RequeuedFromDeadLetterId == deadLetterId);
 			var requeuedId = requeuedRow.Id;
@@ -190,7 +189,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 			Guid.TryParse(triggeredJobId, out _).Should().BeTrue(
 				"the trigger enqueued a real row"
 			);
-			(await dbContext.JobQueue.CountAsync(j =>
+			(await db.Context.JobQueue.CountAsync(j =>
 				j.Id == Guid.Parse(triggeredJobId.Required())
 			)).Should().Be(1, "exactly one queue row for this trigger");
 
@@ -205,7 +204,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 			r9.StatusCode.Should().Be(
 				HttpStatusCode.OK, "route 9: PATCH /system-jobs/{id}/enabled"
 			);
-			var afterEnabledFlip = await dbContext.SystemJobDefinition
+			var afterEnabledFlip = await db.Context.SystemJobDefinition
 				.AsNoTracking()
 				.SingleAsync(d => d.Id == Guid.Parse(definitionId));
 			afterEnabledFlip.IsEnabled.Should()
@@ -224,7 +223,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 			r10.StatusCode.Should().Be(
 				HttpStatusCode.OK, "route 10: PATCH /system-jobs/{id}/cron"
 			);
-			var afterCronUpdate = await dbContext.SystemJobDefinition
+			var afterCronUpdate = await db.Context.SystemJobDefinition
 				.AsNoTracking()
 				.SingleAsync(d => d.Id == Guid.Parse(definitionId));
 			afterCronUpdate.CronExpression.Should().Be("0 15 4 * * ?");
@@ -315,16 +314,15 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 	private async Task<string> _SeedQueueItemAsync() {
 		var jobType = $"spec.a5.group.queue.{Guid.NewGuid():N}";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		dbContext.JobQueue.Add(new JobQueueItem {
+		db.Context.JobQueue.Add(new JobQueueItem {
 			JobType = jobType,
 			Payload = "{}",
 			Priority = 0,
 			MaxAttempts = 10,
 		});
-		_ = await dbContext.SaveChangesAsync();
+		_ = await db.Context.SaveChangesAsync();
 		this._TrackedQueueJobTypes.Add(jobType);
 
 		await using var verify = await this._CreateDbContextAsync();
@@ -336,10 +334,9 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		var jobType = $"spec.a5.group.dlq.{Guid.NewGuid():N}";
 		this._TrackedDlqJobTypes.Add(jobType);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		await dbContext.Database.ExecuteSqlAsync(
+		await db.Context.Database.ExecuteSqlAsync(
 			$"""
 			INSERT INTO job_dead_letter
 				(original_job_id, job_type, payload, priority, max_attempts, attempts,
@@ -369,8 +366,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		var jobKey = $"spec.a5.group.sys.{Guid.NewGuid():N}";
 		this._TrackedSysJobKeys.Add(jobKey);
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var definition = new SystemJobDefinition {
 			JobKey = jobKey,
@@ -379,8 +375,8 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 			IsEnabled = true,
 			Description = "A5 group spec row",
 		};
-		dbContext.SystemJobDefinition.Add(definition);
-		_ = await dbContext.SaveChangesAsync();
+		db.Context.SystemJobDefinition.Add(definition);
+		_ = await db.Context.SaveChangesAsync();
 
 		return definition.Id.Required().ToString();
 	}
@@ -394,36 +390,35 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		string definitionId,
 		Guid extraJobId
 	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		if (extraJobId != Guid.Empty) {
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"DELETE FROM job_queue WHERE id = {extraJobId}"
 			);
 		}
 		foreach (var tracked in this._TrackedQueueJobTypes) {
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"DELETE FROM job_queue WHERE job_type = {tracked}"
 			);
 		}
-		await dbContext.Database.ExecuteSqlAsync(
+		await db.Context.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_queue WHERE requeued_from_dead_letter_id = {deadLetterId}"
 		);
-		await dbContext.Database.ExecuteSqlAsync(
+		await db.Context.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_dead_letter_events WHERE dead_letter_id = {deadLetterId}"
 		);
-		await dbContext.Database.ExecuteSqlAsync(
+		await db.Context.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_dead_letter WHERE id = {deadLetterId}"
 		);
-		await dbContext.Database.ExecuteSqlAsync(
+		await db.Context.Database.ExecuteSqlAsync(
 			$"DELETE FROM audit_logs WHERE target_id = {Guid.Parse(definitionId)}"
 		);
 		foreach (var jobKey in this._TrackedSysJobKeys) {
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"DELETE FROM job_queue WHERE job_type = {jobKey}"
 			);
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM audit_logs
 				WHERE target_id IN (
@@ -431,10 +426,10 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 				)
 				"""
 			);
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"DELETE FROM system_job_occurrences WHERE job_key = {jobKey}"
 			);
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"DELETE FROM system_job_definitions WHERE job_key = {jobKey}"
 			);
 		}
@@ -462,8 +457,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		_CreateUnprivilegedStaffUserAsync() {
 		var email = $"no-perms-group-{Guid.NewGuid():N}@example.com";
 
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var user = new User {
 			Email = email,
@@ -474,14 +468,14 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 			Status = UserStatus.Active,
 		};
 
-		_ = dbContext.User.Add(user);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.User.Add(user);
+		_ = await db.Context.SaveChangesAsync();
 
 		var userId = user.GetRequiredId();
 		var staffAccount = UserAccount.CreateStaffAccount(userId);
 		staffAccount.ValidateAccountType();
-		_ = dbContext.UserAccount.Add(staffAccount);
-		_ = await dbContext.SaveChangesAsync();
+		_ = db.Context.UserAccount.Add(staffAccount);
+		_ = await db.Context.SaveChangesAsync();
 
 		var token = await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
 		return (token, userId);

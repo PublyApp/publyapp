@@ -65,10 +65,7 @@ public sealed class GetAuditLogActionsSpec
 	public async Task
 	ItShouldReturnForbiddenForNonStaffUser() {
 		var token =
-			await this._AuthClient.LoginAsync(
-				TestConstants.AcmeAdminEmail,
-				TestConstants.SeedPassword
-			);
+			await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url =
 			AuditLogTestHelper.GetActionsUrl();

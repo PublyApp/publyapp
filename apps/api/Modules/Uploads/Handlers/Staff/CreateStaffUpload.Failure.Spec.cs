@@ -9,6 +9,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Uploads.Entities;
 using PublyApp.Api.Modules.Users.Entities;
@@ -133,9 +134,8 @@ public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
 	// ── assertions ──────────────────────────────────────────────────────────
 
 	private async Task _AssertBudgetFullyReleasedAsync(Guid userId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var budgets = await dbContext.UploadBudget.Where(b =>
+		await using var db = this._Fixture.OpenDb();
+		var budgets = await db.Context.UploadBudget.Where(b =>
 				b.ScopeKind == UploadBudgetScope.CreatorUser
 				&& b.ScopeKey == userId.ToString()
 			).ToListAsync();
@@ -144,16 +144,15 @@ public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
 		// Only the warmup's own stored bytes remain; the failed attempt
 		// released everything it had reserved.
 		budgets[0].CommittedBytes.Should().Be(CreateStaffUploadFailureSpec._PngBytes.Length);
-		dbContext.UploadAsset.IgnoreQueryFilters()
+		db.Context.UploadAsset.IgnoreQueryFilters()
 			.CountAsync(a => a.CreatedByUserId == userId
 				&& !a.RelativePath.StartsWith("uploads/failure-spec/warmup-"))
 			.Result.Should().Be(0, "the rollback removed the Reserved row");
 	}
 
 	private async Task _AssertOrphanBytesRetainedAsync(Guid userId, string expectedPath) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-		var budget = await dbContext.UploadBudget.Where(b =>
+		await using var db = this._Fixture.OpenDb();
+		var budget = await db.Context.UploadBudget.Where(b =>
 				b.ScopeKind == UploadBudgetScope.CreatorUser
 				&& b.ScopeKey == userId.ToString()
 			).SingleAsync();
@@ -161,7 +160,7 @@ public sealed class CreateStaffUploadFailureSpec : IClassFixture<ApiFixture> {
 		budget.CommittedBytes.Should().Be(CreateStaffUploadFailureSpec._PngBytes.Length * 2,
 			"a possibly-existing blob must keep its bytes accounted for as an orphan");
 		budget.ReservedBytes.Should().Be(0);
-		var orphan = await dbContext.UploadAsset.IgnoreQueryFilters()
+		var orphan = await db.Context.UploadAsset.IgnoreQueryFilters()
 			.SingleAsync(a => a.CreatedByUserId == userId
 				&& !a.RelativePath.StartsWith("uploads/failure-spec/warmup-"));
 		orphan.State.Should().Be(UploadAssetState.Stored);

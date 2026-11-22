@@ -1,6 +1,5 @@
 
 using System.Net;
-using System.Net.Http.Json;
 
 using FluentAssertions;
 
@@ -9,7 +8,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
@@ -57,10 +55,7 @@ public sealed class TenantPermissionFilterSpec
 	// members carry their own roles, so permission proofs seed a dedicated member.
 	private async Task<(Guid TenantId, string Email, Guid UserAccountId)>
 	_CreateBareAcmeMemberAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId = await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
+		var (_, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
 			SeedConstants.Tenants.AcmeName
 		);
 		var email = $"perm-filter-{Guid.NewGuid():N}@example.com";
@@ -168,12 +163,7 @@ public sealed class TenantPermissionFilterSpec
 			response.StatusCode.Should()
 				.Be(HttpStatusCode.Forbidden);
 
-			var problem = await response.Content
-				.ReadFromJsonAsync<AppProblemDetails>();
-			problem.Should().NotBeNull();
-			Assert.NotNull(problem);
-			problem.TranslationKey.Should()
-				.Be("user-does-not-have-the-necessary-permissions");
+			await response.ShouldBeProblemAsync("user-does-not-have-the-necessary-permissions");
 		} finally {
 			await this._CleanupTenantRoleArtifactsAsync(createdRoleIds);
 		}
@@ -184,14 +174,9 @@ public sealed class TenantPermissionFilterSpec
 	ItShouldReturn200ForTenantMemberWithRequiredRolePermission() {
 		// Regression guard: role-derived permissions must still grant access for
 		// members without the full-access role exactly as before the bypass existed.
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (_, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 
 		var createdRoleIds = new List<Guid>();
 
@@ -235,14 +220,9 @@ public sealed class TenantPermissionFilterSpec
 		// Charlie holds the Acme Owner full-access role but is only a non-full-access
 		// member in Global Solutions (see UserAccountSeeder cross-tenant fixtures). The
 		// bypass earned in Acme must not follow the user into a different tenant scope.
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		var acmeId =
-			await TenantTestHelper.GetTenantIdByNameAsync(
-				this._Http,
-				staffToken,
-				SeedConstants.Tenants.AcmeName
-			);
+		var (staffToken, acmeId) = await this._AuthClient.LoginAsStaffWithTenantAsync(
+			SeedConstants.Tenants.AcmeName
+		);
 		var globalId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
 				this._Http,
@@ -281,12 +261,7 @@ public sealed class TenantPermissionFilterSpec
 			globalResponse.StatusCode.Should()
 				.Be(HttpStatusCode.Forbidden);
 
-			var problem = await globalResponse.Content
-				.ReadFromJsonAsync<AppProblemDetails>();
-			problem.Should().NotBeNull();
-			Assert.NotNull(problem);
-			problem.TranslationKey.Should()
-				.Be("user-does-not-have-the-necessary-permissions");
+			await globalResponse.ShouldBeProblemAsync("user-does-not-have-the-necessary-permissions");
 		}
 	}
 
@@ -297,10 +272,7 @@ public sealed class TenantPermissionFilterSpec
 		// exclusivity). Hitting a staff-scope permission-gated endpoint must be rejected
 		// by StaffAuthFilter before any permission check runs — proving the tenant
 		// full-access bypass cannot cross into staff-scope enforcement.
-		var acmeAdminToken = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var acmeAdminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var url = PathUtils.Join(
 			AppRoutes.Staff.Root,
@@ -319,21 +291,14 @@ public sealed class TenantPermissionFilterSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.Forbidden);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be("not-a-staff-user");
+		await response.ShouldBeProblemAsync("not-a-staff-user");
 	}
 
 	private async Task<Guid> _CreateTenantRoleWithPermissionsAsync(
 		Guid tenantId,
 		IEnumerable<string> permissionKeys
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(
 			tenantId,
@@ -342,13 +307,13 @@ public sealed class TenantPermissionFilterSpec
 		);
 		role.ValidateRoleType();
 
-		_ = await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		_ = await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		var roleId = role.GetRequiredId();
 
 		foreach (var permissionKey in permissionKeys) {
-			_ = await dbContext.RolePermission.AddAsync(
+			_ = await db.Context.RolePermission.AddAsync(
 				new RolePermission {
 					RoleId = roleId,
 					PermissionKey = permissionKey
@@ -356,7 +321,7 @@ public sealed class TenantPermissionFilterSpec
 			);
 		}
 
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return roleId;
 	}
@@ -368,13 +333,10 @@ public sealed class TenantPermissionFilterSpec
 	) {
 		var trimmedEmail = email.Trim();
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenantUserAccounts = await (
-			from ua in dbContext.UserAccount
+			from ua in db.Context.UserAccount
 			where ua.Scope == AccountScope.Tenant
 				&& ua.TenantId == tenantId
 				&& !ua.IsDeleted
@@ -400,7 +362,7 @@ public sealed class TenantPermissionFilterSpec
 		}
 
 		foreach (var roleId in roleIds) {
-			_ = await dbContext.UserAccountRole.AddAsync(
+			_ = await db.Context.UserAccountRole.AddAsync(
 				new UserAccountRole {
 					UserAccountId = tenantUserAccount.Id.Value,
 					RoleId = roleId
@@ -408,7 +370,7 @@ public sealed class TenantPermissionFilterSpec
 			);
 		}
 
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _CleanupTenantRoleArtifactsAsync(
@@ -418,43 +380,40 @@ public sealed class TenantPermissionFilterSpec
 			return;
 		}
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var roleIdList = roleIds.ToList();
 
 		var linksToRemove = await (
-			from uap in dbContext.UserAccountRole
+			from uap in db.Context.UserAccountRole
 			where roleIdList.Contains(uap.RoleId)
 			select uap
 		).ToListAsync();
 
 		if (linksToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(linksToRemove);
+			db.Context.ForceHardDeleteRange(linksToRemove);
 		}
 
 		var permissionsToRemove = await (
-			from pp in dbContext.RolePermission
+			from pp in db.Context.RolePermission
 			where roleIdList.Contains(pp.RoleId)
 			select pp
 		).ToListAsync();
 
 		if (permissionsToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(permissionsToRemove);
+			db.Context.ForceHardDeleteRange(permissionsToRemove);
 		}
 
 		var rolesToRemove = (await (
-			from p in dbContext.Role
+			from p in db.Context.Role
 			select p
 		).ToListAsync())
 			.Where(role => roleIdList.Contains(role.GetRequiredId()))
 			.ToList();
 
 		if (rolesToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(rolesToRemove);
-			await dbContext.SaveChangesAsync();
+			db.Context.ForceHardDeleteRange(rolesToRemove);
+			await db.Context.SaveChangesAsync();
 		}
 	}
 

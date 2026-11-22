@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Localization;
@@ -129,12 +128,7 @@ public sealed class GetSystemNoticeByIdSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.NotFound);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be("system-notice-not-found");
+		await response.ShouldBeProblemAsync("system-notice-not-found");
 	}
 
 	[Fact]
@@ -162,12 +156,7 @@ public sealed class GetSystemNoticeByIdSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should()
-					.Be(ResponseKeys.MalformedId);
+		await response.ShouldBeProblemAsync(ResponseKeys.MalformedId);
 	}
 
 	private record NoticeDetailResponse {

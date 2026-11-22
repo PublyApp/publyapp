@@ -10,6 +10,7 @@ using Npgsql;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Jobs.Jobs;
 using PublyApp.Api.Modules.Messaging.Jobs;
@@ -77,10 +78,9 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldSeedEverySystemJobDefinitionWithAValidCron() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var rows = await dbContext.SystemJobDefinition
+		var rows = await db.Context.SystemJobDefinition
 			.Where(d => SystemJobDefinitionSeederSpec._ExpectedKeys.Contains(d.JobKey) && !d.IsDeleted)
 			.ToListAsync();
 
@@ -191,18 +191,17 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNotDuplicateRowsWhenRunAgain() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var before = await dbContext.SystemJobDefinition
+		var before = await db.Context.SystemJobDefinition
 			.CountAsync(d => SystemJobDefinitionSeederSpec._ExpectedKeys.Contains(d.JobKey));
 
 		var seeder = new SystemJobDefinitionSeeder(
 			NullLogger<SystemJobDefinitionSeeder>.Instance
 		);
-		await seeder.SeedAsync(dbContext, CancellationToken.None);
+		await seeder.SeedAsync(db.Context, CancellationToken.None);
 
-		var after = await dbContext.SystemJobDefinition
+		var after = await db.Context.SystemJobDefinition
 			.CountAsync(d => SystemJobDefinitionSeederSpec._ExpectedKeys.Contains(d.JobKey));
 
 		after.Should().Be(before, "re-seeding only inserts missing keys — never duplicates");
@@ -211,8 +210,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReinsertAMissingKeyWithDefaultsWhileLeavingOperatorEditsUntouched() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var missingKey = CleanupExpiredSessionsHandler.JobKey;
 		var editedKey = EmailLogRetentionHandler.JobKey;
@@ -220,7 +218,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 		// edit made from the dashboard (#636).
 		const string sentinelCron = "0 0 1 1 1 ?";
 
-		var editedOriginal = await dbContext.SystemJobDefinition
+		var editedOriginal = await db.Context.SystemJobDefinition
 			.AsNoTracking()
 			.FirstAsync(d => d.JobKey == editedKey);
 		var originalCron = editedOriginal.CronExpression;
@@ -231,10 +229,10 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 
 		try {
 			// Operator removes one definition entirely and edits another (cron + disable).
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"DELETE FROM system_job_definitions WHERE job_key = {missingKey}"
 			);
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"""
 				UPDATE system_job_definitions
 				SET cron_expression = {sentinelCron}, is_enabled = false
@@ -242,10 +240,10 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 				"""
 			);
 
-			await seeder.SeedAsync(dbContext, CancellationToken.None);
+			await seeder.SeedAsync(db.Context, CancellationToken.None);
 
 			// The missing key is re-inserted exactly once, with the seeder's defaults.
-			var reinserted = await dbContext.SystemJobDefinition
+			var reinserted = await db.Context.SystemJobDefinition
 				.AsNoTracking()
 				.Where(d => d.JobKey == missingKey && !d.IsDeleted)
 				.ToListAsync();
@@ -257,7 +255,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 			reinserted[0].IsEnabled.Should().BeTrue("the re-inserted row is enabled by default");
 
 			// The operator-edited row is left untouched — the seeder only inserts missing keys.
-			var edited = await dbContext.SystemJobDefinition
+			var edited = await db.Context.SystemJobDefinition
 				.AsNoTracking()
 				.FirstAsync(d => d.JobKey == editedKey);
 			edited.CronExpression.Should().Be(sentinelCron, "an operator's cron edit is preserved");
@@ -265,7 +263,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 		} finally {
 			// Restore the operator edit independently from missing-row repair.
 			try {
-				await dbContext.Database.ExecuteSqlAsync(
+				await db.Context.Database.ExecuteSqlAsync(
 					$"""
 					UPDATE system_job_definitions
 					SET cron_expression = {originalCron}, is_enabled = true
@@ -273,7 +271,7 @@ public sealed class SystemJobDefinitionSeederSpec : IClassFixture<ApiFixture> {
 					"""
 				);
 			} finally {
-				await seeder.SeedAsync(dbContext, CancellationToken.None);
+				await seeder.SeedAsync(db.Context, CancellationToken.None);
 			}
 		}
 	}

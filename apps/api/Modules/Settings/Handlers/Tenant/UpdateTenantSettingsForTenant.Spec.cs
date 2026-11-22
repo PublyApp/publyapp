@@ -7,7 +7,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
@@ -243,11 +242,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Name");
+		await response.ShouldHaveValidationErrorAsync("Name");
 	}
 
 	[Fact]
@@ -270,11 +265,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("WebsiteUrl");
+		await response.ShouldHaveValidationErrorAsync("WebsiteUrl");
 	}
 
 	[Fact]
@@ -297,11 +288,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("BillingEmail");
+		await response.ShouldHaveValidationErrorAsync("BillingEmail");
 	}
 
 	[Fact]
@@ -324,11 +311,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("DefaultLocale");
+		await response.ShouldHaveValidationErrorAsync("DefaultLocale");
 	}
 
 	[Fact]
@@ -351,11 +334,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		using var response = await this._Http.SendAsync(request);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("Timezone");
+		await response.ShouldHaveValidationErrorAsync("Timezone");
 	}
 
 	[Fact]
@@ -471,10 +450,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	private async Task<(Guid TenantId, string Token, TenantRow Original)>
 	_PrepareAcmeAdminAsync() {
 		var acmeId = await this._GetAcmeIdAsync();
-		var token = await this._AuthClient.LoginAsync(
-			TestConstants.AcmeAdminEmail,
-			TestConstants.SeedPassword
-		);
+		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		var original = await this._GetTenantRowAsync(acmeId);
 
@@ -492,12 +468,9 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	}
 
 	private async Task<TenantRow> _GetTenantRowAsync(Guid tenantId) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.Tenant
+		return await db.Context.Tenant
 			.AsNoTracking()
 			.Where(tenant => tenant.Id == tenantId)
 			.Select(tenant => new TenantRow(
@@ -518,12 +491,9 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		Guid tenantId,
 		TenantRow original
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		await dbContext.Tenant
+		await db.Context.Tenant
 			.Where(tenant => tenant.Id == tenantId)
 			.ExecuteUpdateAsync(setters => setters
 				.SetProperty(tenant => tenant.Name, original.Name)
@@ -542,10 +512,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		Guid tenantId,
 		IEnumerable<string> permissionKeys
 	) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var role = Role.CreateTenantRole(
 			tenantId,
@@ -554,13 +521,13 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		);
 		role.ValidateRoleType();
 
-		_ = await dbContext.Role.AddAsync(role);
-		await dbContext.SaveChangesAsync();
+		_ = await db.Context.Role.AddAsync(role);
+		await db.Context.SaveChangesAsync();
 
 		var roleId = role.GetRequiredId();
 
 		foreach (var permissionKey in permissionKeys) {
-			_ = await dbContext.RolePermission.AddAsync(
+			_ = await db.Context.RolePermission.AddAsync(
 				new RolePermission {
 					RoleId = roleId,
 					PermissionKey = permissionKey
@@ -568,7 +535,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			);
 		}
 
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return roleId;
 	}
@@ -580,13 +547,10 @@ public sealed class UpdateTenantSettingsForTenantSpec
 	) {
 		var trimmedEmail = email.Trim();
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var tenantUserAccounts = await (
-			from ua in dbContext.UserAccount
+			from ua in db.Context.UserAccount
 			where ua.Scope == AccountScope.Tenant
 				&& ua.TenantId == tenantId
 				&& !ua.IsDeleted
@@ -612,7 +576,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 		}
 
 		foreach (var roleId in roleIds) {
-			_ = await dbContext.UserAccountRole.AddAsync(
+			_ = await db.Context.UserAccountRole.AddAsync(
 				new UserAccountRole {
 					UserAccountId = tenantUserAccount.Id.Value,
 					RoleId = roleId
@@ -620,7 +584,7 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			);
 		}
 
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 	}
 
 	private async Task _CleanupTenantRoleArtifactsAsync(
@@ -630,43 +594,40 @@ public sealed class UpdateTenantSettingsForTenantSpec
 			return;
 		}
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var roleIdList = roleIds.ToList();
 
 		var linksToRemove = await (
-			from uap in dbContext.UserAccountRole
+			from uap in db.Context.UserAccountRole
 			where roleIdList.Contains(uap.RoleId)
 			select uap
 		).ToListAsync();
 
 		if (linksToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(linksToRemove);
+			db.Context.ForceHardDeleteRange(linksToRemove);
 		}
 
 		var permissionsToRemove = await (
-			from pp in dbContext.RolePermission
+			from pp in db.Context.RolePermission
 			where roleIdList.Contains(pp.RoleId)
 			select pp
 		).ToListAsync();
 
 		if (permissionsToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(permissionsToRemove);
+			db.Context.ForceHardDeleteRange(permissionsToRemove);
 		}
 
 		var rolesToRemove = (await (
-			from p in dbContext.Role
+			from p in db.Context.Role
 			select p
 		).ToListAsync())
 			.Where(role => roleIdList.Contains(role.GetRequiredId()))
 			.ToList();
 
 		if (rolesToRemove.Count > 0) {
-			dbContext.ForceHardDeleteRange(rolesToRemove);
-			await dbContext.SaveChangesAsync();
+			db.Context.ForceHardDeleteRange(rolesToRemove);
+			await db.Context.SaveChangesAsync();
 		}
 	}
 

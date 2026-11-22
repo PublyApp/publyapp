@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 
 using FluentAssertions;
 
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -284,11 +283,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("start_date");
+		await response.ShouldHaveValidationErrorAsync("start_date");
 	}
 
 	[Fact]
@@ -312,11 +307,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("end_date");
+		await response.ShouldHaveValidationErrorAsync("end_date");
 	}
 
 	[Fact]
@@ -325,10 +316,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 		var token =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext =
-			scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 		var tenantId = Guid.NewGuid();
 		var createdAt =
 			new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -346,7 +334,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 		);
 
 		try {
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"""
 				INSERT INTO tenants
 					(id, code, name, status, max_users, created_at,
@@ -376,7 +364,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 					new DateTime(2020, 6, 4, 0, 0, 0, DateTimeKind.Utc)
 				),
 			}) {
-				await dbContext.Database.ExecuteSqlAsync(
+				await db.Context.Database.ExecuteSqlAsync(
 					$"""
 					INSERT INTO tenant_status_history
 						(tenant_id, status, occurred_at, created_at)
@@ -416,12 +404,12 @@ public sealed class GetDashboardSeriesForStaffSpec
 		} finally {
 			// No FK on tenant_id (see TenantStatusHistory): the hard delete
 			// writes its terminal row first, then this spec removes both.
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM tenants WHERE id = {tenantId}
 				"""
 			);
-			await dbContext.Database.ExecuteSqlAsync(
+			await db.Context.Database.ExecuteSqlAsync(
 				$"""
 				DELETE FROM tenant_status_history
 				WHERE tenant_id = {tenantId}
@@ -583,11 +571,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("start_date");
+		await response.ShouldHaveValidationErrorAsync("start_date");
 	}
 
 	// ---- members / pending_invitations (#2355) ----
@@ -1154,11 +1138,11 @@ public sealed class GetDashboardSeriesForStaffSpec
 		var pending = await this._GetSeriesAsync(
 			token, "pending_invitations", today, today);
 
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
-			TenantTestHelper.GetFindUrl(limit: 1)
-		).WithSessionToken(token);
-		using var response = await this._Http.SendAsync(request);
+			TenantTestHelper.GetFindUrl(limit: 1),
+			token
+		);
 		response.StatusCode.Should().Be(HttpStatusCode.OK);
 		var read = await response.Content
 			.ReadFromJsonAsync<TenantsReadResponse>();
@@ -1184,16 +1168,15 @@ public sealed class GetDashboardSeriesForStaffSpec
 	[Fact]
 	public async Task ItShouldReturn422ForAnUnknownMetricAndNameTheNewOnes() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		using var request = new HttpRequestMessage(
+		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
 			GetDashboardSeriesForStaffSpec._GetUrl(
 				"nope",
 				"2021-01-01",
 				"2021-01-02"
-			)
-		).WithSessionToken(token);
-
-		using var response = await this._Http.SendAsync(request);
+			),
+			token
+		);
 
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 		var body = await response.Content.ReadAsStringAsync();
@@ -1234,11 +1217,7 @@ public sealed class GetDashboardSeriesForStaffSpec
 		response.StatusCode.Should()
 			.Be(HttpStatusCode.UnprocessableEntity);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<ValidationProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.Errors.Should().ContainKey("metric");
+		await response.ShouldHaveValidationErrorAsync("metric");
 	}
 
 	[Fact]

@@ -1,10 +1,10 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Tenants.Entities;
 
 using Xunit;
@@ -39,13 +39,12 @@ public sealed class BulkSeederIdempotencySpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldInsertEverythingOnFirstRunAndSkipEverythingOnSecondRun() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var firstSeeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
-		await firstSeeder.SeedBulkAsync(dbContext);
+		await firstSeeder.SeedBulkAsync(db.Context);
 
-		var (tenantsAfterFirst, usersAfterFirst, accountsAfterFirst, projectsAfterFirst) = await BulkSeederIdempotencySpec._CountBulkRowsAsync(dbContext);
+		var (tenantsAfterFirst, usersAfterFirst, accountsAfterFirst, projectsAfterFirst) = await BulkSeederIdempotencySpec._CountBulkRowsAsync(db.Context);
 
 		tenantsAfterFirst.Should().Be(6);
 		usersAfterFirst.Should().Be(6);
@@ -55,10 +54,10 @@ public sealed class BulkSeederIdempotencySpec : IClassFixture<ApiFixture> {
 		// A fresh generator instance mirrors a fresh `dotnet run -- seed-bulk` process,
 		// which reseeds its own Random(12345) from scratch on every invocation.
 		var secondSeeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
-		var act = async () => await secondSeeder.SeedBulkAsync(dbContext);
+		var act = async () => await secondSeeder.SeedBulkAsync(db.Context);
 		await act.Should().NotThrowAsync("a second run must treat already-seeded rows as success, not a duplicate-key failure");
 
-		var (tenantsAfterSecond, usersAfterSecond, accountsAfterSecond, projectsAfterSecond) = await BulkSeederIdempotencySpec._CountBulkRowsAsync(dbContext);
+		var (tenantsAfterSecond, usersAfterSecond, accountsAfterSecond, projectsAfterSecond) = await BulkSeederIdempotencySpec._CountBulkRowsAsync(db.Context);
 
 		tenantsAfterSecond.Should().Be(tenantsAfterFirst);
 		usersAfterSecond.Should().Be(usersAfterFirst);
@@ -86,11 +85,10 @@ public sealed class BulkSeederPartialReseedSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldInsertOnlyTheMissingRowsWhenPartiallySeeded() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var seeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
-		await seeder.SeedBulkAsync(dbContext);
+		await seeder.SeedBulkAsync(db.Context);
 
 		// Hard-delete one whole tenant (with its dependents) and one standalone user
 		// account, simulating the case the issue calls out as mattering most: a database
@@ -98,57 +96,57 @@ public sealed class BulkSeederPartialReseedSpec : IClassFixture<ApiFixture> {
 		// Picked dynamically (rather than hardcoding e.g. tenant 001) because the generator
 		// marks ~10% of tenants deleted/suspended in-memory, so a hardcoded index could
 		// land on a tenant that never received projects in the first place.
-		var tenantIdWithProjects = await dbContext.Project.Select(p => p.TenantId).Distinct().FirstAsync();
-		var removedTenant = await dbContext.Tenant.SingleAsync(t => t.Id == tenantIdWithProjects);
+		var tenantIdWithProjects = await db.Context.Project.Select(p => p.TenantId).Distinct().FirstAsync();
+		var removedTenant = await db.Context.Tenant.SingleAsync(t => t.Id == tenantIdWithProjects);
 		var removedTenantCode = removedTenant.Code;
 		var removedTenantId = removedTenant.GetRequiredId();
 
-		var dependentAccounts = await dbContext.UserAccount.Where(ua => ua.TenantId == removedTenantId).ToListAsync();
-		var dependentProjects = await dbContext.Project.Where(p => p.TenantId == removedTenantId).ToListAsync();
-		dbContext.ForceHardDeleteRange(dependentAccounts);
-		dbContext.ForceHardDeleteRange(dependentProjects);
-		dbContext.ForceHardDelete(removedTenant);
-		await dbContext.SaveChangesAsync();
+		var dependentAccounts = await db.Context.UserAccount.Where(ua => ua.TenantId == removedTenantId).ToListAsync();
+		var dependentProjects = await db.Context.Project.Where(p => p.TenantId == removedTenantId).ToListAsync();
+		db.Context.ForceHardDeleteRange(dependentAccounts);
+		db.Context.ForceHardDeleteRange(dependentProjects);
+		db.Context.ForceHardDelete(removedTenant);
+		await db.Context.SaveChangesAsync();
 
 		// A standalone gap unrelated to the removed tenant — picked among bulk-seeded users
 		// specifically (ApiFixture's own startup seeders, e.g. OwnerBootstrapSeeder, create
 		// unrelated accounts in the same table that must stay untouched by BulkSeeder).
-		var standaloneAccount = await dbContext.UserAccount
-			.Where(ua => dbContext.User.Any(u => u.Id == ua.UserId && u.Email.EndsWith("@" + BulkSeedConstants.UserEmailDomain)))
+		var standaloneAccount = await db.Context.UserAccount
+			.Where(ua => db.Context.User.Any(u => u.Id == ua.UserId && u.Email.EndsWith("@" + BulkSeedConstants.UserEmailDomain)))
 			.Where(ua => ua.TenantId != removedTenantId)
 			.FirstAsync();
 		var standaloneAccountKey = (standaloneAccount.UserId, standaloneAccount.Scope, standaloneAccount.TenantId, standaloneAccount.ProjectId);
-		dbContext.ForceHardDelete(standaloneAccount);
-		await dbContext.SaveChangesAsync();
-		dbContext.ChangeTracker.Clear();
+		db.Context.ForceHardDelete(standaloneAccount);
+		await db.Context.SaveChangesAsync();
+		db.Context.ChangeTracker.Clear();
 
-		var accountsBeforeReseed = await dbContext.UserAccount.CountAsync();
+		var accountsBeforeReseed = await db.Context.UserAccount.CountAsync();
 
 		var reseeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
-		await reseeder.SeedBulkAsync(dbContext);
+		await reseeder.SeedBulkAsync(db.Context);
 
-		var tenantsAfterReseed = await dbContext.Tenant.CountAsync(t => t.Code.StartsWith(BulkSeedConstants.TenantCodePrefix));
+		var tenantsAfterReseed = await db.Context.Tenant.CountAsync(t => t.Code.StartsWith(BulkSeedConstants.TenantCodePrefix));
 		tenantsAfterReseed.Should().Be(6, "the missing tenant must be recreated, restoring the full set");
 
-		var recreatedTenant = await dbContext.Tenant.SingleAsync(t => t.Code == removedTenantCode);
+		var recreatedTenant = await db.Context.Tenant.SingleAsync(t => t.Code == removedTenantCode);
 		recreatedTenant.GetRequiredId().Should().NotBe(removedTenantId, "a hard-deleted natural key gets a genuinely new row, not the old id");
 
 		// Every project belonging to the recreated tenant must reference its NEW id, not
 		// the generator's in-memory id from before persistence — this is the FK-remap this
 		// issue's design hinges on: a tenant that already exists (or gets freshly
 		// (re)inserted) must have its real persisted id propagated to dependents.
-		var projectsForRecreatedTenant = await dbContext.Project.CountAsync(p => p.TenantId == recreatedTenant.GetRequiredId());
+		var projectsForRecreatedTenant = await db.Context.Project.CountAsync(p => p.TenantId == recreatedTenant.GetRequiredId());
 		projectsForRecreatedTenant.Should().Be(dependentProjects.Count, "the tenant's own deleted projects must all be recreated, and only those");
-		var projectsWithStaleTenantId = await dbContext.Project.CountAsync(p => p.TenantId == removedTenantId);
+		var projectsWithStaleTenantId = await db.Context.Project.CountAsync(p => p.TenantId == removedTenantId);
 		projectsWithStaleTenantId.Should().Be(0, "no project should ever reference the old, no-longer-existing tenant id");
 
-		var accountsAfterReseed = await dbContext.UserAccount.CountAsync();
+		var accountsAfterReseed = await db.Context.UserAccount.CountAsync();
 		accountsAfterReseed.Should().Be(
 			accountsBeforeReseed + dependentAccounts.Count + 1,
 			"the tenant's own deleted accounts plus the single standalone gap should be filled; nothing else should be re-inserted"
 		);
 
-		var matchingAccounts = await dbContext.UserAccount.CountAsync(ua =>
+		var matchingAccounts = await db.Context.UserAccount.CountAsync(ua =>
 			ua.UserId == standaloneAccountKey.UserId
 			&& ua.Scope == standaloneAccountKey.Scope
 			&& ua.TenantId == standaloneAccountKey.TenantId
@@ -167,11 +165,10 @@ public sealed class BulkSeederSoftDeleteTrapSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNotDuplicateASoftDeletedNaturalKeyOnReseed() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var seeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
-		await seeder.SeedBulkAsync(dbContext);
+		await seeder.SeedBulkAsync(db.Context);
 
 		// Tenant.Code and User.Email are only unique among non-deleted rows (filtered
 		// unique indexes), so a naive "does an active row exist" check would let a second
@@ -179,21 +176,21 @@ public sealed class BulkSeederSoftDeleteTrapSpec : IClassFixture<ApiFixture> {
 		// SaveChanges override converts a plain Remove() into a soft delete (IsDeleted =
 		// true), which is exactly the trap this issue calls out — reproduce it for real
 		// rather than asserting against the seeder's own logic.
-		var tenantToSoftDelete = await dbContext.Tenant.SingleAsync(t => t.Code == $"{BulkSeedConstants.TenantCodePrefix}001");
-		dbContext.Remove(tenantToSoftDelete);
-		await dbContext.SaveChangesAsync();
-		dbContext.ChangeTracker.Clear();
+		var tenantToSoftDelete = await db.Context.Tenant.SingleAsync(t => t.Code == $"{BulkSeedConstants.TenantCodePrefix}001");
+		db.Context.Remove(tenantToSoftDelete);
+		await db.Context.SaveChangesAsync();
+		db.Context.ChangeTracker.Clear();
 
-		var reloadedTenant = await dbContext.Tenant.SingleAsync(t => t.Code == $"{BulkSeedConstants.TenantCodePrefix}001");
+		var reloadedTenant = await db.Context.Tenant.SingleAsync(t => t.Code == $"{BulkSeedConstants.TenantCodePrefix}001");
 		reloadedTenant.IsDeleted.Should().BeTrue("the setup must actually produce a soft-deleted row, not a hard-deleted one");
 
-		var tenantRowCountBeforeReseed = await dbContext.Tenant.CountAsync(t => t.Code == $"{BulkSeedConstants.TenantCodePrefix}001");
+		var tenantRowCountBeforeReseed = await db.Context.Tenant.CountAsync(t => t.Code == $"{BulkSeedConstants.TenantCodePrefix}001");
 
 		var reseeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
-		var act = async () => await reseeder.SeedBulkAsync(dbContext);
+		var act = async () => await reseeder.SeedBulkAsync(db.Context);
 		await act.Should().NotThrowAsync();
 
-		var tenantRowCountAfterReseed = await dbContext.Tenant.CountAsync(t => t.Code == $"{BulkSeedConstants.TenantCodePrefix}001");
+		var tenantRowCountAfterReseed = await db.Context.Tenant.CountAsync(t => t.Code == $"{BulkSeedConstants.TenantCodePrefix}001");
 		tenantRowCountAfterReseed.Should().Be(
 			tenantRowCountBeforeReseed,
 			"a soft-deleted tenant must be recognized as already existing by natural key, not duplicated"
@@ -210,8 +207,7 @@ public sealed class BulkSeederSoftDeleteRatioSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldMaterializeSoftDeleteRatiosForBulkSeedRows() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		// Use a dataset large enough for percentage materialization to be visibly non-zero
 		// under 100% confidence and stable with the generator's fixed seed.
@@ -224,20 +220,20 @@ public sealed class BulkSeederSoftDeleteRatioSpec : IClassFixture<ApiFixture> {
 			projectsPerTenant: 8
 		);
 		var seeder = new BulkSeeder(batchSize: 50, generator: generator);
-		await seeder.SeedBulkAsync(dbContext);
+		await seeder.SeedBulkAsync(db.Context);
 
-		var totalTenants = await dbContext.Tenant.CountAsync(t => t.Code.StartsWith(BulkSeedConstants.TenantCodePrefix));
-		var deletedTenants = await dbContext.Tenant.CountAsync(t =>
+		var totalTenants = await db.Context.Tenant.CountAsync(t => t.Code.StartsWith(BulkSeedConstants.TenantCodePrefix));
+		var deletedTenants = await db.Context.Tenant.CountAsync(t =>
 			t.Code.StartsWith(BulkSeedConstants.TenantCodePrefix) && t.IsDeleted
 		);
 
-		var totalUsers = await dbContext.User.CountAsync(u => u.Email.EndsWith("@" + BulkSeedConstants.UserEmailDomain));
-		var deletedUsers = await dbContext.User.CountAsync(u =>
+		var totalUsers = await db.Context.User.CountAsync(u => u.Email.EndsWith("@" + BulkSeedConstants.UserEmailDomain));
+		var deletedUsers = await db.Context.User.CountAsync(u =>
 			u.Email.EndsWith("@" + BulkSeedConstants.UserEmailDomain) && u.IsDeleted
 		);
 
-		var totalProjects = await dbContext.Project.CountAsync(p => p.Name.StartsWith(BulkSeedConstants.ProjectNamePrefix));
-		var deletedProjects = await dbContext.Project.CountAsync(p =>
+		var totalProjects = await db.Context.Project.CountAsync(p => p.Name.StartsWith(BulkSeedConstants.ProjectNamePrefix));
+		var deletedProjects = await db.Context.Project.CountAsync(p =>
 			p.Name.StartsWith(BulkSeedConstants.ProjectNamePrefix) && p.IsDeleted
 		);
 
@@ -278,15 +274,14 @@ public sealed class BulkSeederGenuineFailureSpec : IClassFixture<ApiFixture> {
 	// check) must recognize that and rethrow rather than report a skip.
 	[Fact]
 	public async Task ItShouldThrowWhenAGenuineNonDuplicateFailureOccurs() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var seeder = new BulkSeeder(batchSize: 50);
 		var duplicateCode = $"{BulkSeedConstants.TenantCodePrefix}self-collision";
 		var tenantA = new Tenant { Id = Guid.CreateVersion7(), Code = duplicateCode, Name = "Self Collision A", MaxUsers = 10 };
 		var tenantB = new Tenant { Id = Guid.CreateVersion7(), Code = duplicateCode, Name = "Self Collision B", MaxUsers = 10 };
 
-		var act = async () => await seeder.SeedTenantsInBatchesAsync(dbContext, [tenantA, tenantB], CancellationToken.None);
+		var act = async () => await seeder.SeedTenantsInBatchesAsync(db.Context, [tenantA, tenantB], CancellationToken.None);
 
 		var thrown = await act.Should().ThrowAsync<DbUpdateException>(
 			"a 23505 on the tenant natural-key index that rolls back BOTH colliding rows is not the same thing as " +
@@ -299,7 +294,7 @@ public sealed class BulkSeederGenuineFailureSpec : IClassFixture<ApiFixture> {
 			"this must be the seeder's OWN expected natural-key constraint — proving the constraint-name check alone is not enough"
 		);
 
-		var persisted = await dbContext.Tenant.AsNoTracking().AnyAsync(t => t.Code == duplicateCode);
+		var persisted = await db.Context.Tenant.AsNoTracking().AnyAsync(t => t.Code == duplicateCode);
 		persisted.Should().BeFalse("the whole batch rolled back, so neither colliding row should have made it to disk");
 	}
 }
@@ -319,34 +314,33 @@ public sealed class BulkSeederUnrelatedUniqueViolationSpec : IClassFixture<ApiFi
 	// never inserted.
 	[Fact]
 	public async Task ItShouldThrowWhenAnUnrelatedUniqueIndexCollidesDuringTheProjectPhase() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var seeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
-		await seeder.SeedBulkAsync(dbContext);
+		await seeder.SeedBulkAsync(db.Context);
 
 		// Hard-delete only the generated projects, leaving their parent tenants/users/
 		// accounts intact — the project phase must genuinely attempt to reinsert all of
 		// them on the next run.
-		var bulkProjects = await dbContext.Project
+		var bulkProjects = await db.Context.Project
 			.Where(p => p.Name.StartsWith(BulkSeedConstants.ProjectNamePrefix))
 			.ToListAsync();
 		bulkProjects.Should().NotBeEmpty("the small generator must produce at least one project for this repro to be meaningful");
-		dbContext.ForceHardDeleteRange(bulkProjects);
-		await dbContext.SaveChangesAsync();
-		dbContext.ChangeTracker.Clear();
+		db.Context.ForceHardDeleteRange(bulkProjects);
+		await db.Context.SaveChangesAsync();
+		db.Context.ChangeTracker.Clear();
 
 		// Simulate schema drift: a unique index on "projects" that has nothing to do with
 		// the seeder's (TenantId, Name) natural key. A constant expression scoped to bulk
 		// project names means any TWO bulk projects inserted in the same batch collide,
 		// regardless of which tenant or name they carry.
-		await dbContext.Database.ExecuteSqlRawAsync(
+		await db.Context.Database.ExecuteSqlRawAsync(
 			"CREATE UNIQUE INDEX test_ix_projects_drift ON \"projects\" ((1)) " +
 			"WHERE \"name\" LIKE 'Bulk Project %'"
 		);
 
 		var reseeder = new BulkSeeder(batchSize: 50, generator: BulkSeederSpecSupport.CreateSmallGenerator());
-		var act = async () => await reseeder.SeedBulkAsync(dbContext);
+		var act = async () => await reseeder.SeedBulkAsync(db.Context);
 
 		var thrown = await act.Should().ThrowAsync<DbUpdateException>(
 			"an unrelated unique-index violation must propagate as a genuine failure, not be reported as a successful, " +
@@ -359,7 +353,7 @@ public sealed class BulkSeederUnrelatedUniqueViolationSpec : IClassFixture<ApiFi
 			"the violated index is unrelated to the seeder's own (TenantId, Name) natural key (IX_projects_tenant_id_name)"
 		);
 
-		var projectsAfterFailedReseed = await dbContext.Project.CountAsync(p => p.Name.StartsWith(BulkSeedConstants.ProjectNamePrefix));
+		var projectsAfterFailedReseed = await db.Context.Project.CountAsync(p => p.Name.StartsWith(BulkSeedConstants.ProjectNamePrefix));
 		projectsAfterFailedReseed.Should().Be(0, "the failed batch must have rolled back rather than partially or silently applying");
 	}
 }
@@ -390,8 +384,7 @@ public sealed class BulkSeederNaturalKeyIndexContractSpec : IClassFixture<ApiFix
 	// not the EF model).
 	[Fact]
 	public async Task ItShouldHaveALiveMigratedIndexForEveryNaturalKeyConstraintBulkSeederConsumes() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var expectedIndexNames = BulkSeeder.TenantNaturalKeyConstraints
 			.Concat(BulkSeeder.UserNaturalKeyConstraints)
@@ -399,7 +392,7 @@ public sealed class BulkSeederNaturalKeyIndexContractSpec : IClassFixture<ApiFix
 			.Concat(BulkSeeder.ProjectNaturalKeyConstraints)
 			.ToList();
 
-		var liveIndexNames = await dbContext.Database.SqlQuery<string>(
+		var liveIndexNames = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT indexname AS "Value"
 			FROM pg_indexes

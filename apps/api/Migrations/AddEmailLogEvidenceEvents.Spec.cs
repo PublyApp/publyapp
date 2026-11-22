@@ -1,10 +1,9 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Messaging.Entities;
 
 using Xunit;
@@ -28,10 +27,9 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldCreateTheEvidenceTableWithRequiredActorColumnsAndCascadeToEmailLog() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var columnStates = await dbContext.Database.SqlQuery<string>(
+		var columnStates = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT string_agg(column_name || '=' || is_nullable || ':' || data_type, ', ' ORDER BY column_name) AS "Value"
 			FROM information_schema.columns
@@ -55,10 +53,9 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldCarryNoForeignKeyToUsersAndCascadeToItsEmailLogSubject() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var foreignKeys = await dbContext.Database.SqlQuery<string>(
+		var foreignKeys = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT string_agg(confrelid::regclass::text || ':' || confdeltype::text, ', ' ORDER BY confrelid::regclass::text) AS "Value"
 			FROM pg_constraint
@@ -76,10 +73,9 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldIndexTheEvidenceHistoryByItsSubjectAndTime() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var indexDef = await dbContext.Database.SqlQuery<string>(
+		var indexDef = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT indexdef AS "Value"
 			FROM pg_indexes
@@ -97,10 +93,9 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldEnforceTheActorInvariantsWithDatabaseCheckConstraints() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var checkConstraints = await dbContext.Database.SqlQuery<string>(
+		var checkConstraints = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT string_agg(conname, ', ' ORDER BY conname) AS "Value"
 			FROM pg_constraint
@@ -124,9 +119,8 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 		try {
 			var emailLogId = await this._GetEmailLogIdAsync(jobId);
 
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-			var connection = dbContext.Database.GetDbConnection();
+			await using var db = this._Fixture.OpenDb();
+			var connection = db.Context.Database.GetDbConnection();
 			await connection.OpenAsync();
 
 			await using var command = connection.CreateCommand();
@@ -159,10 +153,9 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldUniquelyIndexTheProviderEventIdOnTheEvidenceRows() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var indexDef = await dbContext.Database.SqlQuery<string>(
+		var indexDef = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT indexdef AS "Value"
 			FROM pg_indexes
@@ -185,9 +178,8 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 		try {
 			var emailLogId = await this._GetEmailLogIdAsync(jobId);
 
-			await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-			var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-			var connection = dbContext.Database.GetDbConnection();
+			await using var db = this._Fixture.OpenDb();
+			var connection = db.Context.Database.GetDbConnection();
 			await connection.OpenAsync();
 
 			async Task InsertAsync(string evidenceEvent) {
@@ -232,26 +224,24 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 
 	private async Task<Guid> _SeedEmailLogAsync() {
 		var jobId = Guid.NewGuid();
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		dbContext.EmailLog.Add(new EmailLog {
+		db.Context.EmailLog.Add(new EmailLog {
 			JobId = jobId,
 			Kind = EmailKind.TenantInvitation,
 			Recipient = $"evidence-check-{jobId:N}@example.com",
 			Outcome = EmailLogOutcome.LegacySubmissionUnverified,
 			Attempts = 1,
 		});
-		await dbContext.SaveChangesAsync();
+		await db.Context.SaveChangesAsync();
 
 		return jobId;
 	}
 
 	private async Task<Guid> _GetEmailLogIdAsync(Guid jobId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var id = await dbContext.EmailLog
+		var id = await db.Context.EmailLog
 			.Where(entry => entry.JobId == jobId)
 			.Select(entry => entry.Id)
 			.SingleAsync();
@@ -259,10 +249,9 @@ public sealed class AddEmailLogEvidenceEventsSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _CleanupAsync(Guid jobId) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		await dbContext.EmailLog
+		await db.Context.EmailLog
 			.Where(entry => entry.JobId == jobId)
 			.ExecuteDeleteAsync();
 	}

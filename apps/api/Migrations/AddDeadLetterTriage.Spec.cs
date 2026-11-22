@@ -1,10 +1,9 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
@@ -24,10 +23,9 @@ public sealed class AddDeadLetterTriageSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldAddNullableTriageColumnsAndTheUntriagedMissingIndex() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var columnStates = await dbContext.Database.SqlQuery<string>(
+		var columnStates = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT string_agg(column_name || '=' || is_nullable, ', ' ORDER BY column_name) AS "Value"
 			FROM information_schema.columns
@@ -42,7 +40,7 @@ public sealed class AddDeadLetterTriageSpec : IClassFixture<ApiFixture> {
 			"an un-triaged row is the default state — every existing row must start NULL"
 		);
 
-		var untriagedIndex = await dbContext.Database.SqlQuery<string>(
+		var untriagedIndex = await db.Context.Database.SqlQuery<string>(
 			$"""
 			SELECT indexdef AS "Value"
 			FROM pg_indexes

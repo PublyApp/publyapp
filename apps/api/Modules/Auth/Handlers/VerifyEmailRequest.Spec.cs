@@ -5,13 +5,12 @@ using System.Net.Http.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Auth.Utils;
 using PublyApp.Api.Modules.Jobs.Entities;
@@ -83,11 +82,7 @@ public sealed class VerifyEmailRequestSpec
 
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-		var problem = await response.Content
-			.ReadFromJsonAsync<AppProblemDetails>();
-		problem.Should().NotBeNull();
-		Assert.NotNull(problem);
-		problem.TranslationKey.Should().Be("email-already-verified");
+		await response.ShouldBeProblemAsync("email-already-verified");
 	}
 
 	[Fact]
@@ -142,10 +137,7 @@ public sealed class VerifyEmailRequestSpec
 	}
 
 	private async Task<(Guid UserId, string Email)> _SeedUnverifiedUserAsync() {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
 		var email = $"verify-email-{Guid.NewGuid():N}@example.com";
 		var user = new User {
@@ -158,30 +150,24 @@ public sealed class VerifyEmailRequestSpec
 			Status = UserStatus.Active,
 			IsVerified = false,
 		};
-		await dbContext.User.AddAsync(user);
-		await dbContext.SaveChangesAsync();
+		await db.Context.User.AddAsync(user);
+		await db.Context.SaveChangesAsync();
 
 		return (user.GetRequiredId(), email);
 	}
 
 	private async Task<User> _LoadUserAsync(Guid userId) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		return await dbContext.User
+		return await db.Context.User
 			.AsNoTracking()
 			.SingleAsync(user => user.Id == userId);
 	}
 
 	private async Task<List<JobQueueItem>> _LoadJobsAsync(Guid userId) {
-		await using var scope =
-			this._Fixture.Factory.Services.CreateAsyncScope();
-		var dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
+		await using var db = this._Fixture.OpenDb();
 
-		var jobs = await dbContext.JobQueue
+		var jobs = await db.Context.JobQueue
 			.AsNoTracking()
 			.Where(job => job.JobType == AuthEmailJobs.VerifyEmailV1.JobType)
 			.ToListAsync();
