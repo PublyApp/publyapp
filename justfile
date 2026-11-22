@@ -301,11 +301,15 @@ ci-migration-expand-contract:
 # fails when the committed audit record no longer matches its generator)
 ci-doc-links:
   @echo "=== [gate] doc links ==="
-  @echo "note: the prune check reads a pre-2026-09 tree; on a blobless clone it lazily fetches blobs (minutes)"
   pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts
   pnpm --filter scripts-ts exec vitest run src/audit-docs-prune.test.ts
   node ./packages/scripts-ts/src/check-doc-links.ts
   node ./packages/scripts-ts/src/audit-docs-prune.ts --check
+
+# The link checks without the frozen pre-2026-09 prune walk (its own inputs only).
+ci-doc-links-fast:
+  pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts src/audit-docs-prune.test.ts
+  node ./packages/scripts-ts/src/check-doc-links.ts
 
 # #1798: every production-required env var documented in the deploy runbook.
 # Extracts required vars from actual source code (env.ts schema, server.ts

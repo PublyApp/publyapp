@@ -64,6 +64,8 @@ test('one front file -> format/lint/tsc/depth-1/ratchet + CI front guards', () =
 	for (const command of [
 		'pnpm --filter front build',
 		'pnpm --filter front check:design-system',
+		'pnpm --filter front check:column-type-imports',
+		'pnpm --filter front check:server-static-imports',
 		'just react-doctor',
 		'pnpm exec knip',
 	]) {
@@ -143,11 +145,25 @@ test('lockfile -> FULL(all) with a one-line reason', () => {
 	assert.deepEqual(gate.command, ['just', 'ci']);
 });
 
-test('docs only -> the CI docs lane, not one link check', () => {
-	const plan = buildPlan({ changed: ['docs/guides/local-ci-gate.md'] });
-	assert.equal(plan.mode, 'subset');
-	assert.deepEqual(ids(plan), ['doc-links']);
-	assert.deepEqual(plan.checks[0].command, ['just', 'ci-doc-links']);
+test('a docs edit runs the fast docs lane, not the frozen prune walk', () => {
+	for (const changed of ['docs/guides/local-ci-gate.md', 'AGENTS.md']) {
+		const plan = buildPlan({ changed: [changed] });
+		assert.equal(plan.mode, 'subset', changed);
+		assert.deepEqual(ids(plan), ['doc-links']);
+		assert.deepEqual(plan.checks[0].command, ['just', 'ci-doc-links-fast']);
+	}
+});
+
+test('the docs lane takes the prune walk only when its own inputs change', () => {
+	for (const [changed, deleted] of [
+		[['docs/records/2026-08-25-audit-docs-prune.md'], []],
+		[[], ['docs/guides/renamed-away.md']],
+	] as const) {
+		const plan = buildPlan({ changed: [...changed], deleted: [...deleted] });
+		const doc = plan.checks.find((entry) => entry.id === 'doc-links');
+		assert.ok(doc, `${changed.join()} ${deleted.join()}: ${ids(plan)}`);
+		assert.deepEqual(doc.command, ['just', 'ci-doc-links']);
+	}
 });
 
 test('deleted workflow fails closed even though CI files are in the docs lane', () => {
@@ -202,6 +218,33 @@ test('CSS and JSON changes are handed to oxfmt, as CI does', () => {
 		[json, css],
 	);
 	assert.ok(!ids(plan).includes('lint'));
+});
+
+test('an API JSON change is handed to oxfmt, as CI does', () => {
+	const file = 'apps/api/appsettings.json';
+	const plan = buildPlan({ changed: [file] });
+	const format = plan.checks.find((entry) => entry.id === 'format');
+	assert.ok(format, ids(plan).join(','));
+	assert.ok(format.command.includes(file));
+});
+
+test('the local non-vitest lane runs under the same guard bound as CI', () => {
+	const pkg = JSON.parse(
+		fs.readFileSync(path.join(repoRoot, 'apps/front/package.json'), 'utf8'),
+	) as { scripts: Record<string, string> };
+	const ci = fs.readFileSync(
+		path.join(repoRoot, '.github/workflows/ci.yml'),
+		'utf8',
+	);
+	const step = ci.slice(ci.indexOf('Test front (non-vitest report-all)'));
+	const bound = /GUARD_TIMEOUT_SECONDS:\s*'(\d+)'/.exec(
+		step.slice(0, step.indexOf('- name:')),
+	)?.[1];
+	assert.ok(bound, 'CI guard bound not found');
+	assert.match(
+		pkg.scripts['test:ci-non-vitest'] ?? '',
+		new RegExp(`GUARD_TIMEOUT_SECONDS=${bound} `),
+	);
 });
 
 test('design guards excluded from front Vitest get the non-vitest lane', () => {
@@ -314,13 +357,14 @@ test('rename -> FULL(all); plan is deterministic and sorted', () => {
 	assert.deepEqual(again, plan);
 });
 
-test('deleted docs stay in the docs lane', () => {
+test('deleted docs stay in the docs lane and take the prune walk', () => {
 	const plan = buildPlan({
 		changed: [],
 		deleted: ['docs/guides/obsolete.md'],
 	});
 	assert.equal(plan.mode, 'subset');
 	assert.deepEqual(ids(plan), ['doc-links']);
+	assert.deepEqual(plan.checks[0].command, ['just', 'ci-doc-links']);
 });
 
 test('a source with no co-located test resolves through git grep importers', () => {

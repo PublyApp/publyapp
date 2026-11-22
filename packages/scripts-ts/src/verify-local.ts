@@ -43,9 +43,12 @@ export const FULL_TRIGGERS = TRIGGER_ROWS.map((row) => {
 });
 
 const DOCS = new RegExp(LANE_PATTERNS.docs);
-// `.github/` is in the docs lane for CI, but a deleted workflow must fail closed.
 const isDocs = (file: string) =>
 	DOCS.test(file) && !file.startsWith('.github/');
+// Frozen-tree walk: one fetch per file in a blobless clone, inputs-only output.
+const needsPrune = (changed: readonly string[], deleted: readonly string[]) =>
+	changed.some((file) => file.includes('audit-docs-prune')) ||
+	deleted.some((file) => file.startsWith('docs/'));
 
 const TESTS = /\.(test|spec)\.[cm]?[tj]sx?$/;
 // Excluded from the front Vitest project; CI runs them in the non-vitest lane.
@@ -80,12 +83,15 @@ const COVERAGE =
 	'node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/check-typecheck-coverage.ts';
 const VITEST_FRONT = 'pnpm --filter front exec vitest run';
 const VITEST_RELATED = 'pnpm --filter front exec vitest related --run';
-const SCRIPTS_TEST = 'pnpm --filter scripts-ts exec vitest run';
 const API_BUILD = `dotnet build ${API_PROJECT} -c Test --nologo --verbosity minimal`;
 const API_TEST = `dotnet test ${API_PROJECT} -c Test --nologo --verbosity minimal`;
 const DOC_LINKS = 'just ci-doc-links';
+const DOC_LINKS_FAST = 'just ci-doc-links-fast';
 const SPEC_DRIFT = 'just ci-spec-drift';
 const MIGRATION_GUARD = 'just ci-migration-expand-contract';
+const DESIGN_SYSTEM = 'pnpm --filter front check:design-system';
+const COLUMN_TYPE = 'pnpm --filter front check:column-type-imports';
+const SERVER_STATIC = 'pnpm --filter front check:server-static-imports';
 const KNP = 'pnpm exec knip';
 const RATCHET = 'pnpm check:quality';
 
@@ -107,6 +113,7 @@ export type PlanDeps = {
 	listDir: (dir: string) => string[];
 	findImporters: (file: string) => string[];
 };
+const NO_DEPS: PlanDeps = { listDir: () => [], findImporters: () => [] };
 export type PlanInput = {
 	changed: readonly string[];
 	deleted?: readonly string[];
@@ -164,7 +171,6 @@ const sourceStem = (file: string) => {
 	return base;
 };
 
-/** Depth-1: changed tests, co-located tests, direct importers, then related. */
 export const selectTests = (
 	sources: readonly string[],
 	changedTests: readonly string[],
@@ -204,17 +210,13 @@ const frontPlan = (
 	deps: PlanDeps,
 	add: Add,
 ): void => {
-	const program = changed.some((file) => FRONT_PROGRAM.test(file));
-	// CI runs these for every front change; a subset must not certify less.
-	for (const line of [
-		'pnpm --filter front build',
-		'pnpm --filter front check:design-system',
-		'just react-doctor',
-		KNP,
-	]) {
-		add(line, line, line);
-	}
-	if (program) {
+	add('front-build', 'build(front)', 'pnpm --filter front build');
+	add('design', 'design-system', DESIGN_SYSTEM);
+	add('column-type', 'column-type-imports', COLUMN_TYPE);
+	add('server-static', 'server-static-imports', SERVER_STATIC);
+	add('react-doctor', 'react-doctor', 'just react-doctor');
+	add('knip', 'knip', KNP);
+	if (changed.some((file) => FRONT_PROGRAM.test(file))) {
 		add('tsc-front', 'tsc(front, incremental)', TSC_FRONT);
 		add('tsc-server', 'tsc(server)', TSC_SERVER);
 		add('tsc-js-surfaces', 'tsc(js-surfaces)', TSC_JS);
@@ -287,13 +289,12 @@ const subsetPlan = (
 	const add: Add = (id, short, command, env) => {
 		checks.push(check(id, short, command, env));
 	};
-	const frontOrTooling = lanes.has('front') || lanes.has('tooling');
 	for (const [id, line, pattern] of [
 		['format', OXFMT, FORMATTABLE],
 		['lint', OXLINT, LINTABLE],
 	] as const) {
 		const files = changed.filter((file) => pattern.test(file));
-		if (frontOrTooling && files.length > 0) {
+		if (files.length > 0) {
 			add(id, `${id}(${files.length})`, withFiles(line, files));
 		}
 	}
@@ -307,7 +308,8 @@ const subsetPlan = (
 		add('ratchet', 'ratchet', RATCHET);
 	}
 	if ([...changed, ...deleted].some(isDocs)) {
-		add('doc-links', 'doc-links', DOC_LINKS);
+		const prune = needsPrune(changed, deleted);
+		add('doc-links', 'doc-links', prune ? DOC_LINKS : DOC_LINKS_FAST);
 	}
 	return checks;
 };
@@ -316,7 +318,7 @@ const FULL_GATES = {
 	all: 'just ci',
 	front: 'just ci-front',
 	api: 'just test-api',
-	tooling: SCRIPTS_TEST,
+	tooling: 'pnpm --filter scripts-ts exec vitest run',
 } satisfies Record<Scope, string>;
 
 const SCOPE_EXTRAS = {
@@ -398,11 +400,7 @@ export const buildPlan = (input: PlanInput): Plan => {
 		...new Set(input.changed.map((file) => file.replaceAll('\\', '/'))),
 	].sort();
 	const deleted = [...new Set(input.deleted ?? [])].sort();
-	const deps: PlanDeps = {
-		listDir: () => [],
-		findImporters: () => [],
-		...input.deps,
-	};
+	const deps: PlanDeps = { ...NO_DEPS, ...input.deps };
 	if (input.full) {
 		return fullPlan('all', '--full requested', changed);
 	}
@@ -551,13 +549,10 @@ const parseArgs = (args: readonly string[]) => {
 
 export const main = (args: readonly string[]): number => {
 	const parsed = parseArgs(args);
-	const plan = buildPlan({
-		...(parsed.full
-			? { changed: [], deleted: [], sizedLines: 0 }
-			: collectChanged(parsed.base)),
-		full: parsed.full,
-		deps: defaultDeps,
-	});
+	const input = parsed.full
+		? { changed: [], deleted: [], sizedLines: 0 }
+		: collectChanged(parsed.base);
+	const plan = buildPlan({ ...input, full: parsed.full, deps: defaultDeps });
 	describePlan(plan, parsed.base, parsed.explain);
 	if (plan.checks.length === 0) {
 		console.log('verify: no changes — nothing to check');
