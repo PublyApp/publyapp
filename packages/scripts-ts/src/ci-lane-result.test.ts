@@ -120,6 +120,33 @@ test('relevant E2E lane accepts skipped failure-only upload and sentinel steps',
 	assert.equal(result.job.conclusion, 'success');
 });
 
+test('a skipped plan upload is accepted outside the merge queue', () => {
+	const result = createCiLaneResult({
+		jobKey: 'e2e-build',
+		lane: 'e2e',
+		expectedSteps: [
+			'e2e-build.plan',
+			'e2e-build.plan_upload',
+			'e2e-build.login',
+			'e2e-build.upload_images',
+			'e2e-build.not-applicable',
+		],
+		mode: 'relevant',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults: {
+			'e2e-build.plan': { outcome: 'success' },
+			'e2e-build.plan_upload': { outcome: 'skipped' },
+			'e2e-build.login': { outcome: 'success' },
+			'e2e-build.upload_images': { outcome: 'skipped' },
+			'e2e-build.not-applicable': { outcome: 'skipped' },
+		},
+	});
+
+	assert.equal(result.job.conclusion, 'success');
+});
+
 const e2eBuildExpectedSteps = [
 	'e2e-build.checkout',
 	'e2e-build.image_tag',

@@ -98,13 +98,21 @@ test('the runner installs Chromium with its shared libraries and runs four proje
 			expected: [],
 			durations: {},
 		};
+		const planFile = path.join(
+			dir,
+			'apps',
+			'front',
+			'e2e-artifacts',
+			'e2e-shard-plan.json',
+		);
+		mkdirSync(path.dirname(planFile), { recursive: true });
+		writeFileSync(planFile, JSON.stringify(plan));
 		const run = spawnSync(process.execPath, [runnerScript, '1', '6'], {
 			cwd: dir,
 			encoding: 'utf8',
 			env: {
 				...process.env,
 				PATH: `${bin}${path.delimiter}${process.env.PATH ?? ''}`,
-				E2E_SHARD_PLAN: JSON.stringify(plan),
 				FAKE_PNPM_LOG: log,
 			},
 		});

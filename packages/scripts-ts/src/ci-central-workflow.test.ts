@@ -444,7 +444,6 @@ const assertE2eImageEnvPropagation = (
 		options.lane === 'full'
 			? {
 					...baseEnv,
-					E2E_SHARD_PLAN: '${{ needs.e2e-build.outputs.plan }}',
 					PLAYWRIGHT_JSON_OUTPUT:
 						'\${{ github.workspace }}/e2e-artifacts/playwright-\${{ matrix.shard }}-of-6.json',
 				}
@@ -1015,7 +1014,7 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 	}
 });
 
-test('central workflow rejects six mutations for every one of its 118 classifier conditions', async () => {
+test('central workflow rejects six mutations for every one of its 119 classifier conditions', async () => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-ci-condition-delete-'),
 	);
@@ -1037,12 +1036,12 @@ test('central workflow rejects six mutations for every one of its 118 classifier
 				)
 				.map((step) => ({ jobId, stepId: String(step.id) })),
 	);
-	assert.equal(classifierTrueSteps.length, 118);
+	assert.equal(classifierTrueSteps.length, 119);
 	assert.equal(
 		new Set(
 			classifierTrueSteps.map(({ jobId, stepId }) => `${jobId}/${stepId}`),
 		).size,
-		118,
+		119,
 	);
 	assert.deepEqual(
 		classifierTrueSteps
@@ -1119,8 +1118,8 @@ test('central workflow rejects six mutations for every one of its 118 classifier
 				rejected += 1;
 			}
 		}
-		assert.equal(mutatedWorkflows.size, 708);
-		assert.equal(rejected, 708);
+		assert.equal(mutatedWorkflows.size, 714);
+		assert.equal(rejected, 714);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
@@ -2151,7 +2150,7 @@ const deriveManifestEvidence = (
 	};
 };
 
-test('central manifest derives honest evidence for every one of its 262 entries', async () => {
+test('central manifest derives honest evidence for every one of its 263 entries', async () => {
 	const manifest = JSON.parse(
 		await readFile(
 			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
@@ -2164,7 +2163,7 @@ test('central manifest derives honest evidence for every one of its 262 entries'
 	const central = Object.entries(manifest.steps).filter(([id]) =>
 		id.startsWith('ci.yml::'),
 	);
-	assert.equal(central.length, 262);
+	assert.equal(central.length, 263);
 	const justDump = JSON.parse(
 		execFileSync('just', ['--dump', '--dump-format', 'json'], {
 			cwd: repoRoot,
@@ -2190,7 +2189,7 @@ test('central manifest derives honest evidence for every one of its 262 entries'
 			`${id} evidence must be derived from its exact step kind and command graph`,
 		);
 	}
-	assert.equal(decisions.size, 262);
+	assert.equal(decisions.size, 263);
 	assert.equal(
 		manifest.steps['ci.yml::quality-js::Install pnpm']?.mirror,
 		null,
@@ -2302,6 +2301,7 @@ test('central manifest evidence mutations are RED for all Sol examples and gener
 });
 
 type WorkflowStep = {
+	run?: string;
 	id?: unknown;
 	name?: unknown;
 	if?: unknown;
@@ -2370,6 +2370,22 @@ test('e2e evidence artifacts are attempt-scoped and the plan install is not mask
 		download.run,
 		'node packages/scripts-ts/src/ci-e2e-shard.ts download',
 		'the coverage download must go through the attempt-scoped downloader',
+	);
+	const planUpload = step('e2e-build', 'plan-upload');
+	assert.match(
+		String(planUpload.with?.name),
+		/^e2e-shard-plan-\$\{\{ github\.run_attempt \}\}$/,
+		'the plan artifact must be attempt-scoped',
+	);
+	assert.equal(
+		planUpload.with?.path,
+		'apps/front/e2e-artifacts/e2e-shard-plan.json',
+		'the plan must travel as a file, not an env value',
+	);
+	assert.equal(
+		planUpload.with?.['if-no-files-found'],
+		'error',
+		'a missing plan must fail the upload, not hide it',
 	);
 	const planInstall = step('e2e-build', 'plan-install-deps');
 	assert.equal(

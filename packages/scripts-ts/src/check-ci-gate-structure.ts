@@ -1292,7 +1292,7 @@ const CENTRAL_PERMISSIONS = {
 		attestations: 'write',
 	},
 	e2eSmoke: { contents: 'read', packages: 'read' },
-	e2eTest: { contents: 'read', packages: 'read' },
+	e2eTest: { contents: 'read', packages: 'read', actions: 'read' },
 	e2eCleanup: { contents: 'read', packages: 'write', actions: 'read' },
 	gate: {
 		actions: 'read',
@@ -1994,7 +1994,10 @@ const checkCentralClassifierEdges = (
 				const isSentinel = expectedStepId.endsWith('.not-applicable');
 				const isFailureOnly =
 					expectedStepId.endsWith('.report_upload') ||
-					expectedStepId.endsWith('.test_results');
+					expectedStepId.endsWith('.test_results') ||
+					// The plan only exists on a merge_queue entry; its exact
+					// producer contract below pins the merge_group condition.
+					expectedStepId.endsWith('.plan_upload');
 				const isIntentionallyUnconditional =
 					intentionallyUnconditionalClassifierSteps.has(expectedStepId);
 				if (condition.length === 0) {
@@ -2481,6 +2484,19 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 				name: 'e2e-shard-report-\${{ matrix.shard }}-\${{ github.run_attempt }}',
 				path: 'e2e-artifacts/playwright-\${{ matrix.shard }}-of-6.json',
 				'if-no-files-found': 'ignore',
+			},
+		},
+		{
+			jobId: 'e2e-build',
+			stepName: 'Upload the shard plan',
+			stepId: 'plan-upload',
+			condition:
+				"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'",
+			with: {
+				name: 'e2e-shard-plan-\${{ github.run_attempt }}',
+				path: 'apps/front/e2e-artifacts/e2e-shard-plan.json',
+				'retention-days': 7,
+				'if-no-files-found': 'error',
 			},
 		},
 		{
