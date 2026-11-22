@@ -59,6 +59,41 @@ type JsonNode = {
 	}[];
 };
 
+type SpecNode = NonNullable<JsonNode['specs']>[number];
+type TestNode = NonNullable<SpecNode['tests']>[number];
+
+const hasPassed = (test: TestNode): boolean =>
+	(test.results ?? []).some((result) => result.status === 'passed');
+
+const testsOfSpec = (
+	spec: SpecNode,
+	reportFile: string,
+	titles: string[],
+	onlyPassed: boolean,
+): TestRef[] => {
+	const file = spec.file ?? reportFile;
+	const title = [...titles, spec.title ?? ''].filter(Boolean).join(' > ');
+	if (file.length === 0) {
+		throw new Error(
+			`playwright report spec "${title}" has no file: the report is truncated or its shape changed`,
+		);
+	}
+	const out: TestRef[] = [];
+	for (const test of spec.tests ?? []) {
+		const project = test.projectName ?? '';
+		if (project === '') {
+			throw new Error(
+				`playwright report test "${file} > ${title}" has no projectName: the report shape changed`,
+			);
+		}
+		if (project === 'setup' || (onlyPassed && !hasPassed(test))) {
+			continue;
+		}
+		out.push({ key: `${file}::${project}::${title}`, file, project, title });
+	}
+	return out;
+};
+
 /**
  * `onlyPassed` is the coverage proof: a report record exists for a test that
  * was skipped or failed too, so only a `passed` result counts as executed.
@@ -70,34 +105,9 @@ export const flattenTests = (
 	onlyPassed = false,
 ): TestRef[] => {
 	const path = report.title ? [...titles, report.title] : titles;
-	const out: TestRef[] = [];
-	for (const spec of report.specs ?? []) {
-		const file = spec.file ?? report.file ?? '';
-		const title = [...path, spec.title ?? ''].filter(Boolean).join(' > ');
-		if (file.length === 0) {
-			throw new Error(
-				`playwright report spec "${title}" has no file: the report is truncated or its shape changed`,
-			);
-		}
-		for (const test of spec.tests ?? []) {
-			const project = test.projectName ?? '';
-			if (project === '') {
-				throw new Error(
-					`playwright report test "${file} > ${title}" has no projectName: the report shape changed`,
-				);
-			}
-			if (project === 'setup') {
-				continue;
-			}
-			const passed = (test.results ?? []).some(
-				(result) => result.status === 'passed',
-			);
-			if (onlyPassed && !passed) {
-				continue;
-			}
-			out.push({ key: `${file}::${project}::${title}`, file, project, title });
-		}
-	}
+	const out: TestRef[] = (report.specs ?? []).flatMap((spec) =>
+		testsOfSpec(spec, report.file ?? '', path, onlyPassed),
+	);
 	for (const child of report.suites ?? []) {
 		out.push(...flattenTests(child, path, onlyPassed));
 	}
@@ -410,9 +420,7 @@ const verify = () => {
 	// the report, with a `skipped` result, and it never ran.
 	const observed: TestRef[] = readdirSync(dir)
 		.filter((file) => file.endsWith('.json') && file.startsWith('playwright-'))
-		.flatMap((file) =>
-			flattenTests(reportOf(path.join(dir, file)), [], true),
-		);
+		.flatMap((file) => flattenTests(reportOf(path.join(dir, file)), [], true));
 	const counts = new Map<string, number>();
 	for (const test of observed) {
 		counts.set(test.key, (counts.get(test.key) ?? 0) + 1);

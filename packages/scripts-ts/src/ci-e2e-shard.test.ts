@@ -274,7 +274,13 @@ const runShardCli = (
 	});
 
 const planFilePath = (sandbox: CliSandbox) =>
-	path.join(sandbox.root, 'apps', 'front', 'e2e-artifacts', 'e2e-shard-plan.json');
+	path.join(
+		sandbox.root,
+		'apps',
+		'front',
+		'e2e-artifacts',
+		'e2e-shard-plan.json',
+	);
 
 test('plan writes the plan to a file, never to an output/env string', () => {
 	const sandbox = makeSandbox();
@@ -323,7 +329,10 @@ test('plan weights files by the durations of the runs the REST endpoint lists', 
 			'api',
 			'repos/{owner}/{repo}/actions/workflows/ci.yml/runs?event=merge_group&status=success&per_page=10',
 		]);
-		assert.equal(ghArgs[1]?.[ghArgs[1].indexOf('-n') + 1], 'e2e-file-durations-3');
+		assert.equal(
+			ghArgs[1]?.[ghArgs[1].indexOf('-n') + 1],
+			'e2e-file-durations-3',
+		);
 	} finally {
 		rmSync(sandbox.root, { recursive: true, force: true });
 	}
@@ -389,12 +398,12 @@ const writeObservedReport = (dir: string, status: string | null) => {
 	);
 };
 
-const writePlanFile = (sandbox: CliSandbox, expected: (typeof expectedTest)[]) => {
+const writePlanFile = (
+	sandbox: CliSandbox,
+	expected: (typeof expectedTest)[],
+) => {
 	mkdirSync(path.dirname(planFilePath(sandbox)), { recursive: true });
-	writeFileSync(
-		planFilePath(sandbox),
-		JSON.stringify(verifyPlan(expected)),
-	);
+	writeFileSync(planFilePath(sandbox), JSON.stringify(verifyPlan(expected)));
 };
 
 test('verify accepts a plan whose every expected test ran exactly once', () => {
@@ -449,7 +458,10 @@ test('verify refuses to run without the plan artifact instead of certifying noth
 			E2E_ARTIFACTS: sandbox.root,
 		});
 		assert.notEqual(run.status, 0);
-		assert.match(`${run.stdout}${run.stderr}`, /e2e-shard-plan\.json is missing/);
+		assert.match(
+			`${run.stdout}${run.stderr}`,
+			/e2e-shard-plan\.json is missing/,
+		);
 	} finally {
 		rmSync(sandbox.root, { recursive: true, force: true });
 	}
