@@ -101,24 +101,64 @@ export const shardOf = (className: string, total: number): number =>
 
 type ShardPlan = { classes: string[]; tests: number; filter: string };
 
+const MODULE_NAMESPACE = 'PublyApp.Api.Modules.';
+
+// Specs outside `Modules/` that read every module, the whole assembly or the
+// EF model, so an X-only PR must run them or it certifies a change they would
+// reject. `Lib/Architecture/` guards reflect the assembly and the EF model and
+// scan all of `Modules/**` (tenant predicates, publication writers, canary
+// wiring, handler contracts, service conventions). The three exact names below
+// live outside that folder and scan all of `apps/api` or the assembly:
+//   - JobEnqueueBoundarySpec: every `apps/api/**/*.cs` writes to job_queue
+//   - OpenTelemetryLogPathGuardSpec: every `apps/api/**/*.cs` OTel token
+//   - ServiceAttributeRegistrationSpec: every type in the API assembly
+export const CROSS_MODULE_SPEC_PREFIXES = ['PublyApp.Api.Lib.Architecture.'];
+
+export const CROSS_MODULE_SPECS = [
+	'PublyApp.Api.Infrastructure.Jobs.JobEnqueueBoundarySpec',
+	'PublyApp.Api.Lib.Diagnostics.OpenTelemetryLogPathGuardSpec',
+	'PublyApp.Api.Lib.DI.ServiceAttributeRegistrationSpec',
+];
+
+const isCrossModuleSpec = (className: string): boolean =>
+	CROSS_MODULE_SPEC_PREFIXES.some((prefix) => className.startsWith(prefix)) ||
+	CROSS_MODULE_SPECS.includes(className);
+
 /**
- * Keeps only the spec classes of the selected modules. Returns `undefined` when
- * no class matches, so the caller can fall back to the whole suite rather than
- * certify an empty run (a module with no spec classes of its own, or a mapping
- * that no longer holds).
+ * Keeps the spec classes of the selected modules plus the cross-module guards.
+ *
+ * Returns `undefined` when the selection cannot be honoured: no class at all,
+ * or any selected module without a spec class of its own. The caller then runs
+ * the whole suite rather than silently dropping one module (a `Media,Posts`
+ * diff where Media has no specs used to run Posts only).
  */
 export const filterSuiteByModules = (
 	suite: Suite,
 	modules: readonly string[],
 ): Suite | undefined => {
-	const prefixes = modules.map((module) => `PublyApp.Api.Modules.${module}.`);
+	if (modules.length === 0) {
+		return undefined;
+	}
+	const prefixes = new Map(
+		modules.map((module) => [module, `${MODULE_NAMESPACE}${module}.`]),
+	);
+	const matched = new Set<string>();
 	const filtered: Suite = new Map();
 	for (const [className, tests] of suite) {
-		if (prefixes.some((prefix) => className.startsWith(prefix))) {
+		const module = [...prefixes].find(([, prefix]) =>
+			className.startsWith(prefix),
+		)?.[0];
+		if (module !== undefined) {
+			matched.add(module);
+			filtered.set(className, tests);
+		} else if (isCrossModuleSpec(className)) {
 			filtered.set(className, tests);
 		}
 	}
-	return filtered.size === 0 ? undefined : filtered;
+	if (filtered.size === 0 || matched.size !== modules.length) {
+		return undefined;
+	}
+	return filtered;
 };
 
 export const planShard = (
@@ -182,7 +222,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 		const filtered = filterSuiteByModules(suite, modules);
 		if (filtered === undefined) {
 			console.error(
-				`no spec class matches ${modules.join(', ')}; running the full suite`,
+				`cannot honour the ${modules.join(', ')} selection (a selected module has no spec class); running the full suite`,
 			);
 		} else {
 			suite = filtered;

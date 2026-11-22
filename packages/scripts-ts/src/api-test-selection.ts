@@ -30,7 +30,16 @@ export type ApiTestSelection =
 	| { mode: 'full'; reason: string }
 	| { mode: 'modules'; modules: string[]; reason: string };
 
-const MODULE_PATH = /^apps\/api\/Modules\/([A-Za-z0-9._-]+)\/.+/;
+// The module folder name must be a plain C# namespace segment: the shard
+// planner refuses anything else, so accepting a wider grammar here would turn
+// a selection into a red job instead of a full-suite fallback.
+const MODULE_PATH = /^apps\/api\/Modules\/([A-Za-z][A-Za-z0-9]*)\/.+/;
+
+// Build inputs under a module folder (a future `Modules/<X>/*.csproj`,
+// `Directory.Build.*`, `*.props`/`*.targets`) can change how the module — or
+// every module — compiles, so they must never narrow the run to one module.
+const BUILD_FILE =
+	/(^|\/)(Directory\.[^/]+|global\.json|NuGet\.config)$|\.(csproj|fsproj|slnx|props|targets)$/i;
 
 // `git diff --name-status` letters that make a module mapping unsafe: deleted,
 // renamed (the old path is gone from the listing the planner sees), copied.
@@ -110,6 +119,9 @@ export const selectApiTests = ({
 	const modules = new Set<string>();
 	for (const entry of relevant) {
 		for (const path of entry.paths) {
+			if (BUILD_FILE.test(path)) {
+				return full(`${path} is a build input, not module code`);
+			}
 			const match = MODULE_PATH.exec(path);
 			if (match === null) {
 				return full(

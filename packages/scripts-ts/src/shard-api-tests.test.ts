@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import {
+	CROSS_MODULE_SPECS,
 	discoverSuite,
 	filterSuiteByModules,
 	parseListing,
@@ -59,20 +60,40 @@ describe('shard-api-tests module selection', () => {
 		['PublyApp.Api.Modules.PostsArchive.Handlers.OldPostSpec', 2],
 		['PublyApp.Api.Modules.Users.Handlers.FindUserSpec', 5],
 		['PublyApp.Api.Lib.Architecture.TenantPredicateGuardSpec', 1],
+		['PublyApp.Api.Lib.Utils.DateUtilsSpec', 2],
 	]);
 
-	it('keeps exactly the classes of the selected modules', () => {
+	it('keeps the selected module classes and every cross-module guard spec', () => {
 		const filtered = filterSuiteByModules(suite, ['Posts']);
 
 		expect([...(filtered ?? new Map()).keys()].sort()).toEqual([
+			'PublyApp.Api.Lib.Architecture.TenantPredicateGuardSpec',
 			'PublyApp.Api.Modules.Posts.Handlers.CreatePostSpec',
 			'PublyApp.Api.Modules.Posts.Services.PostServiceSpec',
 		]);
 	});
 
+	it('keeps an exact cross-module guard outside Lib/Architecture', () => {
+		const withJobGuard: Suite = new Map([
+			...suite,
+			['PublyApp.Api.Infrastructure.Jobs.JobEnqueueBoundarySpec', 4],
+		]);
+		const filtered = filterSuiteByModules(withJobGuard, ['Posts']);
+
+		expect(
+			filtered?.get('PublyApp.Api.Infrastructure.Jobs.JobEnqueueBoundarySpec'),
+		).toBe(4);
+	});
+
 	it('falls back to the full suite when no class matches the selection', () => {
 		expect(filterSuiteByModules(suite, ['Analytics'])).toBeUndefined();
 		expect(filterSuiteByModules(suite, [])).toBeUndefined();
+	});
+
+	it('falls back to the full suite when any selected module has no spec class', () => {
+		// `Media` has no `*.Spec.cs`; a Media+Posts diff must not silently drop
+		// Media and certify the PR with Posts tests only.
+		expect(filterSuiteByModules(suite, ['Media', 'Posts'])).toBeUndefined();
 	});
 
 	it('gives every selected class to exactly one shard and an empty shard is not an error', () => {
@@ -93,7 +114,7 @@ describe('shard-api-tests module selection', () => {
 		expect([...owners.keys()].sort()).toEqual(
 			[...(filtered ?? new Map()).keys()].sort(),
 		);
-		expect(assignedTests).toBe(15);
+		expect(assignedTests).toBe(16);
 	});
 
 	it('still refuses an empty shard when the full suite is expected', () => {
@@ -124,17 +145,32 @@ describe('shard-api-tests real suite', () => {
 		suite = discoverSuite();
 	}, 900_000);
 
-	it('selects only the touched module from the real suite', () => {
+	it('selects the touched module plus the cross-module guards from the real suite', () => {
 		const filtered = filterSuiteByModules(suite, ['Posts']);
 		expect(filtered).toBeDefined();
 		const classes = [...(filtered ?? new Map()).keys()];
 		expect(classes.length).toBeGreaterThan(0);
 		expect(classes.length).toBeLessThan(suite.size);
+
+		const architecture = [...suite.keys()].filter((className) =>
+			className.startsWith('PublyApp.Api.Lib.Architecture.'),
+		);
+		expect(architecture.length).toBeGreaterThan(0);
+		for (const guard of [...architecture, ...CROSS_MODULE_SPECS]) {
+			expect(classes).toContain(guard);
+		}
+		expect(classes).toContain(
+			'PublyApp.Api.Modules.Posts.Handlers.Tenant.PostTenantFilterSpec',
+		);
 		expect(
-			classes.every((className) =>
-				className.startsWith('PublyApp.Api.Modules.Posts.'),
-			),
-		).toBe(true);
+			classes
+				.filter(
+					(className) =>
+						className.startsWith('PublyApp.Api.Modules.') &&
+						!className.startsWith('PublyApp.Api.Modules.Posts.'),
+				)
+				.sort(),
+		).toEqual([]);
 
 		let selectedTests = 0;
 		for (const shard of SHARDS) {

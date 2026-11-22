@@ -126,6 +126,9 @@ test('lane patterns cover the complete central trigger classes', () => {
 		['packages/scripts-ts/src/shard-api-tests.test.ts', 'api'],
 		['packages/scripts-ts/src/test-api-shard.ts', 'api'],
 		['packages/scripts-ts/src/api-test-selection.ts', 'api'],
+		['packages/scripts-ts/src/ci-changed-paths.ts', 'api'],
+		['packages/scripts-ts/src/ci-changed-paths.test.ts', 'api'],
+		['packages/scripts-cs/PublyApp.Codegen/PublyApp.Codegen.csproj', 'api'],
 		['.github/workflows/ci.yml', 'react'],
 	] as const;
 
@@ -431,6 +434,9 @@ test('API selection: every fail-closed trigger selects the whole suite', () => {
 		'pnpm-lock.yaml',
 		'.github/workflows/ci.yml',
 		'.gitattributes',
+		'packages/scripts-ts/src/ci-changed-paths.ts',
+		'packages/scripts-ts/src/ci-changed-paths.test.ts',
+		'packages/scripts-cs/PublyApp.Codegen/Program.cs',
 	];
 
 	for (const changedPath of fullSuitePaths) {
@@ -477,6 +483,37 @@ test('API selection: a deleted or renamed path runs everything', () => {
 		});
 		assert.equal(selection.mode, 'full');
 		assert.match(selection.reason, /deleted\/renamed/);
+	}
+});
+
+test('API selection: editing the selector table plus a module runs everything', () => {
+	// The API pattern itself maps `ci-changed-paths.ts` to the full suite: a PR
+	// that weakens that table must not be narrowed by the weakened table.
+	const selection = selectApiTests({
+		eventName: 'pull_request',
+		changedPaths: [
+			moduleChange,
+			{ status: 'M', paths: ['packages/scripts-ts/src/ci-changed-paths.ts'] },
+		],
+	});
+
+	assert.equal(selection.mode, 'full');
+});
+
+test('API selection: a build input under a module, or a non-namespace module folder, runs everything', () => {
+	for (const changedPath of [
+		'apps/api/Modules/Posts/PublyApp.Posts.csproj',
+		'apps/api/Modules/Posts/Directory.Build.props',
+		'apps/api/Modules/Posts/Build.targets',
+		'apps/api/Modules/Foo_Bar/Handlers/Create.cs',
+		'apps/api/Modules/Foo-Bar/Handlers/Create.cs',
+		'apps/api/Modules/2FA/Handlers/Create.cs',
+	]) {
+		const selection = selectApiTests({
+			eventName: 'pull_request',
+			changedPaths: [{ status: 'M', paths: [changedPath] }],
+		});
+		assert.equal(selection.mode, 'full', `${changedPath} must run everything`);
 	}
 });
 
