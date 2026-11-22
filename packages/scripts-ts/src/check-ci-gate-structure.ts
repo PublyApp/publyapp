@@ -1016,32 +1016,34 @@ const reportedCheckName = (jobId, job) =>
  *
  * Pass `workflows` to point this at a fixture set (tests only).
  */
-export const findRequiredContextCollisionProblems = async ({
-	// @ts-expect-error rung-0: add proper type in later rung
+type CheckNameClaims = {
+	reservedNames: Map<string, { file: string; jobId: string; kind: string }>;
+	authorizedExpressionNames: Map<string, string>;
+	gateJobByKey: Map<string, (typeof GATE_WORKFLOWS)[number]>;
+};
+
+const prepareCheckNameClaims = async ({
 	rootDir,
-	workflows = GATE_WORKFLOWS,
-}) => {
-	const findings = [];
-
-	// The eight reserved names, and which job owns each one.
-	const reservedNames = new Map();
-
+	workflows,
+	findings,
+}: {
+	rootDir: string;
+	workflows: typeof GATE_WORKFLOWS;
+	findings: string[];
+}): Promise<CheckNameClaims> => {
+	const reservedNames: CheckNameClaims['reservedNames'] = new Map();
 	for (const workflow of workflows) {
-		const claims = [
+		for (const { name, kind } of [
 			{ name: workflow.gateName, kind: 'externally required context' },
 			{ name: workflow.pushCheckName, kind: 'non-required push check' },
-		];
-
-		for (const { name, kind } of claims) {
+		]) {
 			const owner = reservedNames.get(name);
-
 			if (owner !== undefined) {
 				findings.push(
 					`reserved check name "${name}" is claimed twice: by ${owner.file}::${owner.jobId} (${owner.kind}) and by ${workflow.file}::${workflow.gateJob} (${kind}). Every gate name and every push-check name must be distinct, or two jobs report the same context.`,
 				);
 				continue;
 			}
-
 			reservedNames.set(name, {
 				file: workflow.file,
 				jobId: workflow.gateJob,
@@ -1049,40 +1051,25 @@ export const findRequiredContextCollisionProblems = async ({
 			});
 		}
 	}
-	// Fixture repositories that intentionally model only the generic workflow
-	// table must not acquire central producers they do not contain.
-	const centralWorkflowPath = path.join(rootDir, workflowsDirectory, 'ci.yml');
-	let hasCentralWorkflow = false;
 	try {
-		await access(centralWorkflowPath);
-		hasCentralWorkflow = true;
-	} catch {
-		// The fixture has no central workflow by design.
-	}
-	if (hasCentralWorkflow) {
+		await access(path.join(rootDir, workflowsDirectory, 'ci.yml'));
 		for (const [name, kind] of [
 			['ci-final-gate', 'externally required context'],
 			['ci-push-check', 'non-required push check'],
 		] as const) {
-			reservedNames.set(name, {
-				file: 'ci.yml',
-				jobId: 'gate',
-				kind,
-			});
+			reservedNames.set(name, { file: 'ci.yml', jobId: 'gate', kind });
 		}
+	} catch {
+		// The fixture has no central workflow by design.
 	}
 
-	// The only central jobs allowed to carry an expression in `name:` and their
-	// exact expressions. Generic fixture expressions are derived from the
-	// fixture-only table above.
-	const authorizedExpressionNames = new Map();
-
+	const authorizedExpressionNames: CheckNameClaims['authorizedExpressionNames'] =
+		new Map();
 	for (const workflow of workflows) {
 		authorizedExpressionNames.set(
 			`${workflow.file}::${workflow.gateJob}`,
 			gateNameExpression(workflow),
 		);
-
 		if (workflow.matrix !== undefined) {
 			authorizedExpressionNames.set(
 				`${workflow.file}::${workflow.matrix.jobId}`,
@@ -1090,8 +1077,6 @@ export const findRequiredContextCollisionProblems = async ({
 			);
 		}
 	}
-	// Central verification jobs have dynamic display names that must remain
-	// authorized explicitly.
 	authorizedExpressionNames.set(
 		'ci.yml::api',
 		'API contract and suite (${{ matrix.shard }}/4)',
@@ -1108,101 +1093,138 @@ export const findRequiredContextCollisionProblems = async ({
 		'ci.yml::gate',
 		"${{ (github.event_name == 'pull_request' || github.event_name == 'merge_group') && 'ci-final-gate' || 'ci-push-check' }}",
 	);
+	return {
+		reservedNames,
+		authorizedExpressionNames,
+		gateJobByKey: new Map(
+			workflows.map((workflow) => [
+				`${workflow.file}::${workflow.gateJob}`,
+				workflow,
+			]),
+		),
+	};
+};
 
-	const gateJobByKey = new Map(
-		workflows.map((workflow) => [
-			`${workflow.file}::${workflow.gateJob}`,
-			workflow,
-		]),
-	);
-	const producersByName = new Map<string, string[]>(
-		[...reservedNames.keys()].map((name) => [name, []]),
-	);
-	// Reserved names whose authorized job exists but carries the wrong
-	// `name:`. Already reported once, precisely; the generic
-	// unauthorized-reporter and zero-producer rules would add three more
-	// findings each that all point back at the same job.
-	const misnamedOwners = new Set();
+const checkReportedProducer = ({
+	file,
+	jobId,
+	job,
+	claims,
+	producersByName,
+	misnamedOwners,
+	findings,
+}: {
+	file: string;
+	jobId: string;
+	job: CentralJob;
+	claims: CheckNameClaims;
+	producersByName: Map<string, string[]>;
+	misnamedOwners: Set<string>;
+	findings: string[];
+}): void => {
+	const key = `${file}::${jobId}`;
+	const name = reportedCheckName(jobId, job);
+	const gateWorkflow = claims.gateJobByKey.get(key);
+	if (gateWorkflow !== undefined) {
+		if (name === claims.authorizedExpressionNames.get(key)) {
+			producersByName.get(gateWorkflow.gateName)?.push(key);
+			producersByName.get(gateWorkflow.pushCheckName)?.push(key);
+			return;
+		}
+		findings.push(
+			`${key}: is the authorized producer of "${gateWorkflow.gateName}" and "${gateWorkflow.pushCheckName}", but its \`name:\` is ${JSON.stringify(name)} rather than the pinned expression, so what it actually reports cannot be determined here.`,
+		);
+		misnamedOwners.add(gateWorkflow.gateName);
+		misnamedOwners.add(gateWorkflow.pushCheckName);
+		return;
+	}
+	if (name === claims.authorizedExpressionNames.get(key)) {
+		if (key === 'ci.yml::gate') {
+			producersByName.get('ci-final-gate')?.push(key);
+			producersByName.get('ci-push-check')?.push(key);
+		}
+		return;
+	}
+	for (const [reserved, owner] of claims.reservedNames) {
+		if (name.includes(reserved)) {
+			findings.push(
+				`${key}: reports the check name ${JSON.stringify(name)}, which contains the reserved name "${reserved}" (${owner.kind}). Only ${owner.file}::${owner.jobId} may report it: a second job reporting the same context publishes a second, independently-timed verdict for the same commit, and GitHub keeps the LATEST one — so a later success from an unrelated job can land on top of a real gate failure.`,
+			);
+		}
+	}
+	if (name.includes('${{')) {
+		findings.push(
+			`${key}: its \`name:\` (${JSON.stringify(name)}) contains a GitHub expression. An expression can resolve to one of the reserved gate check names (${JSON.stringify([...claims.reservedNames.keys()])}) without containing it literally, and this guard cannot evaluate GitHub expressions. Either give the job a static name, or add it to the authorized set in scripts/check-ci-gate-structure.mjs after checking what it can resolve to.`,
+		);
+	}
+};
 
+const scanReportedProducers = async ({
+	rootDir,
+	claims,
+	producersByName,
+	misnamedOwners,
+	findings,
+}: {
+	rootDir: string;
+	claims: CheckNameClaims;
+	producersByName: Map<string, string[]>;
+	misnamedOwners: Set<string>;
+	findings: string[];
+}): Promise<void> => {
 	const directory = path.join(rootDir, workflowsDirectory);
-	const workflowFiles = (await readdir(directory, { withFileTypes: true }))
+	const files = (await readdir(directory, { withFileTypes: true }))
 		.filter((entry) => entry.isFile() && /\.ya?ml$/.test(entry.name))
 		.map((entry) => entry.name)
 		.sort();
-
-	for (const file of workflowFiles) {
+	for (const file of files) {
 		const document = parse(await readFile(path.join(directory, file), 'utf8'));
-		const jobs = document?.jobs ?? {};
-
-		for (const [jobId, job] of Object.entries(jobs)) {
-			const key = `${file}::${jobId}`;
-			const name = reportedCheckName(jobId, job);
-			const gateWorkflow = gateJobByKey.get(key);
-
-			if (gateWorkflow !== undefined) {
-				if (name === authorizedExpressionNames.get(key)) {
-					// @ts-expect-error rung-0: TS2532
-					producersByName.get(gateWorkflow.gateName).push(key);
-					// @ts-expect-error rung-0: TS2532
-					producersByName.get(gateWorkflow.pushCheckName).push(key);
-					continue;
-				}
-
-				// The authorized job itself carries the wrong name. The
-				// structure check reports the exact expected/found strings;
-				// this adds the consequence for the context, once.
-				findings.push(
-					`${key}: is the authorized producer of "${gateWorkflow.gateName}" and "${gateWorkflow.pushCheckName}", but its \`name:\` is ${JSON.stringify(name)} rather than the pinned expression, so what it actually reports cannot be determined here.`,
-				);
-				misnamedOwners.add(gateWorkflow.gateName);
-				misnamedOwners.add(gateWorkflow.pushCheckName);
-				continue;
-			}
-
-			if (name === authorizedExpressionNames.get(key)) {
-				// front-e2e's sharded `test` job: an authorized expression that
-				// claims no reserved name.
-				if (key === 'ci.yml::gate') {
-					const centralRequired = producersByName.get('ci-final-gate');
-					const centralPush = producersByName.get('ci-push-check');
-					if (centralRequired !== undefined && centralPush !== undefined) {
-						centralRequired.push(key);
-						centralPush.push(key);
-					}
-				}
-				continue;
-			}
-
-			for (const [reserved, owner] of reservedNames) {
-				if (name.includes(reserved)) {
-					findings.push(
-						`${key}: reports the check name ${JSON.stringify(name)}, which contains the reserved name "${reserved}" (${owner.kind}). Only ${owner.file}::${owner.jobId} may report it: a second job reporting the same context publishes a second, independently-timed verdict for the same commit, and GitHub keeps the LATEST one — so a later success from an unrelated job can land on top of a real gate failure.`,
-					);
-				}
-			}
-
-			if (name.includes('${{')) {
-				findings.push(
-					`${key}: its \`name:\` (${JSON.stringify(name)}) contains a GitHub expression. An expression can resolve to one of the reserved gate check names (${JSON.stringify([...reservedNames.keys()])}) without containing it literally, and this guard cannot evaluate GitHub expressions. Either give the job a static name, or add it to the authorized set in scripts/check-ci-gate-structure.mjs after checking what it can resolve to.`,
-				);
-			}
+		for (const [jobId, job] of Object.entries(document?.jobs ?? {})) {
+			checkReportedProducer({
+				file,
+				jobId,
+				job,
+				claims,
+				producersByName,
+				misnamedOwners,
+				findings,
+			});
 		}
 	}
+};
 
+export const findRequiredContextCollisionProblems = async ({
+	// @ts-expect-error rung-0: add proper type in later rung
+	rootDir,
+	workflows = GATE_WORKFLOWS,
+}) => {
+	const findings: string[] = [];
+	const claims = await prepareCheckNameClaims({ rootDir, workflows, findings });
+	const producersByName = new Map<string, string[]>(
+		[...claims.reservedNames.keys()].map((name) => [name, []]),
+	);
+	const misnamedOwners = new Set<string>();
+	await scanReportedProducers({
+		rootDir,
+		claims,
+		producersByName,
+		misnamedOwners,
+		findings,
+	});
 	for (const [name, producers] of producersByName) {
 		if (producers.length === 1 || misnamedOwners.has(name)) {
 			continue;
 		}
-
-		const owner = reservedNames.get(name);
-
+		const owner = claims.reservedNames.get(name);
+		if (owner === undefined) {
+			continue;
+		}
 		findings.push(
 			producers.length === 0
 				? `no job in .github/workflows reports the reserved check name "${name}" (${owner.kind}); expected exactly one, ${owner.file}::${owner.jobId}. A required context nothing reports blocks every pull request.`
 				: `${producers.length} jobs report the reserved check name "${name}" (${owner.kind}): [${producers.join(', ')}]. Expected exactly one.`,
 		);
 	}
-
 	return findings;
 };
 
@@ -1544,24 +1566,8 @@ const checkCentralHeaderInvariants = (
 	}
 };
 
-const checkCentralTopologyInvariants = (
-	document: CentralDocument,
-	jobs: CentralJobs,
-	findings: string[],
-): void => {
-	const jobIds = Object.keys(jobs);
-	if (!deepEqualJson(jobIds, CENTRAL_JOB_IDS)) {
-		findings.push(
-			`ci.yml: job ids must be exactly ${JSON.stringify(CENTRAL_JOB_IDS)}`,
-		);
-	}
-	if (!deepEqualJson(expandedCentralNames(jobs), CENTRAL_VISIBLE_CHECKS)) {
-		findings.push(
-			`ci.yml: expanded display-name set is not exactly the pinned ${CENTRAL_VISIBLE_CHECKS.length} labels`,
-		);
-	}
-
-	const expectedPermissionsByJob = {
+const checkJobPermissions = (jobs: CentralJobs, findings: string[]): void => {
+	const expected = {
 		classify: CENTRAL_PERMISSIONS.classify,
 		'quality-js': CENTRAL_PERMISSIONS['quality-js'],
 		'quality-dotnet': CENTRAL_PERMISSIONS['quality-dotnet'],
@@ -1579,26 +1585,16 @@ const checkCentralTopologyInvariants = (
 		'e2e-cleanup': CENTRAL_PERMISSIONS.e2eCleanup,
 		gate: CENTRAL_PERMISSIONS.gate,
 	} satisfies Record<string, unknown>;
-	for (const [jobId, expected] of Object.entries(expectedPermissionsByJob)) {
-		if (!deepEqualJson(jobs[jobId]?.permissions, expected)) {
+	for (const [jobId, permissions] of Object.entries(expected)) {
+		if (!deepEqualJson(jobs[jobId]?.permissions, permissions)) {
 			findings.push(
 				`${jobId}: exact job permissions do not match the allowlist`,
 			);
 		}
 	}
-	const api = jobs.api;
-	const apiKeys = api === undefined ? [] : Object.keys(api);
-	const runsOnIndex = apiKeys.indexOf('runs-on');
-	if (
-		api?.['timeout-minutes'] !== 30 ||
-		runsOnIndex === -1 ||
-		apiKeys[runsOnIndex + 1] !== 'timeout-minutes'
-	) {
-		findings.push(
-			'api: timeout-minutes must be exactly 30 immediately after runs-on',
-		);
-	}
+};
 
+const checkCentralJobWiring = (jobs: CentralJobs, findings: string[]): void => {
 	for (const jobId of CENTRAL_JOB_IDS) {
 		const job = jobs[jobId];
 		if (job === undefined) {
@@ -1619,9 +1615,9 @@ const checkCentralTopologyInvariants = (
 			findings.push('gate: final gate must use if: always()');
 		}
 	}
+};
 
-	// #2260: the full e2e lane shards two ways (the twelve smoke specs left
-	// the PR lane), every other sharded lane stays at four.
+const checkShardAxes = (jobs: CentralJobs, findings: string[]): void => {
 	const expectedShardsByJob = {
 		api: [1, 2, 3, 4],
 		'front-vitest': [1, 2, 3, 4],
@@ -1656,6 +1652,13 @@ const checkCentralTopologyInvariants = (
 			findings.push(`${jobId}: matrix include/exclude is not allowed`);
 		}
 	}
+};
+
+const checkGateWiring = (
+	document: CentralDocument,
+	jobs: CentralJobs,
+	findings: string[],
+): void => {
 	if (jobs['front-vitest']?.needs !== 'classify') {
 		findings.push('front-vitest.needs must be exactly classify');
 	}
@@ -1666,7 +1669,6 @@ const checkCentralTopologyInvariants = (
 			);
 		}
 	}
-
 	const expectedNeeds = [
 		'classify',
 		...EXPECTED_VERIFICATION_JOB_KEYS,
@@ -1694,7 +1696,6 @@ const checkCentralTopologyInvariants = (
 			`classify.outputs must bind every lane to the same-named classifier output: ${JSON.stringify(EXPECTED_CENTRAL_CLASSIFIER_OUTPUTS)}`,
 		);
 	}
-
 	const gateAggregate = (jobs.gate?.steps ?? []).find((step) =>
 		String(step.name).includes('Aggregate upstream artifacts'),
 	);
@@ -1709,6 +1710,40 @@ const checkCentralTopologyInvariants = (
 			`gate CI_CENTRAL_RESULTS must bind each parent to its own needs result: ${JSON.stringify(EXPECTED_CENTRAL_PARENT_RESULTS)}`,
 		);
 	}
+};
+
+const checkCentralTopologyInvariants = (
+	document: CentralDocument,
+	jobs: CentralJobs,
+	findings: string[],
+): void => {
+	const jobIds = Object.keys(jobs);
+	if (!deepEqualJson(jobIds, CENTRAL_JOB_IDS)) {
+		findings.push(
+			`ci.yml: job ids must be exactly ${JSON.stringify(CENTRAL_JOB_IDS)}`,
+		);
+	}
+	if (!deepEqualJson(expandedCentralNames(jobs), CENTRAL_VISIBLE_CHECKS)) {
+		findings.push(
+			`ci.yml: expanded display-name set is not exactly the pinned ${CENTRAL_VISIBLE_CHECKS.length} labels`,
+		);
+	}
+	checkJobPermissions(jobs, findings);
+	checkCentralJobWiring(jobs, findings);
+	const api = jobs.api;
+	const apiKeys = api === undefined ? [] : Object.keys(api);
+	const runsOnIndex = apiKeys.indexOf('runs-on');
+	if (
+		api?.['timeout-minutes'] !== 30 ||
+		runsOnIndex === -1 ||
+		apiKeys[runsOnIndex + 1] !== 'timeout-minutes'
+	) {
+		findings.push(
+			'api: timeout-minutes must be exactly 30 immediately after runs-on',
+		);
+	}
+	checkShardAxes(jobs, findings);
+	checkGateWiring(document, jobs, findings);
 };
 
 const expectedStepIdCandidates = (expectedStepId: string): string[] => {
@@ -2314,6 +2349,20 @@ const checkCentralProvenance = (
 	}
 };
 
+const collectUploadSteps = (
+	jobs: CentralJobs,
+): Array<{ jobId: string; step: CentralStep }> => {
+	const uploads: Array<{ jobId: string; step: CentralStep }> = [];
+	for (const [jobId, job] of Object.entries(jobs)) {
+		for (const step of job.steps ?? []) {
+			if (String(step.uses).startsWith('actions/upload-artifact@')) {
+				uploads.push({ jobId, step });
+			}
+		}
+	}
+	return uploads;
+};
+
 const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 	const uploadAction =
 		'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9';
@@ -2429,17 +2478,7 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 			contract,
 		]),
 	);
-	const actualUploads: Array<{
-		jobId: string;
-		step: CentralStep;
-	}> = [];
-	for (const [jobId, job] of Object.entries(jobs)) {
-		for (const step of job.steps ?? []) {
-			if (String(step.uses).startsWith('actions/upload-artifact@')) {
-				actualUploads.push({ jobId, step });
-			}
-		}
-	}
+	const actualUploads = collectUploadSteps(jobs);
 	const actualCounts = new Map<string, number>();
 	for (const { jobId, step } of actualUploads) {
 		const key = `${jobId}::${String(step.name)}`;
