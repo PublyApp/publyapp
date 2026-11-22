@@ -98,7 +98,7 @@ format:
 knip:
   pnpm exec knip
 
-# React Doctor: check changed files for findings (mirrors CI --scope files --blocking warning)
+# React Doctor: check changed files for findings (mirrors CI --scope files --blocking warning). First run resolves it through pnpm dlx (network, ~2 min), cached afterwards.
 react-doctor base="origin/develop":
   cd {{front_dir}} && pnpm dlx react-doctor@0.9.12 --scope files --base {{base}} --blocking warning --no-telemetry --verbose
 
