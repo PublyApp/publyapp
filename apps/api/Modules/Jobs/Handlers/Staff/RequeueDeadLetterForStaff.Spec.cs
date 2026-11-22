@@ -5,9 +5,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -74,7 +72,7 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 
 			// Lineage stamped both ways: DLQ row points at the copy, copy carries
 			// requeued_from_dead_letter_id back.
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 			var dlRow = await verify.JobDeadLetter
 				.SingleAsync(d => d.Id == Guid.Parse(deadLetterId));
 			dlRow.RequeuedAsJobId.Should().Be(newJobId);
@@ -184,7 +182,7 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 			response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
 			// Nothing changed: no OUT lineage, no queue copy, no event, no audit.
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 			var row = await verify.JobDeadLetter
 				.SingleAsync(d => d.Id == Guid.Parse(deadLetterId));
 			row.RequeuedAsJobId.Should().BeNull();
@@ -228,7 +226,7 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 			"""
 		);
 
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 		var row = await verify.JobDeadLetter.SingleAsync(d => d.JobType == jobType);
 		var id = row.Id;
 		if (id is null) {
@@ -261,23 +259,6 @@ public sealed class RequeueDeadLetterForStaffSpec : IClassFixture<ApiFixture> {
 		this._ProducedJobIds.Clear();
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was null."
-			);
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString).Options
-		);
-	}
 
 	private async Task<(string Token, Guid UserId)>
 		_CreateUnprivilegedStaffUserAsync() {

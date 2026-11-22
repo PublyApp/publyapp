@@ -10,6 +10,9 @@ set shell := ["bash", "-cu"]
 set windows-shell := ["pwsh", "-NoLogo", "-NoProfile", "-Command"]
 
 api_dir := "apps/api"
+# Reuse one long-lived Postgres container for API tests (template DB survives warm
+# runs). On by default for local recipes; the fixtures ignore it in CI (CI=true).
+export PUBLYAPP_TEST_REUSE_DB := env_var_or_default("PUBLYAPP_TEST_REUSE_DB", "1")
 # The AppHost database (single source of truth, #2305). Local-dev literal password, the
 # same constant as apps/apphost/Program.cs and .env.example — not a secret.
 apphost_db := "Host=localhost;Port=5454;Database=publyapp_db;Username=postgres;Password=password"
@@ -200,6 +203,11 @@ test-api $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
 # `just test-api` stays the unsharded local run.
 test-api-shard shard total $APP_ROLE="all" $ASPNETCORE_ENVIRONMENT="Testing":
   node packages/scripts-ts/src/test-api-shard.ts {{shard}} {{total}}
+
+# Remove the reusable API test Postgres containers (and their anonymous volumes).
+# Only containers labelled by the fixtures are touched.
+test-db-down:
+  docker ps -aq --filter "label=publyapp.test-db=1" | while read -r id; do [ -n "$id" ] && docker rm -f -v "$id"; done; true
 
 # Run analyzer tests
 test-analyzers:

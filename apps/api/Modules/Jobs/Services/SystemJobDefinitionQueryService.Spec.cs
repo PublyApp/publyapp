@@ -1,13 +1,12 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Jobs.Quartz;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 
 using Xunit;
@@ -96,7 +95,7 @@ Cursor: Guid.Empty,
 		var definitionId = await this._SeedDefinitionAsync(jobKey, isEnabled: true);
 
 		try {
-			await using var dbContext = await this._CreateDbContextAsync();
+			await using var dbContext = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 			await dbContext.Database.ExecuteSqlAsync(
 				$"""
 				INSERT INTO system_job_occurrences (job_key, scheduled_fire_at)
@@ -148,7 +147,7 @@ Cursor: Guid.Empty,
 			result.Should().BeOfType<UpdateSystemJobEnabledResult.Success>()
 				.Which.IsEnabled.Should().BeTrue();
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 			(await verify.SystemJobDefinition.SingleAsync(
 				row => row.JobKey == jobKey
 			)).IsEnabled.Should().BeTrue();
@@ -178,7 +177,7 @@ Cursor: Guid.Empty,
 			result.Should()
 				.BeOfType<UpdateSystemJobEnabledResult.ProtectedKey>();
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 			(await verify.SystemJobDefinition.SingleAsync(
 				row => row.JobKey == protectedJobKey
 			)).IsEnabled.Should().BeTrue("K-3: the disable must not land");
@@ -201,7 +200,7 @@ Cursor: Guid.Empty,
 			result.Should().BeOfType<UpdateSystemJobEnabledResult.Success>()
 				.Which.IsEnabled.Should().BeFalse();
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 			(await verify.SystemJobDefinition.SingleAsync(
 				row => row.JobKey == jobKey
 			)).IsEnabled.Should().BeFalse();
@@ -232,7 +231,7 @@ Cursor: Guid.Empty,
 			updated.ScheduleEpoch.Should().Be(epoch,
 				"the staff service must NEVER rotate the epoch");
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 			var definition = await verify.SystemJobDefinition
 				.SingleAsync(row => row.JobKey == jobKey);
 			definition.CronExpression.Should().Be("0 0/7 * * * ?");
@@ -261,7 +260,7 @@ Cursor: Guid.Empty,
 
 			result.Should().BeOfType<UpdateSystemJobCronResult.InvalidCron>();
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 			var definition = await verify.SystemJobDefinition
 				.SingleAsync(row => row.JobKey == jobKey);
 			definition.CronExpression.Should().NotBe("not-a-cron");
@@ -289,7 +288,7 @@ Cursor: Guid.Empty,
 				.BeOfType<TriggerSystemJobResult.Enqueued>().Subject;
 			enqueued.ScheduleEpoch.Should().Be(epoch);
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey))
 				.Should().Be(1);
 			(await verify.SystemJobOccurrence.CountAsync(
@@ -301,7 +300,7 @@ Cursor: Guid.Empty,
 	}
 
 	private async Task<SystemJobDefinitionQueryService> _CreateServiceAsync() {
-		var dbContext = await this._CreateDbContextAsync();
+		var dbContext = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 		return new SystemJobDefinitionQueryService(
 			dbContext,
 			new EnqueueSystemJobBoundary(
@@ -319,7 +318,7 @@ Cursor: Guid.Empty,
 		bool isEnabled,
 		Guid? scheduleEpoch = null
 	) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 		var definition = new SystemJobDefinition {
 			JobKey = jobKey,
 			CronExpression = "0 0/5 * * * ?",
@@ -343,7 +342,7 @@ Cursor: Guid.Empty,
 	/// database already carries it (unique job_key constraint), else seeds it.
 	/// </summary>
 	private async Task<Guid> _GetExistingOrSeedAsync(string jobKey, bool isEnabled) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 		var existingId = await (
 			from definition in dbContext.SystemJobDefinition.AsNoTracking()
 			where definition.JobKey == jobKey && !definition.IsDeleted
@@ -358,7 +357,7 @@ Cursor: Guid.Empty,
 	}
 
 	private async Task _CleanupAsync(string jobKey) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_occurrences WHERE job_key = {jobKey}"
 		);
@@ -374,17 +373,4 @@ Cursor: Guid.Empty,
 		return $"spec.sysdef.{suffix}.{Guid.NewGuid():N}";
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString);
-		return new AppDbContext(options.Options);
-	}
 }

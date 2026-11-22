@@ -5,7 +5,6 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -42,7 +41,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnZeroPermissionsCountForRoleWithNoPermissions() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._SeedTenantRoleAsync(tenantId, permissionCount: 0);
 
 		var role = await this._FindRoleAsync(token, tenantId, roleId);
@@ -53,7 +52,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnOnePermissionsCountForRoleWithOnePermission() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._SeedTenantRoleAsync(tenantId, permissionCount: 1);
 
 		var role = await this._FindRoleAsync(token, tenantId, roleId);
@@ -64,7 +63,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnManyPermissionsCountForRoleWithManyPermissions() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._SeedTenantRoleAsync(tenantId, permissionCount: 3);
 
 		var role = await this._FindRoleAsync(token, tenantId, roleId);
@@ -75,7 +74,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldComputePermissionsCountsForMultipleRolesInOneBatch() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var firstRoleId = await this._SeedTenantRoleAsync(tenantId, permissionCount: 2);
 		var secondRoleId = await this._SeedTenantRoleAsync(tenantId, permissionCount: 0);
 
@@ -184,8 +183,8 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId = await this._SeedFreshTenantAsync("Roles Percent Search");
 		var marker = Guid.NewGuid().ToString("N")[..8];
-		var withPercentId = await this._SeedTenantRoleWithNameAsync(tenantId, $"Has%Percent{marker}");
-		var withoutPercentId = await this._SeedTenantRoleWithNameAsync(tenantId, $"NoPercentAtAll{marker}");
+		var withPercentId = await RoleTestHelper.SeedTenantRoleWithNameAsync(this._Fixture, tenantId, $"Has%Percent{marker}");
+		var withoutPercentId = await RoleTestHelper.SeedTenantRoleWithNameAsync(this._Fixture, tenantId, $"NoPercentAtAll{marker}");
 
 		var result = await this._Http.GetOkAsync<FindTenantRolesResponse>(
 			FindTenantRolesAsStaffSpec._GetUrl(
@@ -205,7 +204,7 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForInvalidIsFullAccessValue() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
@@ -215,14 +214,6 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
 	}
 
-	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			token,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<Guid> _SeedFreshTenantAsync(string namePrefix) {
 		await using var db = this._Fixture.OpenDb();
@@ -239,15 +230,6 @@ public sealed class FindTenantRolesAsStaffSpec : IClassFixture<ApiFixture> {
 		return tenant.GetRequiredId();
 	}
 
-	private async Task<Guid> _SeedTenantRoleWithNameAsync(Guid tenantId, string name) {
-		await using var db = this._Fixture.OpenDb();
-
-		var role = Role.CreateTenantRole(tenantId, name, isDefault: false);
-		await db.Context.Role.AddAsync(role);
-		await db.Context.SaveChangesAsync();
-
-		return role.GetRequiredId();
-	}
 
 	private async Task<Guid> _SeedTenantRoleAsync(
 		Guid tenantId,

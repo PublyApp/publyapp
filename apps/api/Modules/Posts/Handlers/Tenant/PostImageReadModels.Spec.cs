@@ -7,7 +7,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
 
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 
@@ -167,19 +166,11 @@ public sealed class PostImageReadModelsSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
-	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<string> _CreatePostAsync(Guid tenantId, string token) {
 		using var request = new HttpRequestMessage(HttpMethod.Post, "/posts")

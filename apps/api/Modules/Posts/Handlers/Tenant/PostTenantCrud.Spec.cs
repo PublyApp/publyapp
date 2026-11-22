@@ -185,7 +185,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task
 	ItShouldReturn403WithoutCreatePermission() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
@@ -524,7 +524,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	public async Task
 	ItShouldReturn403WithoutEditPermissionOnUpdate() {
 		var postId = await this._CreatePostAsAcmeAdminAsync("edit perm");
-		var acmeId = await this._GetAcmeIdAsync();
+		var acmeId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var userToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
@@ -619,7 +619,7 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 	public async Task
 	ItShouldReturn403WithoutDeletePermissionOnDelete() {
 		var postId = await this._CreatePostAsAcmeAdminAsync("delete perm");
-		var acmeId = await this._GetAcmeIdAsync();
+		var acmeId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var userToken = await this._AuthClient.LoginAsync(
 			TestConstants.AcmeUserEmail,
 			TestConstants.SeedPassword
@@ -655,26 +655,18 @@ public sealed class PostTenantCrudSpec : IClassFixture<ApiFixture> {
 
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		return (tenantId, token);
 	}
 
-	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	// Creates a bare Acme tenant member with NO roles at all. Round 2 granted
 	// the seeded AcmeUserEmail member publishing permissions through the
 	// demo-publishing-acme role, so permission-denial pins must not lean on
 	// that member's (now non-empty) derived permission set.
 	private async Task<(Guid TenantId, string Email)> _CreateBareAcmeMemberAsync() {
-		var acmeId = await this._GetAcmeIdAsync();
+		var acmeId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var email = $"posts-crud-{Guid.NewGuid():N}@example.com";
 
 		await using var db = this._Fixture.OpenDb();

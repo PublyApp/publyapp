@@ -8,8 +8,6 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
-using PublyApp.Api.Modules.Auth.Utils;
-using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -84,7 +82,7 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutSuspendPermission() {
-		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
+		var token = await StaffUserTestHelper.CreateUnprivilegedStaffUserTokenAsync(this._Fixture, this._AuthClient);
 
 		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var existingUserId = await StaffUserDangerZonePermissionsSpec._GetStaffUserIdByEmailAsync(
@@ -103,7 +101,7 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutReactivatePermission() {
-		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
+		var token = await StaffUserTestHelper.CreateUnprivilegedStaffUserTokenAsync(this._Fixture, this._AuthClient);
 
 		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var existingUserId = await StaffUserDangerZonePermissionsSpec._GetStaffUserIdByEmailAsync(
@@ -122,7 +120,7 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutBulkSuspendPermission() {
-		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
+		var token = await StaffUserTestHelper.CreateUnprivilegedStaffUserTokenAsync(this._Fixture, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -139,7 +137,7 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutBulkReactivatePermission() {
-		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
+		var token = await StaffUserTestHelper.CreateUnprivilegedStaffUserTokenAsync(this._Fixture, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -156,7 +154,7 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutBulkDeletePermission() {
-		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
+		var token = await StaffUserTestHelper.CreateUnprivilegedStaffUserTokenAsync(this._Fixture, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -173,7 +171,7 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutUpdateEmailPermission() {
-		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
+		var token = await StaffUserTestHelper.CreateUnprivilegedStaffUserTokenAsync(this._Fixture, this._AuthClient);
 
 		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var existingUserId = await StaffUserDangerZonePermissionsSpec._GetStaffUserIdByEmailAsync(
@@ -197,7 +195,7 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutDeletePermission() {
-		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
+		var token = await StaffUserTestHelper.CreateUnprivilegedStaffUserTokenAsync(this._Fixture, this._AuthClient);
 		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		var existingUserId = await StaffUserDangerZonePermissionsSpec._GetStaffUserIdByEmailAsync(
 			this._Http,
@@ -258,31 +256,6 @@ public sealed class StaffUserDangerZonePermissionsSpec : IClassFixture<ApiFixtur
 		return user.Id.ToString();
 	}
 
-	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
-		var email = $"no-perms-{Guid.NewGuid():N}@example.com";
-
-		await using var db = this._Fixture.OpenDb();
-
-		var user = new User {
-			Email = email,
-			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
-			FirstName = "NoPerm",
-			LastName = "User",
-			IsVerified = true,
-			Status = UserStatus.Active,
-		};
-
-		_ = db.Context.User.Add(user);
-		_ = await db.Context.SaveChangesAsync();
-
-		var userId = user.GetRequiredId();
-		var staffAccount = UserAccount.CreateStaffAccount(userId);
-		staffAccount.ValidateAccountType();
-		_ = db.Context.UserAccount.Add(staffAccount);
-		_ = await db.Context.SaveChangesAsync();
-
-		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
-	}
 
 	// -- Response DTOs --
 

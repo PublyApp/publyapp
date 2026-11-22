@@ -9,6 +9,10 @@ node_modules
 coverage
 apps/*/playwright-report/
 apps/*/test-results/
+# z-index guard fixture trees: kept under scripts/ so Tailwind resolves from
+# apps/front/node_modules, and ignored so a hard kill leaves no untracked tree.
+apps/front/scripts/guards/zindex-guard-*/
+apps/front/scripts/guards/zindex-outdir-*/
 
 # next.js
 .next/

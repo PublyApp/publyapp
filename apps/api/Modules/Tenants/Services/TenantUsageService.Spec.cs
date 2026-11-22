@@ -463,7 +463,7 @@ public sealed class TenantUsageServiceSpec
 	[Fact]
 	public async Task ItShouldFilterEveryQueryOnTheRequestedTenantId() {
 		var tenantId = await this._SeedRichTenantAsync();
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringAsync(this._Fixture);
 		var interceptor = new TenantParameterCaptureInterceptor();
 
 		await using var serviceDbContext = new AppDbContext(
@@ -507,7 +507,7 @@ public sealed class TenantUsageServiceSpec
 		// write is a regression someone must think about, not a silent cost
 		// leak. The interceptor now captures NonQueryExecuting as well.
 		var tenantId = await this._SeedRichTenantAsync();
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringAsync(this._Fixture);
 		var interceptor = new TenantParameterCaptureInterceptor();
 
 		await using var serviceDbContext = new AppDbContext(
@@ -554,7 +554,7 @@ public sealed class TenantUsageServiceSpec
 	}
 
 	private async Task<AppDbContext> _CreateServiceDbContext() {
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringAsync(this._Fixture);
 		return new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
 				.UseNpgsql(connectionString)
@@ -562,18 +562,6 @@ public sealed class TenantUsageServiceSpec
 		);
 	}
 
-	private async Task<string> _GetConnectionStringAsync() {
-		await using var db = this._Fixture.OpenDb();
-
-		var connectionString = db.Context.Database.GetConnectionString();
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return connectionString;
-	}
 
 	[Fact]
 	public async Task ItShouldNotCountProjectAccountsInTheTenantUserCounters() {

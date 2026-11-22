@@ -10,8 +10,6 @@ using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
-using PublyApp.Api.Modules.Auth.Utils;
-using PublyApp.Api.Modules.Users.Entities;
 
 using Xunit;
 
@@ -88,7 +86,7 @@ public sealed class DeleteStaffRoleSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
+		var token = await StaffUserTestHelper.CreateUnprivilegedStaffUserTokenAsync(this._Fixture, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
@@ -171,29 +169,4 @@ public sealed class DeleteStaffRoleSpec : IClassFixture<ApiFixture> {
 		return body.RoleId.ToString();
 	}
 
-	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
-		var email = $"no-perms-{Guid.NewGuid():N}@example.com";
-
-		await using var db = this._Fixture.OpenDb();
-
-		var user = new User {
-			Email = email,
-			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
-			FirstName = "NoPerm",
-			LastName = "User",
-			IsVerified = true,
-			Status = UserStatus.Active,
-		};
-
-		_ = db.Context.User.Add(user);
-		_ = await db.Context.SaveChangesAsync();
-
-		var userId = user.GetRequiredId();
-		var staffAccount = UserAccount.CreateStaffAccount(userId);
-		staffAccount.ValidateAccountType();
-		_ = db.Context.UserAccount.Add(staffAccount);
-		_ = await db.Context.SaveChangesAsync();
-
-		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
-	}
 }

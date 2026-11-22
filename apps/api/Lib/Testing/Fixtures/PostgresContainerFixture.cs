@@ -11,17 +11,36 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// run. Uses static lazy initialization so test classes can
 /// run in parallel without a serializing xUnit collection.
 ///
-/// The shared container is disposed when the test process
-/// exits. Ryuk remains a fallback for abnormal termination.
+/// By default the container is disposable and is disposed when
+/// the test process exits; Ryuk remains a fallback for abnormal
+/// termination. With `PUBLYAPP_TEST_REUSE_DB=1` (local `just`
+/// recipes, never CI) a long-lived container is reused instead,
+/// so the migrated template database survives between runs;
+/// `just test-db-down` removes it.
 ///
 /// Usage: await PostgresContainerFixture.GetSharedAsync()
 /// from ApiFixture.InitializeAsync().
 /// </summary>
 public sealed class PostgresContainerFixture : IAsyncDisposable {
+	// Verified from `docker image inspect postgres:18-alpine`:
+	// PGDATA=/var/lib/postgresql/18/docker.
+	private const string _DataDirectory =
+		"/var/lib/postgresql/18/docker";
+	private const string _InitDbArgsVariable = "POSTGRES_INITDB_ARGS";
+	private const string _InitDbArgs = "--nosync";
 	private static readonly TimeSpan _ProcessExitDisposeTimeout =
 		TimeSpan.FromSeconds(5);
 	private static readonly SemaphoreSlim _InitLock =
 		new(1, 1);
+	// Throwaway data only: a crash must never cost a disk flush, and the
+	// template build is the only phase that writes enough to checkpoint.
+	private static readonly string[] _ServerArgs = [
+		"-c", "fsync=off",
+		"-c", "synchronous_commit=off",
+		"-c", "full_page_writes=off",
+		"-c", "autovacuum=off",
+		"-c", "max_wal_size=2GB",
+	];
 	private static PostgresContainerFixture? _SharedInstance;
 
 	private PostgreSqlContainer? _ContainerOrNull;
@@ -30,6 +49,15 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 	public string AdminConnectionString { get; private set; }
 		= string.Empty;
 	public string TemplateDbName { get; } = "publyapp_api_template";
+
+	/// <summary>
+	/// True when the container dies with the test process (CI, or any run that
+	/// did not opt into <c>PUBLYAPP_TEST_REUSE_DB</c>). Its databases disappear
+	/// with it, so the per-class drop is pure overhead there.
+	/// </summary>
+	internal static bool IsEphemeral {
+		get { return !TestDatabaseReuse.IsEnabled; }
+	}
 
 	private PostgresContainerFixture() {
 		AppDomain.CurrentDomain.ProcessExit += this._HandleProcessExit;
@@ -75,13 +103,55 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 	}
 
 	private async Task _InitializeAsync() {
+		PostgreSqlContainer? disposableContainer = null;
+		try {
+			if (TestDatabaseReuse.IsEnabled) {
+				this.AdminConnectionString =
+					await TestDatabaseReuse.StartAsync();
+			} else {
+				disposableContainer =
+					await this._StartDisposableContainerAsync();
+			}
+
+			TestEnvironment.InitializeOnce(this.AdminConnectionString);
+
+			var manager = new DatabaseTemplateManager(
+				this.AdminConnectionString,
+				this.TemplateDbName
+			);
+			await manager.EnsureTemplateDatabaseAsync();
+		} catch {
+			// Dispose a throwaway container immediately on init
+			// failure rather than relying on Ryuk — keeps repeated
+			// local runs clean and avoids stale containers
+			// when Ryuk is disabled. A reused container is left
+			// alone: the next run retries against it.
+			if (disposableContainer is not null) {
+				try {
+					await disposableContainer.DisposeAsync();
+				} catch {
+					// best-effort
+				}
+			}
+			throw;
+		}
+	}
+
+	private async Task<PostgreSqlContainer>
+		_StartDisposableContainerAsync() {
 		// Use Testcontainers default wait strategy (more
 		// robust than UntilPortIsAvailable — waits for
 		// pg_isready or equivalent health check)
 		var containerBuilder = new PostgreSqlBuilder("postgres:18-alpine")
 			.WithDatabase("postgres")
 			.WithUsername("postgres")
-			.WithPassword("postgres");
+			.WithPassword("postgres")
+			.WithEnvironment(
+				PostgresContainerFixture._InitDbArgsVariable,
+				PostgresContainerFixture._InitDbArgs
+			)
+			.WithTmpfsMount(PostgresContainerFixture._DataDirectory)
+			.WithCommand(PostgresContainerFixture._ServerArgs);
 
 		if (!AppEnvironment.IsTestVerboseLoggingEnabled) {
 			containerBuilder = containerBuilder
@@ -112,26 +182,7 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 		this.AdminConnectionString =
 			adminConnBuilder.ConnectionString;
 
-		try {
-			TestEnvironment.InitializeOnce(this.AdminConnectionString);
-
-			var manager = new DatabaseTemplateManager(
-				this.AdminConnectionString,
-				this.TemplateDbName
-			);
-			await manager.EnsureTemplateDatabaseAsync();
-		} catch {
-			// Dispose container immediately on init failure
-			// rather than relying on Ryuk — keeps repeated
-			// local runs clean and avoids stale containers
-			// when Ryuk is disabled.
-			try {
-				await container.DisposeAsync();
-			} catch {
-				// best-effort
-			}
-			throw;
-		}
+		return container;
 	}
 
 	public async ValueTask DisposeAsync() {
@@ -149,6 +200,8 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 
 	private void _HandleProcessExit(object? sender, EventArgs args) {
 		try {
+			TestDbTimings.Report();
+
 			var disposeTask = this.DisposeAsync().AsTask();
 			_ = disposeTask.ContinueWith(
 				static task => {

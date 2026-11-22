@@ -1,10 +1,9 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 
 using Xunit;
@@ -215,7 +214,7 @@ Cursor: cursor,
 	}
 
 	private async Task<JobQueueQueryService> _CreateServiceAsync() {
-		var dbContext = await this._CreateDbContextAsync();
+		var dbContext = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 		return new JobQueueQueryService(dbContext);
 	}
 
@@ -227,7 +226,7 @@ Cursor: cursor,
 	) {
 		var id = Guid.NewGuid();
 		var payload = "{}";
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
 			INSERT INTO job_queue (
@@ -246,7 +245,7 @@ Cursor: cursor,
 	}
 
 	private async Task _CleanupAsync(string jobType) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM job_queue WHERE job_type = {jobType}"
 		);
@@ -256,17 +255,4 @@ Cursor: cursor,
 		return $"spec.jq.{suffix}.{Guid.NewGuid():N}";
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString);
-		return new AppDbContext(options.Options);
-	}
 }

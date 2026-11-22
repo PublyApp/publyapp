@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.Publishing.Lib;
@@ -31,23 +32,10 @@ public sealed class DispatchDuePostsConcurrencySpec : IClassFixture<ApiFixture> 
 		this._Fixture = fixture;
 	}
 
-	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return connectionString;
-	}
 
 	[Fact]
 	public async Task ItShouldEnqueueEachPastDueRowExactlyOnceAcrossTwoConcurrentScans() {
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringFromScopeAsync(this._Fixture);
 		await using var seedDb = new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
 				.UseNpgsql(connectionString)

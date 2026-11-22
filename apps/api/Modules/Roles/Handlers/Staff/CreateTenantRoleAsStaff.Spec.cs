@@ -7,7 +7,6 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -42,7 +41,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
 			CreateTenantRoleAsStaffSpec._GetUrl(tenantId.ToString())
@@ -55,7 +54,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
@@ -70,7 +69,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
@@ -120,7 +119,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldCreateTenantRole() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var name = "Tenant Role " + Guid.NewGuid().ToString("N")[..8];
 
 		using var request = new HttpRequestMessage(
@@ -178,7 +177,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldCreateTenantRoleWithIconAndTone() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var name = "Styled Tenant Role " + Guid.NewGuid().ToString("N")[..8];
 
 		using var request = new HttpRequestMessage(
@@ -211,7 +210,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForInvalidTone() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -231,7 +230,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForUnsupportedIcon() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -251,7 +250,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldCreateTenantRoleWithInitialPermissions() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var name = "Tenant Role " + Guid.NewGuid().ToString("N")[..8];
 		var permissionKeys = new[] {
 			AppPermissions.Tenant.Modules.ACCESS_USERS.Key,
@@ -301,7 +300,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldRejectInvalidPermissionKeysWithoutCreatingRole() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var name = "Tenant Role " + Guid.NewGuid().ToString("N")[..8];
 
 		using var request = new HttpRequestMessage(
@@ -333,7 +332,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldDeduplicateInitialPermissionKeys() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var name = "Tenant Role " + Guid.NewGuid().ToString("N")[..8];
 		var duplicatedPermissionKey = AppPermissions.Tenant.Modules.ACCESS_USERS.Key;
 
@@ -380,7 +379,7 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldRejectDuplicateNamesWithinTenant() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var name = "Duplicate Tenant Role " + Guid.NewGuid().ToString("N")[..8];
 
 		await this._CreateRoleAsync(token, tenantId, name);
@@ -410,14 +409,6 @@ public sealed class CreateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		auditLogCountAfter.Should().Be(auditLogCountBefore);
 	}
 
-	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			token,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<string> _CreateRoleAsync(
 		string staffToken,

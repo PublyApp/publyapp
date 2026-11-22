@@ -1,13 +1,13 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
@@ -28,7 +28,7 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldDeleteOnlyRowsBeyondTheRetentionHorizonKeepingTheBoundaryRow() {
 		var retentionDays = AppEnvironment.Instance.EMAIL_LOG_RETENTION_DAYS;
 		var marker = $"retain-{Guid.NewGuid():N}@example.com";
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 
 		try {
 			var beyond = $"beyond-{marker}";
@@ -47,7 +47,7 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 			var result = await EmailLogRetentionHandlerSpec._RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 			(await verify.EmailLog.AnyAsync(e => e.Recipient == beyond))
 				.Should().BeFalse("a row well beyond the horizon is swept");
 			(await verify.EmailLog.AnyAsync(e => e.Recipient == justInside))
@@ -69,7 +69,7 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldBeIdempotentWhenRunTwice() {
 		var retentionDays = AppEnvironment.Instance.EMAIL_LOG_RETENTION_DAYS;
 		var marker = $"retain-idem-{Guid.NewGuid():N}@example.com";
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 
 		try {
 			await EmailLogRetentionHandlerSpec._InsertLogAsync(dbContext, $"old-{marker}", days: retentionDays + 20);
@@ -79,7 +79,7 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 			var second = await EmailLogRetentionHandlerSpec._RunAsync(dbContext);
 			second.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 			var remaining = await verify.EmailLog.CountAsync(e => e.Recipient.EndsWith(marker));
 			remaining.Should().Be(1, "only the fresh row remains after either run");
 		} finally {
@@ -93,7 +93,7 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 		var marker = $"exact-{Guid.NewGuid():N}@example.com";
 		var exactCutoff = $"exact-{marker}";
 		var justBeyond = $"beyond-{marker}";
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 
 		// PostgreSQL now() == transaction_timestamp(): frozen for the whole transaction. The
 		// seed and the handler's sweep run in ONE transaction, so the exact-cutoff row's
@@ -154,24 +154,10 @@ public sealed class EmailLogRetentionHandlerSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _CleanupAsync(string marker) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM email_log WHERE recipient LIKE {"%" + marker}"
 		);
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString).Options
-		);
-	}
 }

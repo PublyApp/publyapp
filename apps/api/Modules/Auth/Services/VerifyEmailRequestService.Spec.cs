@@ -1,7 +1,6 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 using Npgsql;
 
@@ -117,25 +116,13 @@ public sealed class VerifyEmailRequestServiceSpec : IClassFixture<ApiFixture> {
 		return user.GetRequiredId();
 	}
 
-	private static string _BaseConnectionString(ApiFixture fixture) {
-		using var scope = fixture.Factory.Services.CreateScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		return connectionString;
-	}
 
 	private AppDbContext _CreateDbContext() {
 		return this._CreateDbContext(applicationName: null);
 	}
 
 	private AppDbContext _CreateDbContext(string? applicationName) {
-		var connectionString = VerifyEmailRequestServiceSpec._BaseConnectionString(this._Fixture);
+		var connectionString = SpecDbHelper.GetBaseConnectionString(this._Fixture);
 		if (applicationName is not null) {
 			var builder = new NpgsqlConnectionStringBuilder(connectionString) {
 				ApplicationName = applicationName

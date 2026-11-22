@@ -264,7 +264,7 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 	private async Task<ServiceSetup> _CreateServiceAsync(
 		Func<CancellationToken, Task>? beforeTenantUpdateAsync = null
 	) {
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringAsync(this._Fixture);
 		var interceptor = new TenantCommandInterceptor(beforeTenantUpdateAsync);
 		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql(connectionString)
@@ -281,18 +281,6 @@ public sealed class TenantAsStaffBulkLifecycleServiceSpec
 		return new ServiceSetup(dbContext, service, interceptor);
 	}
 
-	private async Task<string> _GetConnectionStringAsync() {
-		await using var db = this._Fixture.OpenDb();
-		var connectionString = db.Context.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return connectionString;
-	}
 
 	private sealed record ServiceSetup(
 		AppDbContext DbContext,

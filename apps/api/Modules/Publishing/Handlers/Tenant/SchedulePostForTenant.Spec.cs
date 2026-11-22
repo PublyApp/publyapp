@@ -389,7 +389,7 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturn403WithoutPostsPublishPermission() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var adminToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var postId = await this._CreatePostAsync(tenantId, adminToken);
 
@@ -525,14 +525,6 @@ public sealed class SchedulePostForTenantSpec : IClassFixture<ApiFixture> {
 
 	private record ScheduleProbePostCreated(Guid Id);
 
-	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	/// <summary>
 	/// Seeds an Active social account for the tenant. When projectId is given the

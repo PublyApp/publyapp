@@ -116,7 +116,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 				AppPermissions.Staff.Users.CREATE_FOR_TENANT.Key
 			);
 		var tenantId =
-			await this._GetAcmeTenantIdAsync();
+			await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var inviteeEmail =
 			$"tenant-permissioned-invite-{Guid.NewGuid():N}@example.com";
 
@@ -233,7 +233,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await this._GetAcmeTenantIdAsync();
+			await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var inviteeEmail =
 			$"tenant-pending-duplicate-{Guid.NewGuid():N}@example.com";
 
@@ -267,7 +267,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await this._GetAcmeTenantIdAsync();
+			await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleCount =
 			AppEnvironment.Instance.MAX_ROLES_PER_USER + 1;
 		var roleIds =
@@ -299,7 +299,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await this._GetAcmeTenantIdAsync();
+			await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var inviteeEmail =
 			$"tenant-role-ids-{Guid.NewGuid():N}@example.com";
 		var roleAName = $"tenant-role-a-{Guid.NewGuid():N}";
@@ -360,7 +360,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var acmeTenantId =
-			await this._GetAcmeTenantIdAsync();
+			await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var techStartTenantId =
 			await TenantTestHelper.GetTenantIdByNameAsync(
 				this._Http,
@@ -410,7 +410,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await this._GetAcmeTenantIdAsync();
+			await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var inviteeEmail =
 			$"tenant-audit-invite-{Guid.NewGuid():N}@example.com";
 
@@ -496,7 +496,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldReturnUnauthorizedWithoutSession() {
 		var tenantId =
-			await this._GetAcmeTenantIdAsync();
+			await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendAsync(
 			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
@@ -516,7 +516,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForTenantUser() {
 		var tenantId =
-			await this._GetAcmeTenantIdAsync();
+			await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var response = await this._Http.SendAsync(
@@ -537,7 +537,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 	public async Task
 	ItShouldReturnForbiddenForStaffWithoutPermission() {
 		var tenantId =
-			await this._GetAcmeTenantIdAsync();
+			await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var staffUserToken =
 			await this._CreateUnprivilegedStaffUserTokenAsync();
 
@@ -561,7 +561,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await this._GetAcmeTenantIdAsync();
+			await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendAsync(
 			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
@@ -580,7 +580,7 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		var staffToken =
 			await this._AuthClient.LoginAsStaffAdminAsync();
 		var tenantId =
-			await this._GetAcmeTenantIdAsync();
+			await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendAsync(
 			CreateInvitationForTenantAsStaffSpec._CreateTenantInviteRequest(
@@ -669,16 +669,6 @@ public sealed class CreateInvitationForTenantAsStaffSpec
 		return request;
 	}
 
-	private async Task<Guid> _GetAcmeTenantIdAsync() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<List<Guid>> _CreateTenantRolesAsync(
 		Guid tenantId,

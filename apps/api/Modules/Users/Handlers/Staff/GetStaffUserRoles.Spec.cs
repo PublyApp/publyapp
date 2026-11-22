@@ -62,7 +62,7 @@ public sealed class GetStaffUserRolesSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
 		// Use an isolated staff user with no roles, so permissions are guaranteed empty even if
 		// other integration tests assign roles to the seeded staff-user@example.com.
-		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
+		var token = await StaffUserTestHelper.CreateUnprivilegedStaffUserTokenAsync(this._Fixture, this._AuthClient);
 
 		// Use an existing user id so the permission failure cannot be masked by a 404.
 		var adminToken = await this._AuthClient.LoginAsStaffAdminAsync();
@@ -296,31 +296,6 @@ public sealed class GetStaffUserRolesSpec : IClassFixture<ApiFixture> {
 		return userId.ToString();
 	}
 
-	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
-		var email = $"no-perms-{Guid.NewGuid():N}@example.com";
-
-		await using var db = this._Fixture.OpenDb();
-
-		var user = new User {
-			Email = email,
-			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
-			FirstName = "NoPerm",
-			LastName = "User",
-			IsVerified = true,
-			Status = UserStatus.Active,
-		};
-
-		_ = db.Context.User.Add(user);
-		_ = await db.Context.SaveChangesAsync();
-
-		var userId = user.GetRequiredId();
-		var staffAccount = UserAccount.CreateStaffAccount(userId);
-		staffAccount.ValidateAccountType();
-		_ = db.Context.UserAccount.Add(staffAccount);
-		_ = await db.Context.SaveChangesAsync();
-
-		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
-	}
 
 	// -- Response DTOs --
 

@@ -1,13 +1,13 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
@@ -27,7 +27,7 @@ public sealed class SystemJobOccurrenceRetentionHandlerSpec : IClassFixture<ApiF
 		var oldKey = $"{marker}.old";
 		var exactKey = $"{marker}.exact";
 		var recentKey = $"{marker}.recent";
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 		await using var transaction = await dbContext.Database.BeginTransactionAsync();
 
 		try {
@@ -90,18 +90,4 @@ public sealed class SystemJobOccurrenceRetentionHandlerSpec : IClassFixture<ApiF
 		};
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString).Options
-		);
-	}
 }

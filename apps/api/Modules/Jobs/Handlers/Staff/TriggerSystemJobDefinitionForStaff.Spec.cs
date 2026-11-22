@@ -5,9 +5,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -72,7 +70,7 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 				.Should().Be(ResponseKeys.SystemJobTriggerSuccess.Value);
 
 			// Exactly ONE queue copy for THIS occurrence.
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 			(await verify.JobQueue.SingleAsync(
 				j => j.Id == Guid.Parse(newJobId.Required())
 			)).Status.Should().Be(JobQueueStatus.Pending);
@@ -115,7 +113,7 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 				.Should().Be(ResponseKeys.SystemJobTriggerNoop.Value);
 
 			// NOTHING was written: no queue copy, no ledger row, no audit row.
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 			(await verify.JobQueue.AnyAsync(j => j.JobType.StartsWith(jobKey)))
 				.Should().BeFalse();
 			(await verify.SystemJobOccurrence.AnyAsync(o => o.JobKey == jobKey))
@@ -184,7 +182,7 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 
 			response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 			(await verify.SystemJobOccurrence.AnyAsync(o => o.JobKey == jobKey))
 				.Should().BeFalse();
 			(await verify.AuditLog.AnyAsync(a =>
@@ -243,23 +241,6 @@ public sealed class TriggerSystemJobDefinitionForStaffSpec : IClassFixture<ApiFi
 		);
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was null."
-			);
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString).Options
-		);
-	}
 
 	private async Task<(string Token, Guid UserId)>
 		_CreateUnprivilegedStaffUserAsync() {

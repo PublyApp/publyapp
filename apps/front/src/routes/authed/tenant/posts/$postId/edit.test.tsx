@@ -188,10 +188,6 @@ vi.mock('~/components/error-views/AppErrorView', () => ({
 	),
 }));
 
-vi.mock('~/components/error-views/LogoutRedirect', () => ({
-	LogoutRedirect: () => <div data-testid="logout-redirect" />,
-}));
-
 vi.mock('~/components/field', () => ({
 	Field: {
 		Textarea: () => <textarea data-testid="field-textarea-stub" />,

@@ -70,7 +70,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		);
 		Guid missingInvitationId = Guid.NewGuid();
 
-		await this._MarkStaffInvitationAcceptedAsync(acceptedInvitationId);
+		await InvitationTestHelper.MarkStaffInvitationAcceptedAsync(this._Fixture, acceptedInvitationId);
 
 		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			staffToken,
@@ -243,9 +243,7 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		string staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
 		// Expired invitations are still Status=Pending with a past ExpiresAt;
 		// the service revokes them since IsRevoked()/IsAccepted() are both false.
-		Guid expiredId = await this._CreateExpiredStaffInvitationAsync(
-			$"bulk-revoke-expired-{Guid.NewGuid():N}@example.com"
-		);
+		Guid expiredId = await InvitationTestHelper.CreateExpiredStaffInvitationAsync(this._Fixture, $"bulk-revoke-expired-{Guid.NewGuid():N}@example.com");
 
 		using HttpResponseMessage response = await this._BulkRevokeAsync(
 			staffToken,
@@ -403,24 +401,6 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		return invitation.GetRequiredId();
 	}
 
-	private async Task _MarkStaffInvitationAcceptedAsync(Guid invitationId) {
-		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
-		AppDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-
-		Invitation? invitation = await dbContext.Invitation
-			.Where(inv => inv.Id == invitationId)
-			.FirstOrDefaultAsync();
-		_ = invitation.Should().NotBeNull();
-		if (invitation is null) {
-			return;
-		}
-
-		invitation.Status = InvitationStatus.Accepted;
-		invitation.AcceptedAt = DateTime.UtcNow;
-
-		_ = await dbContext.SaveChangesAsync();
-	}
 
 	private async Task _MarkStaffInvitationRevokedAsync(Guid invitationId) {
 		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
@@ -441,35 +421,6 @@ public sealed class BulkRevokeStaffInvitationsSpec : IClassFixture<ApiFixture> {
 		_ = await dbContext.SaveChangesAsync();
 	}
 
-	private async Task<Guid> _CreateExpiredStaffInvitationAsync(string email) {
-		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
-		AppDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-
-		Role staffRole = await dbContext.Role
-			.Where(role =>
-				role.Scope == RoleScope.Staff
-				&& !role.IsDeleted
-			)
-			.OrderBy(role => role.Name)
-			.FirstAsync();
-		User staffUser = await dbContext.User
-			.Where(user => user.Email == SeedConstants.Staff.AdminEmail)
-			.FirstAsync();
-
-		Invitation invitation = Invitation.CreateStaffInvitationWithRoles(
-			email,
-			[staffRole.GetRequiredId()],
-			staffUser.GetRequiredId(),
-			DateTime.UtcNow.AddDays(-1),
-			Guid.NewGuid().ToString("N")[..32]
-		);
-
-		_ = await dbContext.Invitation.AddAsync(invitation);
-		_ = await dbContext.SaveChangesAsync();
-
-		return invitation.GetRequiredId();
-	}
 
 	private async Task<Guid> _GetStaffAdminUserIdAsync() {
 		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();

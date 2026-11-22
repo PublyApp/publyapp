@@ -1,4 +1,6 @@
 
+using System.Diagnostics;
+
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -94,17 +96,20 @@ public sealed class ApiFixture : IAsyncLifetime {
 	}
 
 	public HttpClient CreateClient(IUploadAdmissionService uploadAdmissionService) {
+		var startedAt = Stopwatch.GetTimestamp();
 		var factory = new ApiFactory(
 			this._TestDbConnectionString,
 			this._StorageRoot,
 			uploadAdmissionService
 		);
 		this._AdditionalFactories.Add(factory);
-		return factory.CreateClient(
+		var client = factory.CreateClient(
 			new WebApplicationFactoryClientOptions {
 				HandleCookies = false
 			}
 		);
+		TestDbTimings.RecordHost(startedAt);
+		return client;
 	}
 
 	public async Task InitializeAsync() {
@@ -121,6 +126,7 @@ public sealed class ApiFixture : IAsyncLifetime {
 				this._TestDbName
 			);
 
+		var hostStartedAt = Stopwatch.GetTimestamp();
 		this.Factory = new ApiFactory(this._TestDbConnectionString, this._StorageRoot);
 
 		// Cookies disabled to prevent cross-test session
@@ -130,6 +136,8 @@ public sealed class ApiFixture : IAsyncLifetime {
 				HandleCookies = false
 			}
 		);
+		TestDbTimings.RecordHost(hostStartedAt);
+		TestDbTimings.CountClass();
 	}
 
 	/// <summary>
@@ -177,7 +185,10 @@ public sealed class ApiFixture : IAsyncLifetime {
 			}
 		}
 
-		if (this._DbManager is not null) {
+		// A throwaway container (CI, or no local reuse) is destroyed with the
+		// test process, so its databases go with it. Only the long-lived local
+		// container needs the per-class drop to stop clones accumulating.
+		if (this._DbManager is not null && !PostgresContainerFixture.IsEphemeral) {
 			try {
 				await this._DbManager.DropDatabaseAsync(this._TestDbName);
 			} catch (Exception ex) {

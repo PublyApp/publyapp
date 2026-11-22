@@ -490,9 +490,9 @@ export const checkPrSize = (
 	];
 };
 
-const run = (cmd: string, args: string[]): string => {
+const run = (cmd: string, args: string[], cwd = repoRoot): string => {
 	const r = spawnSync(cmd, args, {
-		cwd: repoRoot,
+		cwd,
 		encoding: 'utf8',
 		maxBuffer: 512 * 1024 * 1024,
 		timeout: 10 * 60 * 1000,
@@ -525,8 +525,12 @@ const readSnapshot = (): CoderotSnapshot => {
 	}
 };
 
-type EventPayload = {
-	pull_request?: { base?: { sha?: string }; labels?: { name: string }[] };
+export type EventPayload = {
+	pull_request?: {
+		base?: { sha?: string };
+		head?: { sha?: string };
+		labels?: { name: string }[];
+	};
 	merge_group?: { base_sha?: string };
 };
 
@@ -541,10 +545,36 @@ export const baseRef = (event: EventPayload): string =>
 	event.merge_group?.base_sha ??
 	'origin/develop';
 
-/** Diff base: merge-base with the target (QUALITY_BASE overrides both this and the baseline tip). */
-const resolveBase = (event: EventPayload): string =>
-	process.env.QUALITY_BASE ??
-	run('git', ['merge-base', 'HEAD', baseRef(event)]).trim();
+/**
+ * A pull_request checkout of refs/pull/N/merge is a synthetic merge: HEAD^1 is the target tip and HEAD^2 the PR head.
+ * A PR head that is itself a merge commit also has two parents, so HEAD^1 is only trusted when HEAD^2 is the event head.
+ */
+const mergeParent = (event: EventPayload, cwd = repoRoot): string | null => {
+	const head = event.pull_request?.head?.sha;
+	if (!event.pull_request?.base?.sha || !head) {
+		return null;
+	}
+	const parents = run('git', ['rev-list', '--parents', '-n', '1', 'HEAD'], cwd)
+		.trim()
+		.split(' ');
+	return parents.length === 3 && parents[2] === head ? parents[1] : null;
+};
+
+/** Diff base: the commit the checkout was actually built on (QUALITY_BASE overrides both this and the baseline tip). */
+export const resolveBase = (event: EventPayload, cwd = repoRoot): string => {
+	if (process.env.QUALITY_BASE) {
+		return process.env.QUALITY_BASE;
+	}
+	const merge = mergeParent(event, cwd);
+	if (merge) {
+		return merge;
+	}
+	const base = run('git', ['merge-base', 'HEAD', baseRef(event)], cwd).trim();
+	if (!base) {
+		throw new Error(`cannot resolve a diff base against ${baseRef(event)}`);
+	}
+	return base;
+};
 
 /** Baseline-not-raised runs on the PR event and in the merge queue (no labels there: only ownerApproved lets a raise land); size on PRs and locally. */
 export const policyFor = (eventName?: string) => ({
@@ -593,7 +623,9 @@ const main = (): number => {
 		...(local && process.env.QUALITY_SIZE_EXCEPTION ? [SIZE_LABEL] : []),
 	];
 	const tip = policy.baseline
-		? readBaselineAt(process.env.QUALITY_BASE ?? baseRef(event))
+		? readBaselineAt(
+				process.env.QUALITY_BASE ?? mergeParent(event) ?? baseRef(event),
+			)
 		: null;
 	// Introduction was gated (label) on the PR event; the queue only re-checks later raises.
 	const queueIntro = process.env.GITHUB_EVENT_NAME === 'merge_group' && !tip;

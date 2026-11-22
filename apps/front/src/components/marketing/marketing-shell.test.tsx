@@ -1,6 +1,8 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+vi.unmock('react-i18next');
 import { resetCookieConsentStoreForTests } from '~/lib/store/cookie-consent-store';
 
 import { MarketingCtaBand } from './marketing-cta-band';

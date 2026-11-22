@@ -10,6 +10,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
@@ -32,24 +33,6 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		this._Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> _NewDbAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 
 	private static async Task<(Guid TenantId, Guid ActorUserId)> _SeedTenantAsync(
 		AppDbContext db
@@ -144,7 +127,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		// pair forever. The live check and the partial unique index both exclude
 		// terminal Failed rows, so re-issuing publish-now starts a FRESH attempt
 		// while the failed row stays as history.
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, actorUserId) = await PublishNowServiceSpec._SeedTenantAsync(db);
 		var postId = await PublishNowServiceSpec._SeedPostAsync(db, tenantId, actorUserId);
 		var accountA = await PublishNowServiceSpec._SeedAccountAsync(db, tenantId);
@@ -197,7 +180,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldKeepAPublishedRowOccupyingThePairAgainstReissue() {
 		// Published rows keep occupying the pair: the remote record exists and a
 		// second delivery would double-post on the social network.
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, actorUserId) = await PublishNowServiceSpec._SeedTenantAsync(db);
 		var postId = await PublishNowServiceSpec._SeedPostAsync(db, tenantId, actorUserId);
 		var accountA = await PublishNowServiceSpec._SeedAccountAsync(db, tenantId);
@@ -243,7 +226,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 		// ux_publications_post_account is the authority - this spec pins that a lost
 		// race surfaces as the SAME structured outcome as the proactive check
 		// (LivePublicationsExist -> 422), never a raw DbUpdateException / 500.
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, actorUserId) = await PublishNowServiceSpec._SeedTenantAsync(db);
 		var postId = await PublishNowServiceSpec._SeedPostAsync(db, tenantId, actorUserId);
 		var accountA = await PublishNowServiceSpec._SeedAccountAsync(db, tenantId);
@@ -321,7 +304,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldCreateScheduledPublicationsWithDeterministicKeysAndOneJobEach() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, actorUserId) = await PublishNowServiceSpec._SeedTenantAsync(db);
 		var postId = await PublishNowServiceSpec._SeedPostAsync(db, tenantId, actorUserId);
 		var accountA = await PublishNowServiceSpec._SeedAccountAsync(db, tenantId);
@@ -390,7 +373,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRefuseAnOverlappingLiveAccountButStillCreateTheRest() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, actorUserId) = await PublishNowServiceSpec._SeedTenantAsync(db);
 		var postId = await PublishNowServiceSpec._SeedPostAsync(db, tenantId, actorUserId);
 		var accountA = await PublishNowServiceSpec._SeedAccountAsync(db, tenantId);
@@ -422,7 +405,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldTreatAPublishedRowAsLiveForThePair() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, actorUserId) = await PublishNowServiceSpec._SeedTenantAsync(db);
 		var postId = await PublishNowServiceSpec._SeedPostAsync(db, tenantId, actorUserId);
 		var accountA = await PublishNowServiceSpec._SeedAccountAsync(db, tenantId);
@@ -464,7 +447,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnPostNotFoundForAForeignTenantAndWriteNothing() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantA, _) = await PublishNowServiceSpec._SeedTenantAsync(db);
 		var (tenantB, actorB) = await PublishNowServiceSpec._SeedTenantAsync(db);
 		var foreignPostId = await PublishNowServiceSpec._SeedPostAsync(db, tenantA, actorB);
@@ -486,7 +469,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldListForeignAccountsAsNotFoundAndWriteNothing() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, actorUserId) = await PublishNowServiceSpec._SeedTenantAsync(db);
 		var (foreignTenant, _) = await PublishNowServiceSpec._SeedTenantAsync(db);
 		var postId = await PublishNowServiceSpec._SeedPostAsync(db, tenantId, actorUserId);
@@ -520,7 +503,7 @@ public sealed class PublishNowServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldRollBackTheWholeBatchIncludingEnqueuedJobsOnFailure() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, actorUserId) = await PublishNowServiceSpec._SeedTenantAsync(db);
 		var postId = await PublishNowServiceSpec._SeedPostAsync(db, tenantId, actorUserId);
 		var accountA = await PublishNowServiceSpec._SeedAccountAsync(db, tenantId);
