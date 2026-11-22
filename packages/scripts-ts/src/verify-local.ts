@@ -321,6 +321,7 @@ const FULL_GATES = {
 
 const SCOPE_EXTRAS = {
 	front: [
+		'pnpm format',
 		'pnpm lint',
 		'node packages/scripts-ts/src/lint-front.ts --quiet',
 		'node packages/scripts-ts/src/check-no-floating-promises.ts',
@@ -355,7 +356,6 @@ const SKIP_REASONS = {
 	'vitest-front-related': 'no source needs the related-test fallback',
 	'build-api': 'no API file changed',
 	'test-api': 'no API file changed',
-	'test-scripts': 'no scripts-ts file changed',
 	ratchet: 'no judged source file changed',
 	'doc-links': 'no docs changed',
 };

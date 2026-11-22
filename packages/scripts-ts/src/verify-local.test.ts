@@ -122,6 +122,7 @@ test('FULL(front) includes the front lint lane CI runs', () => {
 	assert.equal(plan.mode, 'full');
 	assert.equal(plan.scope, 'front');
 	const commands = plan.checks.map((check) => check.command.join(' '));
+	assert.ok(commands.includes('pnpm format'), commands.join(' | '));
 	assert.ok(
 		commands.includes('node packages/scripts-ts/src/lint-front.ts --quiet'),
 	);
