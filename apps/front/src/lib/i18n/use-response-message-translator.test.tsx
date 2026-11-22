@@ -96,6 +96,11 @@ describe('useResponseMessageTranslator in French', () => {
 		['post-segments-locked', 'Les segments déjà publiés'],
 		['provider-disabled', 'Ce fournisseur est désactivé'],
 		['post-segment-not-found', 'segment'],
+		['post-image-unsupported-type', 'PNG, JPEG ou WEBP'],
+		['post-image-animated-unsupported', 'images animées'],
+		['post-image-dimensions-invalid', "dimensions de l'image"],
+		['post-image-required', 'fichier image est requis'],
+		['upload-file-unsupported-type', 'PNG, JPEG, WEBP ou GIF'],
 	])('translates %s, which says as much as the detail', (key, start) => {
 		expect(translatorFor('fr')(key, {})).toContain(start);
 	});
