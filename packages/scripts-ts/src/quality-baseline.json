@@ -11,9 +11,8 @@
 		"tooling": { "complexityPer1k": 108.8, "duplicationPer1k": 131.1 }
 	},
 	"exceptions": [],
-<<<<<<< HEAD
-	"ownerApproved": ["tests-api.complexityPer1k=25.7", "tests-front.complexityPer1k=49.1"]
-=======
-	"ownerApproved": ["tests-front.complexityPer1k=49.1"]
->>>>>>> 93e651fd (chore(quality): record the owner-approved tests-front complexity raise)
+	"ownerApproved": [
+		"tests-api.complexityPer1k=25.7",
+		"tests-front.complexityPer1k=49.1"
+	]
 }
