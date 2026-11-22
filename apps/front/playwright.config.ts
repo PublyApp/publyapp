@@ -193,6 +193,10 @@ export default defineConfig({
 	reporter: [
 		['list'],
 		['html', { outputFolder: 'playwright-report', open: 'never' }],
+		// CI shards emit the JSON report that proves per-test coverage.
+		...(process.env.PLAYWRIGHT_JSON_OUTPUT
+			? [['json', { outputFile: process.env.PLAYWRIGHT_JSON_OUTPUT }] as const]
+			: []),
 	],
 	use: {
 		// E2E_BASE_URL lets a private docker-compose instance (remapped host
