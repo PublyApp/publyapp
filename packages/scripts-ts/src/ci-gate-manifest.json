@@ -336,7 +336,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'E2E image build is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Collect ci-lane-result": {
-			"hash": "83554a69fad9cf93",
+			"hash": "1ba1ee941559fa3e",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -566,7 +566,7 @@
 			"reason": "No exact local command match for run step \"Pull stack images\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-image-trust.ts pull\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Run Playwright shard": {
-			"hash": "0e62fd2b287dd4a7",
+			"hash": "989225c2c5e6f471",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Run Playwright shard\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-playwright-shard.ts ${{ matrix.shard }} 2\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -1311,7 +1311,7 @@
 			"reason": "No exact local command match for run step \"Download shard coverage reports\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-shard.ts download\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-cleanup::Verify per-test coverage": {
-			"hash": "6764a414fd85ae51",
+			"hash": "118d75f299335edc",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Verify per-test coverage\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-shard.ts verify\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
