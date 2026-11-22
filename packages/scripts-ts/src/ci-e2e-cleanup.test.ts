@@ -253,7 +253,8 @@ test("when other runs' versions are still present, the version delete goes strai
 		calls.filter((call) =>
 			call.args.some((arg) => arg.endsWith('/versions?per_page=100')),
 		).length,
-		1,
+		2,
+		'the prune pass and the cleanup pass each list once',
 	);
 	assert.match(allText(outcome), /Deleted GHCR version 42/);
 });
@@ -453,7 +454,7 @@ test('the safety re-list failing after the documented 400 fails loudly instead o
 			respond: () => {
 				lists += 1;
 
-				if (lists === 1) {
+				if (lists <= 2) {
 					return ok([rawVersion('42', [RUN_TAG])]);
 				}
 				return httpFail(500, 'gh: HTTP 500: oh no');
@@ -1125,7 +1126,7 @@ test('a push cleanup deletes the run tag and prunes expired versions past page o
 			return ok(rawVersion(42, [RUN_TAG]));
 		}
 		if (args.some((arg) => arg.includes('/versions?per_page=100'))) {
-			listedWithSlurp = args.includes('--slurp');
+			listedWithSlurp = listedWithSlurp || args.includes('--slurp');
 			const firstPage = Array.from({ length: 100 }, (_, index) => ({
 				id: index,
 				created_at: fresh,

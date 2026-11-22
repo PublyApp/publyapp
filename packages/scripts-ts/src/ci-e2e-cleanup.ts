@@ -124,8 +124,13 @@ export const parseVersionsJson = (
 ): ContainerVersion[] | undefined => {
 	let parsed: unknown;
 
+	if (stdout.trim() === '') {
+		return undefined;
+	}
+
 	try {
-		parsed = JSON.parse(stdout);
+		const pages = stdout.trim().replace(/]\s*\[/g, '],[');
+		parsed = JSON.parse(`[${pages}]`);
 	} catch {
 		return undefined;
 	}
@@ -136,7 +141,7 @@ export const parseVersionsJson = (
 
 	const versions: ContainerVersion[] = [];
 
-	for (const entry of parsed) {
+	for (const entry of parsed.flat(Infinity)) {
 		if (entry === null || typeof entry !== 'object') {
 			return undefined;
 		}
@@ -293,16 +298,6 @@ export const decidePrune = ({
 	return Number.isFinite(created) && created < cutoff;
 };
 
-/** `--slurp` wraps the pages; flatten them into the array the parser expects. */
-const flattenPages = (stdout: string): string => {
-	try {
-		const pages = JSON.parse(stdout) as unknown;
-		return JSON.stringify(Array.isArray(pages) ? pages.flat(Infinity) : pages);
-	} catch {
-		return stdout;
-	}
-};
-
 /** Every page, or `undefined`; parse and HTTP failures are reported apart. */
 const listVersions = (
 	name: string,
@@ -323,7 +318,7 @@ const listVersions = (
 		});
 		return undefined;
 	}
-	const versions = parseVersionsJson(flattenPages(response.stdout));
+	const versions = parseVersionsJson(response.stdout);
 	if (versions === undefined) {
 		messages.push({
 			level: 'error',
@@ -418,50 +413,68 @@ const pruneExpired = (
 	return !failed;
 };
 
-/**
- * Cleans up one package. Returns false when something failed loudly (the
- * caller aggregates and exits nonzero); true when this package is done —
- * including the legitimate nothing-carried-this-tag case.
- */
+const prunePackage = (
+	name: string,
+	versionsPath: string,
+	cutoff: number,
+	ghApi: GhApiRunner,
+	messages: CleanupMessage[],
+): boolean => {
+	const versions = listVersions(name, versionsPath, ghApi, messages, 'error');
+	return (
+		versions !== undefined &&
+		pruneExpired(name, versionsPath, versions, cutoff, ghApi, messages)
+	);
+};
+
 const cleanupOnePackage = ({
 	name,
 	runTag,
 	pathPrefix,
-	cutoff,
 	ghApi,
 	messages,
 }: {
 	name: string;
 	runTag: string;
 	pathPrefix: string;
-	cutoff: number;
 	ghApi: GhApiRunner;
 	messages: CleanupMessage[];
 }): boolean => {
 	const versionsPath = `${pathPrefix}/packages/container/${name}`;
 
-	const versions = listVersions(name, versionsPath, ghApi, messages, 'warning');
+	const listResponse = ghApi([
+		'--paginate',
+		`${versionsPath}/versions?per_page=100`,
+	]);
 
-	if (versions === undefined) {
+	if (listResponse.status !== 0) {
+		messages.push({
+			level: 'warning',
+			text: `Could not list GHCR versions for ${name}: HTTP ${listResponse.status}. ${listResponse.stderr.trim()}`,
+		});
+
 		return false;
 	}
 
-	const pruned = pruneExpired(
-		name,
-		versionsPath,
-		versions,
-		cutoff,
-		ghApi,
-		messages,
-	);
+	const versions = parseVersionsJson(listResponse.stdout);
+
+	if (versions === undefined) {
+		messages.push({
+			level: 'error',
+			text: `Could not parse GHCR version list for ${name}.`,
+		});
+
+		return false;
+	}
 
 	const candidates = versions.filter((version) =>
 		version.tags.includes(runTag),
 	);
 
-	// Nothing carries this run's tag → nothing more to delete.
+	// Nothing carries this run's tag → nothing to delete (mirrors the inline
+	// version's bare `continue`).
 	if (candidates.length === 0) {
-		return pruned;
+		return true;
 	}
 
 	for (const candidate of candidates) {
@@ -618,7 +631,7 @@ const cleanupOnePackage = ({
 		return false;
 	}
 
-	return pruned;
+	return true;
 };
 
 /**
@@ -683,16 +696,17 @@ export const runE2ECleanup = ({
 	let failed = false;
 
 	for (const name of packages) {
-		const succeeded = cleanupOnePackage({
+		const versionsPath = `${pathPrefix}/packages/container/${name}`;
+		const pruned = prunePackage(name, versionsPath, cutoff, ghApi, messages);
+		const cleaned = cleanupOnePackage({
 			name,
 			runTag,
 			pathPrefix,
-			cutoff,
 			ghApi,
 			messages,
 		});
 
-		if (!succeeded) {
+		if (!pruned || !cleaned) {
 			failed = true;
 		}
 	}
