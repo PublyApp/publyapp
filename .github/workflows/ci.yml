@@ -1184,26 +1184,6 @@ jobs:
       - name: Checkout
         id: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Cache Playwright browsers on develop
-        id: warm-cache-playwright
-        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
-        continue-on-error: true
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-      - name: Warm the develop Playwright cache
-        id: warm-install-playwright
-        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
-        continue-on-error: true
-        run: |
-          [ "$GITHUB_EVENT_NAME" = "push" ] || { echo "not a develop push"; exit 0; }
-          corepack enable
-          corepack prepare pnpm@10.13.1 --activate
-          pnpm install --frozen-lockfile --ignore-scripts
-          pnpm --filter front exec playwright install chromium
       - name: Resolve image tag
         id: image-tag
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
@@ -1253,33 +1233,29 @@ jobs:
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
         run: node packages/scripts-ts/src/ci-e2e-images.ts
       - name: Attest migrate image
-        id: attest-migrate
-        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true'
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true' && steps.images.outcome == 'success'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ steps.image-root.outputs.root }}-migrate
-          subject-digest: ${{ fromJSON(steps.images.outputs.digests || steps.image-reuse.outputs.digests).migrate }}
+          subject-digest: ${{ fromJSON(steps.images.outputs.digests).migrate }}
       - name: Attest api image
-        id: attest-api
-        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true'
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true' && steps.images.outcome == 'success'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ steps.image-root.outputs.root }}-api
-          subject-digest: ${{ fromJSON(steps.images.outputs.digests || steps.image-reuse.outputs.digests).api }}
+          subject-digest: ${{ fromJSON(steps.images.outputs.digests).api }}
       - name: Attest request-counter image
-        id: attest-request-counter
-        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true'
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true' && steps.images.outcome == 'success'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ steps.image-root.outputs.root }}-request-counter
-          subject-digest: ${{ fromJSON(steps.images.outputs.digests || steps.image-reuse.outputs.digests)['request-counter'] }}
+          subject-digest: ${{ fromJSON(steps.images.outputs.digests)['request-counter'] }}
       - name: Attest front image
-        id: attest-front
-        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true'
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true' && steps.images.outcome == 'success'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ steps.image-root.outputs.root }}-front
-          subject-digest: ${{ fromJSON(steps.images.outputs.digests || steps.image-reuse.outputs.digests).front }}
+          subject-digest: ${{ fromJSON(steps.images.outputs.digests).front }}
       - name: Verify built front image
         id: runtime-guard
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.images.outcome == 'success'
@@ -1541,7 +1517,7 @@ jobs:
       - name: Cache Playwright browsers
         id: cache-playwright
         if: always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
@@ -1618,7 +1594,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           E2E_IMAGE_TAG: ${{ needs.e2e-build.outputs.tag }}
           FORK_RUN: ${{ needs.e2e-build.outputs.fork }}
-          E2E_RETAIN_IMAGES: ${{ github.event_name == 'pull_request' || (github.event_name == 'merge_group' && needs.e2e-test.result != 'success') }}
+          E2E_RETAIN_IMAGES: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
         run: node packages/scripts-ts/src/ci-e2e-cleanup.ts
       - name: CI lane not applicable
         id: sentinel

@@ -323,6 +323,23 @@ test('relevant e2e-build rejects a failed image-reuse probe', () => {
 	assert.equal(result.job.conclusion, 'failure');
 });
 
+test('relevant e2e-build rejects a skipped image-reuse probe', () => {
+	const stepResults = e2eBuildResults('success', 'skipped');
+	stepResults['e2e-build.image_reuse'] = { outcome: 'skipped' };
+	const result = createCiLaneResult({
+		jobKey: 'e2e-build',
+		lane: 'e2e',
+		expectedSteps: e2eBuildExpectedSteps,
+		mode: 'relevant',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults,
+	});
+
+	assert.equal(result.job.conclusion, 'failure');
+});
+
 test.each([
 	['both transports skipped', 'skipped', 'skipped'],
 	['both transports succeeded', 'success', 'success'],

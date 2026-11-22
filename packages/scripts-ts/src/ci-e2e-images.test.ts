@@ -4,6 +4,7 @@ import {
 	IMAGE_SERVICES,
 	composeFileArgs,
 	imageReference,
+	pushedDigest,
 } from './ci-e2e-images.ts';
 
 describe('ci-e2e-images', () => {
@@ -29,6 +30,23 @@ describe('ci-e2e-images', () => {
 		]);
 		expect(imageReference('ghcr.io/o/publyapp-e2e', '12-1', 'front')).toBe(
 			'ghcr.io/o/publyapp-e2e-front:12-1',
+		);
+	});
+
+	it('takes the pushed digest from RepoDigests, not a later tag lookup', () => {
+		const reference = 'ghcr.io/o/publyapp-e2e-front:tree-abc';
+		const digest = `sha256:${'a'.repeat(64)}`;
+		const repoDigests = [
+			'ghcr.io/o/another-image@sha256:' + 'b'.repeat(64),
+			`${reference}@${digest}`,
+		].join('\n');
+
+		expect(pushedDigest(reference, repoDigests)).toBe(digest);
+		expect(
+			pushedDigest('ghcr.io/o/publyapp-e2e-api:tree-abc', repoDigests),
+		).toBe(undefined);
+		expect(pushedDigest(reference, `${reference}@sha256:short`)).toBe(
+			undefined,
 		);
 	});
 });

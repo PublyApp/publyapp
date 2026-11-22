@@ -73,12 +73,26 @@ const saveImage = async (reference: string, target: string) => {
 	}
 };
 
+/** The digest this push returned; never a later lookup of a mutable tag. */
+export const pushedDigest = (
+	reference: string,
+	repoDigests: string,
+): string | undefined => {
+	const match = repoDigests
+		.split('\n')
+		.find((entry) => entry.startsWith(`${reference}@`));
+	const digest = match?.slice(reference.length + 1);
+	if (digest !== undefined && /^sha256:[0-9a-f]{64}$/.test(digest)) {
+		return digest;
+	}
+	return undefined;
+};
+
 const run = async () => {
 	if (process.env.E2E_REUSE === 'true') {
-		// The tree-addressed images were verified and pulled by the reuse step;
-		// this step stays green and does not rebuild them.
+		// decide verified and pulled all four; this step does not rebuild them.
 		console.log(
-			'reuse: verified tree images are already pulled — skipping the build',
+			'reuse: every verified tree image is pulled — skipping the build',
 		);
 		return;
 	}
@@ -93,21 +107,23 @@ const run = async () => {
 		dockerCompose(['-f', baseCompose], ['push', ...IMAGE_SERVICES]);
 		const digests: Record<string, string> = {};
 		for (const service of IMAGE_SERVICES) {
-			const inspect = spawnSync(
-				'docker',
-				[
-					'buildx',
-					'imagetools',
-					'inspect',
-					imageReference(namespace, tag, service),
-					'--format',
-					'{{json .Manifest.Digest}}',
-				],
-				{ encoding: 'utf8' },
+			const reference = imageReference(namespace, tag, service);
+			const digest = pushedDigest(
+				reference,
+				spawnSync(
+					'docker',
+					[
+						'image',
+						'inspect',
+						'--format',
+						'{{range .RepoDigests}}{{println .}}{{end}}',
+						reference,
+					],
+					{ encoding: 'utf8' },
+				).stdout,
 			);
-			const digest = JSON.parse(inspect.stdout || '""') as unknown;
-			if (typeof digest !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(digest)) {
-				throw new Error(`cannot resolve the pushed digest of ${service}`);
+			if (digest === undefined) {
+				throw new Error(`cannot resolve the pushed digest of ${reference}`);
 			}
 			digests[service] = digest;
 		}

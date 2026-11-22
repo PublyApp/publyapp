@@ -503,6 +503,28 @@ test('aggregation rejects an e2e-build record with both transports executed', ()
 	assert.match(result.failures.join('\n'), /transport (pair|profile)/);
 });
 
+test('aggregation rejects an e2e-build record with a skipped image-reuse probe', () => {
+	const input = completeAggregateInput();
+	const record = input.records.find(
+		(candidate) => candidate.job.key === 'e2e-build',
+	);
+	assert.ok(record);
+	const step = record.job.lanes.e2e.steps.find(
+		(candidate) => candidate.id === 'e2e-build.image_reuse',
+	);
+	assert.ok(step);
+	step.execution = 'skipped';
+	step.outcome = 'skipped';
+
+	const result = aggregateCiGate({
+		...input,
+		observed_artifacts: observedArtifactsFor(input),
+	} satisfies AggregateInput);
+
+	assert.equal(result.ok, false);
+	assert.match(result.failures.join('\n'), /image_reuse/);
+});
+
 test('aggregation rejects an e2e-test record with an invalid transport profile', () => {
 	const input = completeAggregateInput('merge_group');
 	const record = input.records.find(

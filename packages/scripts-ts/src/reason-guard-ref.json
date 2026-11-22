@@ -119,7 +119,6 @@
 		"ci.yml::e2e-build::Attest request-counter image",
 		"ci.yml::e2e-build::Build and push e2e images",
 		"ci.yml::e2e-build::CI lane not applicable",
-		"ci.yml::e2e-build::Cache Playwright browsers on develop",
 		"ci.yml::e2e-build::Checkout",
 		"ci.yml::e2e-build::Collect ci-lane-result",
 		"ci.yml::e2e-build::Detect reusable e2e images",
@@ -132,7 +131,6 @@
 		"ci.yml::e2e-build::Upload ci-lane-result",
 		"ci.yml::e2e-build::Upload fork e2e images",
 		"ci.yml::e2e-build::Verify built front image",
-		"ci.yml::e2e-build::Warm the develop Playwright cache",
 		"ci.yml::e2e-cleanup::CI lane not applicable",
 		"ci.yml::e2e-cleanup::Checkout",
 		"ci.yml::e2e-cleanup::Cleanup e2e images",
@@ -311,9 +309,7 @@
 		"deploy-images.yml::publish::Log in to GHCR",
 		"deploy-images.yml::publish::Resolve immutable release tag",
 		"deploy-images.yml::publish::Resolve lowercase image namespace",
-		"deploy-images.yml::publish::Set up Docker Buildx",
-		"e2e-prune.yml::prune::Checkout",
-		"e2e-prune.yml::prune::Prune tree images older than 7 days"
+		"deploy-images.yml::publish::Set up Docker Buildx"
 	],
 	"steps": {
 		"ci.yml::api::Build API and OpenAPI document": {
@@ -633,8 +629,8 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'E2E cleanup is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-cleanup::Cleanup e2e images": {
-			"reason_hash": "0a3ad87a548de7b7",
-			"reason": "No exact local command match for run step \"Cleanup e2e images\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-cleanup.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason_hash": "fe8cd79c1dc422f0",
+			"reason": "No exact local command match for \"Cleanup e2e images\"; it deletes GHCR versions and needs a package-admin token the local gate does not have."
 		},
 		"ci.yml::e2e-cleanup::Collect ci-lane-result": {
 			"reason_hash": "baa09120079054a3",
@@ -725,8 +721,8 @@
 			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/assert-pinned.ts\"]."
 		},
 		"ci.yml::e2e-test::Cache Playwright browsers": {
-			"reason_hash": "252583b7f4f3dacf",
-			"reason": "Hosted-only action step \"Cache Playwright browsers\" uses actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'\",\"with\":{\"path\":\"~/.cache/ms-playwright\",\"key\":\"${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}\"},\"env\":null}."
+			"reason_hash": "4de32a7669aadeb8",
+			"reason": "Hosted-only actions/cache/restore step: merge-queue shards only read the bare cache; saving under an ephemeral queue ref would evict the develop cache."
 		},
 		"ci.yml::e2e-test::Checkout": {
 			"reason_hash": "78cf6713208e8581",
@@ -1340,41 +1336,25 @@
 			"reason_hash": "936ba2febcac6b67",
 			"reason": "Local mirror just ci-quality-ratchet is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-quality-ratchet.test.ts\"]."
 		},
-		"ci.yml::e2e-build::Cache Playwright browsers on develop": {
-			"reason_hash": "f621c4d72cdb3ec8",
-			"reason": "Hosted-only action step \"Cache Playwright browsers on develop\" uses actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":{\"path\":\"~/.cache/ms-playwright\",\"key\":\"${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}\",\"restore-keys\":\"${{ runner.os }}-playwright-\\n\"},\"env\":null}."
-		},
 		"ci.yml::e2e-build::Detect reusable e2e images": {
 			"reason_hash": "2d520759fb4b89ae",
 			"reason": "No exact local command match for run step \"Detect reusable e2e images\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-image-trust.ts decide\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Attest migrate image": {
-			"reason_hash": "bb58e0301939939e",
-			"reason": "Hosted-only action step \"Attest migrate image\" uses actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true'\",\"with\":{\"subject-name\":\"${{ steps.image-root.outputs.root }}-migrate\",\"subject-digest\":\"${{ fromJSON(steps.images.outputs.digests || steps.image-reuse.outputs.digests).migrate }}\"},\"env\":null}."
+			"reason_hash": "23c6934987fed763",
+			"reason": "Hosted-only actions/attest-build-provenance step: signs the digest this build just pushed. It is skipped when the build failed or the images were reused, and cannot run in the local gate."
 		},
 		"ci.yml::e2e-build::Attest api image": {
-			"reason_hash": "6ff30794ead77e5e",
-			"reason": "Hosted-only action step \"Attest api image\" uses actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true'\",\"with\":{\"subject-name\":\"${{ steps.image-root.outputs.root }}-api\",\"subject-digest\":\"${{ fromJSON(steps.images.outputs.digests || steps.image-reuse.outputs.digests).api }}\"},\"env\":null}."
+			"reason_hash": "23c6934987fed763",
+			"reason": "Hosted-only actions/attest-build-provenance step: signs the digest this build just pushed. It is skipped when the build failed or the images were reused, and cannot run in the local gate."
 		},
 		"ci.yml::e2e-build::Attest request-counter image": {
-			"reason_hash": "95729e3fd0d88977",
-			"reason": "Hosted-only action step \"Attest request-counter image\" uses actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true'\",\"with\":{\"subject-name\":\"${{ steps.image-root.outputs.root }}-request-counter\",\"subject-digest\":\"${{ fromJSON(steps.images.outputs.digests || steps.image-reuse.outputs.digests)['request-counter'] }}\"},\"env\":null}."
+			"reason_hash": "23c6934987fed763",
+			"reason": "Hosted-only actions/attest-build-provenance step: signs the digest this build just pushed. It is skipped when the build failed or the images were reused, and cannot run in the local gate."
 		},
 		"ci.yml::e2e-build::Attest front image": {
-			"reason_hash": "7c5fc2f3f09ecefd",
-			"reason": "Hosted-only action step \"Attest front image\" uses actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true'\",\"with\":{\"subject-name\":\"${{ steps.image-root.outputs.root }}-front\",\"subject-digest\":\"${{ fromJSON(steps.images.outputs.digests || steps.image-reuse.outputs.digests).front }}\"},\"env\":null}."
-		},
-		"e2e-prune.yml::prune::Checkout": {
-			"reason_hash": "e6cfa8c4e140f1d3",
-			"reason": "Hosted-only checkout of the workflow that owns the weekly GHCR prune; it fetches the repository for the scheduled run and cannot run in the local gate."
-		},
-		"e2e-prune.yml::prune::Prune tree images older than 7 days": {
-			"reason_hash": "34a89c1d77e5fa6c",
-			"reason": "No exact local command match for run step \"Prune tree images older than 7 days\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-cleanup.ts prune 7\"]. It deletes expired GHCR versions and needs a package-admin token."
-		},
-		"ci.yml::e2e-build::Warm the develop Playwright cache": {
-			"reason_hash": "344380b637d66534",
-			"reason": "No exact local command match for run step \"Warm the develop Playwright cache\"; normalized workflow command(s): [\"[ \\\"$GITHUB_EVENT_NAME\\\" = \\\"push\\\" ] || { echo \\\"not a develop push\\\"; exit 0; }\",\"corepack enable\",\"corepack prepare pnpm@10.13.1 --activate\",\"pnpm install --frozen-lockfile --ignore-scripts\",\"pnpm --filter front exec playwright install chromium\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason_hash": "23c6934987fed763",
+			"reason": "Hosted-only actions/attest-build-provenance step: signs the digest this build just pushed. It is skipped when the build failed or the images were reused, and cannot run in the local gate."
 		}
 	}
 }

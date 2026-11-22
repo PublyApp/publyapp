@@ -4,9 +4,6 @@ import process from 'node:process';
 
 import { IMAGE_SERVICES, imageReference } from './ci-e2e-images.ts';
 
-// Tree images are reused only with an attestation for the exact digest whose
-// source tree is the tag's tree; anything unverifiable is a build.
-
 export const TREE_TAG_PREFIX = 'tree-';
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
 export type CommandResult = { status: number; stdout: string; stderr: string };
@@ -31,35 +28,43 @@ export const registryDigest = (
 		'inspect',
 		reference,
 		'--format',
-		'{{json .Manifest.Digest}}',
+		'{{.Manifest.Digest}}',
 	]);
-	if (result.status !== 0) {
-		return undefined;
+	const digest = result.status === 0 ? result.stdout.trim() : '';
+	if (DIGEST.test(digest)) {
+		return digest;
 	}
+	return undefined;
+};
+
+/**
+ * Only the OIDC certificate is unmanipulable; the SLSA predicate (and its
+ * `gitCommit`) is user-controllable, so the jq selector never reads it.
+ */
+const CERTIFICATE_JQ =
+	'[.[] | .verificationResult.signature.certificate.sourceRepositoryDigest] | unique';
+
+export const certificateSourceCommits = (stdout: string): string[] => {
 	try {
-		const digest = JSON.parse(result.stdout || '""') as unknown;
-		if (typeof digest === 'string' && DIGEST.test(digest)) {
-			return digest;
+		const commits = JSON.parse(stdout) as unknown;
+		if (!Array.isArray(commits)) {
+			return [];
 		}
-		return undefined;
+		return commits.filter(
+			(commit): commit is string => typeof commit === 'string',
+		);
 	} catch {
-		return undefined;
+		return [];
 	}
 };
 
-export const imageTrusted = ({
-	reference,
-	digest,
-	repository,
-	tree,
-	run,
-}: {
-	reference: string;
-	digest: string;
-	repository: string;
-	tree: string;
-	run: Run;
-}): boolean => {
+export const imageTrusted = (
+	reference: string,
+	digest: string,
+	repository: string,
+	tree: string,
+	run: Run,
+): boolean => {
 	const verify = run('gh', [
 		'attestation',
 		'verify',
@@ -71,73 +76,52 @@ export const imageTrusted = ({
 		'--format',
 		'json',
 		'--jq',
-		'[.. | objects | .gitCommit? // empty] | unique',
+		CERTIFICATE_JQ,
 	]);
 	if (verify.status !== 0) {
 		return false;
 	}
-	try {
-		return (JSON.parse(verify.stdout) as string[]).some(
-			(commit) =>
-				run('gh', [
-					'api',
-					`repos/${repository}/git/commits/${commit}`,
-					'--jq',
-					'.tree.sha',
-				]).stdout.trim() === tree,
-		);
-	} catch {
-		return false;
-	}
+	return certificateSourceCommits(verify.stdout).some(
+		(commit) =>
+			run('gh', [
+				'api',
+				`repos/${repository}/git/commits/${commit}`,
+				'--jq',
+				'.tree.sha',
+			]).stdout.trim() === tree,
+	);
 };
 
 type ImageService = (typeof IMAGE_SERVICES)[number];
-export type ImageDigests = { [Service in ImageService]?: string };
-export type ReuseDecision = {
-	reuse: boolean;
-	digests: ImageDigests;
-	reason: string;
-};
+export type ImageDigests = Partial<Record<ImageService, string>>;
+const miss = (reason: string) => ({
+	reuse: false,
+	digests: {},
+	reason,
+});
 
-export const decideImageReuse = ({
-	namespace,
-	tag,
-	tree,
-	fork,
-	repository,
-	run,
-}: {
-	namespace: string;
-	tag: string;
-	tree: string;
-	fork: boolean;
-	repository: string;
-	run: Run;
-}): ReuseDecision => {
+export const decideImageReuse = (
+	namespace: string,
+	tag: string,
+	tree: string,
+	fork: boolean,
+	repository: string,
+	run: Run,
+) => {
 	if (fork) {
-		return {
-			reuse: false,
-			digests: {},
-			reason: 'build: fork images travel as artifacts, never through GHCR',
-		};
+		return miss('build: fork images travel as artifacts, never through GHCR');
 	}
 	const digests: ImageDigests = {};
 	for (const service of IMAGE_SERVICES) {
 		const reference = imageReference(namespace, tag, service);
 		const digest = registryDigest(reference, run);
 		if (digest === undefined) {
-			return {
-				reuse: false,
-				digests: {},
-				reason: `build: ${reference} is not present — building as today`,
-			};
+			return miss(`build: ${reference} is not present — building as today`);
 		}
-		if (!imageTrusted({ reference, digest, repository, tree, run })) {
-			return {
-				reuse: false,
-				digests: {},
-				reason: `build: ${reference}@${digest} has no attestation for tree ${tree} — building rather than reusing an unverified image`,
-			};
+		if (!imageTrusted(reference, digest, repository, tree, run)) {
+			return miss(
+				`build: ${reference}@${digest} has no certificate for tree ${tree} — building rather than reusing an unverified image`,
+			);
 		}
 		digests[service] = digest;
 	}
@@ -147,23 +131,36 @@ export const decideImageReuse = ({
 		reason: `reuse: all ${IMAGE_SERVICES.length} images are attested to tree ${tree} — skipping the build`,
 	};
 };
+
 const required = (name: string): string => {
 	const value = process.env[name];
-	if (value === undefined || value === '') {
+	if (!value) {
 		throw new Error(`${name} is not set — the e2e image trust step needs it.`);
 	}
 	return value;
 };
+
 const writeOutput = (name: string, value: string) => {
 	const output = process.env.GITHUB_OUTPUT;
-	if (output === undefined) {
+	if (!output) {
 		throw new Error('GITHUB_OUTPUT is not set — the decision goes nowhere.');
 	}
 	appendFileSync(output, `${name}=${value}\n`);
 };
+
 const pin = (reference: string, digest: string, run: Run): boolean =>
 	run('docker', ['pull', `${reference}@${digest}`]).status === 0 &&
 	run('docker', ['tag', `${reference}@${digest}`, reference]).status === 0;
+
+export const pullVerifiedImages = (
+	namespace: string,
+	tag: string,
+	digests: ImageDigests,
+	run: Run,
+): boolean =>
+	IMAGE_SERVICES.every((service) =>
+		pin(imageReference(namespace, tag, service), digests[service] ?? '', run),
+	);
 
 const main = (run: Run) => {
 	const command = process.argv[2];
@@ -173,17 +170,22 @@ const main = (run: Run) => {
 		throw new Error(`E2E_IMAGE_TAG ${tag} is not a ${TREE_TAG_PREFIX} tag`);
 	}
 	if (command === 'decide') {
-		const decision = decideImageReuse({
+		const decision = decideImageReuse(
 			namespace,
 			tag,
-			tree: tag.slice(TREE_TAG_PREFIX.length),
-			fork: process.env.E2E_FORK === 'true',
-			repository: required('GITHUB_REPOSITORY'),
+			tag.slice(TREE_TAG_PREFIX.length),
+			process.env.E2E_FORK === 'true',
+			required('GITHUB_REPOSITORY'),
 			run,
-		});
+		);
 		console.log(decision.reason);
-		const front = imageReference(namespace, tag, 'front');
-		if (decision.reuse && !pin(front, decision.digests.front ?? '', run)) {
+		if (
+			decision.reuse &&
+			!pullVerifiedImages(namespace, tag, decision.digests, run)
+		) {
+			console.log(
+				'build: a verified image could not be pulled — rebuilding instead of reusing a partial stack',
+			);
 			writeOutput('reuse', 'false');
 			writeOutput('digests', '{}');
 			return;
