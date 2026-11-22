@@ -107,17 +107,23 @@ const MODULE_NAMESPACE = 'PublyApp.Api.Modules.';
 // EF model, so an X-only PR must run them or it certifies a change they would
 // reject. `Lib/Architecture/` guards reflect the assembly and the EF model and
 // scan all of `Modules/**` (tenant predicates, publication writers, canary
-// wiring, handler contracts, service conventions). The three exact names below
-// live outside that folder and scan all of `apps/api` or the assembly:
+// wiring, handler contracts, service conventions). The five exact names below
+// live outside that folder and read across modules, `apps/api` or the assembly:
 //   - JobEnqueueBoundarySpec: every `apps/api/**/*.cs` writes to job_queue
 //   - OpenTelemetryLogPathGuardSpec: every `apps/api/**/*.cs` OTel token
 //   - ServiceAttributeRegistrationSpec: every type in the API assembly
+//   - RequireTenantScopeSpec: multi-module tenant guard whose ForTenant reads
+//     throw on an unscoped context (outside `Modules/`)
+//   - EndpointRateLimitAssignmentsSpec: pins the rate-limit policies of
+//     Users/AuditLogs/Roles/Invitations/Uploads endpoints on the route graph
 export const CROSS_MODULE_SPEC_PREFIXES = ['PublyApp.Api.Lib.Architecture.'];
 
 export const CROSS_MODULE_SPECS = [
 	'PublyApp.Api.Infrastructure.Jobs.JobEnqueueBoundarySpec',
 	'PublyApp.Api.Lib.Diagnostics.OpenTelemetryLogPathGuardSpec',
 	'PublyApp.Api.Lib.DI.ServiceAttributeRegistrationSpec',
+	'PublyApp.Api.Data.DbContext.RequireTenantScopeSpec',
+	'PublyApp.Api.Lib.RateLimiting.EndpointRateLimitAssignmentsSpec',
 ];
 
 const isCrossModuleSpec = (className: string): boolean =>

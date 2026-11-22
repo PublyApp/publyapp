@@ -156,6 +156,11 @@ describe('shard-api-tests real suite', () => {
 			className.startsWith('PublyApp.Api.Lib.Architecture.'),
 		);
 		expect(architecture.length).toBeGreaterThan(0);
+		// Pin: every guard name in the table must be a real spec class, so a
+		// rename or deletion of one of the five fails here instead of CI.
+		expect([...suite.keys()]).toEqual(
+			expect.arrayContaining(CROSS_MODULE_SPECS),
+		);
 		for (const guard of [...architecture, ...CROSS_MODULE_SPECS]) {
 			expect(classes).toContain(guard);
 		}
