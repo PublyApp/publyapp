@@ -25,6 +25,7 @@ import {
 	policyFor,
 	readBaselineAt,
 	renamedTo,
+	resolveBase,
 	toBaselineZones,
 } from './check-quality-ratchet.ts';
 
@@ -386,6 +387,115 @@ describe('owner controls, base and size scope', () => {
 	it('ignores deleted files when parsing touches', () => {
 		const diff = '--- a/x.ts\n+++ /dev/null\n@@ -1,3 +0,0 @@\n';
 		expect(parseTouches(diff).size).toBe(0);
+	});
+});
+
+describe('resolveBase on a pull_request checkout', () => {
+	const git = (cwd: string, ...args: string[]) => {
+		const r = spawnSync(
+			'git',
+			[
+				'-c',
+				'user.name=t',
+				'-c',
+				'user.email=t@t',
+				'-c',
+				'commit.gpgsign=false',
+				...args,
+			],
+			{ cwd, encoding: 'utf8' },
+		);
+		if (r.status !== 0) {
+			throw new Error(r.stderr);
+		}
+		return r.stdout.trim();
+	};
+	const write = (cwd: string, file: string, body: string) =>
+		fs.writeFileSync(path.join(cwd, file), body);
+	const lines = (n: number, tag: string) =>
+		Array.from({ length: n }, (_, i) => `export const ${tag}${i} = ${i};`).join(
+			'\n',
+		) + '\n';
+	const commit = (cwd: string, message: string) => {
+		git(cwd, 'add', '-A');
+		git(cwd, 'commit', '-q', '-m', message);
+		return git(cwd, 'rev-parse', 'HEAD');
+	};
+	const sized = (cwd: string, base: string) =>
+		countSizedLines(git(cwd, 'diff', '--numstat', '-M', base, 'HEAD'));
+	const init = () => fs.mkdtempSync(path.join(os.tmpdir(), 'qr-base-'));
+
+	it('counts only the PR lines when base.sha is stale and HEAD is the merge checkout', () => {
+		const dir = init();
+		try {
+			delete process.env.QUALITY_BASE;
+			git(dir, 'init', '-q', '-b', 'develop');
+			write(dir, 'base.ts', 'export const base = 1;\n');
+			const staleBase = commit(dir, 'base');
+			write(dir, 'merged.ts', lines(719, 'm'));
+			const developTip = commit(dir, 'merged elsewhere');
+			git(dir, 'checkout', '-q', '-b', 'pr', staleBase);
+			write(dir, 'pr.ts', lines(591, 'p'));
+			commit(dir, 'pr');
+			git(dir, 'checkout', '-q', 'develop');
+			git(dir, 'merge', '--no-ff', '-q', '-m', 'Merge pr into develop', 'pr');
+			const event = { pull_request: { base: { sha: staleBase } } };
+			expect(sized(dir, staleBase)).toBe(1310);
+			expect(resolveBase(event, dir)).toBe(developTip);
+			expect(sized(dir, resolveBase(event, dir))).toBe(591);
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('keeps the merge-base against base.sha when HEAD is not a merge commit', () => {
+		const dir = init();
+		try {
+			delete process.env.QUALITY_BASE;
+			git(dir, 'init', '-q', '-b', 'develop');
+			write(dir, 'base.ts', 'export const base = 1;\n');
+			const staleBase = commit(dir, 'base');
+			write(dir, 'merged.ts', lines(719, 'm'));
+			commit(dir, 'merged elsewhere');
+			git(dir, 'checkout', '-q', '-b', 'pr', staleBase);
+			write(dir, 'pr.ts', lines(591, 'p'));
+			commit(dir, 'pr');
+			expect(
+				resolveBase({ pull_request: { base: { sha: staleBase } } }, dir),
+			).toBe(staleBase);
+			expect(sized(dir, staleBase)).toBe(591);
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('throws when the base cannot be resolved', () => {
+		const dir = init();
+		try {
+			delete process.env.QUALITY_BASE;
+			git(dir, 'init', '-q', '-b', 'develop');
+			write(dir, 'base.ts', 'export const base = 1;\n');
+			commit(dir, 'base');
+			expect(() =>
+				resolveBase({ pull_request: { base: { sha: 'deadbeef' } } }, dir),
+			).toThrow(/merge-base/);
+		} finally {
+			fs.rmSync(dir, { recursive: true, force: true });
+		}
+	});
+
+	it('still honours QUALITY_BASE without touching git', () => {
+		process.env.QUALITY_BASE = 'origin/develop';
+		try {
+			expect(
+				resolveBase(
+					{ pull_request: { base: { sha: 'deadbeef' } } },
+					os.tmpdir(),
+				),
+			).toBe('origin/develop');
+		} finally {
+			delete process.env.QUALITY_BASE;
+		}
 	});
 });
 
