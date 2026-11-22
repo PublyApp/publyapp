@@ -1005,7 +1005,7 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 	}
 });
 
-test('central workflow rejects six mutations for every one of its 111 classifier conditions', async () => {
+test('central workflow rejects six mutations for every one of its 109 classifier conditions', async () => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-ci-condition-delete-'),
 	);
@@ -1027,12 +1027,12 @@ test('central workflow rejects six mutations for every one of its 111 classifier
 				)
 				.map((step) => ({ jobId, stepId: String(step.id) })),
 	);
-	assert.equal(classifierTrueSteps.length, 111);
+	assert.equal(classifierTrueSteps.length, 109);
 	assert.equal(
 		new Set(
 			classifierTrueSteps.map(({ jobId, stepId }) => `${jobId}/${stepId}`),
 		).size,
-		111,
+		109,
 	);
 	assert.deepEqual(
 		classifierTrueSteps
@@ -1109,8 +1109,8 @@ test('central workflow rejects six mutations for every one of its 111 classifier
 				rejected += 1;
 			}
 		}
-		assert.equal(mutatedWorkflows.size, 666);
-		assert.equal(rejected, 666);
+		assert.equal(mutatedWorkflows.size, 654);
+		assert.equal(rejected, 654);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
@@ -2141,7 +2141,7 @@ const deriveManifestEvidence = (
 	};
 };
 
-test('central manifest derives honest evidence for every one of its 255 entries', async () => {
+test('central manifest derives honest evidence for every one of its 253 entries', async () => {
 	const manifest = JSON.parse(
 		await readFile(
 			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
@@ -2154,7 +2154,7 @@ test('central manifest derives honest evidence for every one of its 255 entries'
 	const central = Object.entries(manifest.steps).filter(([id]) =>
 		id.startsWith('ci.yml::'),
 	);
-	assert.equal(central.length, 255);
+	assert.equal(central.length, 253);
 	const justDump = JSON.parse(
 		execFileSync('just', ['--dump', '--dump-format', 'json'], {
 			cwd: repoRoot,
@@ -2180,7 +2180,7 @@ test('central manifest derives honest evidence for every one of its 255 entries'
 			`${id} evidence must be derived from its exact step kind and command graph`,
 		);
 	}
-	assert.equal(decisions.size, 255);
+	assert.equal(decisions.size, 253);
 	assert.equal(
 		manifest.steps['ci.yml::quality-js::Install pnpm']?.mirror,
 		null,

@@ -1233,24 +1233,28 @@ jobs:
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
         run: node packages/scripts-ts/src/ci-e2e-images.ts
       - name: Attest migrate image
+        id: attest-migrate
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true' && steps.images.outcome == 'success'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ steps.image-root.outputs.root }}-migrate
           subject-digest: ${{ fromJSON(steps.images.outputs.digests).migrate }}
       - name: Attest api image
+        id: attest-api
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true' && steps.images.outcome == 'success'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ steps.image-root.outputs.root }}-api
           subject-digest: ${{ fromJSON(steps.images.outputs.digests).api }}
       - name: Attest request-counter image
+        id: attest-request-counter
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true' && steps.images.outcome == 'success'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ steps.image-root.outputs.root }}-request-counter
           subject-digest: ${{ fromJSON(steps.images.outputs.digests)['request-counter'] }}
       - name: Attest front image
+        id: attest-front
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true' && steps.images.outcome == 'success'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
