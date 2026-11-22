@@ -1,4 +1,5 @@
 
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 
 using Microsoft.EntityFrameworkCore;
@@ -270,7 +271,9 @@ internal sealed partial class DatabaseTemplateManager {
 					+ $"TEMPLATE {this._TemplateDbName}",
 					conn
 				);
+				var startedAt = Stopwatch.GetTimestamp();
 				await createCmd.ExecuteNonQueryAsync(ct);
+				TestDbTimings.RecordClone(startedAt);
 			} catch (Exception ex) {
 				throw new InvalidOperationException(
 					$"Failed to clone template "
@@ -303,6 +306,7 @@ internal sealed partial class DatabaseTemplateManager {
 		CancellationToken ct = default
 	) {
 		DatabaseTemplateManager._ValidateDbName(dbName);
+		var startedAt = Stopwatch.GetTimestamp();
 
 		// Clear all connection pools to release connections.
 		// Process-wide but acceptable in test context since
@@ -334,6 +338,7 @@ internal sealed partial class DatabaseTemplateManager {
 				conn
 			);
 			await dropCmd.ExecuteNonQueryAsync(ct);
+			TestDbTimings.RecordDrop(startedAt);
 		} catch (Exception ex) {
 			throw new InvalidOperationException(
 				$"Failed to drop test database '{dbName}'.",

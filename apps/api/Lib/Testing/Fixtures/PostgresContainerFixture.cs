@@ -22,10 +22,25 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// from ApiFixture.InitializeAsync().
 /// </summary>
 public sealed class PostgresContainerFixture : IAsyncDisposable {
+	// Verified from `docker image inspect postgres:18-alpine`:
+	// PGDATA=/var/lib/postgresql/18/docker.
+	private const string _DataDirectory =
+		"/var/lib/postgresql/18/docker";
+	private const string _InitDbArgsVariable = "POSTGRES_INITDB_ARGS";
+	private const string _InitDbArgs = "--nosync";
 	private static readonly TimeSpan _ProcessExitDisposeTimeout =
 		TimeSpan.FromSeconds(5);
 	private static readonly SemaphoreSlim _InitLock =
 		new(1, 1);
+	// Throwaway data only: a crash must never cost a disk flush, and the
+	// template build is the only phase that writes enough to checkpoint.
+	private static readonly string[] _ServerArgs = [
+		"-c", "fsync=off",
+		"-c", "synchronous_commit=off",
+		"-c", "full_page_writes=off",
+		"-c", "autovacuum=off",
+		"-c", "max_wal_size=2GB",
+	];
 	private static PostgresContainerFixture? _SharedInstance;
 
 	private PostgreSqlContainer? _ContainerOrNull;
@@ -34,6 +49,15 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 	public string AdminConnectionString { get; private set; }
 		= string.Empty;
 	public string TemplateDbName { get; } = "publyapp_api_template";
+
+	/// <summary>
+	/// True when the container dies with the test process (CI, or any run that
+	/// did not opt into <c>PUBLYAPP_TEST_REUSE_DB</c>). Its databases disappear
+	/// with it, so the per-class drop is pure overhead there.
+	/// </summary>
+	internal static bool IsEphemeral {
+		get { return !TestDatabaseReuse.IsEnabled; }
+	}
 
 	private PostgresContainerFixture() {
 		AppDomain.CurrentDomain.ProcessExit += this._HandleProcessExit;
@@ -121,7 +145,13 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 		var containerBuilder = new PostgreSqlBuilder("postgres:18-alpine")
 			.WithDatabase("postgres")
 			.WithUsername("postgres")
-			.WithPassword("postgres");
+			.WithPassword("postgres")
+			.WithEnvironment(
+				PostgresContainerFixture._InitDbArgsVariable,
+				PostgresContainerFixture._InitDbArgs
+			)
+			.WithTmpfsMount(PostgresContainerFixture._DataDirectory)
+			.WithCommand(PostgresContainerFixture._ServerArgs);
 
 		if (!AppEnvironment.IsTestVerboseLoggingEnabled) {
 			containerBuilder = containerBuilder
@@ -170,6 +200,8 @@ public sealed class PostgresContainerFixture : IAsyncDisposable {
 
 	private void _HandleProcessExit(object? sender, EventArgs args) {
 		try {
+			TestDbTimings.Report();
+
 			var disposeTask = this.DisposeAsync().AsTask();
 			_ = disposeTask.ContinueWith(
 				static task => {
