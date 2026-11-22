@@ -13,7 +13,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -77,7 +76,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -91,7 +90,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUser() {
 		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
@@ -107,7 +106,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
 		);
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
@@ -132,7 +131,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturn422ForInvalidStatus() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
@@ -145,7 +144,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturn422ForInvalidIds() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
@@ -158,7 +157,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturn422WhenIdsExceedTheMaximumCount() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		var ids = string.Join(",", Enumerable.Range(0, 101).Select(_ => Guid.NewGuid()));
 
@@ -173,7 +172,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturn422WhenSearchExceedsTwoHundredCharacters() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		var tooLongSearch = new string('a', 201);
 
@@ -188,7 +187,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturn200ForWhitespaceStatus() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
@@ -201,7 +200,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturn200ForWhitespaceIds() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
@@ -239,7 +238,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnCsvWithExpectedHeadersAndContentType() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var (_, email) = await this._SeedTenantUserWithIdAsync(tenantId, "export-basic");
 
 		using var response = await this._Http.SendWithSessionAsync(
@@ -266,7 +265,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldExportTheRolesColumnForAFullAccessTenantUser() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var ownerEmail = await this._SeedTenantUserWithEmailAsync(
 			tenantId,
 			fullAccess: true,
@@ -292,7 +291,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldHonorIdsSelectionForExport() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var (firstUserId, firstEmail) = await this._SeedTenantUserWithIdAsync(tenantId, "export-selected");
 		var (_, secondEmail) = await this._SeedTenantUserWithIdAsync(tenantId, "export-unselected");
 
@@ -311,7 +310,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldNeutralizeFormulaTriggerCharsWhenExportingCsv() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var rowMarker = $"row-marker-{Guid.NewGuid().ToString()[..8]}";
 
 		await this._SeedTenantUserWithNameAsync(tenantId, $"=1+1 {rowMarker}", "Formula");
@@ -345,7 +344,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldWriteAnAuditLogBeforeStreamingTheExport() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		await this._SeedTenantUserWithIdAsync(tenantId, "export-audit");
 		var startedAt = DateTime.UtcNow;
 
@@ -486,7 +485,7 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 			oldestCreatedAt
 		);
 
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringAsync(this._Fixture);
 		var options = new DbContextOptionsBuilder<AppDbContext>()
 			.UseNpgsql(connectionString)
 			.Options;
@@ -564,14 +563,6 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		}
 	}
 
-	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			token,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<(Guid TenantId, Guid AdminUserId)> _SeedTenantWithAdminAsync() {
 		await using var db = this._Fixture.OpenDb();
@@ -716,18 +707,6 @@ public sealed class ExportTenantUsersAsStaffSpec : IClassFixture<ApiFixture> {
 		await db.Context.SaveChangesAsync();
 	}
 
-	private async Task<string> _GetConnectionStringAsync() {
-		await using var db = this._Fixture.OpenDb();
-		var connectionString = db.Context.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return connectionString;
-	}
 
 	private sealed class BarrierAuditLogService : IAuditLogService {
 		public List<CreateAuditLogArgs> Entries { get; } = [];

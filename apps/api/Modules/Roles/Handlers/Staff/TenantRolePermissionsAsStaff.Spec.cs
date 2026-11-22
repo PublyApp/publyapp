@@ -7,7 +7,6 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -53,7 +52,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
 			TenantRolePermissionsAsStaffSpec._GetListUrl(
@@ -68,7 +67,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var response = await this._Http.SendWithSessionAsync(
@@ -84,7 +83,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
@@ -103,7 +102,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedForAssignWithoutSession() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -120,7 +119,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForAssignWithoutPermission() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
@@ -141,7 +140,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldReturnNotFoundForAssignMissingRole() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
@@ -157,7 +156,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedForUnassignWithoutSession() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
@@ -174,7 +173,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForUnassignWithoutPermission() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
@@ -195,7 +194,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldReturnNotFoundForUnassignMissingRole() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
@@ -244,7 +243,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldReturnBadRequestForUnknownPermissionKeyOnAssign() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(tenantId);
 		var auditLogBefore = await this._GetLatestAuditLogAsync(
 			AuditActions.TenantRolePermissionsAssigned,
@@ -275,7 +274,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedRoleIdOnAssign() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Post,
@@ -312,7 +311,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedRoleIdOnUnassign() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
@@ -331,7 +330,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedRoleId() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
@@ -346,7 +345,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMissingRole() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Get,
@@ -362,7 +361,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldListPermissionsSorted() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(tenantId);
 
 		await this._AssignPermissionAsync(
@@ -388,7 +387,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldAssignAndUnassignPermissions() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(tenantId);
 		var roleName = await this._GetRoleNameAsync(Guid.Parse(roleId));
 		var permissionKey = AppPermissions.Tenant.Modules.ACCESS_USERS.Key;
@@ -458,7 +457,7 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 	[Fact]
 	public async Task ItShouldTreatUnassignUnknownPermissionKeyAsNoOp() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(tenantId);
 		var roleGuid = Guid.Parse(roleId);
 		var auditLogBefore = await this._GetLatestAuditLogAsync(
@@ -485,14 +484,6 @@ public sealed class TenantRolePermissionsAsStaffSpec : IClassFixture<ApiFixture>
 		auditLogAfter.Should().BeNull();
 	}
 
-	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			token,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<string> _CreateRoleAsync(Guid tenantId) {
 		await using var db = this._Fixture.OpenDb();

@@ -27,7 +27,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	[Fact]
 	public async Task ItShouldMarkRowSentWhenDeliverySucceeds() {
 		var dispatcher = this._CreateDispatcher();
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 
 		var row = InvitationEmailOutbox.CreateStaffInvitation("succeed@example.com", "tok-succeed");
 		await dbContext.InvitationEmailOutbox.AddAsync(row);
@@ -46,7 +46,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	[Fact]
 	public async Task ItShouldScheduleBackoffRetryWhenDeliveryFailsAndAttemptsRemain() {
 		var dispatcher = this._CreateDispatcher();
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 
 		var row = InvitationEmailOutbox.CreateStaffInvitation("retry@example.com", "tok-retry");
 		await dbContext.InvitationEmailOutbox.AddAsync(row);
@@ -68,7 +68,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	[Fact]
 	public async Task ItShouldMarkRowPermanentlyFailedWhenAttemptsAreExhausted() {
 		var dispatcher = this._CreateDispatcher();
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 
 		var row = InvitationEmailOutbox.CreateStaffInvitation("exhausted@example.com", "tok-exhausted");
 		row.AttemptCount = InvitationEmailOutboxDispatcher.MaxAttempts - 1;
@@ -86,7 +86,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	[Fact]
 	public async Task ItShouldDeliverTenantInvitationWithTenantNameAndToken() {
 		var dispatcher = this._CreateDispatcher();
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 
 		var row = InvitationEmailOutbox.CreateTenantInvitation(
 			"tenant-invite@example.com",
@@ -118,7 +118,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	// never overlap, however the batch happens to split between them.
 	[Fact]
 	public async Task ItShouldNeverClaimTheSameRowFromTwoConcurrentDispatchers() {
-		await using var seedContext = await this._CreateDbContextAsync();
+		await using var seedContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		for (var i = 0; i < 50; i++) {
 			var row = InvitationEmailOutbox.CreateStaffInvitation(
 				$"claim-race-{Guid.NewGuid():N}@example.com",
@@ -129,8 +129,8 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 		}
 		await seedContext.SaveChangesAsync();
 
-		await using var dbContextA = await this._CreateDbContextAsync();
-		await using var dbContextB = await this._CreateDbContextAsync();
+		await using var dbContextA = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
+		await using var dbContextB = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 
 		var claimA = InvitationEmailOutboxDispatcher.ClaimBatchAsync(dbContextA, CancellationToken.None);
 		var claimB = InvitationEmailOutboxDispatcher.ClaimBatchAsync(dbContextB, CancellationToken.None);
@@ -200,7 +200,7 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 	[Fact]
 	public async Task ItShouldCancelInsteadOfSendWhenTheLinkedInvitationIsNoLongerEligible() {
 		var dispatcher = this._CreateDispatcher();
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 
 		var invitation = Invitation
 			.CreateStaffInvitationWithRoles(
@@ -241,22 +241,6 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 		);
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was unexpectedly null.");
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 
 	private sealed class StubEmailService : IEmailService {
 		private readonly bool _ShouldThrow;

@@ -204,7 +204,7 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 
 		var roleAId = await this._CreateTenantRoleAsync(tenantAId);
 		var foreignMemberId = await this._CreateTenantMemberAsync(tenantBId);
-		await this._CreateCorruptCrossTenantJunctionRowAsync(foreignMemberId, roleAId);
+		await RoleTestHelper.CreateCorruptCrossTenantJunctionRowAsync(this._Fixture, foreignMemberId, roleAId);
 
 		var result = await this._Http.GetOkAsync<FindTenantRoleUsersAsStaffResponse>(
 			FindTenantRoleUsersAsStaffSpec._GetUrl(tenantAId.ToString(), roleAId.ToString())
@@ -657,15 +657,6 @@ public sealed class FindTenantRoleUsersAsStaffSpec : IClassFixture<ApiFixture> {
 	/// cross-tenant data for isolation specs that must exercise the service's account-tenant
 	/// predicate rather than relying on the role-id filter alone.
 	/// </summary>
-	private async Task _CreateCorruptCrossTenantJunctionRowAsync(Guid userAccountId, Guid roleId) {
-		await using var db = this._Fixture.OpenDb();
-
-		_ = db.Context.UserAccountRole.Add(new UserAccountRole {
-			UserAccountId = userAccountId,
-			RoleId = roleId,
-		});
-		_ = await db.Context.SaveChangesAsync();
-	}
 
 	private async Task<FindTenantRoleUsersAsStaffResponse> _GetUsersPageAsync(
 		string staffToken,

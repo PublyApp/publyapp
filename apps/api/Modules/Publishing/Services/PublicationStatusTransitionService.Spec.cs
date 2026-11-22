@@ -1,10 +1,10 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
@@ -23,24 +23,6 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 		this._Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> _NewDbAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 
 	private static PublicationStatusTransitionService _NewService(AppDbContext db) {
 		return new PublicationStatusTransitionService(db);
@@ -99,7 +81,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldMoveScheduledToInProgressAndCountTheAttempt() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var service = PublicationStatusTransitionServiceSpec._NewService(db);
 
@@ -116,7 +98,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldClearThePauseCauseWhenResumingToInProgress() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.Paused);
 		seeded.LastError = "account disconnected";
 		await db.SaveChangesAsync();
@@ -135,7 +117,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldPublishWithRecordIdentityAndClearTheCause() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.InProgress);
 		seeded.LastError = "older transient cause";
 		await db.SaveChangesAsync();
@@ -164,7 +146,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 	[InlineData("   ")]
 	[InlineData("\u200B\u2800\u0007")]
 	public async Task ItShouldNeverStoreABlankCauseAndFallBackToTheCategorySentence(string cause) {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var service = PublicationStatusTransitionServiceSpec._NewService(db);
 
@@ -182,7 +164,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldRetryFromFailedKeepingTheKeyResettingAttemptsAndClearingTheCauseOnlyWhenTheNextAttemptStarts() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var service = PublicationStatusTransitionServiceSpec._NewService(db);
 		var key = seeded.IdempotencyKey;
@@ -221,7 +203,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldFailWithASanitisedCause() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var service = PublicationStatusTransitionServiceSpec._NewService(db);
 		var cause = "Bluesky refused the record: 'super-secret-token-value' is invalid";
@@ -244,7 +226,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldPauseWithACause() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var service = PublicationStatusTransitionServiceSpec._NewService(db);
 
@@ -264,7 +246,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldRescheduleKeepingTheKeyStable() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.Failed);
 		seeded.ExternalRecordId = "stale-record";
 		await db.SaveChangesAsync();
@@ -286,7 +268,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldRefuseAnIllegalTransition() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var service = PublicationStatusTransitionServiceSpec._NewService(db);
 
@@ -307,7 +289,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldHideForeignTenantRowsWithoutThrowing() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var service = PublicationStatusTransitionServiceSpec._NewService(db);
 
@@ -323,7 +305,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldTruncateAnOversizedRawCause() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.InProgress);
 		var service = PublicationStatusTransitionServiceSpec._NewService(db);
 		var oversized = new string('x', 5000);
@@ -344,7 +326,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldKeepAttemptsMonotonicAcrossCycles() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.Failed);
 		var firstAttemptCount = seeded.Attempts;
 		var service = PublicationStatusTransitionServiceSpec._NewService(db);
@@ -366,7 +348,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldPauseAScheduledPublicationAndPreserveItsInstant() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var service = PublicationStatusTransitionServiceSpec._NewService(db);
 
@@ -391,7 +373,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldResumeAPausedPublicationKeepingItsOriginalInstant() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.Paused);
 		var service = PublicationStatusTransitionServiceSpec._NewService(db);
 
@@ -412,7 +394,7 @@ public sealed class PublicationStatusTransitionServiceSpec : IClassFixture<ApiFi
 
 	[Fact]
 	public async Task ItShouldThrowWhenMarkScheduledIsCalledOnAnAlreadyScheduledRow() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var seeded = await PublicationStatusTransitionServiceSpec._SeedAsync(db, PublicationStatus.Scheduled);
 		var service = PublicationStatusTransitionServiceSpec._NewService(db);
 

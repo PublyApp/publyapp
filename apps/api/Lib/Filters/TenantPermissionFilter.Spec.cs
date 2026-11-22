@@ -165,7 +165,7 @@ public sealed class TenantPermissionFilterSpec
 
 			await response.ShouldBeProblemAsync("user-does-not-have-the-necessary-permissions");
 		} finally {
-			await this._CleanupTenantRoleArtifactsAsync(createdRoleIds);
+			await RoleTestHelper.CleanupTenantRoleArtifactsAsync(this._Fixture, createdRoleIds);
 		}
 	}
 
@@ -210,7 +210,7 @@ public sealed class TenantPermissionFilterSpec
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 		} finally {
-			await this._CleanupTenantRoleArtifactsAsync(createdRoleIds);
+			await RoleTestHelper.CleanupTenantRoleArtifactsAsync(this._Fixture, createdRoleIds);
 		}
 	}
 
@@ -373,49 +373,6 @@ public sealed class TenantPermissionFilterSpec
 		await db.Context.SaveChangesAsync();
 	}
 
-	private async Task _CleanupTenantRoleArtifactsAsync(
-		IReadOnlyCollection<Guid> roleIds
-	) {
-		if (roleIds.Count == 0) {
-			return;
-		}
-
-		await using var db = this._Fixture.OpenDb();
-
-		var roleIdList = roleIds.ToList();
-
-		var linksToRemove = await (
-			from uap in db.Context.UserAccountRole
-			where roleIdList.Contains(uap.RoleId)
-			select uap
-		).ToListAsync();
-
-		if (linksToRemove.Count > 0) {
-			db.Context.ForceHardDeleteRange(linksToRemove);
-		}
-
-		var permissionsToRemove = await (
-			from pp in db.Context.RolePermission
-			where roleIdList.Contains(pp.RoleId)
-			select pp
-		).ToListAsync();
-
-		if (permissionsToRemove.Count > 0) {
-			db.Context.ForceHardDeleteRange(permissionsToRemove);
-		}
-
-		var rolesToRemove = (await (
-			from p in db.Context.Role
-			select p
-		).ToListAsync())
-			.Where(role => roleIdList.Contains(role.GetRequiredId()))
-			.ToList();
-
-		if (rolesToRemove.Count > 0) {
-			db.Context.ForceHardDeleteRange(rolesToRemove);
-			await db.Context.SaveChangesAsync();
-		}
-	}
 
 	private sealed record TenantUserAccountLookup(
 		Guid? Id,

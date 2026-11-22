@@ -10,7 +10,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -60,7 +59,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._BulkDeleteAsync(
 			sessionToken: null,
@@ -73,7 +72,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedForInvalidSession() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._BulkDeleteAsync(
 			"invalid-session-token",
@@ -87,7 +86,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 	[Fact]
 	public async Task ItShouldReturnForbiddenForTenantUser() {
 		var tenantToken = await this._AuthClient.LoginAsAcmeAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._BulkDeleteAsync(
 			tenantToken,
@@ -106,7 +105,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 				this._AuthClient,
 				"bulk-delete-tenant-role-no-permission"
 			);
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._BulkDeleteAsync(
 			staffToken,
@@ -126,7 +125,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 				"bulk-delete-tenant-role-permissioned",
 				AppPermissions.Staff.Roles.DELETE_FOR_TENANT.Key
 			);
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._SeedTenantRoleAsync(tenantId);
 
 		using var response = await this._BulkDeleteAsync(
@@ -163,7 +162,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 	[Fact]
 	public async Task ItShouldReturnValidationProblemForMalformedRoleIds() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._BulkDeleteAsync(
 			staffToken,
@@ -185,7 +184,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 	[MemberData(nameof(BulkDeleteTenantRolesAsStaffSpec.InvalidBodies))]
 	public async Task ItShouldReturnValidationProblemWhenBodyIsInvalid(string body) {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._BulkDeleteRawJsonAsync(
 			staffToken,
@@ -206,7 +205,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 	[Fact]
 	public async Task ItShouldAcceptMaximumRoleIdsBoundary() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var body =
 			$$"""{ "roleIds": [{{BulkDeleteTenantRolesAsStaffSpec._CreateRoleIdsJson(count: 100)}}] }""";
 
@@ -230,7 +229,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 	[Fact]
 	public async Task ItShouldDeleteTenantRolesInOneBulkRequest() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var firstRoleId = await this._CreateTenantRoleAsync(staffToken, tenantId);
 		var secondRoleId = await this._CreateTenantRoleAsync(staffToken, tenantId);
 		await this._AttachTenantRoleRelationsAsync(tenantId, firstRoleId);
@@ -270,7 +269,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 	[Fact]
 	public async Task ItShouldDeduplicateRepeatedTenantRoleIdsBeforeDeleting() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateTenantRoleAsync(staffToken, tenantId);
 		var startedAt = DateTime.UtcNow;
 
@@ -305,7 +304,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 	[Fact]
 	public async Task ItShouldReturnPartialResultForDefaultAndMissingRoles() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var deletableRoleId = await this._CreateTenantRoleAsync(staffToken, tenantId);
 		var defaultRoleId = await this._GetDefaultTenantRoleIdAsync(tenantId);
 		var missingRoleId = Guid.NewGuid();
@@ -363,7 +362,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 	[Fact]
 	public async Task ItShouldReportAlreadyDeletedTenantRolesAsNotFound() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateTenantRoleAsync(staffToken, tenantId);
 
 		using var firstResponse = await this._BulkDeleteAsync(
@@ -410,7 +409,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 	[Fact]
 	public async Task ItShouldRejectRolesFromAnotherTenant() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var otherTenant = await TenantBulkActionSpecSupport.SeedTenantAsync(
 			this._Fixture,
 			"Bulk Delete Other Tenant Role",
@@ -475,14 +474,6 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 		};
 	}
 
-	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			token,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<Guid> _CreateTenantRoleAsync(
 		string staffToken,
@@ -681,7 +672,7 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 			throw new InvalidOperationException("Bulk delete audit log was not written.");
 		}
 
-		var expectedUserId = await BulkDeleteTenantRolesAsStaffSpec._GetUserIdByEmailAsync(
+		var expectedUserId = await StaffUserTestHelper.GetUserIdByEmailAsync(
 			db.Context,
 			TestConstants.StaffAdminEmail
 		);
@@ -744,23 +735,6 @@ public sealed class BulkDeleteTenantRolesAsStaffSpec
 		return accountId.Value;
 	}
 
-	private static async Task<Guid> _GetUserIdByEmailAsync(
-		AppDbContext dbContext,
-		string email
-	) {
-		var userId = await (
-			from user in dbContext.User
-			where user.Email == email
-				&& !user.IsDeleted
-			select user.Id
-		).FirstOrDefaultAsync();
-
-		if (userId is null) {
-			throw new InvalidOperationException("Seeded user was not found.");
-		}
-
-		return userId.Value;
-	}
 
 	// Keep large body-shape cases generated locally so invalid/edge tests do not
 	// need to seed a hundred database rows.

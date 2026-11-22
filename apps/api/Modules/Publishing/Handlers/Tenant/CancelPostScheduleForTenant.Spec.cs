@@ -175,7 +175,7 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 
 	[Fact]
 	public async Task ItShouldReturn403WithoutPostsPublishPermission() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var postId = await this._CreateScheduledPostAsync(tenantId);
 
 		var userToken = await this._AuthClient.LoginAsync(
@@ -255,7 +255,7 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 
 	private async Task<(Guid TenantId, string Token, string PostId)>
 	_SeedScheduledPostAsync() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var postId = await this._CreateScheduledPostAsync(tenantId);
 		return (tenantId, token, postId);
@@ -264,7 +264,7 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 	private async Task<
 		(Guid TenantId, string Token, string PostId, List<Guid> PublicationIds)>
 	_SeedScheduledPostWithIdsAsync() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 		var postId = await this._CreateScheduledPostAsync(tenantId);
 
@@ -329,12 +329,4 @@ public sealed class CancelPostScheduleForTenantSpec : IClassFixture<ApiFixture> 
 		return post.GetRequiredId().ToString();
 	}
 
-	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 }

@@ -1,12 +1,12 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Auth.Jobs;
 using PublyApp.Api.Modules.Jobs.Entities;
 using PublyApp.Api.Modules.Jobs.Seeders;
@@ -46,7 +46,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 
 	[Fact]
 	public async Task ItShouldRemoveTheScheduledTriggerWhenAValidCronBecomesInvalid() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM system_job_definitions;");
 		var scheduler = await this._CreateRamSchedulerAsync();
 
@@ -77,7 +77,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 
 	[Fact]
 	public async Task ItShouldNotRotateTheEpochWhenTheStoredCronHasSurroundingWhitespace() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM system_job_definitions;");
 		var scheduler = await this._CreateRamSchedulerAsync();
 
@@ -102,7 +102,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 
 	[Fact]
 	public async Task ItShouldStillReconcileValidDefinitionsWhenAnotherRowHasAnInvalidCron() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM system_job_definitions;");
 		var scheduler = await this._CreateRamSchedulerAsync();
 
@@ -137,7 +137,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 		var jobKeyName = $"same-cron-{Guid.NewGuid():N}";
 		var epoch = Guid.NewGuid();
 		var scheduledFireAt = DateTime.UtcNow.AddMinutes(1);
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		var scheduler = await this._CreateRamSchedulerAsync();
 
 		try {
@@ -182,7 +182,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 	public async Task ItShouldRotateScheduleEpochWhenTheCronChangesAndStampTheReplacement() {
 		var jobKeyName = $"epoch-change-{Guid.NewGuid():N}";
 		var originalEpoch = Guid.NewGuid();
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		var scheduler = await this._CreateRamSchedulerAsync();
 
 		try {
@@ -224,7 +224,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 	// scheduled, and leave every OTHER definition free to disable.
 	[Fact]
 	public async Task ItShouldRefuseToDisableThePrivacyLoadBearingPreparedSweepAndReEnableIt() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		var scheduler = await this._CreateRamSchedulerAsync();
 
 		try {
@@ -293,7 +293,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 	public async Task ItShouldRestoreTheWholeDefinitionAndTriggerWhenAProtectedSweepCronIsCorrupted(
 		string corruptedCron
 	) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		var scheduler = await this._CreateRamSchedulerAsync();
 
 		try {
@@ -305,7 +305,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 			await SyncSystemJobsJobSpec._EnsureDefinitionPresentAsync(dbContext, protectedKey, SyncSystemJobsJobSpec._PreparedSweepCodeCron);
 
 			// Pass 1 under its own context (per-pass discipline, below).
-			await using (var seedScope = await this._CreateDbContextAsync()) {
+			await using (var seedScope = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture)) {
 				var seedingJob = new SyncSystemJobsJob(
 					seedScope,
 					NullLogger<SyncSystemJobsJob>.Instance
@@ -322,7 +322,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 
 			// The NEXT reconcile must refuse the corruption end to end — under its own
 			// per-pass context, never one that already tracked the healthy row.
-			await using (var jobScope = await this._CreateDbContextAsync()) {
+			await using (var jobScope = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture)) {
 				var reconcilingJob = new SyncSystemJobsJob(
 					jobScope,
 					NullLogger<SyncSystemJobsJob>.Instance
@@ -367,7 +367,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 	// Own-context discipline as above: the reconcile must SEE the corrupted row.
 	[Fact]
 	public async Task ItShouldNameTheJobAndTheRejectedCronInTheWholeDefinitionRestorationNotice() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		var scheduler = await this._CreateRamSchedulerAsync();
 		var logger = new CapturingLogger();
 
@@ -379,18 +379,18 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 
 			// Pass 1 under its own context (per-pass discipline, as in the theory above);
 			// the logger is cleared so only the refusal pass's notices are asserted.
-			await using (var seedScope = await this._CreateDbContextAsync()) {
+			await using (var seedScope = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture)) {
 				var seedingJob = new SyncSystemJobsJob(seedScope, logger);
 				await seedingJob.ReconcileAsync(scheduler, CancellationToken.None);
 			}
 			logger.Clear();
 
-			await using var corruptScope = await this._CreateDbContextAsync();
+			await using var corruptScope = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 			await corruptScope.SystemJobDefinition
 				.Where(d => d.JobKey == protectedKey)
 				.ExecuteUpdateAsync(s => s.SetProperty(d => d.CronExpression, SyncSystemJobsJobSpec._InvalidCron));
 
-			await using (var jobScope = await this._CreateDbContextAsync()) {
+			await using (var jobScope = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture)) {
 				var reconcilingJob = new SyncSystemJobsJob(jobScope, logger);
 				await reconcilingJob.ReconcileAsync(scheduler, CancellationToken.None);
 			}
@@ -427,7 +427,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 	// list and the seeder derive from the same handler constants.
 	[Fact]
 	public async Task ItShouldRefuseToWriteAnInvalidCodeDefinedDefaultCronOntoAProtectedSweep() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		var scheduler = await this._CreateRamSchedulerAsync();
 		var logger = new CapturingLogger();
 
@@ -439,7 +439,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 
 			// Pass 1 schedules the healthy trigger the mutation-world regression is proven
 			// against.
-			await using (var seedScope = await this._CreateDbContextAsync()) {
+			await using (var seedScope = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture)) {
 				var seedingJob = new SyncSystemJobsJob(
 					seedScope, NullLogger<SyncSystemJobsJob>.Instance
 				);
@@ -465,7 +465,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 					: definition)
 				.ToList();
 
-			await using var jobScope = await this._CreateDbContextAsync();
+			await using var jobScope = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 			var reconcilingJob = new SyncSystemJobsJob(jobScope, logger, () => corruptedDefaults);
 
 			var reconcile = async () => await reconcilingJob.ReconcileAsync(
@@ -513,7 +513,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 	// above, for the same unreachability reason.
 	[Fact]
 	public async Task ItShouldLogAndReportADriftedProtectedSweepThatHasNoCodeDefinedDefault() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		var scheduler = await this._CreateRamSchedulerAsync();
 		var logger = new CapturingLogger();
 
@@ -533,7 +533,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 				.Where(definition => definition.JobKey != protectedKey)
 				.ToList();
 
-			await using var jobScope = await this._CreateDbContextAsync();
+			await using var jobScope = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 			var reconcilingJob = new SyncSystemJobsJob(jobScope, logger, () => orphaningDefaults);
 			await reconcilingJob.ReconcileAsync(scheduler, CancellationToken.None);
 
@@ -567,7 +567,7 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 	// operator-disableable — a guard that blocks everything would break legitimate ops.
 	[Fact]
 	public async Task ItShouldStillHonorDisablingAHousekeepingSweep() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		var scheduler = await this._CreateRamSchedulerAsync();
 
 		try {
@@ -647,22 +647,6 @@ public sealed class SyncSystemJobsJobSpec : IClassFixture<ApiFixture>, IAsyncDis
 		}
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was unexpectedly null.");
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 
 	private static async Task _CleanupJobAsync(AppDbContext dbContext, string jobKey) {
 		await dbContext.Database.ExecuteSqlAsync(

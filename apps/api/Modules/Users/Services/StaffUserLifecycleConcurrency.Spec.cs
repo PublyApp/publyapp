@@ -53,7 +53,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 
 		var result = await this._RunWithConcurrentUsersUpdateAsync(
 			service => service.SuspendStaffUserAsync(userId),
-			(dbContext, cancellationToken) => StaffUserLifecycleConcurrencySpec._SetStaffUserStatusAsync(
+			(dbContext, cancellationToken) => StaffUserTestHelper.SetStaffUserStatusAsync(
 				dbContext,
 				userId,
 				UserStatus.Suspended,
@@ -122,7 +122,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 
 		var result = await this._RunWithConcurrentUsersUpdateAsync(
 			service => service.ReactivateStaffUserAsync(userId),
-			(dbContext, cancellationToken) => StaffUserLifecycleConcurrencySpec._SetStaffUserStatusAsync(
+			(dbContext, cancellationToken) => StaffUserTestHelper.SetStaffUserStatusAsync(
 				dbContext,
 				userId,
 				UserStatus.Active,
@@ -191,7 +191,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 
 		var result = await this._RunWithConcurrentUsersUpdateAsync(
 			service => service.DeleteStaffUserAsync(userId),
-			(dbContext, cancellationToken) => StaffUserLifecycleConcurrencySpec._SetStaffUserStatusAsync(
+			(dbContext, cancellationToken) => StaffUserTestHelper.SetStaffUserStatusAsync(
 				dbContext,
 				userId,
 				UserStatus.Active,
@@ -235,7 +235,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 		Func<StaffUserLifecycleService, Task<TResult>> operationAsync,
 		Func<AppDbContext, CancellationToken, Task> mutateAsync
 	) {
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringAsync(this._Fixture);
 		var interceptor = new BeforeUsersUpdateInterceptor(async cancellationToken => {
 			await using var mutateScope = this._Fixture.Factory.Services.CreateAsyncScope();
 			var mutateDbContext = mutateScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -260,7 +260,7 @@ public sealed class StaffUserLifecycleConcurrencySpec
 		Func<StaffUserLifecycleService, Task<TResult>> operationAsync,
 		Func<AppDbContext, CancellationToken, Task> mutateAsync
 	) {
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringAsync(this._Fixture);
 		var interceptor = new AfterUsersUpdateInterceptor(async cancellationToken => {
 			await using var mutateScope = this._Fixture.Factory.Services.CreateAsyncScope();
 			var mutateDbContext = mutateScope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -281,18 +281,6 @@ public sealed class StaffUserLifecycleConcurrencySpec
 		return await operationAsync(service);
 	}
 
-	private async Task<string> _GetConnectionStringAsync() {
-		await using var db = this._Fixture.OpenDb();
-
-		var connectionString = db.Context.Database.GetConnectionString();
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return connectionString;
-	}
 
 	private static async Task _SoftDeleteStaffAccountAsync(
 		AppDbContext dbContext,
@@ -340,21 +328,6 @@ public sealed class StaffUserLifecycleConcurrencySpec
 		);
 	}
 
-	private static async Task _SetStaffUserStatusAsync(
-		AppDbContext dbContext,
-		Guid userId,
-		UserStatus status,
-		CancellationToken cancellationToken
-	) {
-		_ = await dbContext.User
-			.Where(x => x.Id == userId && !x.IsDeleted)
-			.ExecuteUpdateAsync(
-				setters => setters
-					.SetProperty(x => x.Status, status)
-					.SetProperty(x => x.UpdatedAt, DateTime.UtcNow),
-				cancellationToken
-			);
-	}
 
 	private async Task<StaffUserState> _GetStaffUserStateAsync(Guid userId) {
 		await using var db = this._Fixture.OpenDb();

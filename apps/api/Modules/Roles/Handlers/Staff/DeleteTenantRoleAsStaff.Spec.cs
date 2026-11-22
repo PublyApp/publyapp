@@ -8,7 +8,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -43,7 +42,7 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		using var request = new HttpRequestMessage(
 			HttpMethod.Delete,
 			DeleteTenantRoleAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
@@ -55,7 +54,7 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var response = await this._Http.SendWithSessionAsync(
@@ -68,7 +67,7 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
@@ -99,7 +98,7 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedRoleId() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
@@ -114,7 +113,7 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMissingRole() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._Http.SendWithSessionAsync(
 			HttpMethod.Delete,
@@ -127,7 +126,7 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldRejectDeletingDefaultRole() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var defaultRoleId = await this._GetDefaultTenantRoleIdAsync(tenantId);
 		var roleGuid = defaultRoleId;
 
@@ -162,7 +161,7 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldDeleteRoleAndRemoveItFromGetById() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var createdRole = await this._CreateRoleAsync(token, tenantId);
 		var roleId = createdRole.RoleId;
 		var roleName = createdRole.RoleName;
@@ -204,14 +203,6 @@ public sealed class DeleteTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
 	}
 
-	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			token,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<Guid> _GetDefaultTenantRoleIdAsync(Guid tenantId) {
 		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();

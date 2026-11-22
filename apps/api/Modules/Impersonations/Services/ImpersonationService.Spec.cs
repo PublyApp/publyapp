@@ -50,7 +50,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 
 		await act.Should().ThrowAsync<DbUpdateException>();
 
-		await using var verify = this._CreateDbContext();
+		await using var verify = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await verify.Session.AnyAsync(s =>
 			s.UserId == sessionUserId
 			&& s.IsImpersonation
@@ -87,7 +87,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 		session.UserId.Should().Be(sessionUserId);
 		session.IsImpersonation.Should().BeTrue();
 
-		await using var verify = this._CreateDbContext();
+		await using var verify = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await verify.Session.AnyAsync(s => s.Id == session.Id)).Should().BeTrue();
 		(await verify.AuditLog.AnyAsync(a =>
 			a.Action == AuditActions.ImpersonationStarted
@@ -107,7 +107,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 
 		await this._RunSweepAsync();
 
-		await using var verify = this._CreateDbContext();
+		await using var verify = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await verify.Session.AnyAsync(s => s.Id == sessionId)).Should().BeFalse("the sweep removed the row");
 
 		var tombstone = await verify.ImpersonationSessionEnd.SingleAsync(e => e.SessionId == sessionId);
@@ -126,7 +126,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 		var staffUserId = await this._SeedStaffActorAsync();
 		var sessionId = await this._StartExpiredImpersonationAsync(tenantId, staffUserId);
 		string token;
-		await using (var db = this._CreateDbContext()) {
+		await using (var db = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			token = await db.Session.Where(s => s.Id == sessionId).Select(s => s.Token).SingleAsync();
 		}
 
@@ -162,7 +162,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 			(await sessions.RevokeAllSessionsForUserAsync(userId)).Should().BeGreaterThan(0);
 		}
 
-		await using var verify = this._CreateDbContext();
+		await using var verify = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await verify.ImpersonationSessionEnd.SingleAsync(e => e.SessionId == sessionId))
 			.Reason.Should().Be(ImpersonationEndReason.Revoked);
 		(await this._EndAsync(sessionId, staffUserId)).Should().Be(ImpersonationEndResult.AlreadyEnded);
@@ -175,7 +175,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 		var staffUserId = await this._SeedStaffActorAsync();
 		var sessionId = await this._StartImpersonationAsync(tenantId, staffUserId);
 
-		await using (var db = this._CreateDbContext()) {
+		await using (var db = SpecDbHelper.CreateDbContext(this._Fixture)) {
 			_ = await db.Database.ExecuteSqlAsync($"DELETE FROM user_accounts WHERE user_id = {userId}");
 			_ = await db.Database.ExecuteSqlAsync($"DELETE FROM users WHERE id = {userId}");
 		}
@@ -197,7 +197,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 		);
 
 		results.Should().BeEquivalentTo([ImpersonationEndResult.Ended, ImpersonationEndResult.AlreadyEnded]);
-		await using var verify = this._CreateDbContext();
+		await using var verify = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await verify.ImpersonationSessionEnd.CountAsync(e => e.SessionId == sessionId)).Should().Be(1);
 		(await verify.AuditLog.CountAsync(a =>
 			a.Action == AuditActions.ImpersonationEnded && a.TargetId == sessionId
@@ -213,7 +213,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 		var act = async () => await this._EndAsync(sessionId, Guid.NewGuid());
 		await act.Should().ThrowAsync<DbUpdateException>();
 
-		await using var verify = this._CreateDbContext();
+		await using var verify = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await verify.Session.AnyAsync(s => s.Id == sessionId)).Should().BeTrue("the delete rolled back");
 		(await verify.ImpersonationSessionEnd.AnyAsync(e => e.SessionId == sessionId)).Should().BeFalse();
 		(await verify.AuditLog.AnyAsync(a =>
@@ -249,7 +249,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 
 		(await this._EndAsync(sessionId, staffUserId)).Should().Be(ImpersonationEndResult.Ended);
 
-		await using var verify = this._CreateDbContext();
+		await using var verify = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await verify.Session.AnyAsync(s => s.Id == sessionId)).Should().BeFalse();
 		var tombstone = await verify.ImpersonationSessionEnd.SingleAsync(e => e.SessionId == sessionId);
 		tombstone.Reason.Should().Be(ImpersonationEndReason.Revoked);
@@ -266,7 +266,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 	public async Task ItShouldNotTombstoneOrdinarySessionsWhenSweeping() {
 		var staffUserId = await this._SeedStaffActorAsync();
 		var token = $"tombstone-ordinary-{Guid.NewGuid():N}";
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var session = new Session {
 			UserId = staffUserId,
 			Token = token,
@@ -277,14 +277,14 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 
 		await this._RunSweepAsync();
 
-		await using var verify = this._CreateDbContext();
+		await using var verify = SpecDbHelper.CreateDbContext(this._Fixture);
 		(await verify.Session.AnyAsync(s => s.Token == token)).Should().BeFalse();
 		(await verify.ImpersonationSessionEnd.AnyAsync(e => e.SessionId == session.Id)).Should().BeFalse();
 	}
 
 	[Fact]
 	public async Task ItShouldPurgeOnlyTombstonesPastRetention() {
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var oldId = Guid.NewGuid();
 		var recentId = Guid.NewGuid();
 		db.ImpersonationSessionEnd.AddRange(
@@ -304,11 +304,11 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 		try {
 			await this._RunSweepAsync();
 
-			await using var verify = this._CreateDbContext();
+			await using var verify = SpecDbHelper.CreateDbContext(this._Fixture);
 			(await verify.ImpersonationSessionEnd.AnyAsync(e => e.SessionId == oldId)).Should().BeFalse();
 			(await verify.ImpersonationSessionEnd.AnyAsync(e => e.SessionId == recentId)).Should().BeTrue();
 		} finally {
-			await using var cleanup = this._CreateDbContext();
+			await using var cleanup = SpecDbHelper.CreateDbContext(this._Fixture);
 			_ = await cleanup.Database.ExecuteSqlAsync(
 				$"DELETE FROM impersonation_session_ends WHERE session_id IN ({oldId}, {recentId})"
 			);
@@ -335,7 +335,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 
 	private async Task<Guid> _StartExpiredImpersonationAsync(Guid tenantId, Guid staffUserId) {
 		var sessionId = await this._StartImpersonationAsync(tenantId, staffUserId);
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		_ = await db.Database.ExecuteSqlAsync(
 			$"UPDATE sessions SET expires_at = now() - interval '1 hour', impersonation_expires_at = now() - interval '1 hour' WHERE id = {sessionId}"
 		);
@@ -356,7 +356,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _RunSweepAsync() {
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var handler = new CleanupExpiredSessionsHandler(db, NullLogger<CleanupExpiredSessionsHandler>.Instance);
 		_ = await handler.HandleAsync(
 			new JobContext {
@@ -371,7 +371,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<(Guid tenantId, Guid sessionUserId)> _SeedTenantUserAsync() {
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var tenant = new Tenant {
 			Code = $"tenant-{Guid.NewGuid():N}",
 			Name = "Tenant",
@@ -398,7 +398,7 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task<Guid> _SeedStaffActorAsync() {
-		await using var db = this._CreateDbContext();
+		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var staff = new User {
 			Email = $"staff-actor-{Guid.NewGuid():N}@example.com",
 			Password = PasswordUtils.HashPassword("unused-password"),
@@ -413,20 +413,4 @@ public sealed class ImpersonationServiceSpec : IClassFixture<ApiFixture> {
 		return staff.GetRequiredId();
 	}
 
-	private AppDbContext _CreateDbContext() {
-		using var scope = this._Fixture.Factory.Services.CreateScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 }

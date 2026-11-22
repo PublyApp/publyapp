@@ -1,10 +1,9 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 
 using Xunit;
@@ -178,7 +177,7 @@ Cursor: cursor,
 			var id = await this._SeedRowAsync(
 				jobType, minutesAgo: 15, tenantId: tenantId, externalStateStatus: 6
 			);
-			await using var dbContext = await this._CreateDbContextAsync();
+			await using var dbContext = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 			dbContext.JobDeadLetterEvent.Add(new JobDeadLetterEvent {
 				DeadLetterId = id,
 				Event = JobDeadLetterEvents.MissingConfirmed,
@@ -233,7 +232,7 @@ Cursor: cursor,
 			requeued.OriginalJobId.Should().Be(originalJobId);
 			requeued.NewJobId.Should().NotBe(originalJobId);
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 			var queueRows = await verify.JobQueue
 				.Where(row => row.RequeuedFromDeadLetterId == deadLetterId)
 				.ToListAsync();
@@ -279,7 +278,7 @@ Cursor: cursor,
 			secondResult.Should()
 				.BeOfType<RequeueDeadLetterResult.AlreadyRequeued>();
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 			(await verify.JobQueue.CountAsync(
 				row => row.RequeuedFromDeadLetterId == deadLetterId
 			)).Should().Be(1);
@@ -293,7 +292,7 @@ Cursor: cursor,
 	}
 
 	private async Task<DeadLetterQueryService> _CreateServiceAsync() {
-		var dbContext = await this._CreateDbContextAsync();
+		var dbContext = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 		return new DeadLetterQueryService(dbContext);
 	}
 
@@ -309,7 +308,7 @@ Cursor: cursor,
 		// ck_job_dead_letter_external_state_bounds: statuses 1,2,4,5,6 carry
 		// recorded bounds; 0 and 3 keep all three columns NULL.
 		var needsBounds = externalStateStatus is not (0 or 3);
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 		if (needsBounds) {
 			await dbContext.Database.ExecuteSqlAsync(
 				$"""
@@ -355,7 +354,7 @@ Cursor: cursor,
 	}
 
 	private async Task _CleanupAsync(string jobType) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQueryServicesAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync(
 			$"""
 			DELETE FROM job_dead_letter_events
@@ -376,17 +375,4 @@ Cursor: cursor,
 		return $"spec.dlq.{suffix}.{Guid.NewGuid():N}";
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString);
-		return new AppDbContext(options.Options);
-	}
 }

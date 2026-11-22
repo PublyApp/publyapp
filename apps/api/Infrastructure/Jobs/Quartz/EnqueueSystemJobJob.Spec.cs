@@ -2,12 +2,12 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 
 using Xunit;
@@ -29,7 +29,7 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 
 		try {
 			await this._SeedDefinitionAsync(jobKey, epoch);
-			await using var dbContext = await this._CreateDbContextAsync();
+			await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			var job = EnqueueSystemJobJobSpec._NewJob(dbContext);
 
 			await job.EnqueueOccurrenceAsync(
@@ -39,7 +39,7 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 				jobKey, scheduledFireAt, epoch, CancellationToken.None
 			);
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey)).Should().Be(1);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(1);
@@ -57,13 +57,13 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 
 		try {
 			await this._SeedDefinitionAsync(jobKey, epoch);
-			await using var dbContext = await this._CreateDbContextAsync();
+			await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			var job = EnqueueSystemJobJobSpec._NewJob(dbContext);
 
 			await job.EnqueueOccurrenceAsync(jobKey, firstFireAt, epoch, CancellationToken.None);
 			await job.EnqueueOccurrenceAsync(jobKey, secondFireAt, epoch, CancellationToken.None);
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey)).Should().Be(2);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(2);
@@ -80,7 +80,7 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 
 		try {
 			await this._SeedDefinitionAsync(jobKey, epoch);
-			await using var dbContext = await this._CreateDbContextAsync();
+			await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			var job = EnqueueSystemJobJobSpec._NewJob(dbContext);
 
 			await job.EnqueueOccurrenceAsync(
@@ -93,7 +93,7 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 				jobKey, scheduledFireAt, epoch, CancellationToken.None
 			);
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey)).Should().Be(0);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(1, "the durable ledger outlives successful queue-row deletion");
@@ -110,8 +110,8 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 
 		try {
 			await this._SeedDefinitionAsync(jobKey, epoch);
-			await using var firstContext = await this._CreateDbContextAsync();
-			await using var secondContext = await this._CreateDbContextAsync();
+			await using var firstContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
+			await using var secondContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			var firstJob = EnqueueSystemJobJobSpec._NewJob(firstContext);
 			var secondJob = EnqueueSystemJobJobSpec._NewJob(secondContext);
 
@@ -124,7 +124,7 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 				)
 			);
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey)).Should().Be(1);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(1);
@@ -141,12 +141,12 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 
 		try {
 			await this._SeedDefinitionAsync(jobKey, epoch);
-			await using var dbContext = await this._CreateDbContextAsync();
+			await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			await EnqueueSystemJobJobSpec._NewJob(dbContext).EnqueueOccurrenceAsync(
 				jobKey, scheduledFireAt, epoch, CancellationToken.None
 			);
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			var queueRow = await verify.JobQueue.SingleAsync(row => row.JobType == jobKey);
 			var occurrence = await verify.SystemJobOccurrence
 				.SingleAsync(row => row.JobKey == jobKey);
@@ -164,9 +164,7 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 
 		try {
 			await this._SeedDefinitionAsync(jobKey, epoch);
-			await using var dbContext = await this._CreateDbContextAsync(
-				new ThrowBeforeSaveChangesInterceptor()
-			);
+			await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture, new ThrowBeforeSaveChangesInterceptor());
 			var act = async () => await EnqueueSystemJobJobSpec._NewJob(dbContext).EnqueueOccurrenceAsync(
 				jobKey, scheduledFireAt, epoch, CancellationToken.None
 			);
@@ -174,7 +172,7 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 			await act.Should().ThrowAsync<InvalidOperationException>()
 				.WithMessage("forced enqueue failure");
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey)).Should().Be(0);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(0, "the occurrence insert rolls back with the queue insert");
@@ -192,7 +190,7 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 
 		try {
 			await this._SeedDefinitionAsync(jobKey, currentEpoch);
-			await using var dbContext = await this._CreateDbContextAsync();
+			await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			var job = new EnqueueSystemJobJob(dbContext, logger);
 
 			await job.EnqueueOccurrenceAsync(
@@ -202,7 +200,7 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 				jobKey, DateTime.UtcNow.AddMinutes(2), currentEpoch, CancellationToken.None
 			);
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 			(await verify.JobQueue.CountAsync(row => row.JobType == jobKey)).Should().Be(1);
 			(await verify.SystemJobOccurrence.CountAsync(row => row.JobKey == jobKey))
 				.Should().Be(1, "a rejected stale fire must not claim an occurrence");
@@ -221,7 +219,7 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _SeedDefinitionAsync(string jobKey, Guid scheduleEpoch) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 		await dbContext.SystemJobDefinition.AddAsync(new SystemJobDefinition {
 			JobKey = jobKey,
 			CronExpression = "0 0/5 * * * ?",
@@ -231,7 +229,7 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 	}
 
 	private async Task _CleanupAsync(string jobKey) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextWithInterceptorAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM system_job_occurrences WHERE job_key = {jobKey}"
 		);
@@ -247,25 +245,6 @@ public sealed class EnqueueSystemJobJobSpec : IClassFixture<ApiFixture> {
 		return $"spec.system-job.{suffix}.{Guid.NewGuid():N}";
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync(
-		SaveChangesInterceptor? interceptor = null
-	) {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString);
-		if (interceptor is not null) {
-			options.AddInterceptors(interceptor);
-		}
-
-		return new AppDbContext(options.Options);
-	}
 
 	private sealed class ThrowBeforeSaveChangesInterceptor : SaveChangesInterceptor {
 		public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
