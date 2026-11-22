@@ -73,15 +73,24 @@ const saveImage = async (reference: string, target: string) => {
 	}
 };
 
+/**
+ * The repository part of a reference. Docker records `RepoDigests` without the
+ * tag (`repo@sha256:…`), while the reference names the tag it was pushed as.
+ */
+const repositoryOf = (reference: string): string =>
+	reference.replace(/:[^/:]*$/, '');
+
 /** The digest this push returned; never a later lookup of a mutable tag. */
 export const pushedDigest = (
 	reference: string,
 	repoDigests: string,
 ): string | undefined => {
+	const repository = repositoryOf(reference);
 	const match = repoDigests
 		.split('\n')
-		.find((entry) => entry.startsWith(`${reference}@`));
-	const digest = match?.slice(reference.length + 1);
+		.map((entry) => entry.trim())
+		.find((entry) => entry.startsWith(`${repository}@`));
+	const digest = match?.slice(repository.length + 1);
 	if (digest !== undefined && /^sha256:[0-9a-f]{64}$/.test(digest)) {
 		return digest;
 	}
