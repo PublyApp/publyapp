@@ -6,6 +6,13 @@ using System.Text;
 using Npgsql;
 
 namespace PublyApp.Api.Lib.Testing.Fixtures;
+
+/// <summary>Runs one docker CLI command and returns its exit code and streams.</summary>
+internal delegate Task<(int ExitCode, string Stdout, string Stderr)> DockerRunner(
+	IReadOnlyList<string> arguments,
+	CancellationToken ct
+);
+
 /// <summary>
 /// Opt-in reuse of one long-lived Postgres container across local test runs.
 ///
@@ -27,6 +34,16 @@ internal static class TestDatabaseReuse {
 	// loaded laptop that can take minutes, so the deadline is generous.
 	private static readonly TimeSpan _ReadyTimeout = TimeSpan.FromSeconds(300);
 	private static readonly TimeSpan _ReadyPollInterval = TimeSpan.FromMilliseconds(250);
+	// A losing `docker run` must wait for the winner's container to become
+	// visible; `docker run` returning is not a guarantee that `docker inspect`
+	// can already see it.
+	private static readonly TimeSpan _ContainerAppearTimeout =
+		TimeSpan.FromSeconds(30);
+	private static readonly TimeSpan _ContainerPollInterval =
+		TimeSpan.FromMilliseconds(100);
+	// No docker CLI call may hang the test process forever (daemon stall,
+	// image pull, name removal in progress).
+	private static readonly TimeSpan _DockerTimeout = TimeSpan.FromSeconds(300);
 	private static readonly Lazy<string> _RepoRoot = new(TestDatabaseReuse._FindRepoRoot);
 	private static readonly Lazy<string> _ContainerName = new(TestDatabaseReuse._BuildContainerName);
 
@@ -51,41 +68,63 @@ internal static class TestDatabaseReuse {
 	/// </summary>
 	public static async Task<string> StartAsync(CancellationToken ct = default) {
 		var name = TestDatabaseReuse.ContainerName;
-		await TestDatabaseReuse._EnsureContainerAsync(name, ct);
+		await TestDatabaseReuse.EnsureContainerAsync(name, ct);
 
 		var port = await TestDatabaseReuse._ReadPortAsync(name, ct);
 		var connectionString =
-			"Host=127.0.0.1;"
-			+ $"Port={port};"
-			+ "Database=postgres;"
-			+ "Username=postgres;"
-			+ "Password=postgres;"
-			+ "Pooling=false;"
-			+ "Timeout=2";
-		await TestDatabaseReuse._WaitUntilReadyAsync(connectionString, ct);
+			TestDatabaseReuse.BuildAdminConnectionString(port);
+		await TestDatabaseReuse._WaitUntilReadyAsync(
+			TestDatabaseReuse.BuildProbeConnectionString(connectionString),
+			ct
+		);
 		Console.Error.WriteLine(
 			$"[test-db] reusable Postgres container '{name}' ready on 127.0.0.1:{port}"
 		);
 		return connectionString;
 	}
 
-	private static async Task _EnsureContainerAsync(
-		string name,
-		CancellationToken ct
+	// The admin string keeps Npgsql's normal connect timeout (15 s): it is
+	// copied into every per-test database string and into the app's UseNpgsql,
+	// so a 2 s timeout there would turn a slow connect into a flaky red that
+	// looks like a test bug.
+	internal static string BuildAdminConnectionString(int port) {
+		return "Host=127.0.0.1;"
+			+ $"Port={port};"
+			+ "Database=postgres;"
+			+ "Username=postgres;"
+			+ "Password=postgres;"
+			+ "Pooling=false;"
+			+ "Timeout=15";
+	}
+
+	// Only the readiness probe needs to fail fast: it polls until Postgres
+	// accepts connections and a 2 s attempt keeps that loop responsive.
+	internal static string BuildProbeConnectionString(
+		string adminConnectionString
 	) {
-		var inspectFormat =
-			"{{.State.Running}}"
-			+ "|{{index .Config.Labels \"publyapp.test-db\"}}";
-		var status = await TestDatabaseReuse._DockerAsync(
+		return new NpgsqlConnectionStringBuilder(adminConnectionString) {
+			Timeout = 2
+		}.ConnectionString;
+	}
+
+	internal static async Task EnsureContainerAsync(
+		string name,
+		CancellationToken ct = default,
+		DockerRunner? runner = null,
+		TimeSpan? containerAppearTimeout = null
+	) {
+		runner ??= TestDatabaseReuse._DockerAsync;
+		var inspectFormat = TestDatabaseReuse._InspectFormat;
+		var status = await runner(
 			["inspect", "--format", inspectFormat, name],
 			ct
 		);
 		if (status.ExitCode == 0) {
-			await TestDatabaseReuse._ResumeAsync(name, status.Stdout, ct);
+			await TestDatabaseReuse._ResumeAsync(name, status.Stdout, ct, runner);
 			return;
 		}
 
-		var created = await TestDatabaseReuse._DockerAsync(
+		var created = await runner(
 			[
 				"run", "-d",
 				"--name", name,
@@ -109,23 +148,72 @@ internal static class TestDatabaseReuse {
 			return;
 		}
 
-		// Another test process may have won the race to create it.
-		var raced = await TestDatabaseReuse._DockerAsync(
-			["inspect", "--format", inspectFormat, name],
-			ct
-		);
-		if (raced.ExitCode != 0) {
+		// Only a name conflict means another process won the race; any other
+		// failure (daemon down, missing image, bad args) must fail now.
+		if (
+			!created.Stderr.Contains(
+				"already in use",
+				StringComparison.OrdinalIgnoreCase
+			)
+		) {
 			TestDatabaseReuse._EnsureSuccess(created, "run", name);
-			return;
 		}
 
-		await TestDatabaseReuse._ResumeAsync(name, raced.Stdout, ct);
+		await TestDatabaseReuse._WaitForRacedContainerAsync(
+			name,
+			created,
+			containerAppearTimeout ?? TestDatabaseReuse._ContainerAppearTimeout,
+			runner,
+			ct
+		);
+	}
+
+	private const string _InspectFormat =
+		"{{.State.Running}}"
+		+ "|{{index .Config.Labels \"publyapp.test-db\"}}";
+
+	private static async Task _WaitForRacedContainerAsync(
+		string name,
+		(int ExitCode, string Stdout, string Stderr) created,
+		TimeSpan timeout,
+		DockerRunner runner,
+		CancellationToken ct
+	) {
+		// `docker run` can return the conflict before the winner's container is
+		// inspectable, so retry until it appears instead of failing the run.
+		var deadline = DateTime.UtcNow + timeout;
+		while (true) {
+			var raced = await runner(
+				["inspect", "--format", TestDatabaseReuse._InspectFormat, name],
+				ct
+			);
+			if (raced.ExitCode == 0) {
+				await TestDatabaseReuse._ResumeAsync(
+					name,
+					raced.Stdout,
+					ct,
+					runner
+				);
+				return;
+			}
+
+			if (DateTime.UtcNow >= deadline) {
+				// Report the original conflict, not the last inspect error.
+				TestDatabaseReuse._EnsureSuccess(created, "run", name);
+			}
+
+			await Task.Delay(
+				TestDatabaseReuse._ContainerPollInterval,
+				ct
+			);
+		}
 	}
 
 	private static async Task _ResumeAsync(
 		string name,
 		string inspectOutput,
-		CancellationToken ct
+		CancellationToken ct,
+		DockerRunner runner
 	) {
 		var parts = inspectOutput.Trim().Split('|', 2);
 		var isRunning = parts[0] == "true";
@@ -141,7 +229,7 @@ internal static class TestDatabaseReuse {
 			return;
 		}
 
-		var started = await TestDatabaseReuse._DockerAsync(["start", name], ct);
+		var started = await runner(["start", name], ct);
 		TestDatabaseReuse._EnsureSuccess(started, "start", name);
 	}
 
@@ -241,7 +329,28 @@ internal static class TestDatabaseReuse {
 		using (process) {
 			var stdoutTask = process.StandardOutput.ReadToEndAsync(ct);
 			var stderrTask = process.StandardError.ReadToEndAsync(ct);
-			await process.WaitForExitAsync(ct);
+			using var deadline =
+				CancellationTokenSource.CreateLinkedTokenSource(ct);
+			deadline.CancelAfter(TestDatabaseReuse._DockerTimeout);
+			try {
+				await process.WaitForExitAsync(deadline.Token);
+			} catch (OperationCanceledException) when (
+				!ct.IsCancellationRequested
+			) {
+				try {
+					process.Kill(entireProcessTree: true);
+				} catch (InvalidOperationException) {
+					// Already exited between the timeout and the kill.
+				}
+
+				throw new InvalidOperationException(
+					$"docker {string.Join(' ', arguments)} did not finish within "
+					+ $"{TestDatabaseReuse._DockerTimeout.TotalSeconds:0}s. "
+					+ "Check that the Docker daemon is responsive, or set "
+					+ $"{TestDatabaseReuse.EnableVariable}=0."
+				);
+			}
+
 			return (process.ExitCode, await stdoutTask, await stderrTask);
 		}
 	}

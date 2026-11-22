@@ -14,7 +14,8 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// </summary>
 internal static class TestDatabaseCacheKey {
 	private const string _TemplateDbBaseName = "publyapp_api_template";
-	private static readonly Lazy<string> _Key = new(TestDatabaseCacheKey._Compute);
+	private static readonly Lazy<string> _Key =
+		new(() => TestDatabaseCacheKey.ComputeKey(TestDatabaseReuse.RepoRoot));
 
 	public static string Key {
 		get { return TestDatabaseCacheKey._Key.Value; }
@@ -27,8 +28,7 @@ internal static class TestDatabaseCacheKey {
 		}
 	}
 
-	private static string _Compute() {
-		var repoRoot = TestDatabaseReuse.RepoRoot;
+	internal static string ComputeKey(string repoRoot) {
 		using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
 		foreach (var file in TestDatabaseCacheKey._SourceFiles(repoRoot)) {
 			var relativePath = Path.GetRelativePath(repoRoot, file)
@@ -67,6 +67,7 @@ internal static class TestDatabaseCacheKey {
 				SearchOption.AllDirectories
 			))
 			.Concat(TestDatabaseCacheKey._SeederFiles(apiRoot))
+			.Concat(TestDatabaseCacheKey._PermissionFiles(apiRoot))
 			.Concat(versionFiles.Where(File.Exists))
 			.Where(file =>
 				!TestDatabaseCacheKey._IsGenerated(file)
@@ -93,6 +94,40 @@ internal static class TestDatabaseCacheKey {
 				"*.cs",
 				SearchOption.AllDirectories
 			));
+	}
+
+	private static IEnumerable<string> _PermissionFiles(string apiRoot) {
+		// The seeders read these sources through reflection/constants rather
+		// than owning the rows literally, so a permission or role-name edit
+		// must invalidate the template too.
+		var files = new List<string> {
+			Path.Combine(apiRoot, "Lib", "AppPermissions.cs"),
+			Path.Combine(
+				apiRoot,
+				"Modules",
+				"Roles",
+				"Entities",
+				"SystemRoleNames.cs"
+			),
+		};
+		var modulesRoot = Path.Combine(apiRoot, "Modules");
+		if (Directory.Exists(modulesRoot)) {
+			files.AddRange(
+				Directory
+					.EnumerateDirectories(
+						modulesRoot,
+						"Permissions",
+						SearchOption.AllDirectories
+					)
+					.SelectMany(directory => Directory.EnumerateFiles(
+						directory,
+						"*",
+						SearchOption.AllDirectories
+					))
+			);
+		}
+
+		return files.Where(File.Exists);
 	}
 
 	private static bool _IsGenerated(string path) {

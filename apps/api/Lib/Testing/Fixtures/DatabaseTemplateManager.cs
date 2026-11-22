@@ -68,7 +68,7 @@ internal sealed partial class DatabaseTemplateManager {
 		await using var conn =
 			new NpgsqlConnection(this._AdminConnectionString);
 		await conn.OpenAsync(ct);
-		await this._AcquireLockAsync(conn, exclusive: true, ct);
+		await this.AcquireLockAsync(conn, exclusive: true, ct);
 		try {
 			await DatabaseTemplateManager._EnsureStateTableAsync(conn, ct);
 			if (await this._IsTemplateReadyAsync(conn, ct)) {
@@ -88,7 +88,7 @@ internal sealed partial class DatabaseTemplateManager {
 			await this._MigrateAndSeedTemplateAsync(ct);
 			await this._RecordTemplateAsync(conn, ct);
 		} finally {
-			await this._ReleaseLockAsync(conn, exclusive: true, ct);
+			await this.ReleaseLockAsync(conn, exclusive: true, ct);
 		}
 	}
 
@@ -261,7 +261,7 @@ internal sealed partial class DatabaseTemplateManager {
 		await using (var conn =
 			new NpgsqlConnection(this._AdminConnectionString)) {
 			await conn.OpenAsync(ct);
-			await this._AcquireLockAsync(conn, exclusive: false, ct);
+			await this.AcquireLockAsync(conn, exclusive: false, ct);
 			try {
 				// CREATE DATABASE does not support parameters for
 				// identifiers — validated via regex above
@@ -278,7 +278,7 @@ internal sealed partial class DatabaseTemplateManager {
 					ex
 				);
 			} finally {
-				await this._ReleaseLockAsync(conn, exclusive: false, ct);
+				await this.ReleaseLockAsync(conn, exclusive: false, ct);
 			}
 		}
 
@@ -342,7 +342,7 @@ internal sealed partial class DatabaseTemplateManager {
 		}
 	}
 
-	private async Task _AcquireLockAsync(
+	internal async Task AcquireLockAsync(
 		NpgsqlConnection conn,
 		bool exclusive,
 		CancellationToken ct
@@ -354,11 +354,15 @@ internal sealed partial class DatabaseTemplateManager {
 			$"SELECT {function}(hashtextextended(@name, 0))",
 			conn
 		);
+		// The wait is bounded by the lock holder's build, not by Npgsql's
+		// default 30 s command timeout: a cold template build can take
+		// minutes, and killing the waiter turns a slow build into a red run.
+		cmd.CommandTimeout = 0;
 		cmd.Parameters.AddWithValue("name", this._TemplateDbName);
 		await cmd.ExecuteNonQueryAsync(ct);
 	}
 
-	private async Task _ReleaseLockAsync(
+	internal async Task ReleaseLockAsync(
 		NpgsqlConnection conn,
 		bool exclusive,
 		CancellationToken ct

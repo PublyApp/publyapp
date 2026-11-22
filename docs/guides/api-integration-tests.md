@@ -71,11 +71,13 @@ Subsequent runs reuse the cached Docker image.
 `just test-api` (and every local recipe) exports `PUBLYAPP_TEST_REUSE_DB=1`.
 With it, the fixture keeps one long-lived Postgres container per clone and
 caches the migrated + seeded template database under a name derived from a
-fingerprint of `apps/api/Migrations/**`, the seeders, `Lib/Testing/**` and the
-package/build files that pin EF Core and Npgsql. A warm run skips migrations
-and seeding and clones the cached template directly; touching any of those
-inputs selects a new name and rebuilds the template from scratch. The fixture
-logs `[test-db] template cache HIT|MISS ...` on stderr and in
+fingerprint of `apps/api/Migrations/**`, the seeders, `Lib/Testing/**`, the
+permission definitions those seeders read (`Lib/AppPermissions.cs`,
+`Modules/**/Permissions/**`, `Modules/Roles/Entities/SystemRoleNames.cs`) and
+the package/build files that pin EF Core and Npgsql. A warm run skips
+migrations and seeding and clones the cached template directly; touching any
+of those inputs selects a new name and rebuilds the template from scratch. The
+fixture logs `[test-db] template cache HIT|MISS ...` on stderr and in
 `apps/api/.artifacts/logs/test-db.log`.
 
 CI keeps the disposable Testcontainers container: reuse is disabled whenever
