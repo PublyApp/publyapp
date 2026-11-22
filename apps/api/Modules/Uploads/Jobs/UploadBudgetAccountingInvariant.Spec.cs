@@ -8,6 +8,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Uploads.Entities;
 using PublyApp.Api.Modules.Users.Entities;
@@ -204,7 +205,7 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 	}
 
 	private async Task<long> _ExpectedGlobalCommittedAsync() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var total = await dbContext.Database
 			.SqlQuery<long?>($"""
 				SELECT COALESCE(SUM(size_bytes), 0)::bigint AS "Value"
@@ -221,12 +222,12 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 	}
 
 	private async Task<BudgetSnapshot> _SnapshotFreshAsync() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		return UploadBudgetAccountingInvariantSpec._Snapshot(dbContext);
 	}
 
 	private async Task _RunReclaimerAsync() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var handler = new UploadOrphanReclaimerHandler(
 			dbContext,
@@ -307,7 +308,7 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 	}
 
 	private async Task _AgeIntoGraceWindowAsync(string path) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync($"""
 			UPDATE upload_assets
 			SET updated_at = NOW() - interval '8 days',
@@ -316,18 +317,4 @@ public sealed class UploadBudgetAccountingInvariantSpec : IClassFixture<ApiFixtu
 			""");
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was null."
-			);
-		}
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString).Options
-		);
-	}
 }

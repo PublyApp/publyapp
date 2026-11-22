@@ -1,4 +1,6 @@
 import { configure } from '@testing-library/react';
+import { createElement } from 'react';
+import { vi } from 'vitest';
 
 /**
  * `waitFor`/`findBy*` default to a 1000ms timeout. Under vitest's file-level
@@ -90,3 +92,31 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
 		};
 	}) as typeof window.matchMedia;
 }
+
+/**
+ * Default module mocks, applied to every test file. A file whose mock differs
+ * (a spy, a label map, a stubbed `useNavigate`, ...) keeps its own `vi.mock`,
+ * which overrides these; a file that needs the real module calls
+ * `vi.unmock('<module>')`.
+ */
+vi.mock('react-i18next', async (importOriginal) => ({
+	...(await importOriginal<typeof import('react-i18next')>()),
+	useTranslation: () => ({
+		t: (key: string) => key,
+		i18n: {
+			language: 'en',
+			resolvedLanguage: 'en',
+			getFixedT: () => (key: string) => key,
+			t: (key: string) => key,
+		},
+	}),
+}));
+
+vi.mock('~/components/error-views/LogoutRedirect', () => ({
+	LogoutRedirect: () =>
+		createElement('div', { 'data-testid': 'logout-redirect' }),
+}));
+
+vi.mock('~/lib/hooks/use-logout', () => ({
+	useLogout: () => ({ logout: vi.fn() }),
+}));

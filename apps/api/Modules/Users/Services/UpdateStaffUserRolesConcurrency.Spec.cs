@@ -166,7 +166,7 @@ public sealed class UpdateStaffUserRolesConcurrencySpec
 		Guid userId,
 		Func<StaffUserRoleAssignmentService, Task<UpdateStaffUserRolesServiceResult>> operationAsync
 	) {
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringAsync(this._Fixture);
 		await using var coordinator =
 			new ConcurrentDeleteAtRoleCommitCoordinator(
 				connectionString,
@@ -226,18 +226,6 @@ public sealed class UpdateStaffUserRolesConcurrencySpec
 		);
 	}
 
-	private async Task<string> _GetConnectionStringAsync() {
-		await using var db = this._Fixture.OpenDb();
-
-		var connectionString = db.Context.Database.GetConnectionString();
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return connectionString;
-	}
 
 	private async Task<StaffUserRoleState> _GetStaffUserRoleStateAsync(Guid userId) {
 		await using var db = this._Fixture.OpenDb();

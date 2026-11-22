@@ -37,7 +37,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	public async Task
 	ItShouldCreateTenantInvitationsInPartialSuccessMode() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetAcmeTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var techStartTenantId = await TenantTestHelper.GetTenantIdByNameAsync(
 			this._Http,
 			staffToken,
@@ -160,7 +160,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedForBulkTenantInvitesWithoutSession() {
-		var tenantId = await this._GetAcmeTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using HttpResponseMessage response = await this._SendBulkCreateAsync(
 			sessionToken: null,
@@ -181,7 +181,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	public async Task
 	ItShouldCreateBulkTenantInvitationForExistingNonStaffUserFromAnotherTenant() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetAcmeTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var response = await this._SendBulkCreateAsync(
 			staffToken,
@@ -222,7 +222,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	[Fact]
 	public async Task ItShouldRejectMemberInviteeWhenRoleCountExceedsConfiguredCap() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetAcmeTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleCount = AppEnvironment.Instance.MAX_ROLES_PER_USER + 1;
 		var roleIds = await this._CreateTenantRolesAsync(tenantId, roleCount);
 		var email = $"tenant-bulk-user-role-cap-{Guid.NewGuid():N}@example.com";
@@ -257,7 +257,7 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 	[Fact]
 	public async Task ItShouldCreateMemberInviteeWithRolesAtConfiguredCap() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetAcmeTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleCount = AppEnvironment.Instance.MAX_ROLES_PER_USER;
 		var roleIds = await this._CreateTenantRolesAsync(tenantId, roleCount);
 		var email = $"tenant-bulk-user-at-role-cap-{Guid.NewGuid():N}@example.com";
@@ -303,14 +303,6 @@ public sealed class BulkCreateInvitationsForTenantAsStaffSpec
 		);
 	}
 
-	private async Task<Guid> _GetAcmeTenantIdAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<List<Guid>> _CreateTenantRolesAsync(Guid tenantId, int count) {
 		await using var db = this._Fixture.OpenDb();

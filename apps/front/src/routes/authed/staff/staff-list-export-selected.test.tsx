@@ -11,10 +11,6 @@ vi.mock('~/utils/download-file', () => ({
 	formatExportDateStamp: () => '2026-07-14',
 }));
 
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 import { useRowSelection } from '~/components/table/use-row-selection';
 
 import { StaffListExportSelectedAction } from './staff-list-export-selected';

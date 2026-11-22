@@ -119,7 +119,7 @@ public sealed class UnassignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var token = await this._CreateUnprivilegedStaffUserTokenAsync();
+		var token = await StaffUserTestHelper.CreateUnprivilegedStaffUserTokenAsync(this._Fixture, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -483,31 +483,6 @@ public sealed class UnassignStaffRoleUsersSpec : IClassFixture<ApiFixture> {
 		return result.Users.Select(u => u.Id.ToString()).ToList();
 	}
 
-	private async Task<string> _CreateUnprivilegedStaffUserTokenAsync() {
-		var email = $"no-perms-{Guid.NewGuid():N}@example.com";
-
-		await using var db = this._Fixture.OpenDb();
-
-		var user = new User {
-			Email = email,
-			Password = PasswordUtils.HashPassword(TestConstants.SeedPassword),
-			FirstName = "NoPerm",
-			LastName = "User",
-			IsVerified = true,
-			Status = UserStatus.Active,
-		};
-
-		_ = db.Context.User.Add(user);
-		_ = await db.Context.SaveChangesAsync();
-
-		var userId = user.GetRequiredId();
-		var staffAccount = UserAccount.CreateStaffAccount(userId);
-		staffAccount.ValidateAccountType();
-		_ = db.Context.UserAccount.Add(staffAccount);
-		_ = await db.Context.SaveChangesAsync();
-
-		return await this._AuthClient.LoginAsync(email, TestConstants.SeedPassword);
-	}
 
 	// Local test response types for the partial-success bulk contract:
 	private sealed record BulkStaffRoleUserUnassignResponse {

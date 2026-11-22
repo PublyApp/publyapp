@@ -5,9 +5,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -73,7 +71,7 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 			document.RootElement.GetProperty("scheduleEpoch").GetString()
 				.Should().Be(originalEpoch.ToString());
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 			var row = await verify.SystemJobDefinition
 				.SingleAsync(d => d.JobKey == jobKey);
 			row.CronExpression.Should().Be(newCron);
@@ -114,7 +112,7 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 				.Should().NotBeEmpty();
 
 			// Nothing written: cron AND epoch stay exactly as seeded.
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 			var row = await verify.SystemJobDefinition
 				.SingleAsync(d => d.JobKey == jobKey);
 			row.CronExpression.Should().Be("0 0 3 * * ?");
@@ -187,7 +185,7 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 
 			response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 			(await verify.SystemJobDefinition
 				.SingleAsync(d => d.JobKey == jobKey))
 				.CronExpression.Should()
@@ -243,23 +241,6 @@ public sealed class UpdateSystemJobDefinitionCronForStaffSpec
 		);
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was null."
-			);
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString).Options
-		);
-	}
 
 	private async Task<(string Token, Guid UserId)>
 		_CreateUnprivilegedStaffUserAsync() {

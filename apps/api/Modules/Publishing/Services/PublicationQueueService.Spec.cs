@@ -1,10 +1,10 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
@@ -24,24 +24,6 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 		this._Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> _NewDbAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 
 	private static PublicationQueueService _NewService(AppDbContext db) {
 		return new PublicationQueueService(db);
@@ -108,7 +90,7 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnOnlyTheCallingTenantsNonTerminalRowsForTheAccount() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantA, accountA, userA) = await PublicationQueueServiceSpec._SeedTenantAndAccountAsync(db);
 		var (tenantB, accountB, userB) = await PublicationQueueServiceSpec._SeedTenantAndAccountAsync(db);
 		var scheduledId = await PublicationQueueServiceSpec._SeedPublicationAsync(
@@ -135,7 +117,7 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldExcludeNeedsReviewRowsSoAReconnectNeverResumesOrRelabelsThem() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationQueueServiceSpec._SeedTenantAndAccountAsync(db);
 		var pausedId = await PublicationQueueServiceSpec._SeedPublicationAsync(
 			db, tenantId, accountId, userId,
@@ -159,7 +141,7 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldExcludePublishedAndFailedRows() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationQueueServiceSpec._SeedTenantAndAccountAsync(db);
 		var scheduledId = await PublicationQueueServiceSpec._SeedPublicationAsync(
 			db, tenantId, accountId, userId,
@@ -189,7 +171,7 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnAnEmptyListWhenTheAccountHasNoQueuedRows() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationQueueServiceSpec._SeedTenantAndAccountAsync(db);
 		await PublicationQueueServiceSpec._SeedPublicationAsync(
 			db, tenantId, accountId, userId,
@@ -207,7 +189,7 @@ public sealed class PublicationQueueServiceSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldHideRowsWhenQueriedFromAnotherTenant() {
-		using var db = await this._NewDbAsync();
+		using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantA, accountA, userA) = await PublicationQueueServiceSpec._SeedTenantAndAccountAsync(db);
 		var (tenantB, _, _) = await PublicationQueueServiceSpec._SeedTenantAndAccountAsync(db);
 		await PublicationQueueServiceSpec._SeedPublicationAsync(

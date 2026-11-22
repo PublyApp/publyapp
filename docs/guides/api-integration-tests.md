@@ -66,6 +66,50 @@ The first run will be slower because:
 
 Subsequent runs reuse the cached Docker image.
 
+### Reusing the template database locally
+
+`just test-api` (and every local recipe) exports `PUBLYAPP_TEST_REUSE_DB=1`.
+With it, the fixture keeps one long-lived Postgres container per clone and
+caches the migrated + seeded template database under a name derived from a
+fingerprint of `apps/api/Migrations/**`, the seeders, `Lib/Testing/**`, the
+permission definitions those seeders read (`Lib/AppPermissions.cs`,
+`Modules/**/Permissions/**`, `Modules/Roles/Entities/SystemRoleNames.cs`) and
+the package/build files that pin EF Core and Npgsql. A warm run skips
+migrations and seeding and clones the cached template directly; touching any
+of those inputs selects a new name and rebuilds the template from scratch. The
+fixture logs `[test-db] template cache HIT|MISS ...` on stderr and in
+`apps/api/.artifacts/logs/test-db.log`.
+
+CI keeps the disposable Testcontainers container: reuse is disabled whenever
+`CI` or `GITHUB_ACTIONS` is set, whatever the variable says. For a bare
+`dotnet test --filter` outside `just`, export the variable yourself:
+
+```bash
+cd apps/api && PUBLYAPP_TEST_REUSE_DB=1 dotnet test Tests/PublyApp.Api.Tests.csproj -c Test --filter "FullyQualifiedName~PasswordLoginSpec"
+```
+
+Remove the reusable containers (and their anonymous volumes) with:
+
+```bash
+just test-db-down
+```
+
+### Test database timing and tuning
+
+At test-process exit the fixtures print one line with the measured costs:
+
+```
+[test-db] timings classes=42 clone=3400ms/44 (77ms each) host=41000ms/42 (976ms each) drop=2600ms/42 (62ms each) total=47000ms
+```
+
+The throwaway Testcontainers container (CI, or a bare `dotnet test`) runs from
+tmpfs with `fsync`, `synchronous_commit` and `full_page_writes` off, autovacuum
+off and `initdb --nosync`; the long-lived reused container keeps its volume so
+the cached template survives between runs. Because the throwaway container is
+destroyed with the test process, its per-class `DROP DATABASE` is skipped; the
+reused local container still drops each clone, so clones never accumulate
+across runs.
+
 ### Expected Output
 
 ```

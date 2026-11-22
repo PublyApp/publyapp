@@ -1,11 +1,10 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 
 using Xunit;
@@ -28,7 +27,7 @@ public sealed class RecoverStaleJobsJobSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldFenceOutTheExpiredOwnerWhenRecoveringAStaleRow() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM job_queue;");
 
 		// A worker claims the row, then "crashes": the negative lease puts
@@ -49,7 +48,7 @@ public sealed class RecoverStaleJobsJobSpec : IClassFixture<ApiFixture> {
 		var reclaimed = await job.RecoverAsync(CancellationToken.None);
 		reclaimed.Should().BeGreaterThan(0, "the expired lease must be recovered");
 
-		await using var verifyContext = await this._CreateDbContextAsync();
+		await using var verifyContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		var recovered = await verifyContext.JobQueue.SingleAsync(j => j.Id == rowId);
 		recovered.Status.Should().Be(JobQueueStatus.Pending);
 		recovered.LockToken.Should().BeNull(
@@ -84,7 +83,7 @@ public sealed class RecoverStaleJobsJobSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldNotRecoverARowWhoseLeaseIsStillLive() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlRawAsync("DELETE FROM job_queue;");
 
 		var row = new JobQueueItem { JobType = RecoverStaleJobsJobSpec._JobType };
@@ -102,7 +101,7 @@ public sealed class RecoverStaleJobsJobSpec : IClassFixture<ApiFixture> {
 		await job.RecoverAsync(CancellationToken.None);
 
 		// A live lease is untouched: still Processing, token intact, owner can complete.
-		await using var verifyContext = await this._CreateDbContextAsync();
+		await using var verifyContext = await SpecDbHelper.CreateDbContextForQuartzAsync(this._Fixture);
 		var untouched = await verifyContext.JobQueue.SingleAsync(j => j.Id == rowId);
 		untouched.Status.Should().Be(JobQueueStatus.Processing);
 		untouched.LockToken.Should().Be(liveToken);
@@ -113,20 +112,4 @@ public sealed class RecoverStaleJobsJobSpec : IClassFixture<ApiFixture> {
 		completed.Should().BeTrue("the live owner keeps its fencing rights");
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was unexpectedly null.");
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 }

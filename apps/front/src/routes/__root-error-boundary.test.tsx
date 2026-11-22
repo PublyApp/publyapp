@@ -10,6 +10,8 @@ import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+vi.unmock('react-i18next');
+
 // shell-r5-F1: the wave-4 suite rendered `RootErrorBoundary`/`RootNotFound`
 // directly with a mocked router — it could prove translated copy, but had no
 // way to observe whether the surrounding document (`<html>`, stylesheet,

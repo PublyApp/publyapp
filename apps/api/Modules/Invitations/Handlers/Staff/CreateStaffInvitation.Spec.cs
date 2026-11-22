@@ -38,7 +38,7 @@ public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 			AppPermissions.Staff.Invitations.CREATE_FOR_STAFF.Key
 		);
 		string email = $"staff-create-permissioned-{Guid.NewGuid():N}@example.com";
-		Guid roleId = await this._GetAnyStaffRoleIdAsync();
+		Guid roleId = await StaffUserTestHelper.GetAnyStaffRoleIdAsync(this._Fixture);
 
 		HttpRequestMessage request = new HttpRequestMessage(
 			HttpMethod.Post,
@@ -97,19 +97,4 @@ public sealed class CreateStaffInvitationSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task<Guid> _GetAnyStaffRoleIdAsync() {
-		using IServiceScope scope = this._Fixture.Factory.Services.CreateScope();
-		AppDbContext dbContext = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>();
-
-		Role role = await dbContext.Role
-			.Where(role =>
-				role.Scope == RoleScope.Staff
-				&& !role.IsDeleted
-			)
-			.OrderBy(role => role.Name)
-			.FirstAsync();
-
-		return role.GetRequiredId();
-	}
 }

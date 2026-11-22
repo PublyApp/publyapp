@@ -49,10 +49,6 @@ vi.mock('~/lib/api-client/client-manager', async () => {
 	};
 });
 
-vi.mock('~/lib/hooks/use-logout', () => ({
-	useLogout: () => ({ logout: vi.fn() }),
-}));
-
 vi.mock('~/components/error-views/LogoutRedirect', () => ({
 	LogoutRedirect: () => <div data-testid="logout-redirect">logout</div>,
 }));

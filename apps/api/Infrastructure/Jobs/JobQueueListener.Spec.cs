@@ -8,6 +8,7 @@ using Npgsql;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 
 using Xunit;
@@ -168,29 +169,17 @@ public sealed class JobQueueListenerSpec : IClassFixture<ApiFixture> {
 	}
 
 	private string _ConnectionStringWithAppName(string appName) {
-		var builder = new NpgsqlConnectionStringBuilder(this._BaseConnectionString()) {
+		var builder = new NpgsqlConnectionStringBuilder(SpecDbHelper.GetBaseConnectionString(this._Fixture)) {
 			ApplicationName = appName
 		};
 		return builder.ConnectionString;
 	}
 
-	private string _BaseConnectionString() {
-		using var scope = this._Fixture.Factory.Services.CreateScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		return connectionString;
-	}
 
 	private AppDbContext _CreateDbContext() {
 		return new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(this._BaseConnectionString())
+				.UseNpgsql(SpecDbHelper.GetBaseConnectionString(this._Fixture))
 				.Options
 		);
 	}

@@ -2,6 +2,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 
+using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.Utils;
 
 using AppRoutes = PublyApp.Api.Lib.Routes.Routes;
@@ -113,6 +114,40 @@ internal static class TenantTestHelper {
 		}
 
 		return tenant.Id;
+	}
+
+	/// <summary>
+	/// Logs in as the seeded staff admin and resolves the Acme tenant id.
+	/// </summary>
+	public static async Task<Guid> GetAcmeIdAsync(
+		HttpClient http,
+		TestAuthClient authClient,
+		CancellationToken ct = default
+	) {
+		var staffToken = await authClient.LoginAsStaffAdminAsync(ct);
+		return await TenantTestHelper.GetTenantIdByNameAsync(
+			http,
+			staffToken,
+			SeedConstants.Tenants.AcmeName,
+			ct
+		);
+	}
+
+	/// <summary>
+	/// Logs in as the seeded staff admin and resolves the TechStart tenant id.
+	/// </summary>
+	public static async Task<Guid> GetTechStartIdAsync(
+		HttpClient http,
+		TestAuthClient authClient,
+		CancellationToken ct = default
+	) {
+		var staffToken = await authClient.LoginAsStaffAdminAsync(ct);
+		return await TenantTestHelper.GetTenantIdByNameAsync(
+			http,
+			staffToken,
+			SeedConstants.Tenants.TechStartName,
+			ct
+		);
 	}
 
 	/// <summary>

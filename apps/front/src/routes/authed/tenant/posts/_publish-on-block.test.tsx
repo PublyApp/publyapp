@@ -66,10 +66,6 @@ vi.mock('@tanstack/react-router', () => ({
 	useRouter: () => ({ invalidate: vi.fn() }),
 }));
 
-vi.mock('~/components/error-views/LogoutRedirect', () => ({
-	LogoutRedirect: () => <div data-testid="logout-redirect" />,
-}));
-
 const EN_LABELS: TestLabelMap = {
 	'posts:publish-on-heading': 'Publish on',
 	'posts:destination-customize': 'Customize',

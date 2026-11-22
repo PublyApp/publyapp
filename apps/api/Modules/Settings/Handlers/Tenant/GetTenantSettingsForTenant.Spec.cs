@@ -7,13 +7,11 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Lib.Utils;
-using PublyApp.Api.Modules.Roles.Entities;
 using PublyApp.Api.Modules.Tenants.Services;
 using PublyApp.Api.Modules.Users.Entities;
 
@@ -84,7 +82,7 @@ public sealed class GetTenantSettingsForTenantSpec
 	[Fact]
 	public async Task
 	ItShouldReturnForbiddenForANonAdminTenantUserWithoutSettingsView() {
-		var acmeId = await this._GetAcmeIdAsync();
+		var acmeId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		// Round 2: the seeded Acme member holds publishing permissions via the demo
 		// role, but nothing grants settings.* here, so the check must still deny.
 		var acmeUserToken = await this._AuthClient.LoginAsync(
@@ -107,14 +105,12 @@ public sealed class GetTenantSettingsForTenantSpec
 	[Fact]
 	public async Task
 	ItShouldAllowANonAdminTenantUserWithSettingsView() {
-		var acmeId = await this._GetAcmeIdAsync();
+		var acmeId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var createdRoleIds = new List<Guid>();
 
 		try {
-			var roleId = await this._CreateTenantRoleWithPermissionsAsync(
-				acmeId,
-				[AppPermissions.Tenant.Settings.VIEW.Key]
-			);
+			var roleId = await RoleTestHelper.CreateTenantRoleWithPermissionsAsync(this._Fixture, acmeId,
+				[AppPermissions.Tenant.Settings.VIEW.Key]);
 			createdRoleIds.Add(roleId);
 
 			await this._AssignRoleToTenantUserAsync(
@@ -139,7 +135,7 @@ public sealed class GetTenantSettingsForTenantSpec
 
 			response.StatusCode.Should().Be(HttpStatusCode.OK);
 		} finally {
-			await this._CleanupTenantRoleArtifactsAsync(createdRoleIds);
+			await RoleTestHelper.CleanupTenantRoleArtifactsAsync(this._Fixture, createdRoleIds);
 		}
 	}
 
@@ -166,21 +162,12 @@ public sealed class GetTenantSettingsForTenantSpec
 
 	private async Task<(Guid TenantId, string Token)>
 	_LoginAsAcmeAdminAsync() {
-		var tenantId = await this._GetAcmeIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		return (tenantId, token);
 	}
 
-	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken =
-			await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			staffToken,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<TenantRow> _GetTenantRowAsync(Guid tenantId) {
 		await using var db = this._Fixture.OpenDb();
@@ -203,37 +190,6 @@ public sealed class GetTenantSettingsForTenantSpec
 			.SingleAsync();
 	}
 
-	private async Task<Guid> _CreateTenantRoleWithPermissionsAsync(
-		Guid tenantId,
-		IEnumerable<string> permissionKeys
-	) {
-		await using var db = this._Fixture.OpenDb();
-
-		var role = Role.CreateTenantRole(
-			tenantId,
-			"Tenant Settings General Spec " + Guid.NewGuid().ToString("N")[..8],
-			"Created for tenant settings general permission assertions"
-		);
-		role.ValidateRoleType();
-
-		_ = await db.Context.Role.AddAsync(role);
-		await db.Context.SaveChangesAsync();
-
-		var roleId = role.GetRequiredId();
-
-		foreach (var permissionKey in permissionKeys) {
-			_ = await db.Context.RolePermission.AddAsync(
-				new RolePermission {
-					RoleId = roleId,
-					PermissionKey = permissionKey
-				}
-			);
-		}
-
-		await db.Context.SaveChangesAsync();
-
-		return roleId;
-	}
 
 	private async Task _AssignRoleToTenantUserAsync(
 		string email,
@@ -282,49 +238,6 @@ public sealed class GetTenantSettingsForTenantSpec
 		await db.Context.SaveChangesAsync();
 	}
 
-	private async Task _CleanupTenantRoleArtifactsAsync(
-		IReadOnlyCollection<Guid> roleIds
-	) {
-		if (roleIds.Count == 0) {
-			return;
-		}
-
-		await using var db = this._Fixture.OpenDb();
-
-		var roleIdList = roleIds.ToList();
-
-		var linksToRemove = await (
-			from uap in db.Context.UserAccountRole
-			where roleIdList.Contains(uap.RoleId)
-			select uap
-		).ToListAsync();
-
-		if (linksToRemove.Count > 0) {
-			db.Context.ForceHardDeleteRange(linksToRemove);
-		}
-
-		var permissionsToRemove = await (
-			from pp in db.Context.RolePermission
-			where roleIdList.Contains(pp.RoleId)
-			select pp
-		).ToListAsync();
-
-		if (permissionsToRemove.Count > 0) {
-			db.Context.ForceHardDeleteRange(permissionsToRemove);
-		}
-
-		var rolesToRemove = (await (
-			from p in db.Context.Role
-			select p
-		).ToListAsync())
-			.Where(role => roleIdList.Contains(role.GetRequiredId()))
-			.ToList();
-
-		if (rolesToRemove.Count > 0) {
-			db.Context.ForceHardDeleteRange(rolesToRemove);
-			await db.Context.SaveChangesAsync();
-		}
-	}
 
 	private sealed record TenantUserAccountLookup(
 		Guid? Id,

@@ -14,12 +14,15 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// </para>
 /// </summary>
 public sealed class WitnessTestDatabase : IAsyncDisposable {
-	private const string _DbName = "witness_boot_canary_test";
-
+	private readonly string _DbName;
 	private readonly string _AdminConnectionString;
 
-	private WitnessTestDatabase(string adminConnectionString) {
+	private WitnessTestDatabase(
+		string adminConnectionString,
+		string dbName
+	) {
 		this._AdminConnectionString = adminConnectionString;
+		this._DbName = dbName;
 	}
 
 	public string ConnectionString { get; private set; } = "";
@@ -31,19 +34,27 @@ public sealed class WitnessTestDatabase : IAsyncDisposable {
 			container.TemplateDbName
 		);
 
-		// A previous failed run can leave the clone behind; start from a clean slate so
-		// each test exercises a FIRST boot (the witness mints the canary row itself).
-		await manager.DropDatabaseAsync(WitnessTestDatabase._DbName);
+		// Unique per instance: a reused Postgres container is shared by every
+		// test process, and a fixed name would let concurrent witness specs
+		// drop each other's database. A previous failed run can leave a clone
+		// behind; drop it so each test exercises a FIRST boot (the witness
+		// mints the canary row itself).
+		var dbName = $"witness_boot_canary_test_{Guid.NewGuid():N}";
+		await manager.DropDatabaseAsync(dbName);
 
-		return new WitnessTestDatabase(container.AdminConnectionString) {
-			ConnectionString = await manager.CreateDatabaseFromTemplateAsync(WitnessTestDatabase._DbName),
+		return new WitnessTestDatabase(
+			container.AdminConnectionString,
+			dbName
+		) {
+			ConnectionString =
+				await manager.CreateDatabaseFromTemplateAsync(dbName),
 		};
 	}
 
 	public async ValueTask DisposeAsync() {
 		try {
 			var manager = new DatabaseTemplateManager(this._AdminConnectionString, "postgres");
-			await manager.DropDatabaseAsync(WitnessTestDatabase._DbName);
+			await manager.DropDatabaseAsync(this._DbName);
 		} catch (PostgresException) {
 			// Best-effort cleanup; the shared container outlives the run either way.
 		}

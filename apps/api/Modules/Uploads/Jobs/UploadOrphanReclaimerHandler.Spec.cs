@@ -8,6 +8,7 @@ using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Infrastructure.Storage;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.AuditLogs.Entities;
 using PublyApp.Api.Modules.AuditLogs.Services;
 using PublyApp.Api.Modules.Uploads.Entities;
@@ -46,7 +47,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		var outcome = await this._RunHandlerAsync();
 
 		outcome.Should().BeOfType<JobOutcome.Success>();
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == path);
 		asset.State.Should().Be(UploadAssetState.Deleted,
@@ -70,7 +71,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 		await this._RunHandlerAsync();
 
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var audits = await verify.AuditLog.AsNoTracking()
 			.Where(a => a.Action == AuditActions.UploadAssetDeleted
 				&& a.Details != null && a.Details.Contains(path))
@@ -92,7 +93,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 		await this._RunHandlerAsync();
 
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == path);
 		asset.State.Should().Be(UploadAssetState.Orphaned,
@@ -116,7 +117,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 		await this._RunHandlerAsync();
 
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == path);
 		asset.State.Should().Be(UploadAssetState.Referenced,
@@ -140,7 +141,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 		await this._RunHandlerAsync();
 
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		(await verify.UploadAsset.AsNoTracking().AnyAsync(a => a.RelativePath == path))
 			.Should().BeFalse(
 				"a stale reservation vanishes entirely, exactly like a rolled-back one");
@@ -163,7 +164,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 		await this._RunHandlerAsync();
 
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == path);
 		asset.State.Should().Be(UploadAssetState.Reserved,
@@ -187,7 +188,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		var globalAfterSecondRun = await this._ReadGlobalBudgetAsync();
 		globalAfterSecondRun.Should().Be(globalBefore - 1024,
 			"the second pass must find nothing eligible and debit nothing further");
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		(await verify.AuditLog.AsNoTracking().CountAsync(a =>
 				a.Action == AuditActions.UploadAssetDeleted && a.Details != null
 				&& a.Details.Contains(path)))
@@ -211,7 +212,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 		outcome.Should().BeOfType<JobOutcome.Success>(
 			"one stuck blob is a postponed row, not a failed sweep");
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == path);
 		asset.State.Should().Be(UploadAssetState.Orphaned,
@@ -239,7 +240,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 		await this._RunHandlerAsync();
 
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == relativePath);
 		asset.State.Should().Be(UploadAssetState.Deleted,
@@ -261,7 +262,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 		await this._RunHandlerAsync();
 
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var asset = await verify.UploadAsset.AsNoTracking()
 			.SingleAsync(a => a.RelativePath == relativePath);
 		asset.State.Should().Be(UploadAssetState.Stored,
@@ -283,7 +284,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 		var relativePath = await this._WriteCommittedUploadAsync(userId, claimedBytes);
 
 		// Drop THIS creator's ceiling below its (solely-owned) committed bytes.
-		await using (var lower = await this._CreateDbContextAsync()) {
+		await using (var lower = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture)) {
 			await lower.Database.ExecuteSqlAsync($"""
 				UPDATE upload_budgets
 				SET max_bytes = {claimedBytes - 100}
@@ -354,23 +355,9 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 	// Fresh context per assertion batch: raw SQL reads/writes must never ride a
 	// shared change tracker, and hard DELETEs bypass the soft-delete interceptor.
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was null."
-			);
-		}
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString).Options
-		);
-	}
 
 	private async Task<JobOutcome> _RunHandlerAsync(IFileStorage? storage = null) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		using var scope = this._Fixture.Factory.Services.CreateScope();
 		var handler = new UploadOrphanReclaimerHandler(
 			dbContext,
@@ -464,7 +451,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	// delete_not_before (the release stamped them together, days ago), so the
 	// candidate scan accepts it the way production rows arrive.
 	private async Task _MakeOrphanEligibleAsync(string path) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync($"""
 			UPDATE upload_assets
 			SET updated_at = NOW() - interval '8 days',
@@ -476,7 +463,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	// An Orphaned row whose grace window has NOT passed yet: delete_not_before sits
 	// in the future while updated_at is old enough to pass the scan's age filter.
 	private async Task _SetInsideGraceWindowAsync(string path) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync($"""
 			UPDATE upload_assets
 			SET delete_not_before = NOW() + interval '1 hour',
@@ -489,7 +476,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	// NOT Orphaned-with-zero-references so the state/recount predicates (not the
 	// clock) are what protect it.
 	private async Task _ForceStaleTimestampsAsync(string path) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync($"""
 			UPDATE upload_assets
 			SET updated_at = NOW() - interval '8 days',
@@ -499,7 +486,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	private async Task _BackdateUpdatedAtAsync(string path, int minutes) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync($"""
 			UPDATE upload_assets
 			SET updated_at = NOW() - make_interval(mins => {minutes})
@@ -527,7 +514,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	// Budget numbers move with every concurrent test-host activity, so assertions
 	// consume DELTAS around HandleAsync rather than absolute values.
 	private async Task<long> _ReadGlobalBudgetAsync() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var value = await dbContext.Database
 			.SqlQuery<long?>($"""
 				SELECT committed_bytes AS "Value"
@@ -540,7 +527,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	private async Task<long> _ReadCreatorBudgetAsync(Guid userId) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var value = await dbContext.Database
 			.SqlQuery<long?>($"""
 				SELECT committed_bytes AS "Value"
@@ -555,7 +542,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 
 	// Reserved rows hold their bytes in reserved_bytes, not committed_bytes.
 	private async Task<long> _ReadGlobalReservedAsync() {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var value = await dbContext.Database
 			.SqlQuery<long?>($"""
 				SELECT reserved_bytes AS "Value"
@@ -568,7 +555,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	}
 
 	private async Task<long> _ReadCreatorReservedAsync(Guid userId) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var value = await dbContext.Database
 			.SqlQuery<long?>($"""
 				SELECT reserved_bytes AS "Value"
@@ -585,7 +572,7 @@ public sealed class UploadOrphanReclaimerHandlerSpec : IClassFixture<ApiFixture>
 	// plus the audit entries the reclaimer wrote about them. Raw SQL because a
 	// Deleted asset row must leave without tripping the soft-delete interceptor.
 	private async Task _CleanupAsync(string path) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForUploadsAsync(this._Fixture);
 		var auditAction = AuditActions.UploadAssetDeleted;
 		var auditPattern = $"%{path}%";
 		await dbContext.Database.ExecuteSqlAsync($"""

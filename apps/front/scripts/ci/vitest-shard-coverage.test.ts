@@ -1,14 +1,12 @@
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { BaseSequencer, type TestSpecification } from 'vitest/node';
 import { parse } from 'yaml';
-
-const execFileAsync = promisify(execFile);
 
 /**
  * #1948 equality guard: every vitest test file must run exactly once across
@@ -16,22 +14,35 @@ const execFileAsync = promisify(execFile);
  *
  * The front gate shards the vitest suite with `vitest run --shard=i/n`, so
  * a shard configuration that loses a file is a PERMANENT false negative: the
- * workflow gets faster and nobody notices the file stopped running. This
- * guard reads the REAL discovery of every shard (`vitest list --shard=i/n`
- * resolves the same file partition `vitest run --shard=i/n` executes) and of
- * the unsharded suite (`vitest list`, the one-machine baseline), then pins:
+ * workflow gets faster and nobody notices the file stopped running.
  *
- *   - each shard's discovery set is the real partition, not a model of it;
+ * This guard used to shell out to `vitest list` five times (the unsharded
+ * suite plus every shard) and cost 219-427 s per run. It now proves the SAME
+ * property statically, in well under a second:
+ *
+ *   - discovery is computed from the REAL vitest config globs
+ *     (`vitest.config.ts` include/exclude) with the same library and options
+ *     Vitest's own `globFiles` uses (tinyglobby, `dot: true`, `ignore`,
+ *     `expandDirectories: false`), resolved from the installed vitest package,
+ *     so dotfiles, node_modules and `!` negations behave as they do in the
+ *     real run instead of being restated here;
+ *   - the shard count comes from the REAL workflow matrix, and the shard
+ *     step's argument list is pinned to exactly `--shard=${{ matrix.shard }}/n`;
+ *   - the partition is computed by Vitest's own `BaseSequencer.shard`,
+ *     imported from `vitest/node` and given the real root and shard, so a
+ *     vitest bump cannot leave a private copy of the rule drifting;
  *   - no file appears in more than one shard;
- *   - the union of the shards is EXACTLY the unsharded suite (a file lost by
+ *   - the union of the shards is EXACTLY the configured suite (a file lost by
  *     the shard matrix, or invented by it, is a loud failure);
- *   - the shard file counts sum to the unsharded count (the PR-body number).
+ *   - the shard file counts sum to the suite count (the PR-body number).
  *
- * The shard count itself is read from the REAL workflow file
- * (.github/workflows/ci.yml): the matrix is the artifact being pinned,
- * so the guard follows it instead of restating it. An unparseable workflow,
- * a missing vitest install, a non-zero `vitest list` exit, or an output line
- * that cannot be attributed to a file all fail loudly — absent or
+ * The coverage guarantee is unchanged: the 4 shards together still run every
+ * test file exactly once, and the same three failure messages remain. What is
+ * gone is only the redundant execution of Vitest's collection five times.
+ *
+ * An unparseable workflow or vitest config, an empty discovery, or a config
+ * shape this guard cannot model (projects, test.dir, includeSource, a custom
+ * sequence.sequencer, a non-front root) all fail loudly — absent or
  * unanalyzable input is never a silent pass.
  */
 
@@ -44,14 +55,7 @@ const centralCiPath = path.join(
 	'workflows',
 	'ci.yml',
 );
-
-const vitestBin = path.join(frontDirectory, 'node_modules', '.bin', 'vitest');
-
-const listTimeoutMs = 10 * 60 * 1000;
-
-// No pool flag is passed to vitest list: vitest 4 removed --poolTimeout, and
-// a collection worker that hangs or dies surfaces as a non-zero exit, which
-// execFile rejects and this guard turns into a loud failure — never a pass.
+const vitestConfigPath = path.join(frontDirectory, 'vitest.config.ts');
 
 interface FrontCiWorkflow {
 	jobs?: {
@@ -59,6 +63,18 @@ interface FrontCiWorkflow {
 			strategy?: { matrix?: { shard?: unknown } };
 			steps?: Array<{ run?: unknown }>;
 		};
+	};
+}
+
+interface VitestConfig {
+	root?: unknown;
+	test?: {
+		include?: unknown;
+		exclude?: unknown;
+		projects?: unknown;
+		dir?: unknown;
+		includeSource?: unknown;
+		sequence?: { sequencer?: unknown };
 	};
 }
 
@@ -122,84 +138,176 @@ const assertVitestRunArgs = (shardCount: number): void => {
 	}
 };
 
-/** Parses `vitest list` output into the set of file paths it discovered. */
-const parseListOutput = (stdout: string): string[] => {
-	const files = new Set<string>();
-	const lines = stdout.split('\n').filter((line) => line.trim().length > 0);
+const requireStringArray = (value: unknown, label: string): string[] => {
+	if (
+		!Array.isArray(value) ||
+		!value.every((entry): entry is string => typeof entry === 'string')
+	) {
+		throw new Error(
+			`Cannot read ${label} from apps/front/vitest.config.ts: expected an array of strings (unanalyzable input must fail loud, never pass).`,
+		);
+	}
 
-	for (const line of lines) {
-		const separator = line.indexOf(' > ');
+	return value;
+};
 
-		if (separator === -1) {
+/**
+ * Imports the REAL vitest config so the include/exclude globs are not
+ * restated here, then rejects config shapes whose discovery this guard does
+ * not model instead of silently checking a smaller suite.
+ */
+const readDiscoveryGlobs = async (): Promise<{
+	include: string[];
+	exclude: string[];
+}> => {
+	const imported = (await import(pathToFileURL(vitestConfigPath).href)) as {
+		default?: VitestConfig;
+	};
+	const config = imported.default;
+
+	if (config === undefined || config.test === undefined) {
+		throw new Error(
+			'Cannot read the `test` block from apps/front/vitest.config.ts (unanalyzable input must fail loud, never pass).',
+		);
+	}
+
+	if (config.test.projects !== undefined || config.test.dir !== undefined) {
+		throw new Error(
+			'vitest.config.ts declares test.projects or test.dir: this guard models a single-project, front-rooted suite. Extend the guard before changing the discovery shape (unanalyzable input must fail loud, never pass).',
+		);
+	}
+
+	if (config.test.includeSource !== undefined) {
+		throw new Error(
+			'vitest.config.ts declares test.includeSource: those files run in the shards but are not part of test.include, so this guard cannot prove they survive the partition. Extend the guard before enabling in-source tests (unanalyzable input must fail loud, never pass).',
+		);
+	}
+
+	if (config.test.sequence?.sequencer !== undefined) {
+		throw new Error(
+			'vitest.config.ts declares test.sequence.sequencer: a custom sequencer can shard differently from BaseSequencer, which this guard calls. Extend the guard before changing the sequencer (unanalyzable input must fail loud, never pass).',
+		);
+	}
+
+	if (config.root !== undefined) {
+		if (
+			typeof config.root !== 'string' ||
+			path.resolve(frontDirectory, config.root) !== frontDirectory
+		) {
 			throw new Error(
-				`Cannot attribute a "vitest list" line to a file (expected "path > suite > test", no " > " found): ${JSON.stringify(line.slice(0, 200))}`,
+				`vitest.config.ts declares root=${JSON.stringify(config.root)}: this guard globs from apps/front. Extend the guard before moving the vitest root (unanalyzable input must fail loud, never pass).`,
 			);
 		}
-
-		files.add(line.slice(0, separator));
 	}
 
-	if (files.size === 0) {
+	const include = requireStringArray(config.test.include, 'test.include');
+
+	if (include.length === 0) {
 		throw new Error(
-			`vitest list discovered no test files — empty discovery is unanalyzable and must fail loud, never pass.`,
+			'vitest.config.ts declares an empty test.include: no test file can be discovered (unanalyzable input must fail loud, never pass).',
 		);
 	}
 
-	return [...files];
+	return {
+		include,
+		exclude: requireStringArray(config.test.exclude, 'test.exclude'),
+	};
 };
 
-/** Runs `vitest list` for one shard (or the whole suite) and parses file paths. */
-const listFiles = async (args: string[]): Promise<string[]> => {
-	if (!existsSync(vitestBin)) {
-		throw new Error(
-			`vitest binary not found at ${vitestBin}. Run "pnpm install" first (a missing install must fail loud, never pass).`,
-		);
-	}
+interface TinyGlobbyOptions {
+	dot: boolean;
+	cwd: string;
+	ignore: string[];
+	expandDirectories: boolean;
+}
 
-	const childEnv = { ...process.env };
-	// Node's test runner exports its binary reporter protocol markers to this
-	// guard process. Do not leak them into Vitest: its child workers otherwise
-	// emit `test:enqueue` frames into stdout and corrupt discovery parsing.
-	delete childEnv.NODE_TEST_CONTEXT;
-	delete childEnv.NODE_TEST_WORKER_ID;
-	const { stdout, stderr } = await execFileAsync(
-		vitestBin,
-		[...args, '--reporter=verbose'],
-		{
-			cwd: frontDirectory,
-			env: {
-				...childEnv,
-				CI: '1',
-				// force-disable colour: the list output is parsed by string, so
-				// ANSI codes would corrupt the file names. FORCE_COLOR=0 wins
-				// over an inherited FORCE_COLOR=3; NO_COLOR is ignored when
-				// FORCE_COLOR is set.
-				FORCE_COLOR: '0',
-				NO_COLOR: '1',
-			},
-			maxBuffer: 64 * 1024 * 1024,
-			timeout: listTimeoutMs,
-		},
+interface TinyGlobby {
+	glob: (patterns: string[], options: TinyGlobbyOptions) => Promise<string[]>;
+}
+
+/**
+ * Resolves tinyglobby through Vitest's own dependency tree, then imports it
+ * with the exact options Vitest's `globFiles` passes. No private glob copy:
+ * a Vitest bump that moves or replaces the library makes this import fail
+ * loudly instead of leaving the guard on stale semantics.
+ */
+const importVitestGlob = async (): Promise<TinyGlobby['glob']> => {
+	const require = createRequire(import.meta.url);
+	const vitestRequire = createRequire(require.resolve('vitest/package.json'));
+	const tinyGlobby: TinyGlobby = await import(
+		pathToFileURL(vitestRequire.resolve('tinyglobby')).href
 	);
 
-	// Fail on a non-zero exit with the captured stderr for diagnosis — never
-	// on stderr alone: vitest writes harmless warnings there under load (a
-	// pool-termination warning, a NO_COLOR note), while the exit code and the
-	// parsed output decide whether the discovery is real.
-	void stderr;
-
-	return parseListOutput(stdout);
+	return tinyGlobby.glob;
 };
 
-void test('#1948: the sharded vitest discovery is exactly the unsharded suite, once per file', async () => {
+/** Computes vitest's discovery from the config globs, with no collection. */
+const discoverTestFiles = async (globs: {
+	include: string[];
+	exclude: string[];
+}): Promise<string[]> => {
+	const glob = await importVitestGlob();
+	const files = (
+		await glob(globs.include, {
+			dot: true,
+			cwd: frontDirectory,
+			ignore: globs.exclude,
+			expandDirectories: false,
+		})
+	).map((file) => file.replaceAll('\\', '/').replace(/^\.\//, ''));
+
+	if (files.length === 0) {
+		throw new Error(
+			'the configured vitest globs discovered no test files — empty discovery is unanalyzable and must fail loud, never pass.',
+		);
+	}
+
+	return [...new Set(files)].sort();
+};
+
+/**
+ * Partitions the suite with Vitest's own `BaseSequencer.shard` — the exact
+ * method the real `--shard=i/n` run uses, including its sha1 ordering and
+ * contiguous range slicing. Importing it (instead of copying the rule) means
+ * a vitest bump cannot leave this guard silently modelling an old version.
+ */
+const partitionShards = async (
+	files: readonly string[],
+	shardCount: number,
+): Promise<string[][]> => {
+	const specs: TestSpecification[] = files.map((file) =>
+		Object.assign(Object.create(null), {
+			moduleId: path.join(frontDirectory, file),
+		}),
+	);
+
+	return Promise.all(
+		Array.from({ length: shardCount }, async (_, zeroBasedIndex) => {
+			const context: ConstructorParameters<typeof BaseSequencer>[0] =
+				Object.assign(Object.create(null), {
+					config: {
+						root: frontDirectory,
+						shard: {
+							index: zeroBasedIndex + 1,
+							count: shardCount,
+						},
+					},
+				});
+			const sequencer = new BaseSequencer(context);
+			const shard = await sequencer.shard(specs);
+
+			return shard.map((spec) =>
+				path.relative(frontDirectory, spec.moduleId).split(path.sep).join('/'),
+			);
+		}),
+	);
+};
+
+void test('#1948: the sharded vitest discovery is exactly the configured suite, once per file', async () => {
 	const shardCount = readShardCount();
 	assertVitestRunArgs(shardCount);
-	const full = await listFiles(['list']);
-	const shards: string[][] = [];
-
-	for (let index = 1; index <= shardCount; index += 1) {
-		shards.push(await listFiles(['list', `--shard=${index}/${shardCount}`]));
-	}
+	const full = await discoverTestFiles(await readDiscoveryGlobs());
+	const shards = await partitionShards(full, shardCount);
 
 	const fullSet = new Set(full);
 	const seen = new Set<string>();
@@ -233,16 +341,16 @@ void test('#1948: the sharded vitest discovery is exactly the unsharded suite, o
 	assert.deepEqual(
 		missing,
 		[],
-		`${missing.length} file(s) run in the unsharded suite but in NO shard — the shard matrix silently lost them: ${missing.join(', ')}`,
+		`${missing.length} file(s) run in the configured vitest suite but in NO shard — the shard matrix silently lost them: ${missing.join(', ')}`,
 	);
 	assert.deepEqual(
 		extra,
 		[],
-		`${extra.length} file(s) run in some shard but not in the unsharded suite: ${extra.join(', ')}`,
+		`${extra.length} file(s) run in some shard but not in the configured vitest suite: ${extra.join(', ')}`,
 	);
 	assert.equal(
 		totalShardFiles,
 		full.length,
-		`per-shard file counts sum to ${totalShardFiles}, but the unsharded suite has ${full.length} — the counts must be equal (both go in the PR body).`,
+		`per-shard file counts sum to ${totalShardFiles}, but the configured suite has ${full.length} — the counts must be equal (both go in the PR body).`,
 	);
 });

@@ -70,11 +70,6 @@ vi.mock('~/components/error-views/AppErrorView', () => ({
 		createElement('div', { 'data-testid': testId ?? 'app-error-view' }, title),
 }));
 
-vi.mock('~/components/error-views/LogoutRedirect', () => ({
-	LogoutRedirect: () =>
-		createElement('div', { 'data-testid': 'logout-redirect' }),
-}));
-
 vi.mock('~/components/error-views/View403', () => ({
 	View403: () => createElement('div', { 'data-testid': 'forbidden-view' }),
 }));

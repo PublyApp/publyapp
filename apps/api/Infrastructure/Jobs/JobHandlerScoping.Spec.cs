@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Jobs.Entities;
 
 using Xunit;
@@ -177,7 +178,7 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 		Action<IServiceCollection> registerHandler,
 		JobHandlerRegistration registration
 	) {
-		var connectionString = await this._GetConnectionStringAsync();
+		var connectionString = await SpecDbHelper.GetConnectionStringFromScopeAsync(this._Fixture);
 
 		var services = new ServiceCollection();
 		services.AddLogging(logging => logging.ClearProviders());
@@ -236,25 +237,11 @@ public sealed class JobHandlerScopingSpec : IClassFixture<ApiFixture> {
 		);
 	}
 
-	private async Task<string> _GetConnectionStringAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return connectionString;
-	}
 
 	private async Task<AppDbContext> _CreateDbContextAsync() {
 		return new AppDbContext(
 			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(await this._GetConnectionStringAsync())
+				.UseNpgsql(await SpecDbHelper.GetConnectionStringFromScopeAsync(this._Fixture))
 				.Options
 		);
 	}

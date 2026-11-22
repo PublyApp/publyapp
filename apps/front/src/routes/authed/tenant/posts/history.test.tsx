@@ -102,10 +102,6 @@ vi.mock('@org/shared-ts/lib/should-logout-for-failure', () => ({
 	shouldLogoutForFailure: () => mocks.shouldLogout,
 }));
 
-vi.mock('~/components/error-views/LogoutRedirect', () => ({
-	LogoutRedirect: () => <div data-testid="logout-redirect" />,
-}));
-
 const EN_LABELS: TestLabelMap = {
 	history: 'History',
 	'posts:history': 'History',

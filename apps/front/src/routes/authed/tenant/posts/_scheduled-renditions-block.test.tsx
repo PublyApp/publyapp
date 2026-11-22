@@ -70,10 +70,6 @@ vi.mock('~/lib/query/tenant-permissions', () => ({
 	}),
 }));
 
-vi.mock('~/components/error-views/LogoutRedirect', () => ({
-	LogoutRedirect: () => <div data-testid="logout-redirect" />,
-}));
-
 vi.mock('~/lib/query/tenant-publication-renditions', async (importActual) => ({
 	...(await importActual<
 		typeof import('~/lib/query/tenant-publication-renditions')

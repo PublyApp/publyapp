@@ -418,12 +418,6 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 		return (tenantId, token);
 	}
 
-	private async Task<Guid> _GetAcmeIdAsync() {
-		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http, staffToken, SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	// Creates a non-admin tenant member of Acme holding EXACTLY the given
 	// permission keys through a fresh role, and returns the email to log
@@ -431,7 +425,7 @@ public sealed class PublishNowForTenantSpec : IClassFixture<ApiFixture> {
 	private async Task<(Guid TenantId, string Email)> _CreatePermittedUserAsync(
 		params string[] permissionKeys
 	) {
-		var acmeId = await this._GetAcmeIdAsync();
+		var acmeId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var email = $"pub-now-{Guid.NewGuid():N}@example.com";
 
 		await using var db = this._Fixture.OpenDb();

@@ -54,12 +54,6 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('@tanstack/react-router', () => ({
 	useNavigate: () => mocks.navigate,
 }));
-vi.mock('react-i18next', () => ({
-	useTranslation: () => ({
-		t: (key: string) => key,
-		i18n: { resolvedLanguage: 'en', language: 'en' },
-	}),
-}));
 vi.mock('~/lib/i18n/use-response-message-translator', () => ({
 	useResponseMessageTranslator: () => (message: string) => message,
 }));

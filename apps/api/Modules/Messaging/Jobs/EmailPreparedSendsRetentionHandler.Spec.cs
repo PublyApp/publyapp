@@ -1,13 +1,13 @@
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Infrastructure.Jobs;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Xunit;
 
@@ -34,7 +34,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 	[Fact]
 	public async Task ItShouldDeleteOnlyAgedOrphansWhoseJobIsFullyResolvedKeepingTheFloorBoundary() {
 		var marker = $"spec.prepared.{Guid.NewGuid():N}";
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 
 		var agedOrphan = Guid.NewGuid();
 		var agedWithLiveQueueRow = Guid.NewGuid();
@@ -64,7 +64,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 			var result = await EmailPreparedSendsRetentionHandlerSpec._RunAsync(dbContext);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 
 			(await verify.EmailPreparedSend.AnyAsync(p => p.JobId == agedOrphan))
 				.Should().BeFalse("an aged, fully-resolved orphan is swept");
@@ -92,7 +92,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 	[Fact]
 	public async Task ItShouldBeIdempotentWhenRunTwice() {
 		var marker = $"spec.prepared-idem.{Guid.NewGuid():N}";
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 
 		var agedOrphan = Guid.NewGuid();
 		var youngOrphan = Guid.NewGuid();
@@ -105,7 +105,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 			var second = await EmailPreparedSendsRetentionHandlerSpec._RunAsync(dbContext);
 			second.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 			(await verify.EmailPreparedSend.AnyAsync(p => p.JobId == agedOrphan))
 				.Should().BeFalse();
 			(await verify.EmailPreparedSend.AnyAsync(p => p.JobId == youngOrphan))
@@ -120,7 +120,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 		var marker = $"spec.prepared-exact.{Guid.NewGuid():N}";
 		var exactCutoff = Guid.NewGuid();
 		var justBeyond = Guid.NewGuid();
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 
 		// PostgreSQL now() == transaction_timestamp(): frozen for the whole transaction. The
 		// seed and the handler's sweep run in ONE transaction, so the exact-floor orphan's
@@ -157,7 +157,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 	public async Task ItShouldSweepAgainstTheConfiguredFloorNotAHardcodedDefaultSeven() {
 		const int configuredFloorDays = 2;
 		var marker = $"spec.prepared-floor.{Guid.NewGuid():N}";
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 
 		var justPastConfiguredFloor = Guid.NewGuid();  // 2 days + 2 s → swept at floor 2
 		var justUnderConfiguredFloor = Guid.NewGuid(); // 2 days - 2 s → kept at floor 2
@@ -177,7 +177,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 			var result = await EmailPreparedSendsRetentionHandlerSpec._RunWithFloorAsync(dbContext, configuredFloorDays);
 			result.Should().BeOfType<JobOutcome.Success>();
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 			(await verify.EmailPreparedSend.AnyAsync(p => p.JobId == justPastConfiguredFloor))
 				.Should().BeFalse("an orphan just past the configured 2-day floor is swept");
 			(await verify.EmailPreparedSend.AnyAsync(p => p.JobId == justUnderConfiguredFloor))
@@ -295,7 +295,7 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 	}
 
 	private async Task _CleanupAsync(string marker, Guid[] jobIds) {
-		await using var dbContext = await this._CreateDbContextAsync();
+		await using var dbContext = await SpecDbHelper.CreateDbContextForRetentionAsync(this._Fixture);
 		await dbContext.Database.ExecuteSqlAsync(
 			$"DELETE FROM email_prepared_sends WHERE job_id = ANY({jobIds})"
 		);
@@ -307,18 +307,4 @@ public sealed class EmailPreparedSendsRetentionHandlerSpec : IClassFixture<ApiFi
 		);
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was null.");
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString).Options
-		);
-	}
 }

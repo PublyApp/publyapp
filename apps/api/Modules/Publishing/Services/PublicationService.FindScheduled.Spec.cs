@@ -3,10 +3,10 @@ using System.Text;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Posts.Entities;
 using PublyApp.Api.Modules.Publishing.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
@@ -42,24 +42,6 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		this._Fixture = fixture;
 	}
 
-	private async Task<AppDbContext> _NewDbAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was unexpectedly null."
-			);
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString)
-				.Options
-		);
-	}
 
 	private static PublicationService _NewService(AppDbContext db) {
 		return new PublicationService(db, new Microsoft.AspNetCore.Http.HttpContextAccessor());
@@ -132,7 +114,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldExcludeOldPausedRowsWhenNoStatusFilterIsSent() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		// Carryover is opt-in: a Paused row scheduled months before FromUtc must
 		// NOT bleed into a window that did not ask for it. The calendar sends no
@@ -162,7 +144,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldExcludeOldInProgressRowsWhenNoStatusFilterIsSent() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		// Same carryover rule: the InProgress row is not opted in when the
 		// caller sends no status filter, so it stays out of the strict window.
@@ -191,7 +173,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldKeepCarryoverInProgressRowsWhenStatusFilterIncludesThem() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		// The queue filter asks for in_progress; carryover must therefore apply
 		// and the row the worker has not finished yet must stay visible past
@@ -226,7 +208,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldHideStaleLastErrorForNonFailureRows() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		var scheduledAt = new DateTime(2100, 1, 10, 10, 0, 0, DateTimeKind.Utc);
 		var publication = await PublicationServiceFindScheduledSpec._SeedPublicationAsync(
@@ -263,7 +245,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldKeepCarryoverPausedRowsWhenStatusFilterIncludesThem() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		// Mirror of the InProgress case: Paused carryover requires the caller to
 		// include Paused in `Statuses`. The queue filter does; the calendar
@@ -298,7 +280,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldExcludeCarryoverInProgressRowsWhenStatusFilterOmitsThem() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		// Opt-out path: a caller that filters on Scheduled only must NOT receive
 		// old InProgress rows even though they are temporally before FromUtc.
@@ -328,7 +310,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldExcludeScheduledRowsWhenScheduledAtUtcIsBeforeFromUtc() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		_ = await PublicationServiceFindScheduledSpec._SeedPublicationAsync(
 			db, tenantId, accountId, userId,
@@ -362,7 +344,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		// FromUtc boundary for a row that races the page open:
 		//   - row due seconds before the page opens, FromUtc = now      => excluded
 		//   - row due seconds before the page opens, FromUtc = now - 24h => included
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		var pageOpen = new DateTime(2099, 6, 15, 12, 0, 0, DateTimeKind.Utc);
 		var dueSecondsBeforePageOpen = pageOpen.AddSeconds(-5);
@@ -412,7 +394,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 		// The queue sends exactly the 32-day API maximum (24h past + 31d future).
 		// The service rejects only strictly-wider windows; the exact-32-day
 		// boundary must answer Success, not InvalidWindow.
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		var from = new DateTime(2099, 6, 1, 0, 0, 0, DateTimeKind.Utc);
 		db.ScopeToTenant(tenantId);
@@ -433,7 +415,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldRejectACursorWhoseForgedTimestampMismatchesTheStoredScheduledAtUtc() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		var eligibleRow = await PublicationServiceFindScheduledSpec._SeedPublicationAsync(
 			db, tenantId, accountId, userId,
@@ -459,7 +441,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldReturnAnEmptyPageWhenTheWindowMatchesNoRows() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantA, accountA, userA) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		_ = await PublicationServiceFindScheduledSpec._SeedPublicationAsync(
 			db, tenantA, accountA, userA,
@@ -489,7 +471,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldRejectACursorThatRefersToAnotherTenantsPublication() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantA, accountA, userA) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		var (tenantB, accountB, userB) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 		var foreignRow = await PublicationServiceFindScheduledSpec._SeedPublicationAsync(
@@ -521,7 +503,7 @@ public sealed class PublicationServiceFindScheduledSpec : IClassFixture<ApiFixtu
 
 	[Fact]
 	public async Task ItShouldKeepACursorUsableWhenTheAnchorTransitionsBetweenPages() {
-		await using var db = await this._NewDbAsync();
+		await using var db = await SpecDbHelper.OpenNewDbContextAsync(this._Fixture);
 		var (tenantId, accountId, userId) = await PublicationServiceFindScheduledSpec._SeedTenantAndAccountAsync(db);
 
 		// Anchor row sits BEFORE the window's FromUtc and starts as InProgress

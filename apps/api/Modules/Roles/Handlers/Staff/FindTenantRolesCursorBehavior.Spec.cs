@@ -5,7 +5,6 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -40,7 +39,7 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 	[Fact]
 	public async Task ItShouldWalkEveryPageOnANameSortWithoutOverlapOrGap() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		// Deterministic, anti-correlated names: insertion order is c,b,a while
 		// the lexical (sort) order is a,b,c. The walk must return them in
@@ -54,7 +53,7 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 		// determine the order of the two equal-key rows.
 		for (var i = 0; i < total; i++) {
 			var name = i == 1 ? $"Walk Page Bravo {Guid.NewGuid():N}" : $"Walk Page Alpha {Guid.NewGuid():N}";
-			seededIds.Add(await this._SeedTenantRoleWithNameAsync(tenantId, name));
+			seededIds.Add(await RoleTestHelper.SeedTenantRoleWithNameAsync(this._Fixture, tenantId, name));
 			seededNames.Add(name);
 		}
 		seededNames.Sort(StringComparer.OrdinalIgnoreCase);
@@ -101,7 +100,7 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 	[Fact]
 	public async Task ItShouldWalkEveryIdPageWithoutOverlapOrGap() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		// 3 roles with distinct Id; the walk must visit each once in
 		// ascending Id order. A keySelector swap to another same-type field
@@ -109,7 +108,7 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 		var seededIds = new List<Guid>();
 		for (var i = 0; i < 3; i++) {
 			var name = $"Id Walk {i} {Guid.NewGuid():N}";
-			seededIds.Add(await this._SeedTenantRoleWithNameAsync(tenantId, name));
+			seededIds.Add(await RoleTestHelper.SeedTenantRoleWithNameAsync(this._Fixture, tenantId, name));
 		}
 
 		var visitedIds = new List<Guid>();
@@ -147,7 +146,7 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 	[Fact]
 	public async Task ItShouldWalkEveryCreatedAtPageWithoutOverlapOrGap() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		// 3 roles with distinct, deliberately NOT insertion-ordered
 		// CreatedAt (anti-correlated). The walk must visit each once in
@@ -231,7 +230,7 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 	[Fact]
 	public async Task ItShouldReturnBadRequestWhenCursorRecordIsMissing() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Get,
@@ -262,24 +261,7 @@ public sealed class FindTenantRolesCursorBehaviorSpec
 		return query.Length == 0 ? url : $"{url}?{query}";
 	}
 
-	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			token,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
-	private async Task<Guid> _SeedTenantRoleWithNameAsync(Guid tenantId, string name) {
-		await using var db = this._Fixture.OpenDb();
-
-		var role = Role.CreateTenantRole(tenantId, name, isDefault: false);
-		await db.Context.Role.AddAsync(role);
-		await db.Context.SaveChangesAsync();
-
-		return role.GetRequiredId();
-	}
 
 	private sealed record FindTenantRolesResponse {
 		public List<TenantRoleItemResponse> Data { get; init; } = [];

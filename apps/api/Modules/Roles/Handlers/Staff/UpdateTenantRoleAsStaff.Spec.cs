@@ -8,7 +8,6 @@ using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
 
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -43,7 +42,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnUnauthorizedWithoutSession() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
 			UpdateTenantRoleAsStaffSpec._GetUrl(tenantId.ToString(), Guid.NewGuid().ToString())
@@ -56,7 +55,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForNonStaffUser() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsAcmeAdminAsync();
 
 		using var request = new HttpRequestMessage(
@@ -71,7 +70,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 
 	[Fact]
 	public async Task ItShouldReturnForbiddenForStaffWithoutPermission() {
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var token = await this._AuthClient.LoginAsync(
 			TestConstants.StaffUserEmail,
 			TestConstants.SeedPassword
@@ -106,7 +105,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnBadRequestForMalformedRoleId() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
@@ -123,7 +122,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnBadRequestForEmptyPatchBody() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(token, tenantId);
 
 		using var request = new HttpRequestMessage(
@@ -139,7 +138,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnNotFoundForMissingRole() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 
 		using var request = new HttpRequestMessage(
 			HttpMethod.Patch,
@@ -154,7 +153,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldRejectDuplicateNamesWithinTenant() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(token, tenantId, "Update A");
 		var existingRoleId = await this._CreateRoleAsync(token, tenantId, "Update B");
 
@@ -175,7 +174,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldUpdateNameAndDescription() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(token, tenantId);
 		var roleGuid = Guid.Parse(roleId);
 		await this._AddRolePermissionAsync(
@@ -236,7 +235,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldClearDescriptionWhenNullIsProvided() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(token, tenantId);
 		var roleGuid = Guid.Parse(roleId);
 
@@ -281,7 +280,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldSetIconAndTone() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(token, tenantId);
 
 		using var request = new HttpRequestMessage(
@@ -310,7 +309,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldWriteAuditLogWhenOnlyIconChanges() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(token, tenantId);
 		var roleGuid = Guid.Parse(roleId);
 
@@ -346,7 +345,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldWriteAuditLogWhenOnlyToneChanges() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(token, tenantId);
 		var roleGuid = Guid.Parse(roleId);
 
@@ -382,7 +381,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldClearIconAndToneWhenNullIsProvided() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(token, tenantId);
 		await this._SetRoleStyleAsync(Guid.Parse(roleId), "shield", "2");
 
@@ -428,7 +427,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldLeaveIconAndToneUnchangedWhenOmitted() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(token, tenantId);
 		await this._SetRoleStyleAsync(Guid.Parse(roleId), "briefcase", "3");
 
@@ -457,7 +456,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldReturnUnprocessableEntityForInvalidTone() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(token, tenantId);
 
 		using var request = new HttpRequestMessage(
@@ -475,7 +474,7 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldNotWriteAuditLogWhenPatchNormalizesToNoChange() {
 		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var roleId = await this._CreateRoleAsync(token, tenantId);
 		var roleGuid = Guid.Parse(roleId);
 		var noOpDescription = "Role created for update tests";
@@ -503,14 +502,6 @@ public sealed class UpdateTenantRoleAsStaffSpec : IClassFixture<ApiFixture> {
 		auditLog.Should().BeNull();
 	}
 
-	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			token,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	private async Task<string> _CreateRoleAsync(
 		string staffToken,

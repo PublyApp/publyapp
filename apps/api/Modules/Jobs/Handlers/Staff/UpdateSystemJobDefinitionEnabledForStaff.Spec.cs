@@ -5,9 +5,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
@@ -71,7 +69,7 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 			document.RootElement.GetProperty("key").GetString()
 				.Should().Be(ResponseKeys.SystemJobDefinitionUpdateSuccess.Value);
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 			var row = await verify.SystemJobDefinition
 				.SingleAsync(d => d.JobKey == jobKey);
 			row.IsEnabled.Should().BeFalse();
@@ -105,7 +103,7 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 			document.RootElement.GetProperty("isEnabled").GetBoolean()
 				.Should().BeTrue();
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 			var audit = await verify.AuditLog
 				.Where(a => a.TargetId == Guid.Parse(definitionId))
 				.SingleOrDefaultAsync(a =>
@@ -142,7 +140,7 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 				.Be(ResponseKeys.SystemJobDisableProtected.Value);
 
 			// Nothing changed: K-3 keeps the protected key enabled.
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 			(await verify.SystemJobDefinition.SingleAsync(
 				d => d.JobKey == protectedJobKey
 			)).IsEnabled.Should().BeTrue("K-3: the disable must not land");
@@ -212,7 +210,7 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 
 			response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 
-			await using var verify = await this._CreateDbContextAsync();
+			await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 			(await verify.SystemJobDefinition
 				.SingleAsync(d => d.JobKey == jobKey))
 				.IsEnabled.Should().BeTrue("nothing changes without permission");
@@ -302,23 +300,6 @@ public sealed class UpdateSystemJobDefinitionEnabledForStaffSpec
 		);
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was null."
-			);
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString).Options
-		);
-	}
 
 	private async Task<(string Token, Guid UserId)>
 		_CreateUnprivilegedStaffUserAsync() {

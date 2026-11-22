@@ -6,9 +6,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using Npgsql;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Testing.Fakes;
 using PublyApp.Api.Lib.Testing.Fixtures;
+using PublyApp.Api.Lib.Testing.Helpers;
 
 using Quartz;
 
@@ -149,7 +149,7 @@ public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
 		// A scheduler whose Standby/Shutdown throw — its stop can never be confirmed.
 		var unstoppable = new ThrowOnStandbySchedulerFake();
 		var hostA = new SchedulerLeaderService(
-			new SchedulerLeaderOptions { ConnectionString = this._GetTestConnectionString() },
+			new SchedulerLeaderOptions { ConnectionString = SpecDbHelper.GetTestConnectionString(this._Fixture) },
 			this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			NullLogger<SchedulerLeaderService>.Instance,
 			_ => Task.FromResult<IScheduler>(unstoppable)
@@ -197,7 +197,7 @@ public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
 			ShouldThrowOnStop = true,
 		};
 		var hostA = new SchedulerLeaderService(
-			new SchedulerLeaderOptions { ConnectionString = this._GetTestConnectionString() },
+			new SchedulerLeaderOptions { ConnectionString = SpecDbHelper.GetTestConnectionString(this._Fixture) },
 			this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			NullLogger<SchedulerLeaderService>.Instance,
 			_ => Task.FromResult<IScheduler>(unstoppable)
@@ -243,7 +243,7 @@ public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
 	private async Task _TerminateAdvisoryLockHolderAsync() {
 		const long key = SchedulerLeaderService.SchedulerLeaderLockKey;
 
-		await using var connection = new NpgsqlConnection(this._GetTestConnectionString());
+		await using var connection = new NpgsqlConnection(SpecDbHelper.GetTestConnectionString(this._Fixture));
 		await connection.OpenAsync();
 
 		await using var command = new NpgsqlCommand(
@@ -267,22 +267,10 @@ public sealed class SchedulerLeaderServiceSpec : IClassFixture<ApiFixture> {
 
 	private SchedulerLeaderService _CreateLeader() {
 		return new SchedulerLeaderService(
-			new SchedulerLeaderOptions { ConnectionString = this._GetTestConnectionString() },
+			new SchedulerLeaderOptions { ConnectionString = SpecDbHelper.GetTestConnectionString(this._Fixture) },
 			this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>(),
 			NullLogger<SchedulerLeaderService>.Instance
 		);
 	}
 
-	private string _GetTestConnectionString() {
-		using var scope = this._Fixture.Factory.Services.CreateScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException("Test database connection string was unexpectedly null.");
-		}
-
-		return connectionString;
-	}
 }

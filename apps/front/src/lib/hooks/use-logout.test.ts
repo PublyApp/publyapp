@@ -2,6 +2,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+vi.unmock('~/lib/hooks/use-logout');
+
 const mocks = vi.hoisted(() => ({
 	navigate: vi.fn(),
 	clear: vi.fn(),

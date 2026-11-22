@@ -5,9 +5,7 @@ using System.Text.Json;
 using FluentAssertions;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
-using PublyApp.Api.Data.DbContext;
 using PublyApp.Api.Lib.Routes;
 using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Lib.Testing.Helpers;
@@ -325,7 +323,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		_ = await db.Context.SaveChangesAsync();
 		this._TrackedQueueJobTypes.Add(jobType);
 
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 		var row = await verify.JobQueue.SingleAsync(j => j.JobType == jobType);
 		return row.Id.Required().ToString();
 	}
@@ -350,7 +348,7 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 			"""
 		);
 
-		await using var verify = await this._CreateDbContextAsync();
+		await using var verify = await SpecDbHelper.CreateDbContextForJobsAsync(this._Fixture);
 		var row = await verify.JobDeadLetter.SingleAsync(d => d.JobType == jobType);
 		var id = row.Id;
 		if (id is null) {
@@ -435,23 +433,6 @@ public sealed class JobVisibilityEndpointsForStaffSpec : IClassFixture<ApiFixtur
 		}
 	}
 
-	private async Task<AppDbContext> _CreateDbContextAsync() {
-		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
-		var connectionString = scope.ServiceProvider
-			.GetRequiredService<AppDbContext>()
-			.Database.GetConnectionString();
-
-		if (connectionString is null) {
-			throw new InvalidOperationException(
-				"Test database connection string was null."
-			);
-		}
-
-		return new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql(connectionString).Options
-		);
-	}
 
 	private async Task<(string Token, Guid UserId)>
 		_CreateUnprivilegedStaffUserAsync() {

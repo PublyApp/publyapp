@@ -9,7 +9,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 
 using PublyApp.Api.Data.DbContext;
-using PublyApp.Api.Data.Seeding;
 using PublyApp.Api.Lib;
 using PublyApp.Api.Lib.ProblemResults;
 using PublyApp.Api.Lib.Routes;
@@ -431,7 +430,7 @@ public sealed class BulkDeleteStaffRolesSpec : IClassFixture<ApiFixture> {
 	[Fact]
 	public async Task ItShouldRejectTenantRolesInStaffRoleBulkDelete() {
 		var staffToken = await this._AuthClient.LoginAsStaffAdminAsync();
-		var tenantId = await this._GetTenantIdAsync();
+		var tenantId = await TenantTestHelper.GetAcmeIdAsync(this._Http, this._AuthClient);
 		var tenantRoleId = await this._SeedTenantRoleAsync(tenantId);
 		var startedAt = DateTime.UtcNow;
 
@@ -521,14 +520,6 @@ public sealed class BulkDeleteStaffRolesSpec : IClassFixture<ApiFixture> {
 		return role.GetRequiredId();
 	}
 
-	private async Task<Guid> _GetTenantIdAsync() {
-		var token = await this._AuthClient.LoginAsStaffAdminAsync();
-		return await TenantTestHelper.GetTenantIdByNameAsync(
-			this._Http,
-			token,
-			SeedConstants.Tenants.AcmeName
-		);
-	}
 
 	// The staff scope cannot hold a default role through any API or seeder
 	// path (CreateStaffRole hardcodes IsDefault=false and
@@ -689,7 +680,7 @@ public sealed class BulkDeleteStaffRolesSpec : IClassFixture<ApiFixture> {
 			throw new InvalidOperationException("Bulk delete audit log was not written.");
 		}
 
-		var expectedUserId = await BulkDeleteStaffRolesSpec._GetUserIdByEmailAsync(
+		var expectedUserId = await StaffUserTestHelper.GetUserIdByEmailAsync(
 			db.Context,
 			TestConstants.StaffAdminEmail
 		);
@@ -749,23 +740,6 @@ public sealed class BulkDeleteStaffRolesSpec : IClassFixture<ApiFixture> {
 		return accountId.Value;
 	}
 
-	private static async Task<Guid> _GetUserIdByEmailAsync(
-		AppDbContext dbContext,
-		string email
-	) {
-		var userId = await (
-			from user in dbContext.User
-			where user.Email == email
-				&& !user.IsDeleted
-			select user.Id
-		).FirstOrDefaultAsync();
-
-		if (userId is null) {
-			throw new InvalidOperationException("Seeded user was not found.");
-		}
-
-		return userId.Value;
-	}
 
 	// Keep large body-shape cases generated locally so invalid/edge tests do not
 	// need to seed a hundred database rows.
