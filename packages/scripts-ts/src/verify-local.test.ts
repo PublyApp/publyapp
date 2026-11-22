@@ -13,6 +13,7 @@ import {
 	buildPlan,
 	collectChanged,
 	defaultDeps,
+	isFrontTest,
 	repoRoot,
 	selectTests,
 } from './verify-local.ts';
@@ -177,6 +178,64 @@ test('front CSS assets stay in the front lane instead of FULL(all)', () => {
 	assert.ok(ids(plan).includes('tsc-front'));
 });
 
+test('FULL(front) and FULL(api) keep the judgement ratchet CI runs', () => {
+	for (const [changed, scope] of [
+		['packages/shared-ts/src/lib/errors.ts', 'front'],
+		['apps/api/Lib/AppEnvironment.cs', 'api'],
+	] as const) {
+		const plan = buildPlan({ changed: [changed] });
+		assert.equal(plan.mode, 'full');
+		assert.equal(plan.scope, scope);
+		assert.ok(ids(plan).includes('ratchet'), `${scope}: ${ids(plan)}`);
+	}
+});
+
+test('CSS and JSON changes are handed to oxfmt, as CI does', () => {
+	const css = 'apps/front/src/styles/app.css';
+	const json = 'apps/front/src/lib/text-counter/text-counter-fixtures.json';
+	const plan = buildPlan({ changed: [css, json] });
+	const format = plan.checks.find((entry) => entry.id === 'format');
+	assert.ok(format);
+	assert.deepEqual(
+		format.command.filter((part) => part === css || part === json),
+		[json, css],
+	);
+	assert.ok(!ids(plan).includes('lint'));
+});
+
+test('design guards excluded from front Vitest get the non-vitest lane', () => {
+	for (const changed of [
+		'apps/front/src/lib/i18n/key-coverage.test.ts',
+		'apps/front/src/lib/mutation-feedback/mutation-feedback-architecture.test.ts',
+		'apps/front/src/lib/query/route-loader-query-key-guard.test.ts',
+	]) {
+		const plan = buildPlan({ changed: [changed] });
+		assert.equal(plan.mode, 'subset', changed);
+		assert.ok(!ids(plan).includes('vitest-front'), `${changed}: ${ids(plan)}`);
+		const lane = plan.checks.find((entry) => entry.id === 'non-vitest');
+		assert.ok(lane, `${changed}: ${ids(plan)}`);
+		assert.deepEqual(lane.command, [
+			'pnpm',
+			'--filter',
+			'front',
+			'test:ci-non-vitest',
+		]);
+	}
+});
+
+test('node:test files under scripts/ci widen to the lane that runs them', () => {
+	for (const changed of [
+		'apps/front/scripts/ci/validate-runtime-env-startup.test.ts',
+		'apps/front/scripts/ci/vitest-shard-coverage.test.ts',
+		'apps/front/scripts/ci/__fixtures__/probe.test.ts',
+	]) {
+		const plan = buildPlan({ changed: [changed] });
+		assert.equal(plan.mode, 'full', changed);
+		assert.equal(plan.scope, 'front', changed);
+		assert.ok(!ids(plan).includes('vitest-front'), `${changed}: ${ids(plan)}`);
+	}
+});
+
 test('--explain can say why the related fallback was skipped', () => {
 	const plan = buildPlan({
 		changed: ['apps/front/src/components/ui/avatar.test.tsx'],
@@ -265,12 +324,11 @@ test('deleted docs stay in the docs lane', () => {
 
 test('a source with no co-located test resolves through git grep importers', () => {
 	const source = 'apps/front/src/lib/testing/suppression-reason.ts';
-	const importers = defaultDeps.findImporters(source);
-	assert.ok(importers.includes('apps/front/src/lib/i18n/key-coverage.test.ts'));
-	const selection = selectTests([source], [], defaultDeps);
-	assert.ok(
-		selection.tests.includes('apps/front/src/lib/i18n/key-coverage.test.ts'),
-	);
+	const importer =
+		'apps/front/src/routes/authed/staff/no-fabricated-placeholder.test.ts';
+	assert.ok(defaultDeps.findImporters(source).includes(importer));
+	const selection = selectTests([source], [], defaultDeps, isFrontTest);
+	assert.deepEqual(selection.tests, [importer]);
 	assert.deepEqual(selection.related, []);
 });
 

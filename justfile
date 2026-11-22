@@ -301,6 +301,7 @@ ci-migration-expand-contract:
 # fails when the committed audit record no longer matches its generator)
 ci-doc-links:
   @echo "=== [gate] doc links ==="
+  @echo "note: the prune check reads a pre-2026-09 tree; on a blobless clone it lazily fetches blobs (minutes)"
   pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts
   pnpm --filter scripts-ts exec vitest run src/audit-docs-prune.test.ts
   node ./packages/scripts-ts/src/check-doc-links.ts

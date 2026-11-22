@@ -48,11 +48,14 @@ const isDocs = (file: string) =>
 	DOCS.test(file) && !file.startsWith('.github/');
 
 const TESTS = /\.(test|spec)\.[cm]?[tj]sx?$/;
+// Excluded from the front Vitest project; CI runs them in the non-vitest lane.
+const NON_VITEST =
+	/^apps\/front\/(src\/lib\/(i18n\/key-coverage|mutation-feedback\/mutation-feedback-architecture|query\/route-loader-query-key-guard)|scripts\/ci\/(check-front-runtime-image|compose-startup|validate-runtime-env-startup|vitest-shard-coverage|__fixtures__\/))/;
 // Front Vitest's real `include`, minus its own exclusions and the proofs lane.
-const isFrontTest = (file: string) =>
-	/^apps\/front\/(src\/(?!styles\/drawer-description-contrast).+\.test\.tsx?|e2e\/(helpers|__tests__)\/.+\.test\.ts|scripts\/ci\/(?!(check-front-runtime-image|compose-startup)).+\.test\.ts)$/.test(
+export const isFrontTest = (file: string) =>
+	/^apps\/front\/(src\/(?!styles\/drawer-description-contrast).+\.test\.tsx?|e2e\/(helpers|__tests__)\/.+\.test\.ts|scripts\/ci\/.+\.test\.ts)$/.test(
 		file,
-	);
+	) && !NON_VITEST.test(file);
 const LINTABLE = /\.(ts|tsx|js|jsx|mjs|mts|cts|cjs)$/;
 const FORMATTABLE = /\.(ts|tsx|js|jsx|mjs|mts|cts|cjs|json|css)$/;
 const FRONT_PROGRAM =
@@ -219,6 +222,9 @@ const frontPlan = (
 	if (changed.some((file) => file.startsWith('apps/front/scripts/'))) {
 		add('typecheck-coverage', 'typecheck-coverage', COVERAGE);
 	}
+	if (changed.some((file) => NON_VITEST.test(file))) {
+		add('non-vitest', 'non-vitest', 'pnpm --filter front test:ci-non-vitest');
+	}
 	const front = changed.filter((file) => file.startsWith('apps/front/'));
 	const selection = selectTests(
 		front.filter((file) => !TESTS.test(file)),
@@ -281,17 +287,15 @@ const subsetPlan = (
 	const add: Add = (id, short, command, env) => {
 		checks.push(check(id, short, command, env));
 	};
-	const code = changed.filter((file) => LINTABLE.test(file));
-	if (code.length > 0 && (lanes.has('front') || lanes.has('tooling'))) {
-		const formattable = code.filter((file) => FORMATTABLE.test(file));
-		if (formattable.length > 0) {
-			add(
-				'format',
-				`format(${formattable.length})`,
-				withFiles(OXFMT, formattable),
-			);
+	const frontOrTooling = lanes.has('front') || lanes.has('tooling');
+	for (const [id, line, pattern] of [
+		['format', OXFMT, FORMATTABLE],
+		['lint', OXLINT, LINTABLE],
+	] as const) {
+		const files = changed.filter((file) => pattern.test(file));
+		if (frontOrTooling && files.length > 0) {
+			add(id, `${id}(${files.length})`, withFiles(line, files));
 		}
-		add('lint', `lint(${code.length})`, withFiles(OXLINT, code));
 	}
 	if (lanes.has('front')) {
 		frontPlan(changed, deps, add);
@@ -325,15 +329,16 @@ const SCOPE_EXTRAS = {
 	],
 	api: [SPEC_DRIFT, MIGRATION_GUARD],
 	tooling: ['pnpm format', 'pnpm lint', KNP],
-} satisfies Partial<Record<Scope, readonly string[]>>;
+	all: [],
+} satisfies Record<Scope, readonly string[]>;
 
 const fullPlan = (scope: Scope, reason: string, changed: string[]): Plan => {
 	const gate = FULL_GATES[scope];
 	const checks = [check('full', `FULL: ${gate}`, gate)];
-	for (const line of SCOPE_EXTRAS[scope] ?? []) {
+	for (const line of SCOPE_EXTRAS[scope]) {
 		checks.push(check(line, line, line));
 	}
-	if (scope === 'tooling') {
+	if (scope !== 'all') {
 		checks.push(check('ratchet', 'ratchet', RATCHET));
 	}
 	return { mode: 'full', scope, reason, changed, checks, skipped: [] };
@@ -427,10 +432,7 @@ export const buildPlan = (input: PlanInput): Plan => {
 const countLines = (file: string, cwd = repoRoot): number => {
 	try {
 		const text = fs.readFileSync(path.resolve(cwd, file), 'utf8');
-		if (text === '') {
-			return 0;
-		}
-		return text.split('\n').length - (text.endsWith('\n') ? 1 : 0);
+		return text ? text.split('\n').length - (text.endsWith('\n') ? 1 : 0) : 0;
 	} catch {
 		return 0;
 	}
@@ -533,11 +535,7 @@ const runCheck = (entry: Check): boolean => {
 };
 
 const parseArgs = (args: readonly string[]) => {
-	const parsed = {
-		base: DEFAULT_BASE,
-		full: false,
-		explain: false,
-	};
+	const parsed = { base: DEFAULT_BASE, full: false, explain: false };
 	for (let index = 0; index < args.length; index += 1) {
 		const arg = args[index];
 		if (arg === '--base') {
