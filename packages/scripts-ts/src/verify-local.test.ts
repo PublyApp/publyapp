@@ -12,7 +12,9 @@ import {
 	FULL_TRIGGERS,
 	buildPlan,
 	collectChanged,
+	defaultDeps,
 	repoRoot,
+	selectTests,
 } from './verify-local.ts';
 
 // §4.5-A: the selector table. These are the standing proof that a diff maps
@@ -259,6 +261,17 @@ test('deleted docs stay in the docs lane', () => {
 	});
 	assert.equal(plan.mode, 'subset');
 	assert.deepEqual(ids(plan), ['doc-links']);
+});
+
+test('a source with no co-located test resolves through git grep importers', () => {
+	const source = 'apps/front/src/lib/testing/suppression-reason.ts';
+	const importers = defaultDeps.findImporters(source);
+	assert.ok(importers.includes('apps/front/src/lib/i18n/key-coverage.test.ts'));
+	const selection = selectTests([source], [], defaultDeps);
+	assert.ok(
+		selection.tests.includes('apps/front/src/lib/i18n/key-coverage.test.ts'),
+	);
+	assert.deepEqual(selection.related, []);
 });
 
 test('modified, renamed and untracked paths are all collected', () => {
