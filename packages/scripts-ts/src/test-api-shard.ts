@@ -3,8 +3,14 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
+import { resolveApiModules } from './api-test-selection.ts';
+
 // Runs one CI shard of the API integration suite (#1947) and proves it executed
 // exactly the tests it was assigned.
+//
+// On `pull_request` it narrows the shard to the modules the diff touches (see
+// api-test-selection.ts); `merge_group`, pushes and local runs get no module
+// list and execute the whole suite, exactly as before.
 //
 //   node packages/scripts-ts/src/test-api-shard.ts <shard> <total>
 //
@@ -113,12 +119,14 @@ const run = async () => {
 		process.exit(restore.status ?? 1);
 	}
 
+	const modules = resolveApiModules();
 	const plan = spawnSync(
 		process.execPath,
 		[
 			path.join(repoRoot, 'packages/scripts-ts/src/shard-api-tests.ts'),
 			String(shard),
 			String(total),
+			...(modules === undefined ? [] : [modules.join(',')]),
 		],
 		{ cwd: repoRoot, encoding: 'utf8' },
 	);
@@ -128,6 +136,14 @@ const run = async () => {
 	}
 
 	const { assigned, filter } = parseShardPlan(plan.stdout);
+
+	if (assigned === 0) {
+		console.log(
+			`API shard ${shard}/${total}: no selected test class; nothing to run.`,
+		);
+		process.exit(0);
+	}
+
 	const { code, output } = await teeCommand(
 		'dotnet',
 		[

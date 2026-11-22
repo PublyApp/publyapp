@@ -7,6 +7,11 @@ import path from 'node:path';
 import { test } from 'vitest';
 
 import {
+	resolveApiModules,
+	parseNameStatus,
+	selectApiTests,
+} from './api-test-selection.ts';
+import {
 	LANE_OUTPUTS,
 	LANE_PATTERNS,
 	classifyLanes,
@@ -119,6 +124,8 @@ test('lane patterns cover the complete central trigger classes', () => {
 		['.gitattributes', 'api'],
 		['packages/scripts-ts/src/shard-api-tests.ts', 'api'],
 		['packages/scripts-ts/src/shard-api-tests.test.ts', 'api'],
+		['packages/scripts-ts/src/test-api-shard.ts', 'api'],
+		['packages/scripts-ts/src/api-test-selection.ts', 'api'],
 		['.github/workflows/ci.yml', 'react'],
 	] as const;
 
@@ -363,4 +370,208 @@ test('parseChangedFilesTotal: a negative value is invalid', () => {
 
 test('parseChangedFilesTotal: a decimal value is invalid', () => {
 	assert.equal(parseChangedFilesTotal('3.5'), undefined);
+});
+
+// ---------------------------------------------------------------------------
+// PR-time API test selection (api-test-selection.ts). The full suite stays the
+// merge queue's job; a pull request may run only the modules it touches. These
+// tests pin the three properties the selector must never lose: merge_group
+// always runs everything, every unmapped path runs everything, and a
+// module-only diff runs exactly that module.
+// ---------------------------------------------------------------------------
+
+const moduleChange = {
+	status: 'M',
+	paths: ['apps/api/Modules/Posts/Handlers/Tenant/CreatePost.cs'],
+};
+
+test('API selection: merge_group, push and every non-PR event run the full set', () => {
+	for (const eventName of ['merge_group', 'push', 'workflow_dispatch', '']) {
+		const selection = selectApiTests({
+			eventName,
+			changedPaths: [moduleChange],
+		});
+
+		assert.equal(selection.mode, 'full');
+		assert.match(selection.reason, /whole API suite|non-pull_request/);
+	}
+});
+
+test('API selection: no diff read happens off pull_request', () => {
+	let read = false;
+	const modules = resolveApiModules({
+		eventName: 'merge_group',
+		changedPaths: () => {
+			read = true;
+			return [];
+		},
+	});
+
+	assert.equal(modules, undefined);
+	assert.equal(read, false);
+});
+
+test('API selection: every fail-closed trigger selects the whole suite', () => {
+	const fullSuitePaths = [
+		'apps/api/Lib/AppEnvironment.cs',
+		'apps/api/Data/DbContext/AppDbContext.cs',
+		'apps/api/Infrastructure/Jobs/JobQueueProcessor.cs',
+		'apps/api/Migrations/20260101_DropLegacyColumn.cs',
+		'apps/api/Program.cs',
+		'apps/api/PublyApp.Api.csproj',
+		'apps/api/Tests/PublyApp.Api.Tests.csproj',
+		'Directory.Build.props',
+		'Directory.Packages.props',
+		'global.json',
+		'apps/apphost/Program.cs',
+		'packages/shared-ts/src/lib/errors.ts',
+		'packages/client-ts/src/apiClient.ts',
+		'packages/lint-cs/PublyApp.Analyzers.csproj',
+		'justfile',
+		'pnpm-lock.yaml',
+		'.github/workflows/ci.yml',
+		'.gitattributes',
+	];
+
+	for (const changedPath of fullSuitePaths) {
+		const selection = selectApiTests({
+			eventName: 'pull_request',
+			changedPaths: [{ status: 'M', paths: [changedPath] }],
+		});
+		assert.equal(selection.mode, 'full', `${changedPath} must run everything`);
+
+		const modules = resolveApiModules({
+			eventName: 'pull_request',
+			changedPaths: () => [{ status: 'M', paths: [changedPath] }],
+		});
+		assert.equal(modules, undefined, `${changedPath} must not narrow the run`);
+	}
+});
+
+test('API selection: a deleted or renamed path runs everything', () => {
+	const histories = [
+		{
+			status: 'D',
+			paths: ['apps/api/Modules/Posts/Handlers/Tenant/CreatePost.cs'],
+		},
+		{
+			status: 'R100',
+			paths: [
+				'apps/api/Modules/Posts/Handlers/Tenant/CreatePost.cs',
+				'apps/api/Modules/Users/Handlers/Tenant/CreateUser.cs',
+			],
+		},
+		{
+			status: 'R100',
+			paths: [
+				'apps/api/Modules/Posts/Handlers/Tenant/CreatePost.cs',
+				'apps/api/Modules/Posts/Handlers/Tenant/CreatePostV2.cs',
+			],
+		},
+	];
+
+	for (const changedPath of histories) {
+		const selection = selectApiTests({
+			eventName: 'pull_request',
+			changedPaths: [changedPath],
+		});
+		assert.equal(selection.mode, 'full');
+		assert.match(selection.reason, /deleted\/renamed/);
+	}
+});
+
+test('API selection: a module-only diff selects exactly that module', () => {
+	const selection = selectApiTests({
+		eventName: 'pull_request',
+		changedPaths: [
+			moduleChange,
+			{
+				status: 'A',
+				paths: ['apps/api/Modules/Posts/Handlers/Tenant/CreatePost.Spec.cs'],
+			},
+		],
+	});
+
+	assert.equal(selection.mode, 'modules');
+	assert.deepEqual(selection.mode === 'modules' && selection.modules, [
+		'Posts',
+	]);
+});
+
+test('API selection: multiple modules union, and non-API paths are ignored', () => {
+	const selection = selectApiTests({
+		eventName: 'pull_request',
+		changedPaths: [
+			moduleChange,
+			{ status: 'M', paths: ['apps/api/Modules/Users/Entities/User.cs'] },
+			{ status: 'M', paths: ['apps/front/src/routes/posts.tsx'] },
+			{ status: 'M', paths: ['docs/guides/api.md'] },
+		],
+	});
+
+	assert.equal(selection.mode, 'modules');
+	assert.deepEqual(selection.mode === 'modules' && selection.modules, [
+		'Posts',
+		'Users',
+	]);
+});
+
+test('API selection: an empty or non-API diff runs everything', () => {
+	for (const changedPaths of [
+		[],
+		[{ status: 'M', paths: ['apps/front/src/routes/posts.tsx'] }],
+	]) {
+		const selection = selectApiTests({
+			eventName: 'pull_request',
+			changedPaths,
+		});
+		assert.equal(selection.mode, 'full');
+	}
+});
+
+test('API selection: a failed diff read falls back to the full suite, never to a narrow run', () => {
+	const modules = resolveApiModules({
+		eventName: 'pull_request',
+		changedPaths: () => {
+			throw new Error('git fetch failed');
+		},
+	});
+
+	assert.equal(modules, undefined);
+});
+
+test('API selection: the workflow keeps the unparameterized full-suite command', () => {
+	// The event gate lives in the scripts, not in YAML: nothing may hand a
+	// module list to the merge-queue command. If this assertion fails, the
+	// queue path is no longer the byte-identical full-suite invocation.
+	const workflow = readFileSync(
+		path.join(
+			path.resolve(new URL('../../..', import.meta.url).pathname),
+			'.github/workflows/ci.yml',
+		),
+		'utf8',
+	);
+	assert.match(
+		workflow,
+		/run: just test-api-shard \$\{\{ matrix\.shard \}\} 4\s*$/m,
+	);
+});
+
+test('API selection: parses git name-status -z records, including renames', () => {
+	assert.deepEqual(
+		parseNameStatus(
+			'M\0apps/api/Modules/Posts/A.cs\0R100\0old/One.cs\0new/Two.cs\0',
+		),
+		[
+			{ status: 'M', paths: ['apps/api/Modules/Posts/A.cs'] },
+			{ status: 'R100', paths: ['old/One.cs', 'new/Two.cs'] },
+		],
+	);
+	assert.deepEqual(parseNameStatus(''), []);
+});
+
+test('API selection: an unparseable diff record throws instead of guessing', () => {
+	for (const output of ['M\0', 'R100\0only-one-path\0']) {
+		assert.throws(() => parseNameStatus(output), /Unparseable/);
+	}
 });
