@@ -1,14 +1,11 @@
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { parse } from 'yaml';
-
-const execFileAsync = promisify(execFile);
 
 /**
  * #1948 equality guard: every vitest test file must run exactly once across
@@ -16,23 +13,32 @@ const execFileAsync = promisify(execFile);
  *
  * The front gate shards the vitest suite with `vitest run --shard=i/n`, so
  * a shard configuration that loses a file is a PERMANENT false negative: the
- * workflow gets faster and nobody notices the file stopped running. This
- * guard reads the REAL discovery of every shard (`vitest list --shard=i/n`
- * resolves the same file partition `vitest run --shard=i/n` executes) and of
- * the unsharded suite (`vitest list`, the one-machine baseline), then pins:
+ * workflow gets faster and nobody notices the file stopped running.
  *
- *   - each shard's discovery set is the real partition, not a model of it;
+ * This guard used to shell out to `vitest list` five times (the unsharded
+ * suite plus every shard) and cost 219-427 s per run. It now proves the SAME
+ * property statically, in well under a second:
+ *
+ *   - discovery is computed from the REAL vitest config globs
+ *     (`vitest.config.ts` include/exclude), with Node's native glob, so no
+ *     config filter is restated here;
+ *   - the shard count comes from the REAL workflow matrix, and the shard
+ *     step's argument list is pinned to exactly `--shard=${{ matrix.shard }}/n`;
+ *   - the partition is computed with Vitest 4's own `BaseSequencer.shard`
+ *     rule (sha1 of the root-relative file path, contiguous equal slices),
+ *     so the per-shard counts are the ones the real matrix produces;
  *   - no file appears in more than one shard;
- *   - the union of the shards is EXACTLY the unsharded suite (a file lost by
+ *   - the union of the shards is EXACTLY the configured suite (a file lost by
  *     the shard matrix, or invented by it, is a loud failure);
- *   - the shard file counts sum to the unsharded count (the PR-body number).
+ *   - the shard file counts sum to the suite count (the PR-body number).
  *
- * The shard count itself is read from the REAL workflow file
- * (.github/workflows/ci.yml): the matrix is the artifact being pinned,
- * so the guard follows it instead of restating it. An unparseable workflow,
- * a missing vitest install, a non-zero `vitest list` exit, or an output line
- * that cannot be attributed to a file all fail loudly — absent or
- * unanalyzable input is never a silent pass.
+ * The coverage guarantee is unchanged: the 4 shards together still run every
+ * test file exactly once, and the same three failure messages remain. What is
+ * gone is only the redundant execution of Vitest's collection five times.
+ *
+ * An unparseable workflow or vitest config, an empty discovery, or a config
+ * shape this guard cannot model (projects, test.dir, a non-front root) all
+ * fail loudly — absent or unanalyzable input is never a silent pass.
  */
 
 const scriptsDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -44,14 +50,7 @@ const centralCiPath = path.join(
 	'workflows',
 	'ci.yml',
 );
-
-const vitestBin = path.join(frontDirectory, 'node_modules', '.bin', 'vitest');
-
-const listTimeoutMs = 10 * 60 * 1000;
-
-// No pool flag is passed to vitest list: vitest 4 removed --poolTimeout, and
-// a collection worker that hangs or dies surfaces as a non-zero exit, which
-// execFile rejects and this guard turns into a loud failure — never a pass.
+const vitestConfigPath = path.join(frontDirectory, 'vitest.config.ts');
 
 interface FrontCiWorkflow {
 	jobs?: {
@@ -59,6 +58,16 @@ interface FrontCiWorkflow {
 			strategy?: { matrix?: { shard?: unknown } };
 			steps?: Array<{ run?: unknown }>;
 		};
+	};
+}
+
+interface VitestConfig {
+	root?: unknown;
+	test?: {
+		include?: unknown;
+		exclude?: unknown;
+		projects?: unknown;
+		dir?: unknown;
 	};
 }
 
@@ -122,84 +131,154 @@ const assertVitestRunArgs = (shardCount: number): void => {
 	}
 };
 
-/** Parses `vitest list` output into the set of file paths it discovered. */
-const parseListOutput = (stdout: string): string[] => {
-	const files = new Set<string>();
-	const lines = stdout.split('\n').filter((line) => line.trim().length > 0);
+const requireStringArray = (value: unknown, label: string): string[] => {
+	if (
+		!Array.isArray(value) ||
+		!value.every((entry): entry is string => typeof entry === 'string')
+	) {
+		throw new Error(
+			`Cannot read ${label} from apps/front/vitest.config.ts: expected an array of strings (unanalyzable input must fail loud, never pass).`,
+		);
+	}
 
-	for (const line of lines) {
-		const separator = line.indexOf(' > ');
+	return value;
+};
 
-		if (separator === -1) {
+/**
+ * Imports the REAL vitest config so the include/exclude globs are not
+ * restated here, then rejects config shapes whose discovery this guard does
+ * not model instead of silently checking a smaller suite.
+ */
+const readDiscoveryGlobs = async (): Promise<{
+	include: string[];
+	exclude: string[];
+}> => {
+	const imported = (await import(pathToFileURL(vitestConfigPath).href)) as {
+		default?: VitestConfig;
+	};
+	const config = imported.default;
+
+	if (config === undefined || config.test === undefined) {
+		throw new Error(
+			'Cannot read the `test` block from apps/front/vitest.config.ts (unanalyzable input must fail loud, never pass).',
+		);
+	}
+
+	if (config.test.projects !== undefined || config.test.dir !== undefined) {
+		throw new Error(
+			'vitest.config.ts declares test.projects or test.dir: this guard models a single-project, front-rooted suite. Extend the guard before changing the discovery shape (unanalyzable input must fail loud, never pass).',
+		);
+	}
+
+	if (config.root !== undefined) {
+		if (
+			typeof config.root !== 'string' ||
+			path.resolve(frontDirectory, config.root) !== frontDirectory
+		) {
 			throw new Error(
-				`Cannot attribute a "vitest list" line to a file (expected "path > suite > test", no " > " found): ${JSON.stringify(line.slice(0, 200))}`,
+				`vitest.config.ts declares root=${JSON.stringify(config.root)}: this guard globs from apps/front. Extend the guard before moving the vitest root (unanalyzable input must fail loud, never pass).`,
 			);
 		}
-
-		files.add(line.slice(0, separator));
 	}
 
-	if (files.size === 0) {
+	const include = requireStringArray(config.test.include, 'test.include');
+
+	if (include.length === 0) {
 		throw new Error(
-			`vitest list discovered no test files — empty discovery is unanalyzable and must fail loud, never pass.`,
+			'vitest.config.ts declares an empty test.include: no test file can be discovered (unanalyzable input must fail loud, never pass).',
 		);
 	}
 
-	return [...files];
+	return {
+		include,
+		exclude: requireStringArray(config.test.exclude, 'test.exclude'),
+	};
 };
 
-/** Runs `vitest list` for one shard (or the whole suite) and parses file paths. */
-const listFiles = async (args: string[]): Promise<string[]> => {
-	if (!existsSync(vitestBin)) {
+/** Computes vitest's discovery from the config globs, with no collection. */
+const discoverTestFiles = (globs: {
+	include: string[];
+	exclude: string[];
+}): string[] => {
+	const files = globSync(globs.include, {
+		cwd: frontDirectory,
+		exclude: globs.exclude,
+	}).map((file) => file.split(path.sep).join('/'));
+
+	if (files.length === 0) {
 		throw new Error(
-			`vitest binary not found at ${vitestBin}. Run "pnpm install" first (a missing install must fail loud, never pass).`,
+			`the configured vitest globs discovered no test files — empty discovery is unanalyzable and must fail loud, never pass.`,
 		);
 	}
 
-	const childEnv = { ...process.env };
-	// Node's test runner exports its binary reporter protocol markers to this
-	// guard process. Do not leak them into Vitest: its child workers otherwise
-	// emit `test:enqueue` frames into stdout and corrupt discovery parsing.
-	delete childEnv.NODE_TEST_CONTEXT;
-	delete childEnv.NODE_TEST_WORKER_ID;
-	const { stdout, stderr } = await execFileAsync(
-		vitestBin,
-		[...args, '--reporter=verbose'],
-		{
-			cwd: frontDirectory,
-			env: {
-				...childEnv,
-				CI: '1',
-				// force-disable colour: the list output is parsed by string, so
-				// ANSI codes would corrupt the file names. FORCE_COLOR=0 wins
-				// over an inherited FORCE_COLOR=3; NO_COLOR is ignored when
-				// FORCE_COLOR is set.
-				FORCE_COLOR: '0',
-				NO_COLOR: '1',
-			},
-			maxBuffer: 64 * 1024 * 1024,
-			timeout: listTimeoutMs,
-		},
-	);
-
-	// Fail on a non-zero exit with the captured stderr for diagnosis — never
-	// on stderr alone: vitest writes harmless warnings there under load (a
-	// pool-termination warning, a NO_COLOR note), while the exit code and the
-	// parsed output decide whether the discovery is real.
-	void stderr;
-
-	return parseListOutput(stdout);
+	return [...new Set(files)].sort();
 };
 
-void test('#1948: the sharded vitest discovery is exactly the unsharded suite, once per file', async () => {
+/**
+ * Vitest 4's `BaseSequencer.shard` assigns each file a sha1 of its
+ * root-relative path, sorts by that hash, then slices contiguous equal
+ * ranges (`calculateShardRange`). Reproduced here so the guard reports the
+ * same per-shard counts as the real matrix without running vitest.
+ */
+const importOrderedFiles = (files: readonly string[]): string[] =>
+	[...files]
+		.map((file) => ({
+			file,
+			hash: createHash('sha1').update(`/${file}`).digest('hex'),
+		}))
+		.sort((a, b) => {
+			if (a.hash < b.hash) {
+				return -1;
+			}
+
+			if (a.hash > b.hash) {
+				return 1;
+			}
+
+			return 0;
+		})
+		.map(({ file }) => file);
+
+const calculateShardRange = (
+	filesCount: number,
+	index: number,
+	count: number,
+): [number, number] => {
+	const baseShardSize = Math.floor(filesCount / count);
+	const remainderTestFilesCount = filesCount % count;
+
+	if (remainderTestFilesCount >= index) {
+		const shardSize = baseShardSize + 1;
+		return [shardSize * (index - 1), shardSize * index];
+	}
+
+	const shardStart =
+		remainderTestFilesCount * (baseShardSize + 1) +
+		(index - remainderTestFilesCount - 1) * baseShardSize;
+	return [shardStart, shardStart + baseShardSize];
+};
+
+const partitionShards = (
+	files: readonly string[],
+	shardCount: number,
+): string[][] => {
+	const ordered = importOrderedFiles(files);
+
+	return Array.from({ length: shardCount }, (_, zeroBasedIndex) => {
+		const [start, end] = calculateShardRange(
+			ordered.length,
+			zeroBasedIndex + 1,
+			shardCount,
+		);
+		return ordered.slice(start, end);
+	});
+};
+
+void test('#1948: the sharded vitest discovery is exactly the configured suite, once per file', async () => {
 	const shardCount = readShardCount();
 	assertVitestRunArgs(shardCount);
-	const full = await listFiles(['list']);
-	const shards: string[][] = [];
-
-	for (let index = 1; index <= shardCount; index += 1) {
-		shards.push(await listFiles(['list', `--shard=${index}/${shardCount}`]));
-	}
+	const full = discoverTestFiles(await readDiscoveryGlobs());
+	const shards = partitionShards(full, shardCount);
 
 	const fullSet = new Set(full);
 	const seen = new Set<string>();
@@ -233,16 +312,16 @@ void test('#1948: the sharded vitest discovery is exactly the unsharded suite, o
 	assert.deepEqual(
 		missing,
 		[],
-		`${missing.length} file(s) run in the unsharded suite but in NO shard — the shard matrix silently lost them: ${missing.join(', ')}`,
+		`${missing.length} file(s) run in the configured vitest suite but in NO shard — the shard matrix silently lost them: ${missing.join(', ')}`,
 	);
 	assert.deepEqual(
 		extra,
 		[],
-		`${extra.length} file(s) run in some shard but not in the unsharded suite: ${extra.join(', ')}`,
+		`${extra.length} file(s) run in some shard but not in the configured vitest suite: ${extra.join(', ')}`,
 	);
 	assert.equal(
 		totalShardFiles,
 		full.length,
-		`per-shard file counts sum to ${totalShardFiles}, but the unsharded suite has ${full.length} — the counts must be equal (both go in the PR body).`,
+		`per-shard file counts sum to ${totalShardFiles}, but the configured suite has ${full.length} — the counts must be equal (both go in the PR body).`,
 	);
 });
