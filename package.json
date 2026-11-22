@@ -12,7 +12,6 @@
 		"check:quality": "node ./packages/scripts-ts/src/check-quality-ratchet.ts",
 		"lint:disables": "node ./packages/scripts-ts/src/check-oxlint-disables.ts",
 		"lint:fix": "oxlint --fix --quiet . && pnpm check:frontend-barrels",
-		"verify": "node ./packages/scripts-ts/src/verify-local.ts",
 		"prepare": "node packages/scripts-ts/src/install-git-hooks.ts",
 		"test:ci-drift": "pnpm --filter scripts-ts exec vitest run src/check-ci-drift.test.ts",
 		"test:ci-contracts": "node packages/scripts-ts/src/run-ci-contract-tests.ts",

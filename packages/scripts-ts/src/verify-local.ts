@@ -18,22 +18,16 @@ export const DEFAULT_BASE = 'origin/develop';
 export const DIFF_LIMITS = { maxFiles: 50, maxSizedLines: 600 } as const;
 export type Scope = 'all' | 'front' | 'api' | 'tooling';
 
-// §4.4 fail-closed inputs; the test asserts each is lane-covered or local-only.
 const TRIGGER_ROWS = [
 	String.raw`deps;;^(pnpm-lock\.yaml|package-lock\.json|packages\.lock\.json|pnpm-workspace\.yaml|\.npmrc|turbo\.json)$|(^|\/)package\.json$;;pnpm-lock.yaml;;all`,
 	String.raw`config;;^(packages\/_tsconfig\/|\.oxlintrc\.json$|\.oxfmtrc\.json$|knip\.ts$)|(^|\/)(tsconfig[^/]*\.json|vitest[^/]*\.config\.ts|vitest\.setup\.ts)$;;tsconfig.json;;all;;1`,
 	String.raw`ci;;^(\.github\/(workflows|actions)\/|\.github\/CODEOWNERS$|justfile$|\.gitignore$|\.dockerignore$|dokploy\.yml$)|(^|\/)(docker-)?compose[^/]*\.ya?ml$;;justfile;;all`,
 	String.raw`dotnet;;^(Directory\.Build\.(props|targets)|Directory\.Packages\.props|global\.json|PublyApp\.slnx|\.config\/dotnet-tools\.json)$|(^|\/)[^/]+\.csproj$;;Directory.Build.props;;all`,
-	String.raw`api-lib;;^apps\/api\/Lib\/;;apps/api/Lib/AppEnvironment.cs;;api`,
-	String.raw`api-shared;;^apps\/api\/(Data|Infrastructure|Migrations|Tests)\/|^apps\/apphost\/;;apps/api/Tests/Foo.cs;;api`,
-	String.raw`api-openapi;;^apps\/api\/openapi\.json$;;apps/api/openapi.json;;all`,
-	String.raw`shared-ts;;^packages\/shared-ts\/;;packages/shared-ts/src/lib/logger/iso-logger.ts;;front`,
-	String.raw`client-ts;;^packages\/client-ts\/;;packages/client-ts/src/index.ts;;all`,
-	String.raw`lint-ts;;^packages\/lint-ts\/;;packages/lint-ts/src/index.ts;;all`,
-	String.raw`lint-cs;;^packages\/lint-cs\/;;packages/lint-cs/Analyzers/NullCheck.cs;;all`,
+	String.raw`api-shared;;^apps\/api\/(Lib|Data|Infrastructure|Migrations|Tests)\/|^apps\/apphost\/;;apps/api/Lib/AppEnvironment.cs;;api`,
+	String.raw`front-inputs;;^(packages\/shared-ts\/|apps\/front\/scripts\/ci\/|apps\/front\/src\/routeTree\.gen\.ts$);;packages/shared-ts/src/lib/logger/iso-logger.ts;;front`,
+	String.raw`generated-client;;^(packages\/client-ts\/|apps\/api\/openapi\.json$);;packages/client-ts/src/index.ts;;all`,
+	String.raw`lint-packages;;^packages\/(lint-ts|lint-cs)\/;;packages/lint-ts/src/index.ts;;all`,
 	String.raw`scripts-ts;;^packages\/scripts-ts\/;;packages/scripts-ts/src/ci-changed-paths.ts;;tooling`,
-	String.raw`front-ci;;^apps\/front\/scripts\/ci\/;;apps/front/scripts/ci/run-proofs.ts;;front`,
-	String.raw`route-tree;;^apps\/front\/src\/routeTree\.gen\.ts$;;apps/front/src/routeTree.gen.ts;;front`,
 	String.raw`generated-cs;;\.g\.cs$;;apps/api/Modules/Posts/Posts.g.cs;;api`,
 ];
 
@@ -49,13 +43,20 @@ export const FULL_TRIGGERS = TRIGGER_ROWS.map((row) => {
 });
 
 const DOCS = new RegExp(LANE_PATTERNS.docs);
+// `.github/` is in the docs lane for CI, but a deleted workflow must fail closed.
+const isDocs = (file: string) =>
+	DOCS.test(file) && !file.startsWith('.github/');
+
 const TESTS = /\.(test|spec)\.[cm]?[tj]sx?$/;
+// Front Vitest's real `include`, minus its own exclusions and the proofs lane.
+const isFrontTest = (file: string) =>
+	/^apps\/front\/(src\/(?!styles\/drawer-description-contrast).+\.test\.tsx?|e2e\/(helpers|__tests__)\/.+\.test\.ts|scripts\/ci\/(?!(check-front-runtime-image|compose-startup)).+\.test\.ts)$/.test(
+		file,
+	);
 const LINTABLE = /\.(ts|tsx|js|jsx|mjs|mts|cts|cjs)$/;
 const FORMATTABLE = /\.(ts|tsx|js|jsx|mjs|mts|cts|cjs|json|css)$/;
 const FRONT_PROGRAM =
 	/^(apps\/front\/(src|scripts|tools|deploy)\/|packages\/shared-ts\/src\/)/;
-const FRONT_JS_SURFACES =
-	/^apps\/front\/(deploy\/request-counter\/(control-routes|server)\.ts|src\/components\/ui\/drawer-guard-tmp-dir\.ts)$/;
 const API_PROJECT = 'apps/api/Tests/PublyApp.Api.Tests.csproj';
 const API_BUILD_ENV = {
 	APP_ROLE: 'api',
@@ -79,7 +80,10 @@ const VITEST_RELATED = 'pnpm --filter front exec vitest related --run';
 const SCRIPTS_TEST = 'pnpm --filter scripts-ts exec vitest run';
 const API_BUILD = `dotnet build ${API_PROJECT} -c Test --nologo --verbosity minimal`;
 const API_TEST = `dotnet test ${API_PROJECT} -c Test --nologo --verbosity minimal`;
-const DOC_LINKS = 'node packages/scripts-ts/src/check-doc-links.ts';
+const DOC_LINKS = 'just ci-doc-links';
+const SPEC_DRIFT = 'just ci-spec-drift';
+const MIGRATION_GUARD = 'just ci-migration-expand-contract';
+const KNP = 'pnpm exec knip';
 const RATCHET = 'pnpm check:quality';
 
 export type Check = {
@@ -124,10 +128,7 @@ const check = (
 	env?: NodeJS.ProcessEnv,
 ): Check => {
 	const command = typeof line === 'string' ? argv(line) : line;
-	if (env) {
-		return { id, short, command, env };
-	}
-	return { id, short, command };
+	return env ? { id, short, command, env } : { id, short, command };
 };
 
 export const laneOf = (
@@ -146,8 +147,8 @@ export const laneOf = (
 	if (zone === 'tooling') {
 		return file.startsWith('apps/front/') ? 'front' : 'tooling';
 	}
-	if (/^apps\/(api|apphost)\//.test(file)) {
-		return 'api';
+	if (/^apps\/(front|api|apphost)\//.test(file)) {
+		return file.startsWith('apps/front/') ? 'front' : 'api';
 	}
 	return null;
 };
@@ -165,6 +166,7 @@ export const selectTests = (
 	sources: readonly string[],
 	changedTests: readonly string[],
 	deps: PlanDeps,
+	isTest: (file: string) => boolean = (file) => TESTS.test(file),
 ) => {
 	const tests = new Set(changedTests);
 	const related: string[] = [];
@@ -173,7 +175,7 @@ export const selectTests = (
 		const found = [
 			...deps.listDir(dir).map((name) => `${dir}/${name}`),
 			...deps.findImporters(source),
-		].filter((file) => TESTS.test(file));
+		].filter(isTest);
 		for (const file of found) {
 			tests.add(file);
 		}
@@ -200,11 +202,18 @@ const frontPlan = (
 	add: Add,
 ): void => {
 	const program = changed.some((file) => FRONT_PROGRAM.test(file));
+	// CI runs these for every front change; a subset must not certify less.
+	for (const line of [
+		'pnpm --filter front build',
+		'pnpm --filter front check:design-system',
+		'just react-doctor',
+		KNP,
+	]) {
+		add(line, line, line);
+	}
 	if (program) {
 		add('tsc-front', 'tsc(front, incremental)', TSC_FRONT);
 		add('tsc-server', 'tsc(server)', TSC_SERVER);
-	}
-	if (program || changed.some((file) => FRONT_JS_SURFACES.test(file))) {
 		add('tsc-js-surfaces', 'tsc(js-surfaces)', TSC_JS);
 	}
 	if (changed.some((file) => file.startsWith('apps/front/scripts/'))) {
@@ -213,8 +222,9 @@ const frontPlan = (
 	const front = changed.filter((file) => file.startsWith('apps/front/'));
 	const selection = selectTests(
 		front.filter((file) => !TESTS.test(file)),
-		front.filter((file) => TESTS.test(file)),
+		front.filter(isFrontTest),
 		deps,
+		isFrontTest,
 	);
 	if (selection.full) {
 		add('vitest-front', 'depth-1 > 40 importers -> full front', VITEST_FRONT);
@@ -248,6 +258,7 @@ const apiPlan = (changed: readonly string[], add: Add): void => {
 		: null;
 	const label = moduleOnly ? `api: ${names.join(',')}` : 'api';
 	add('build-api', `build(${label})`, argv(API_BUILD), API_BUILD_ENV);
+	add('spec-drift', 'openapi+client drift', SPEC_DRIFT);
 	add(
 		'test-api',
 		`test(${label})`,
@@ -291,7 +302,7 @@ const subsetPlan = (
 	if (changed.some((file) => classifyPath(file) !== null)) {
 		add('ratchet', 'ratchet', RATCHET);
 	}
-	if ([...changed, ...deleted].some((file) => DOCS.test(file))) {
+	if ([...changed, ...deleted].some(isDocs)) {
 		add('doc-links', 'doc-links', DOC_LINKS);
 	}
 	return checks;
@@ -304,9 +315,24 @@ const FULL_GATES = {
 	tooling: SCRIPTS_TEST,
 } satisfies Record<Scope, string>;
 
+const SCOPE_EXTRAS = {
+	front: [
+		'pnpm lint',
+		'node packages/scripts-ts/src/lint-front.ts --quiet',
+		'node packages/scripts-ts/src/check-no-floating-promises.ts',
+		KNP,
+		'just react-doctor',
+	],
+	api: [SPEC_DRIFT, MIGRATION_GUARD],
+	tooling: ['pnpm format', 'pnpm lint', KNP],
+} satisfies Partial<Record<Scope, readonly string[]>>;
+
 const fullPlan = (scope: Scope, reason: string, changed: string[]): Plan => {
 	const gate = FULL_GATES[scope];
 	const checks = [check('full', `FULL: ${gate}`, gate)];
+	for (const line of SCOPE_EXTRAS[scope] ?? []) {
+		checks.push(check(line, line, line));
+	}
 	if (scope === 'tooling') {
 		checks.push(check('ratchet', 'ratchet', RATCHET));
 	}
@@ -321,6 +347,7 @@ const SKIP_REASONS = {
 	'tsc-js-surfaces': 'js-surfaces inputs unchanged',
 	'typecheck-coverage': 'typecheck-coverage inputs unchanged',
 	'vitest-front': 'no changed test or depth-1 importer',
+	'vitest-front-related': 'no source needs the related-test fallback',
 	'build-api': 'no API file changed',
 	'test-api': 'no API file changed',
 	'test-scripts': 'no scripts-ts file changed',
@@ -339,7 +366,7 @@ const forcedScope = (
 			return { scope: hit.scope, reason: `${hit.id}: ${file}` };
 		}
 	}
-	const removed = deleted.find((entry) => !DOCS.test(entry));
+	const removed = deleted.find((entry) => !isDocs(entry));
 	if (removed) {
 		return {
 			scope: 'all' as const,
@@ -476,20 +503,18 @@ export const defaultDeps: PlanDeps = {
 	},
 };
 
-const summary = (plan: Plan): string =>
-	plan.checks.map((entry) => entry.short).join(' + ') || 'nothing';
-
-const describePlan = (plan: Plan, base: string): void => {
+const describePlan = (plan: Plan, base: string, explain: boolean): void => {
 	const head =
 		plan.mode === 'full'
 			? `verify: FULL(${plan.scope}) — ${plan.reason}`
 			: `verify: ${plan.changed.length} file(s) changed vs ${base}`;
-	console.log(`${head}\nverify: ${summary(plan)}`);
-};
-
-const explain = (plan: Plan): void => {
-	for (const skip of plan.skipped) {
-		console.log(`verify: skipped ${skip.id}: ${skip.reason}`);
+	console.log(
+		`${head}\nverify: ${plan.checks.map((entry) => entry.short).join(' + ') || 'nothing'}`,
+	);
+	if (explain) {
+		for (const skip of plan.skipped) {
+			console.log(`verify: skipped ${skip.id}: ${skip.reason}`);
+		}
 	}
 };
 
@@ -512,19 +537,15 @@ const parseArgs = (args: readonly string[]) => {
 		base: DEFAULT_BASE,
 		full: false,
 		explain: false,
-		selfTest: false,
 	};
 	for (let index = 0; index < args.length; index += 1) {
 		const arg = args[index];
 		if (arg === '--base') {
-			index += 1;
-			parsed.base = args[index] ?? DEFAULT_BASE;
+			parsed.base = args[(index += 1)] ?? DEFAULT_BASE;
 		} else if (arg === '--full') {
 			parsed.full = true;
 		} else if (arg === '--explain') {
 			parsed.explain = true;
-		} else if (arg === '--self-test') {
-			parsed.selfTest = true;
 		} else {
 			throw new Error(`unknown argument: ${arg}`);
 		}
@@ -532,21 +553,8 @@ const parseArgs = (args: readonly string[]) => {
 	return parsed;
 };
 
-const SELF_TEST =
-	'--filter scripts-ts exec vitest run src/verify-local.test.ts -t red/green';
-
-const selfTest = (): number =>
-	spawnSync('pnpm', argv(SELF_TEST), {
-		cwd: repoRoot,
-		stdio: 'inherit',
-		env: { ...process.env, VERIFY_SELF_TEST: '1' },
-	}).status ?? 1;
-
 export const main = (args: readonly string[]): number => {
 	const parsed = parseArgs(args);
-	if (parsed.selfTest) {
-		return selfTest();
-	}
 	const plan = buildPlan({
 		...(parsed.full
 			? { changed: [], deleted: [], sizedLines: 0 }
@@ -554,10 +562,7 @@ export const main = (args: readonly string[]): number => {
 		full: parsed.full,
 		deps: defaultDeps,
 	});
-	describePlan(plan, parsed.base);
-	if (parsed.explain) {
-		explain(plan);
-	}
+	describePlan(plan, parsed.base, parsed.explain);
 	if (plan.checks.length === 0) {
 		console.log('verify: no changes — nothing to check');
 		return 0;
@@ -567,7 +572,9 @@ export const main = (args: readonly string[]): number => {
 			return 1;
 		}
 	}
-	console.log(`\nverify: OK (${summary(plan)})`);
+	console.log(
+		`\nverify: OK (${plan.checks.map((entry) => entry.short).join(' + ')})`,
+	);
 	return 0;
 };
 

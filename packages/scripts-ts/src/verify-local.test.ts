@@ -43,7 +43,7 @@ const commitAll = (cwd: string, message: string) => {
 	]);
 };
 
-test('one front file -> format/lint/incremental tsc/depth-1/ratchet, no API/build', () => {
+test('one front file -> format/lint/tsc/depth-1/ratchet + CI front guards', () => {
 	const plan = buildPlan({
 		changed: ['apps/front/src/components/ui/avatar.tsx'],
 	});
@@ -57,9 +57,16 @@ test('one front file -> format/lint/incremental tsc/depth-1/ratchet, no API/buil
 	]) {
 		assert.ok(ids(plan).includes(id), `missing ${id}: ${ids(plan).join(',')}`);
 	}
-	for (const id of ['build-front', 'build-api', 'test-api', 'knip']) {
-		assert.ok(!ids(plan).includes(id), `unexpected ${id}`);
+	const commands = plan.checks.map((check) => check.command.join(' '));
+	for (const command of [
+		'pnpm --filter front build',
+		'pnpm --filter front check:design-system',
+		'just react-doctor',
+		'pnpm exec knip',
+	]) {
+		assert.ok(commands.includes(command), `missing ${command}`);
 	}
+	assert.ok(!ids(plan).includes('build-api'));
 });
 
 test('one API module file -> build + that module filter, no front', () => {
@@ -67,7 +74,12 @@ test('one API module file -> build + that module filter, no front', () => {
 		changed: ['apps/api/Modules/Posts/Handlers/CreatePost.cs'],
 	});
 	assert.equal(plan.mode, 'subset');
-	assert.deepEqual(ids(plan).sort(), ['build-api', 'ratchet', 'test-api']);
+	assert.deepEqual(ids(plan).sort(), [
+		'build-api',
+		'ratchet',
+		'spec-drift',
+		'test-api',
+	]);
 	const buildApi = plan.checks.find((check) => check.id === 'build-api');
 	assert.ok(
 		buildApi?.command.includes('apps/api/Tests/PublyApp.Api.Tests.csproj'),
@@ -85,7 +97,36 @@ test('API Lib change -> full API suite, still no front set', () => {
 	const gate = plan.checks.find((check) => check.id === 'full');
 	assert.ok(gate);
 	assert.deepEqual(gate.command, ['just', 'test-api']);
+	const commands = plan.checks.map((check) => check.command.join(' '));
+	assert.ok(commands.includes('just ci-spec-drift'));
+	assert.ok(commands.includes('just ci-migration-expand-contract'));
 	assert.ok(!ids(plan).includes('tsc-front'));
+});
+
+test('FULL(tooling) runs the CI quality lane, not only the scripts suite', () => {
+	const plan = buildPlan({ changed: ['packages/scripts-ts/src/foo.ts'] });
+	assert.equal(plan.mode, 'full');
+	assert.equal(plan.scope, 'tooling');
+	const commands = plan.checks.map((check) => check.command.join(' '));
+	for (const command of ['pnpm format', 'pnpm lint', 'pnpm exec knip']) {
+		assert.ok(commands.includes(command), `missing ${command}`);
+	}
+	assert.ok(commands.includes('pnpm --filter scripts-ts exec vitest run'));
+});
+
+test('FULL(front) includes the front lint lane CI runs', () => {
+	const plan = buildPlan({ changed: ['packages/shared-ts/src/lib/errors.ts'] });
+	assert.equal(plan.mode, 'full');
+	assert.equal(plan.scope, 'front');
+	const commands = plan.checks.map((check) => check.command.join(' '));
+	assert.ok(
+		commands.includes('node packages/scripts-ts/src/lint-front.ts --quiet'),
+	);
+	assert.ok(
+		commands.includes(
+			'node packages/scripts-ts/src/check-no-floating-promises.ts',
+		),
+	);
 });
 
 test('lockfile -> FULL(all) with a one-line reason', () => {
@@ -98,10 +139,48 @@ test('lockfile -> FULL(all) with a one-line reason', () => {
 	assert.deepEqual(gate.command, ['just', 'ci']);
 });
 
-test('docs only -> doc link guard only', () => {
+test('docs only -> the CI docs lane, not one link check', () => {
 	const plan = buildPlan({ changed: ['docs/guides/local-ci-gate.md'] });
 	assert.equal(plan.mode, 'subset');
 	assert.deepEqual(ids(plan), ['doc-links']);
+	assert.deepEqual(plan.checks[0].command, ['just', 'ci-doc-links']);
+});
+
+test('deleted workflow fails closed even though CI files are in the docs lane', () => {
+	const plan = buildPlan({
+		changed: [],
+		deleted: ['.github/workflows/deploy-images.yml'],
+	});
+	assert.equal(plan.mode, 'full');
+	assert.match(plan.reason ?? '', /deleted or renamed path/);
+});
+
+test('e2e specs and proofs are not handed to the front Vitest project', () => {
+	for (const changed of [
+		'apps/front/e2e/smoke/foo.spec.ts',
+		'apps/front/tests/proofs/1234/regression.test.ts',
+	]) {
+		const plan = buildPlan({ changed: [changed] });
+		assert.equal(plan.mode, 'subset', changed);
+		assert.ok(!ids(plan).includes('vitest-front'), changed);
+		assert.ok(!ids(plan).includes('vitest-front-related'), changed);
+	}
+});
+
+test('front CSS assets stay in the front lane instead of FULL(all)', () => {
+	const plan = buildPlan({
+		changed: ['apps/front/src/styles/app.css'],
+	});
+	assert.equal(plan.mode, 'subset');
+	assert.ok(ids(plan).includes('tsc-front'));
+});
+
+test('--explain can say why the related fallback was skipped', () => {
+	const plan = buildPlan({
+		changed: ['apps/front/src/components/ui/avatar.test.tsx'],
+	});
+	const skipped = plan.skipped.map((entry) => entry.id);
+	assert.ok(skipped.includes('vitest-front-related'));
 });
 
 test('unknown extension -> FULL(all) naming the path', () => {
@@ -213,10 +292,10 @@ test('every FULL_TRIGGERS entry is covered by LANE_PATTERNS or local-only', () =
 	}
 });
 
-// §4.5-B: the red/green proof harness behind `just verify --self-test`. It
-// runs from a scratch worktree of the current commit, one intentional break
-// at a time, and never commits. Skipped in ordinary suite runs; enable it
-// with VERIFY_SELF_TEST=1 (or `just verify --self-test`).
+// §4.5-B: the red/green proof harness. It runs from a scratch worktree of
+// the current commit, one intentional break at a time, and never commits.
+// Skipped in ordinary suite runs; enable it with VERIFY_SELF_TEST=1 and
+// `pnpm --filter scripts-ts exec vitest run src/verify-local.test.ts -t red/green`.
 
 interface SelfTestCase {
 	name: string;
@@ -273,7 +352,7 @@ const SELF_TEST_CASES: readonly SelfTestCase[] = [
 		name: 'failing direct-importer test',
 		expect: 'FAILED vitest-front',
 		setup: appendTo(
-			'apps/front/src/components/query-display.tsx',
+			'apps/front/src/lib/testing/suppression-reason.ts',
 			"throw new Error('verify probe');",
 		),
 	},
