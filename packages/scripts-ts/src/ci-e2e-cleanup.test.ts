@@ -9,6 +9,7 @@ import { test } from 'vitest';
 
 import {
 	decidePackageDeletion,
+	decidePrune,
 	decideVersionDeletion,
 	E2E_PACKAGES,
 	execFileGhApi,
@@ -16,6 +17,7 @@ import {
 	LAST_TAGGED_VERSION_400_MESSAGE,
 	parseVersionJson,
 	parseVersionsJson,
+	pruneOldImages,
 	runE2ECleanup,
 	type CleanupMessage,
 	type CleanupOutcome,
@@ -1054,4 +1056,119 @@ test('execFileGhApi maps a nonzero exit to {status, stderr} data without throwin
 		assert.equal(parsed.status, 3);
 		assert.match(parsed.stderr, /forbidden-by-test-fake/);
 	});
+});
+
+const DAY = 24 * 60 * 60 * 1000;
+
+test('decidePrune owns only fully-expired scratch/tree versions', () => {
+	const now = Date.parse('2026-11-22T00:00:00Z');
+	const cutoff = now - 7 * DAY;
+	const old = new Date(now - 8 * DAY).toISOString();
+	const recent = new Date(now - 6 * DAY).toISOString();
+
+	assert.equal(
+		decidePrune({
+			version: { id: '1', tags: [`tree-${'a'.repeat(40)}`], createdAt: old },
+			cutoff,
+		}),
+		true,
+	);
+	assert.equal(
+		decidePrune({
+			version: { id: '2', tags: ['123-1'], createdAt: old },
+			cutoff,
+		}),
+		true,
+	);
+	assert.equal(
+		decidePrune({
+			version: { id: '3', tags: [`tree-${'a'.repeat(40)}`], createdAt: recent },
+			cutoff,
+		}),
+		false,
+	);
+	assert.equal(
+		decidePrune({
+			version: {
+				id: '4',
+				tags: ['v1.2.3', `tree-${'a'.repeat(40)}`],
+				createdAt: old,
+			},
+			cutoff,
+		}),
+		false,
+		'a version carrying a release tag is never pruned',
+	);
+	assert.equal(
+		decidePrune({
+			version: { id: '5', tags: [`tree-${'a'.repeat(40)}`] },
+			cutoff,
+		}),
+		false,
+		'a version without a creation time is not guessed at',
+	);
+});
+
+test('pruneOldImages deletes expired versions and skips fresh ones', () => {
+	const now = Date.parse('2026-11-22T00:00:00Z');
+	const old = new Date(now - 8 * DAY).toISOString();
+	const fresh = new Date(now - 1 * DAY).toISOString();
+	const deleted: string[] = [];
+	const ghApi: GhApiRunner = (args) => {
+		if (args[0] === '/users/publyapp') {
+			return {
+				status: 0,
+				stdout: JSON.stringify({ type: 'Organization' }),
+				stderr: '',
+			};
+		}
+		if (args.some((arg) => arg.includes('/versions?per_page=100'))) {
+			return {
+				status: 0,
+				stdout: JSON.stringify([
+					{
+						id: 10,
+						created_at: old,
+						metadata: { container: { tags: [`tree-${'a'.repeat(40)}`] } },
+					},
+					{
+						id: 11,
+						created_at: fresh,
+						metadata: { container: { tags: [`tree-${'b'.repeat(40)}`] } },
+					},
+				]),
+				stderr: '',
+			};
+		}
+		if (args[0] === '--method' && args[1] === 'DELETE') {
+			deleted.push(args[2]);
+			return { status: 0, stdout: '', stderr: '' };
+		}
+		return { status: 0, stdout: '[]', stderr: '' };
+	};
+
+	const outcome = pruneOldImages({ owner: 'publyapp', days: 7, now, ghApi });
+
+	assert.equal(outcome.failed, false);
+	assert.deepEqual(deleted, [
+		'/orgs/publyapp/packages/container/publyapp-e2e-migrate/versions/10',
+		'/orgs/publyapp/packages/container/publyapp-e2e-api/versions/10',
+		'/orgs/publyapp/packages/container/publyapp-e2e-request-counter/versions/10',
+		'/orgs/publyapp/packages/container/publyapp-e2e-front/versions/10',
+	]);
+	assert.equal(outcome.messages.filter((m) => m.level === 'error').length, 0);
+});
+
+test('runE2ECleanup retains on a pull_request and on a failed merge-queue run', () => {
+	const ghApi: GhApiRunner = () => {
+		throw new Error('retention must not call the API');
+	};
+	const retained = runE2ECleanup({
+		owner: 'publyapp',
+		runTag: `tree-${'a'.repeat(40)}`,
+		retainForReuse: true,
+		ghApi,
+	});
+	assert.equal(retained.failed, false);
+	assert.match(retained.messages[0]?.text ?? '', /Retaining/);
 });

@@ -1,0 +1,23 @@
+name: Prune expired e2e images
+
+on:
+  schedule:
+    # Weekly, Monday 03:17 UTC: GHCR has no retention policy of its own.
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  prune:
+    name: Prune expired e2e images
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Prune tree images older than 7 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node packages/scripts-ts/src/ci-e2e-cleanup.ts prune 7

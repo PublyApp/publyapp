@@ -63,6 +63,7 @@ export type GhApiRunner = (args: string[]) => GhApiResult;
 export type ContainerVersion = {
 	id: string;
 	tags: string[];
+	createdAt?: string;
 };
 
 export type CleanupMessage = {
@@ -142,6 +143,7 @@ export const parseVersionsJson = (
 
 		const record = entry as {
 			id?: unknown;
+			created_at?: unknown;
 			metadata?: {
 				container?: {
 					tags?: unknown;
@@ -157,8 +159,11 @@ export const parseVersionsJson = (
 		const tags = Array.isArray(rawTags)
 			? rawTags.filter((tag): tag is string => typeof tag === 'string')
 			: [];
-
-		versions.push({ id: String(record.id), tags });
+		const version: ContainerVersion = { id: String(record.id), tags };
+		if (typeof record.created_at === 'string') {
+			version.createdAt = record.created_at;
+		}
+		versions.push(version);
 	}
 
 	return versions;
@@ -266,6 +271,110 @@ export const decidePackageDeletion = ({
 	}
 
 	return { outcome: 'delete-package' };
+};
+
+/** Tree-addressed cache entries and legacy `<run>-<attempt>` scratch tags. */
+const PRUNABLE_TAG = /^(tree-[0-9a-f]{40}|\d+-\d+)$/;
+
+export const decidePrune = ({
+	version,
+	cutoff,
+}: {
+	version: ContainerVersion;
+	cutoff: number;
+}): boolean => {
+	if (
+		version.tags.length === 0 ||
+		!version.tags.every((tag) => PRUNABLE_TAG.test(tag))
+	) {
+		return false;
+	}
+	const created = Date.parse(version.createdAt ?? '');
+	return Number.isFinite(created) && created < cutoff;
+};
+
+const prunePackage = ({
+	name,
+	versionsPath,
+	cutoff,
+	ghApi,
+	messages,
+}: {
+	name: string;
+	versionsPath: string;
+	cutoff: number;
+	ghApi: GhApiRunner;
+	messages: CleanupMessage[];
+}): boolean => {
+	const list = ghApi(['--paginate', `${versionsPath}/versions?per_page=100`]);
+	const versions =
+		list.status === 0 ? parseVersionsJson(list.stdout) : undefined;
+	if (versions === undefined) {
+		messages.push({
+			level: 'error',
+			text: `Could not list GHCR versions for ${name}: HTTP ${list.status}. ${list.stderr.trim()}`,
+		});
+		return false;
+	}
+	let failed = false;
+	for (const version of versions.filter((candidate) =>
+		decidePrune({ version: candidate, cutoff }),
+	)) {
+		const response = ghApi([
+			'--method',
+			'DELETE',
+			`${versionsPath}/versions/${version.id}`,
+		]);
+		if (response.status === 0) {
+			messages.push({
+				level: 'notice',
+				text: `Pruned expired GHCR version ${version.id} of ${name} (${version.tags.join(', ')}).`,
+			});
+			continue;
+		}
+		const removed =
+			isLastTaggedVersionRejection(response) &&
+			ghApi(['--method', 'DELETE', versionsPath]).status === 0;
+		messages.push({
+			level: removed ? 'notice' : 'error',
+			text: removed
+				? `Pruned GHCR package ${name}: only expired tags remained.`
+				: `Could not prune ${name} version ${version.id}: HTTP ${response.status}. ${response.stderr.trim()}`,
+		});
+		failed = failed || !removed;
+	}
+	return !failed;
+};
+
+export const pruneOldImages = ({
+	owner,
+	days,
+	now = Date.now(),
+	packages = E2E_PACKAGES,
+	ghApi,
+}: {
+	owner: string;
+	days: number;
+	now?: number;
+	packages?: readonly string[];
+	ghApi: GhApiRunner;
+}): CleanupOutcome => {
+	const messages: CleanupMessage[] = [];
+	const pathPrefix = resolvePackagesPathPrefix({ owner, ghApi, messages });
+	if (pathPrefix === undefined) {
+		return { messages, failed: true };
+	}
+	const cutoff = now - days * 24 * 60 * 60 * 1000;
+	const results = packages.map((name) =>
+		prunePackage({
+			name,
+			versionsPath: `${pathPrefix}/packages/container/${name}`,
+			cutoff,
+			ghApi,
+			messages,
+		}),
+	);
+	return { messages, failed: results.includes(false) };
 };
 
 /**
@@ -540,12 +649,14 @@ export const runE2ECleanup = ({
 	owner,
 	runTag,
 	forkRun = false,
+	retainForReuse = false,
 	packages = E2E_PACKAGES,
 	ghApi,
 }: {
 	owner: string;
 	runTag: string;
 	forkRun?: boolean;
+	retainForReuse?: boolean;
 	packages?: readonly string[];
 	ghApi: GhApiRunner;
 }): CleanupOutcome => {
@@ -566,6 +677,18 @@ export const runE2ECleanup = ({
 		messages.push({
 			level: 'warning',
 			text: 'Build did not emit an image tag; skipping GHCR cleanup.',
+		});
+
+		return { messages, failed: false };
+	}
+
+	// A pull_request run (and a failed queue run) keeps its tree images: they
+	// are the reuse cache. Successful queue runs and develop pushes delete as
+	// before; the weekly prune expires whatever is older than 7 days.
+	if (retainForReuse) {
+		messages.push({
+			level: 'notice',
+			text: `Retaining e2e images ${runTag} for merge-queue reuse.`,
 		});
 
 		return { messages, failed: false };
@@ -607,12 +730,18 @@ const isDirectRun =
 	);
 
 if (isDirectRun) {
-	const outcome = runE2ECleanup({
-		owner: process.env.GITHUB_REPOSITORY_OWNER ?? '',
-		runTag: process.env.E2E_IMAGE_TAG ?? '',
-		forkRun: process.env.FORK_RUN === 'true',
-		ghApi: execFileGhApi,
-	});
+	const owner = process.env.GITHUB_REPOSITORY_OWNER ?? '';
+	const pruneMode = process.argv[2] === 'prune';
+	const days = Number(process.argv[3] ?? '7');
+	const outcome = pruneMode
+		? pruneOldImages({ owner, days, ghApi: execFileGhApi })
+		: runE2ECleanup({
+				owner,
+				runTag: process.env.E2E_IMAGE_TAG ?? '',
+				forkRun: process.env.FORK_RUN === 'true',
+				retainForReuse: process.env.E2E_RETAIN_IMAGES === 'true',
+				ghApi: execFileGhApi,
+			});
 
 	if ((process.env.GITHUB_REPOSITORY_OWNER ?? '').length === 0) {
 		console.error(

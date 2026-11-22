@@ -1,42 +1,42 @@
+import { execFileSync } from 'node:child_process';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-// Refuses a partial re-run of the e2e jobs (#1063) before it pulls anything:
-// the image tag the build job emitted must belong to THIS attempt. On a partial
-// re-run ("Re-run failed jobs") the build job did not re-run, its tag is stale,
-// and the images it named were already deleted by the cleanup job — the pull
-// then fails with a "manifest unknown" that looks like a registry problem.
+// Refuses an e2e pull whose image tag does not address the tree this job
+// checked out (#1063). The tag is the git tree hash, so this is an exact
+// content check: a partial re-run of a different commit, or a hand-set tag,
+// cannot pull images built from other code. Tree tags are retained for
+// merge-queue reuse, so the old "cleanup deleted them" failure mode is gone;
+// this check is what keeps the pull honest.
 //
 // Formerly the `run:` block of ci.yml::e2e-smoke|e2e-test::Detect partial rerun
 // (docs/guides/languages.md: a computed value plus a conditional failure is
 // logic, so it is a script).
 
-/** The tag a build job of this attempt emits: run id + attempt number. */
-export const expectedImageTag = (runId: string, attempt: string): string =>
-	`${runId}-${attempt}`;
+/** The only tag this checkout may pull: the tree hash, prefixed. */
+export const expectedImageTag = (tree: string): string => `tree-${tree}`;
 
-/** The `::error::` annotation a stale tag earns, or null when the tag is current. */
-export const mismatchMessage = (
-	tag: string,
-	runId: string,
-	attempt: string,
-): string | null => {
-	const expected = expectedImageTag(runId, attempt);
+/** The `::error::` annotation a mismatched tag earns, or null when it matches. */
+export const mismatchMessage = (tag: string, tree: string): string | null => {
+	const expected = expectedImageTag(tree);
 
 	if (tag === expected) {
 		return null;
 	}
 
-	return `::error::e2e build tag ${tag} does not match this attempt ${expected}; rerun all jobs`;
+	return `::error::e2e image tag ${tag} does not match the checked-out tree ${expected}; rerun all jobs`;
 };
 
-const run = () => {
-	const tag = process.env.E2E_IMAGE_TAG ?? '';
+/** The tree of the commit actually checked out — never `github.sha` by proxy. */
+export const checkedOutTree = (): string =>
+	execFileSync('git', ['rev-parse', 'HEAD^{tree}'], {
+		encoding: 'utf8',
+	}).trim();
 
+const run = () => {
 	const message = mismatchMessage(
-		tag,
-		process.env.GITHUB_RUN_ID ?? '',
-		process.env.GITHUB_RUN_ATTEMPT ?? '',
+		process.env.E2E_IMAGE_TAG ?? '',
+		checkedOutTree(),
 	);
 
 	if (message !== null) {

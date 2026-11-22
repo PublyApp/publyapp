@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { createWriteStream, mkdirSync } from 'node:fs';
+import { appendFileSync, createWriteStream, mkdirSync } from 'node:fs';
 import process from 'node:process';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
@@ -74,6 +74,14 @@ const saveImage = async (reference: string, target: string) => {
 };
 
 const run = async () => {
+	if (process.env.E2E_REUSE === 'true') {
+		// The tree-addressed images were verified and pulled by the reuse step;
+		// this step stays green and does not rebuild them.
+		console.log(
+			'reuse: verified tree images are already pulled — skipping the build',
+		);
+		return;
+	}
 	const fork = process.env.E2E_FORK === 'true';
 	const namespace = requiredEnvironment('E2E_IMAGE_NS');
 	const tag = requiredEnvironment('E2E_IMAGE_TAG');
@@ -83,6 +91,30 @@ const run = async () => {
 
 	if (!fork) {
 		dockerCompose(['-f', baseCompose], ['push', ...IMAGE_SERVICES]);
+		const digests: Record<string, string> = {};
+		for (const service of IMAGE_SERVICES) {
+			const inspect = spawnSync(
+				'docker',
+				[
+					'buildx',
+					'imagetools',
+					'inspect',
+					imageReference(namespace, tag, service),
+					'--format',
+					'{{json .Manifest.Digest}}',
+				],
+				{ encoding: 'utf8' },
+			);
+			const digest = JSON.parse(inspect.stdout || '""') as unknown;
+			if (typeof digest !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(digest)) {
+				throw new Error(`cannot resolve the pushed digest of ${service}`);
+			}
+			digests[service] = digest;
+		}
+		appendFileSync(
+			process.env.GITHUB_OUTPUT ?? '/dev/null',
+			`digests=${JSON.stringify(digests)}\n`,
+		);
 
 		return;
 	}

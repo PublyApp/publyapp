@@ -127,6 +127,7 @@ const e2eBuildExpectedSteps = [
 	'e2e-build.setup_buildx',
 	'e2e-build.setup_runtime',
 	'e2e-build.login',
+	'e2e-build.image_reuse',
 	'e2e-build.images',
 	'e2e-build.runtime_guard',
 	'e2e-build.upload_images',
@@ -300,6 +301,26 @@ test.each([
 	const result = createE2eBuildResult(login, uploadImages);
 
 	assert.equal(result.job.conclusion, 'success');
+});
+
+// Build and reuse execute the same step set; reuse only changes what `images`
+// does internally, so the success case above is both paths. A failed probe
+// must still be a red lane: it is required work, not a diagnostic.
+test('relevant e2e-build rejects a failed image-reuse probe', () => {
+	const stepResults = e2eBuildResults('success', 'skipped');
+	stepResults['e2e-build.image_reuse'] = { outcome: 'failure' };
+	const result = createCiLaneResult({
+		jobKey: 'e2e-build',
+		lane: 'e2e',
+		expectedSteps: e2eBuildExpectedSteps,
+		mode: 'relevant',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults,
+	});
+
+	assert.equal(result.job.conclusion, 'failure');
 });
 
 test.each([

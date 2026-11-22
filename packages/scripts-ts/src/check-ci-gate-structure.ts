@@ -1258,7 +1258,12 @@ const CENTRAL_PERMISSIONS = {
 	'audit-production': { contents: 'read' },
 	api: { contents: 'read' },
 	frontVitest: { contents: 'read' },
-	e2eBuild: { contents: 'read', packages: 'write' },
+	e2eBuild: {
+		contents: 'read',
+		packages: 'write',
+		'id-token': 'write',
+		attestations: 'write',
+	},
 	e2eSmoke: { contents: 'read', packages: 'read' },
 	e2eTest: { contents: 'read', packages: 'read' },
 	e2eCleanup: { contents: 'read', packages: 'write' },
