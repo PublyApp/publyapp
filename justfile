@@ -101,7 +101,7 @@ format:
 knip:
   pnpm exec knip
 
-# React Doctor: check changed files for findings (mirrors CI --scope files --blocking warning)
+# React Doctor: check changed files for findings (mirrors CI --scope files --blocking warning). First run resolves it through pnpm dlx (network, ~2 min), cached afterwards.
 react-doctor base="origin/develop":
   cd {{front_dir}} && pnpm dlx react-doctor@0.9.12 --scope files --base {{base}} --blocking warning --no-telemetry --verbose
 
@@ -232,6 +232,9 @@ test-analyzers:
 #
 # See docs/guides/local-ci-gate.md.
 
+verify *args:
+  node packages/scripts-ts/src/verify-local.ts {{args}}
+
 # Fail if .github/workflows has a step the local gate is not reconciled with,
 # if the #1017 changed-path classifier's fail-closed logic regresses, or if
 # an aggregate gate's job graph (needs/if/permissions/outputs — the metadata
@@ -310,6 +313,11 @@ ci-doc-links:
   pnpm --filter scripts-ts exec vitest run src/audit-docs-prune.test.ts
   node ./packages/scripts-ts/src/check-doc-links.ts
   node ./packages/scripts-ts/src/audit-docs-prune.ts --check
+
+# The link checks without the frozen pre-2026-09 prune walk (its own inputs only).
+ci-doc-links-fast:
+  pnpm --filter scripts-ts exec vitest run src/check-doc-links.test.ts src/audit-docs-prune.test.ts
+  node ./packages/scripts-ts/src/check-doc-links.ts
 
 # #1798: every production-required env var documented in the deploy runbook.
 # Extracts required vars from actual source code (env.ts schema, server.ts

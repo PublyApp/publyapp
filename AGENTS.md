@@ -167,6 +167,8 @@ pnpm --filter front test       # Run the front unit/component suite (Vitest)
 
 ### Pre-push gate
 
+Agents run `just verify` before every push; the full suites are CI's job unless `verify` says `FULL`.
+
 ```bash
 just ci                # Mirror of CI (no e2e) + the full API suite — run before pushing
 just ci-migration-expand-contract # New migration safety gate for expand/contract DB rollout

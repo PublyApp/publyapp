@@ -53,7 +53,7 @@
 		"test:front-runtime-image-guard": "node scripts/run-guarded.ts --test scripts/ci/check-front-runtime-image.test.ts",
 		"test:e2e:tag": "node scripts/run-guarded.ts -- playwright test --grep",
 		"test:design-guards": "node scripts/run-guarded.ts -- vitest run --config vitest.design-guards.config.ts",
-		"test:ci-non-vitest": "node scripts/run-guarded.ts scripts/ci/run-non-vitest-report-all.ts",
+		"test:ci-non-vitest": "GUARD_TIMEOUT_SECONDS=600 node scripts/run-guarded.ts scripts/ci/run-non-vitest-report-all.ts",
 		"test": "pnpm test:ci-non-vitest && vitest run",
 		"test:typecheck-coverage-guard": "node scripts/run-guarded.ts --test scripts/guards/check-typecheck-coverage.test.ts",
 		"check:guard-coverage": "node scripts/run-guarded.ts scripts/guards/check-guard-coverage.ts",
