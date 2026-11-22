@@ -445,7 +445,20 @@ const assertE2eImageEnvPropagation = (
 		`the ${options.lane} e2e lane must expose canonical image env`,
 	);
 
-	for (const stepId of ['pull-stack', 'up-stack', 'wait-health', 'teardown']) {
+	const pull = job.steps.find((candidate) => candidate.id === 'pull-stack');
+	assert.ok(pull, 'pull-stack must exist');
+	assert.match(
+		pull.run ?? '',
+		/ci-e2e-image-trust\.ts pull/,
+		'pull-stack must pull the digests the build job attested, not a mutable tag',
+	);
+	assert.match(
+		pull.env?.E2E_IMAGE_DIGESTS ?? '',
+		/needs\.e2e-build\.outputs\.digests/,
+		'pull-stack must receive the verified digests',
+	);
+
+	for (const stepId of ['up-stack', 'wait-health', 'teardown']) {
 		const step = job.steps.find((candidate) => candidate.id === stepId);
 		assert.ok(step, `${stepId} must exist`);
 		assert.match(
@@ -992,7 +1005,7 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 	}
 });
 
-test('central workflow rejects six mutations for every one of its 104 classifier conditions', async () => {
+test('central workflow rejects six mutations for every one of its 109 classifier conditions', async () => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-ci-condition-delete-'),
 	);
@@ -1014,12 +1027,12 @@ test('central workflow rejects six mutations for every one of its 104 classifier
 				)
 				.map((step) => ({ jobId, stepId: String(step.id) })),
 	);
-	assert.equal(classifierTrueSteps.length, 104);
+	assert.equal(classifierTrueSteps.length, 109);
 	assert.equal(
 		new Set(
 			classifierTrueSteps.map(({ jobId, stepId }) => `${jobId}/${stepId}`),
 		).size,
-		104,
+		109,
 	);
 	assert.deepEqual(
 		classifierTrueSteps
@@ -1096,8 +1109,8 @@ test('central workflow rejects six mutations for every one of its 104 classifier
 				rejected += 1;
 			}
 		}
-		assert.equal(mutatedWorkflows.size, 624);
-		assert.equal(rejected, 624);
+		assert.equal(mutatedWorkflows.size, 654);
+		assert.equal(rejected, 654);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
@@ -2128,7 +2141,7 @@ const deriveManifestEvidence = (
 	};
 };
 
-test('central manifest derives honest evidence for every one of its 248 entries', async () => {
+test('central manifest derives honest evidence for every one of its 253 entries', async () => {
 	const manifest = JSON.parse(
 		await readFile(
 			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
@@ -2141,7 +2154,7 @@ test('central manifest derives honest evidence for every one of its 248 entries'
 	const central = Object.entries(manifest.steps).filter(([id]) =>
 		id.startsWith('ci.yml::'),
 	);
-	assert.equal(central.length, 248);
+	assert.equal(central.length, 253);
 	const justDump = JSON.parse(
 		execFileSync('just', ['--dump', '--dump-format', 'json'], {
 			cwd: repoRoot,
@@ -2167,7 +2180,7 @@ test('central manifest derives honest evidence for every one of its 248 entries'
 			`${id} evidence must be derived from its exact step kind and command graph`,
 		);
 	}
-	assert.equal(decisions.size, 248);
+	assert.equal(decisions.size, 253);
 	assert.equal(
 		manifest.steps['ci.yml::quality-js::Install pnpm']?.mirror,
 		null,

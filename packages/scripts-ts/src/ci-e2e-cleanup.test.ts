@@ -9,6 +9,7 @@ import { test } from 'vitest';
 
 import {
 	decidePackageDeletion,
+	decidePrune,
 	decideVersionDeletion,
 	E2E_PACKAGES,
 	execFileGhApi,
@@ -252,7 +253,8 @@ test("when other runs' versions are still present, the version delete goes strai
 		calls.filter((call) =>
 			call.args.some((arg) => arg.endsWith('/versions?per_page=100')),
 		).length,
-		1,
+		2,
+		'the prune pass and the cleanup pass each list once',
 	);
 	assert.match(allText(outcome), /Deleted GHCR version 42/);
 });
@@ -452,7 +454,7 @@ test('the safety re-list failing after the documented 400 fails loudly instead o
 			respond: () => {
 				lists += 1;
 
-				if (lists === 1) {
+				if (lists <= 2) {
 					return ok([rawVersion('42', [RUN_TAG])]);
 				}
 				return httpFail(500, 'gh: HTTP 500: oh no');
@@ -1054,4 +1056,175 @@ test('execFileGhApi maps a nonzero exit to {status, stderr} data without throwin
 		assert.equal(parsed.status, 3);
 		assert.match(parsed.stderr, /forbidden-by-test-fake/);
 	});
+});
+
+const DAY = 24 * 60 * 60 * 1000;
+
+test('decidePrune owns only fully-expired scratch/tree versions', () => {
+	const now = Date.parse('2026-11-22T00:00:00Z');
+	const cutoff = now - 7 * DAY;
+	const old = new Date(now - 8 * DAY).toISOString();
+	const recent = new Date(now - 6 * DAY).toISOString();
+
+	assert.equal(
+		decidePrune({
+			version: { id: '1', tags: [`tree-${'a'.repeat(40)}`], createdAt: old },
+			cutoff,
+		}),
+		true,
+	);
+	assert.equal(
+		decidePrune({
+			version: { id: '2', tags: ['123-1'], createdAt: old },
+			cutoff,
+		}),
+		true,
+	);
+	assert.equal(
+		decidePrune({
+			version: { id: '3', tags: [`tree-${'a'.repeat(40)}`], createdAt: recent },
+			cutoff,
+		}),
+		false,
+	);
+	assert.equal(
+		decidePrune({
+			version: {
+				id: '4',
+				tags: ['v1.2.3', `tree-${'a'.repeat(40)}`],
+				createdAt: old,
+			},
+			cutoff,
+		}),
+		false,
+		'a version carrying a release tag is never pruned',
+	);
+	assert.equal(
+		decidePrune({
+			version: { id: '5', tags: [`tree-${'a'.repeat(40)}`] },
+			cutoff,
+		}),
+		false,
+		'a version without a creation time is not guessed at',
+	);
+});
+
+test('a push cleanup deletes the run tag and prunes expired versions past page one', () => {
+	const now = Date.now();
+	const fresh = new Date(now - 1 * DAY).toISOString();
+	const old = new Date(now - 8 * DAY).toISOString();
+	const deleted: string[] = [];
+	let listedWithSlurp = false;
+	const ghApi: GhApiRunner = (args) => {
+		if (args[0] === '/users/publyapp') {
+			return ok({ type: 'Organization' });
+		}
+		if (
+			args[0] !== '--method' &&
+			args.some((arg) => arg.endsWith('/versions/42'))
+		) {
+			return ok(rawVersion(42, [RUN_TAG]));
+		}
+		if (args.some((arg) => arg.includes('/versions?per_page=100'))) {
+			listedWithSlurp = listedWithSlurp || args.includes('--slurp');
+			const firstPage = Array.from({ length: 100 }, (_, index) => ({
+				id: index,
+				created_at: fresh,
+				metadata: {
+					container: { tags: [`tree-${'a'.repeat(40)}-${index}`] },
+				},
+			}));
+			firstPage.push({
+				id: 42,
+				created_at: fresh,
+				metadata: { container: { tags: [RUN_TAG] } },
+			});
+			const secondPage = [
+				{
+					id: 500,
+					created_at: old,
+					metadata: { container: { tags: [`tree-${'c'.repeat(40)}`] } },
+				},
+				{
+					id: 501,
+					created_at: fresh,
+					metadata: { container: { tags: [`tree-${'d'.repeat(40)}`] } },
+				},
+			];
+
+			return ok([firstPage, secondPage]);
+		}
+		if (args[0] === '--method' && args[1] === 'DELETE') {
+			deleted.push(args[2] ?? '');
+			return ok();
+		}
+		return ok([]);
+	};
+
+	const outcome = runE2ECleanup({
+		owner: 'publyapp',
+		runTag: RUN_TAG,
+		packages: ['publyapp-e2e-front'],
+		ghApi,
+	});
+
+	assert.equal(
+		outcome.failed,
+		false,
+		outcome.messages.map((m) => m.text).join('\n'),
+	);
+	assert.equal(listedWithSlurp, true, 'the listing must ask gh to slurp pages');
+	assert.deepEqual(deleted, [
+		'/orgs/publyapp/packages/container/publyapp-e2e-front/versions/500',
+		'/orgs/publyapp/packages/container/publyapp-e2e-front/versions/42',
+	]);
+});
+
+test('a cleanup parse failure is reported apart from an HTTP failure', () => {
+	const parseFailure: GhApiRunner = (args) =>
+		args[0] === '/users/publyapp'
+			? ok({ type: 'Organization' })
+			: ok('not json');
+	const parsed = runE2ECleanup({
+		owner: 'publyapp',
+		runTag: RUN_TAG,
+		packages: ['publyapp-e2e-front'],
+		ghApi: parseFailure,
+	});
+	const parseError = parsed.messages.find(
+		(message) => message.level === 'error',
+	);
+	assert.equal(parsed.failed, true);
+	assert.match(parseError?.text ?? '', /Could not parse GHCR version list/);
+	assert.doesNotMatch(parseError?.text ?? '', /HTTP 0/);
+
+	const httpFailure: GhApiRunner = (args) =>
+		args[0] === '/users/publyapp'
+			? ok({ type: 'Organization' })
+			: httpFail(500, 'server error');
+	const failed = runE2ECleanup({
+		owner: 'publyapp',
+		runTag: RUN_TAG,
+		packages: ['publyapp-e2e-front'],
+		ghApi: httpFailure,
+	});
+	assert.equal(failed.failed, true);
+	assert.match(
+		failed.messages.map((message) => message.text).join('\n'),
+		/HTTP 500/,
+	);
+});
+
+test('runE2ECleanup retains on a pull_request and on a merge_group run', () => {
+	const ghApi: GhApiRunner = () => {
+		throw new Error('retention must not call the API');
+	};
+	const retained = runE2ECleanup({
+		owner: 'publyapp',
+		runTag: `tree-${'a'.repeat(40)}`,
+		retainForReuse: true,
+		ghApi,
+	});
+	assert.equal(retained.failed, false);
+	assert.match(retained.messages[0]?.text ?? '', /Retaining/);
 });

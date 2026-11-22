@@ -1173,10 +1173,13 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     outputs:
       tag: ${{ steps.image-tag.outputs.tag }}
       root: ${{ steps.image-root.outputs.root }}
       fork: ${{ steps.image-fork.outputs.fork }}
+      digests: ${{ steps.images.outputs.digests || steps.image-reuse.outputs.digests }}
     steps:
       - name: Checkout
         id: checkout
@@ -1184,7 +1187,7 @@ jobs:
       - name: Resolve image tag
         id: image-tag
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
-        run: echo "tag=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+        run: echo "tag=tree-$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
       - name: Resolve image root
         id: image-root
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
@@ -1209,16 +1212,54 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
+      - name: Detect reusable e2e images
+        id: image-reuse
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          E2E_FORK: ${{ steps.image-fork.outputs.fork }}
+          E2E_IMAGE_NS: ${{ steps.image-root.outputs.root }}
+          E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
+        run: node packages/scripts-ts/src/ci-e2e-image-trust.ts decide
       - name: Build and push e2e images
         id: images
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
         continue-on-error: true
         env:
+          E2E_REUSE: ${{ steps.image-reuse.outputs.reuse }}
           COMPOSE_BAKE: 'true'
           E2E_FORK: ${{ steps.image-fork.outputs.fork }}
           E2E_IMAGE_NS: ${{ steps.image-root.outputs.root }}
           E2E_IMAGE_TAG: ${{ steps.image-tag.outputs.tag }}
         run: node packages/scripts-ts/src/ci-e2e-images.ts
+      - name: Attest migrate image
+        id: attest-migrate
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true' && steps.images.outcome == 'success'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.image-root.outputs.root }}-migrate
+          subject-digest: ${{ fromJSON(steps.images.outputs.digests).migrate }}
+      - name: Attest api image
+        id: attest-api
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true' && steps.images.outcome == 'success'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.image-root.outputs.root }}-api
+          subject-digest: ${{ fromJSON(steps.images.outputs.digests).api }}
+      - name: Attest request-counter image
+        id: attest-request-counter
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true' && steps.images.outcome == 'success'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.image-root.outputs.root }}-request-counter
+          subject-digest: ${{ fromJSON(steps.images.outputs.digests)['request-counter'] }}
+      - name: Attest front image
+        id: attest-front
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.image-fork.outputs.fork != 'true' && steps.image-reuse.outputs.reuse != 'true' && steps.images.outcome == 'success'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.image-root.outputs.root }}-front
+          subject-digest: ${{ fromJSON(steps.images.outputs.digests).front }}
       - name: Verify built front image
         id: runtime-guard
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && steps.images.outcome == 'success'
@@ -1248,9 +1289,9 @@ jobs:
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
           CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
-          CI_LANE_SPECS: '{"e2e":["e2e-build.checkout","e2e-build.image_tag","e2e-build.image_root","e2e-build.image_fork","e2e-build.setup_buildx","e2e-build.setup_runtime","e2e-build.login","e2e-build.images","e2e-build.runtime_guard","e2e-build.upload_images","e2e-build.not-applicable"]}'
+          CI_LANE_SPECS: '{"e2e":["e2e-build.checkout","e2e-build.image_tag","e2e-build.image_root","e2e-build.image_fork","e2e-build.setup_buildx","e2e-build.setup_runtime","e2e-build.login","e2e-build.image_reuse","e2e-build.images","e2e-build.runtime_guard","e2e-build.upload_images","e2e-build.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"e2e":"${{ needs.classify.outputs.e2e }}"}'
-          CI_STEP_RESULTS: '{"e2e-build.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"e2e-build.image_tag":{"outcome":"${{ steps.image-tag.outcome }}"},"e2e-build.image_root":{"outcome":"${{ steps.image-root.outcome }}"},"e2e-build.image_fork":{"outcome":"${{ steps.image-fork.outcome }}"},"e2e-build.setup_buildx":{"outcome":"${{ steps.setup-buildx.outcome }}"},"e2e-build.setup_runtime":{"outcome":"${{ steps.setup-runtime.outcome }}"},"e2e-build.login":{"outcome":"${{ steps.login.outcome }}"},"e2e-build.images":{"outcome":"${{ steps.images.outcome }}"},"e2e-build.runtime_guard":{"outcome":"${{ steps.runtime-guard.outcome }}"},"e2e-build.upload_images":{"outcome":"${{ steps.upload-images.outcome }}"},"e2e-build.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"e2e-build.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"e2e-build.image_tag":{"outcome":"${{ steps.image-tag.outcome }}"},"e2e-build.image_root":{"outcome":"${{ steps.image-root.outcome }}"},"e2e-build.image_fork":{"outcome":"${{ steps.image-fork.outcome }}"},"e2e-build.setup_buildx":{"outcome":"${{ steps.setup-buildx.outcome }}"},"e2e-build.setup_runtime":{"outcome":"${{ steps.setup-runtime.outcome }}"},"e2e-build.login":{"outcome":"${{ steps.login.outcome }}"},"e2e-build.image_reuse":{"outcome":"${{ steps.image-reuse.outcome }}"},"e2e-build.images":{"outcome":"${{ steps.images.outcome }}"},"e2e-build.runtime_guard":{"outcome":"${{ steps.runtime-guard.outcome }}"},"e2e-build.upload_images":{"outcome":"${{ steps.upload-images.outcome }}"},"e2e-build.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
@@ -1321,7 +1362,8 @@ jobs:
         env:
           E2E_IMAGE_NS: ${{ needs.e2e-build.outputs.root }}
           E2E_IMAGE_TAG: ${{ needs.e2e-build.outputs.tag }}
-        run: docker compose -f apps/front/docker-compose.test.yml pull
+          E2E_IMAGE_DIGESTS: ${{ needs.e2e-build.outputs.digests }}
+        run: node packages/scripts-ts/src/ci-e2e-image-trust.ts pull
       - name: Download fork e2e images
         id: download-images
         if: always() && github.event_name == 'pull_request' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'
@@ -1462,7 +1504,8 @@ jobs:
         env:
           E2E_IMAGE_NS: ${{ needs.e2e-build.outputs.root }}
           E2E_IMAGE_TAG: ${{ needs.e2e-build.outputs.tag }}
-        run: docker compose -f apps/front/docker-compose.test.yml pull
+          E2E_IMAGE_DIGESTS: ${{ needs.e2e-build.outputs.digests }}
+        run: node packages/scripts-ts/src/ci-e2e-image-trust.ts pull
       - name: Download fork e2e images
         id: download-images
         if: always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && needs.e2e-build.outputs.fork == 'true' && steps.rerun-guard.outcome == 'success'
@@ -1478,7 +1521,7 @@ jobs:
       - name: Cache Playwright browsers
         id: cache-playwright
         if: always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
@@ -1555,6 +1598,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           E2E_IMAGE_TAG: ${{ needs.e2e-build.outputs.tag }}
           FORK_RUN: ${{ needs.e2e-build.outputs.fork }}
+          E2E_RETAIN_IMAGES: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
         run: node packages/scripts-ts/src/ci-e2e-cleanup.ts
       - name: CI lane not applicable
         id: sentinel

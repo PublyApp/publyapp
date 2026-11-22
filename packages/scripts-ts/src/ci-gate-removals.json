@@ -1349,6 +1349,26 @@
 			"step_id": "ci.yml::verification::Verify paired red proofs",
 			"reason": "The serial `verification` job was split into parallel jobs: \"Verify paired red proofs\" runs unchanged in the `front-quality` job — same run command, env, if-condition, and continue-on-error — so the check itself is unchanged. Only the job boundary and that job's own `ci-lane-result` artifact name changed.",
 			"removed_at": "2026-10-28"
+		},
+		{
+			"step_id": "ci.yml::e2e-build::Cache Playwright browsers on develop",
+			"reason": "m3: the develop Playwright cache warmer moves to a follow-up cache PR so this image-reuse PR stays inside the 600-line cap. It was a continue-on-error cache-only step; no required check, test or build step is lost.",
+			"removed_at": "2026-11-22"
+		},
+		{
+			"step_id": "ci.yml::e2e-build::Warm the develop Playwright cache",
+			"reason": "m3: the develop Playwright cache warmer moves to a follow-up cache PR so this image-reuse PR stays inside the 600-line cap. It was a continue-on-error cache-only step; no required check, test or build step is lost.",
+			"removed_at": "2026-11-22"
+		},
+		{
+			"step_id": "e2e-prune.yml::prune::Checkout",
+			"reason": "D2: the weekly prune workflow is folded into the existing develop-push cleanup step, which now deletes versions past the same 7-day cutoff. The schedule and its checkout are redundant; the prune itself is not dropped.",
+			"removed_at": "2026-11-22"
+		},
+		{
+			"step_id": "e2e-prune.yml::prune::Prune tree images older than 7 days",
+			"reason": "D2: pruning now runs on every develop push inside ci.yml::e2e-cleanup with the same 7-day cutoff, so the scheduled workflow step is redundant. The age bound and the package-admin deletes are unchanged.",
+			"removed_at": "2026-11-22"
 		}
 	]
 }

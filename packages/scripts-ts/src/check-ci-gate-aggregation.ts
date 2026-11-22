@@ -444,6 +444,7 @@ const baseJobLaneContracts = {
 				'e2e-build.setup_buildx',
 				'e2e-build.setup_runtime',
 				'e2e-build.login',
+				'e2e-build.image_reuse',
 				'e2e-build.images',
 				'e2e-build.runtime_guard',
 				'e2e-build.upload_images',

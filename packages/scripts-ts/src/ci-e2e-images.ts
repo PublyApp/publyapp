@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { createWriteStream, mkdirSync } from 'node:fs';
+import { appendFileSync, createWriteStream, mkdirSync } from 'node:fs';
 import process from 'node:process';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
@@ -73,7 +73,38 @@ const saveImage = async (reference: string, target: string) => {
 	}
 };
 
+/**
+ * The repository part of a reference. Docker records `RepoDigests` without the
+ * tag (`repo@sha256:…`), while the reference names the tag it was pushed as.
+ */
+const repositoryOf = (reference: string): string =>
+	reference.replace(/:[^/:]*$/, '');
+
+/** The digest this push returned; never a later lookup of a mutable tag. */
+export const pushedDigest = (
+	reference: string,
+	repoDigests: string,
+): string | undefined => {
+	const repository = repositoryOf(reference);
+	const match = repoDigests
+		.split('\n')
+		.map((entry) => entry.trim())
+		.find((entry) => entry.startsWith(`${repository}@`));
+	const digest = match?.slice(repository.length + 1);
+	if (digest !== undefined && /^sha256:[0-9a-f]{64}$/.test(digest)) {
+		return digest;
+	}
+	return undefined;
+};
+
 const run = async () => {
+	if (process.env.E2E_REUSE === 'true') {
+		// decide verified and pulled all four; this step does not rebuild them.
+		console.log(
+			'reuse: every verified tree image is pulled — skipping the build',
+		);
+		return;
+	}
 	const fork = process.env.E2E_FORK === 'true';
 	const namespace = requiredEnvironment('E2E_IMAGE_NS');
 	const tag = requiredEnvironment('E2E_IMAGE_TAG');
@@ -83,6 +114,32 @@ const run = async () => {
 
 	if (!fork) {
 		dockerCompose(['-f', baseCompose], ['push', ...IMAGE_SERVICES]);
+		const digests: Record<string, string> = {};
+		for (const service of IMAGE_SERVICES) {
+			const reference = imageReference(namespace, tag, service);
+			const digest = pushedDigest(
+				reference,
+				spawnSync(
+					'docker',
+					[
+						'image',
+						'inspect',
+						'--format',
+						'{{range .RepoDigests}}{{println .}}{{end}}',
+						reference,
+					],
+					{ encoding: 'utf8' },
+				).stdout,
+			);
+			if (digest === undefined) {
+				throw new Error(`cannot resolve the pushed digest of ${reference}`);
+			}
+			digests[service] = digest;
+		}
+		appendFileSync(
+			process.env.GITHUB_OUTPUT ?? '/dev/null',
+			`digests=${JSON.stringify(digests)}\n`,
+		);
 
 		return;
 	}
