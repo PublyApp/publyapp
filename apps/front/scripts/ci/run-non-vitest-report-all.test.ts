@@ -68,6 +68,7 @@ test('reports every command after the first command fails', async () => {
 	const result = await runNonVitestReportAll({
 		cwd: '/fixture/apps/front',
 		outputPath: null,
+		log: () => {},
 		spawn: async (argv) => {
 			calls.push(argv);
 			if (argv.includes('check:guard-coverage')) {
@@ -88,6 +89,7 @@ test('preserves signal diagnostics in the nested report', async () => {
 	const result = await runNonVitestReportAll({
 		cwd: '/fixture/apps/front',
 		outputPath: null,
+		log: () => {},
 		spawn: async (argv) =>
 			argv.includes('test:e2e-compose-env')
 				? { execution: 'executed', outcome: 'cancelled', signal: 'SIGTERM' }
@@ -96,4 +98,56 @@ test('preserves signal diagnostics in the nested report', async () => {
 
 	assert.equal(result.exit_code, 1);
 	assert.equal(result.records[2].signal, 'SIGTERM');
+});
+
+test('lists every failure with its captured output', async () => {
+	const logs: string[] = [];
+	const result = await runNonVitestReportAll({
+		cwd: '/fixture/apps/front',
+		outputPath: null,
+		concurrency: 2,
+		log: (text) => logs.push(text),
+		spawn: async (argv) =>
+			argv.includes('check:zindex')
+				? {
+						execution: 'executed',
+						outcome: 'failure',
+						exit_code: 3,
+						output: 'zindex boom',
+					}
+				: { execution: 'executed', outcome: 'success', exit_code: 0 },
+	});
+
+	const output = logs.join('');
+	assert.equal(result.exit_code, 1);
+	assert.match(output, /\[non-vitest 22\/33 failure \d+ms\] pnpm check:zindex/);
+	assert.match(output, /zindex boom/);
+	assert.match(output, /failed: 22 pnpm check:zindex/);
+});
+
+test('bounds concurrency at the pool size and isolates route-tree writes', async () => {
+	let inFlight = 0;
+	let maxInFlight = 0;
+	let routeTreeMaxInFlight = 0;
+	const result = await runNonVitestReportAll({
+		cwd: '/fixture/apps/front',
+		outputPath: null,
+		concurrency: 3,
+		log: () => {},
+		spawn: async (argv) => {
+			inFlight += 1;
+			maxInFlight = Math.max(maxInFlight, inFlight);
+			if (argv.includes('test:route-tree-guard')) {
+				routeTreeMaxInFlight = Math.max(routeTreeMaxInFlight, inFlight);
+			}
+			await new Promise((resolve) => setTimeout(resolve, 5));
+			inFlight -= 1;
+			return { execution: 'executed', outcome: 'success', exit_code: 0 };
+		},
+	});
+
+	assert.equal(result.records.length, 33);
+	assert.ok(maxInFlight > 1);
+	assert.ok(maxInFlight <= 3);
+	assert.equal(routeTreeMaxInFlight, 1);
 });
