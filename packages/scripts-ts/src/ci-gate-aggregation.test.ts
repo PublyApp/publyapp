@@ -25,8 +25,8 @@ const repoRoot = path.resolve(
 
 const workflowsDirectory = path.join(repoRoot, '.github/workflows');
 
-test('requires the exact 22 upstream artifact keys', () => {
-	assert.equal(EXPECTED_UPSTREAM_JOB_KEYS.length, 22);
+test('requires the exact 26 upstream artifact keys', () => {
+	assert.equal(EXPECTED_UPSTREAM_JOB_KEYS.length, 26);
 	assert.deepEqual(EXPECTED_UPSTREAM_JOB_KEYS, [
 		'classify',
 		'quality-js',
@@ -49,6 +49,10 @@ test('requires the exact 22 upstream artifact keys', () => {
 		'e2e-smoke',
 		'e2e-test/1',
 		'e2e-test/2',
+		'e2e-test/3',
+		'e2e-test/4',
+		'e2e-test/5',
+		'e2e-test/6',
 		'e2e-cleanup',
 	]);
 });

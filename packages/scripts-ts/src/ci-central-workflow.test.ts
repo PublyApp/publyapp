@@ -8,6 +8,7 @@ import path from 'node:path';
 import { test } from 'vitest';
 import { parse } from 'yaml';
 
+import { getExpectedJobLanes } from './check-ci-gate-aggregation.ts';
 import {
 	CENTRAL_VISIBLE_CHECKS,
 	findCentralCiStructureProblems,
@@ -261,7 +262,7 @@ const e2eConditionDeletionCases = [
 	['e2e-test', 'cache-playwright'],
 ] as const;
 
-test('central workflow exposes exactly the stable 24 display labels', async () => {
+test('central workflow exposes exactly the stable 28 display labels', async () => {
 	const workflow = parse(await readFile(workflowPath, 'utf8'));
 	const labels = Object.values(
 		workflow.jobs as Record<
@@ -433,12 +434,20 @@ const assertE2eImageEnvPropagation = (
 	job: E2eTestJob,
 	options: { composeSuffix: string; lane: 'smoke' | 'full' },
 ): void => {
-	const expectedEnv = {
+	const baseEnv = {
 		E2E_IMAGE_NS: '${{ needs.e2e-build.outputs.root }}',
 		E2E_IMAGE_TAG: '${{ needs.e2e-build.outputs.tag }}',
 		COMPOSE_PROJECT_NAME: `publyapp-e2e-\${{ github.run_id }}-\${{ github.run_attempt }}-${options.composeSuffix}`,
 		E2E_LANE: options.lane,
 	};
+	const expectedEnv =
+		options.lane === 'full'
+			? {
+					...baseEnv,
+					PLAYWRIGHT_JSON_OUTPUT:
+						'\${{ github.workspace }}/e2e-artifacts/playwright-\${{ matrix.shard }}-of-6.json',
+				}
+			: baseEnv;
 	assert.deepEqual(
 		job.env,
 		expectedEnv,
@@ -1005,7 +1014,7 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 	}
 });
 
-test('central workflow rejects six mutations for every one of its 109 classifier conditions', async () => {
+test('central workflow rejects six mutations for every one of its 119 classifier conditions', async () => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-ci-condition-delete-'),
 	);
@@ -1027,12 +1036,12 @@ test('central workflow rejects six mutations for every one of its 109 classifier
 				)
 				.map((step) => ({ jobId, stepId: String(step.id) })),
 	);
-	assert.equal(classifierTrueSteps.length, 109);
+	assert.equal(classifierTrueSteps.length, 119);
 	assert.equal(
 		new Set(
 			classifierTrueSteps.map(({ jobId, stepId }) => `${jobId}/${stepId}`),
 		).size,
-		109,
+		119,
 	);
 	assert.deepEqual(
 		classifierTrueSteps
@@ -1109,8 +1118,8 @@ test('central workflow rejects six mutations for every one of its 109 classifier
 				rejected += 1;
 			}
 		}
-		assert.equal(mutatedWorkflows.size, 654);
-		assert.equal(rejected, 654);
+		assert.equal(mutatedWorkflows.size, 714);
+		assert.equal(rejected, 714);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
@@ -1278,7 +1287,7 @@ test('central workflow rejects the complete ratified topology mutation matrix', 
 				const start = value.indexOf(marker);
 				const suffix = value
 					.slice(start)
-					.replace('shard: [1, 2]', 'shard: [1]');
+					.replace('shard: [1, 2, 3, 4, 5, 6]', 'shard: [1, 2, 3, 4, 5]');
 				return `${value.slice(0, start)}${suffix}`;
 			},
 			/shard axis|expanded display/i,
@@ -2141,7 +2150,7 @@ const deriveManifestEvidence = (
 	};
 };
 
-test('central manifest derives honest evidence for every one of its 253 entries', async () => {
+test('central manifest derives honest evidence for every one of its 263 entries', async () => {
 	const manifest = JSON.parse(
 		await readFile(
 			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
@@ -2154,7 +2163,7 @@ test('central manifest derives honest evidence for every one of its 253 entries'
 	const central = Object.entries(manifest.steps).filter(([id]) =>
 		id.startsWith('ci.yml::'),
 	);
-	assert.equal(central.length, 253);
+	assert.equal(central.length, 263);
 	const justDump = JSON.parse(
 		execFileSync('just', ['--dump', '--dump-format', 'json'], {
 			cwd: repoRoot,
@@ -2180,7 +2189,7 @@ test('central manifest derives honest evidence for every one of its 253 entries'
 			`${id} evidence must be derived from its exact step kind and command graph`,
 		);
 	}
-	assert.equal(decisions.size, 253);
+	assert.equal(decisions.size, 263);
 	assert.equal(
 		manifest.steps['ci.yml::quality-js::Install pnpm']?.mirror,
 		null,
@@ -2289,4 +2298,109 @@ test('central manifest evidence mutations are RED for all Sol examples and gener
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
+});
+
+type WorkflowStep = {
+	run?: string;
+	id?: unknown;
+	name?: unknown;
+	if?: unknown;
+	with?: Record<string, unknown>;
+	'continue-on-error'?: unknown;
+};
+
+test('every e2e job step is bound to a lane contract step', async () => {
+	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
+		jobs: Record<string, { steps: WorkflowStep[] }>;
+	};
+	const jobs: [string, string][] = [
+		['e2e-build', 'e2e-build'],
+		['e2e-test', 'e2e-test/1'],
+		['e2e-cleanup', 'e2e-cleanup'],
+	];
+	for (const [jobId, contractKey] of jobs) {
+		const job = workflow.jobs[jobId];
+		assert.ok(job, `${jobId} must exist`);
+		const contracts = getExpectedJobLanes(contractKey);
+		assert.ok(contracts, `${contractKey} must have a lane contract`);
+		const covered = new Set(
+			contracts.flatMap((contract) => contract.expectedSteps),
+		);
+		for (const step of job.steps) {
+			if (step.id === undefined) {
+				continue;
+			}
+			// #2492's attestation steps are gated by the image build/reuse
+			// outcome, not by the classifier, and are not part of the lane's
+			// transport contract. Their failure still fails the job, so the
+			// aggregate gate stays red without a lane-evidence entry.
+			if (String(step.id).startsWith('attest-')) {
+				continue;
+			}
+			const id =
+				step.id === 'sentinel'
+					? `${jobId}.not-applicable`
+					: `${jobId}.${String(step.id).replaceAll('-', '_')}`;
+			assert.ok(
+				covered.has(id),
+				`${jobId} step ${String(step.id)} is outside the lane contract: a red step would leave the record green`,
+			);
+		}
+	}
+});
+
+test('e2e evidence artifacts are attempt-scoped and the plan install is not masked', async () => {
+	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
+		jobs: Record<string, { steps: WorkflowStep[] }>;
+	};
+	const step = (jobId: string, id: string): WorkflowStep => {
+		const found = workflow.jobs[jobId]?.steps.find(
+			(candidate) => candidate.id === id,
+		);
+		assert.ok(found, `${jobId} must keep step ${id}`);
+		return found;
+	};
+	const evidence = step('e2e-test', 'evidence-upload');
+	assert.match(
+		String(evidence.with?.name),
+		/\$\{\{ github\.run_attempt \}\}/,
+		'a re-run must not upload into the previous attempt artifact',
+	);
+	const durations = step('e2e-cleanup', 'upload-durations');
+	assert.match(
+		String(durations.with?.name),
+		/\$\{\{ github\.run_attempt \}\}/,
+		'a re-run must not reuse the previous attempt durations',
+	);
+	const download = step('e2e-cleanup', 'download-shards');
+	assert.equal(
+		download.run,
+		'node packages/scripts-ts/src/ci-e2e-shard.ts download',
+		'the coverage download must go through the attempt-scoped downloader',
+	);
+	const planUpload = step('e2e-build', 'plan-upload');
+	assert.match(
+		String(planUpload.with?.name),
+		/^e2e-shard-plan-\$\{\{ github\.run_attempt \}\}$/,
+		'the plan artifact must be attempt-scoped',
+	);
+	assert.equal(
+		planUpload.with?.path,
+		'apps/front/e2e-artifacts/e2e-shard-plan.json',
+		'the plan must travel as a file, not an env value',
+	);
+	assert.equal(
+		planUpload.with?.['if-no-files-found'],
+		"${{ github.event_name == 'merge_group' && 'error' || 'ignore' }}",
+		// The plan step only writes on merge_group; on a pull_request this
+		// upload is the documented no-op. On merge_group a missing plan is a
+		// hard upload failure, so the artifact the shards need cannot vanish.
+		'a missing plan must fail the merge_queue upload and stay a pull_request no-op',
+	);
+	const planInstall = step('e2e-build', 'plan-install-deps');
+	assert.equal(
+		planInstall['continue-on-error'],
+		undefined,
+		'the plan install must not be masked',
+	);
 });

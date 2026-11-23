@@ -198,7 +198,13 @@ const relevantStepOk = (step: StepEvidence): boolean => {
 	if (step.id.endsWith('.not-applicable')) {
 		return isSkipped(step);
 	}
-	if (step.id.endsWith('.report_upload') || step.id.endsWith('.test_results')) {
+	if (
+		step.id.endsWith('.report_upload') ||
+		step.id.endsWith('.test_results') ||
+		step.id.endsWith('.evidence_upload') ||
+		// The plan artifact only exists on a merge_queue entry.
+		step.id.endsWith('.plan_upload')
+	) {
 		return isSkipped(step) || isExecutedSuccess(step);
 	}
 	return step.outcome === 'success';

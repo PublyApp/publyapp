@@ -1173,6 +1173,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      actions: read
       id-token: write
       attestations: write
     outputs:
@@ -1180,10 +1181,44 @@ jobs:
       root: ${{ steps.image-root.outputs.root }}
       fork: ${{ steps.image-fork.outputs.fork }}
       digests: ${{ steps.images.outputs.digests || steps.image-reuse.outputs.digests }}
+      plan: ${{ steps.plan.outputs.plan }}
     steps:
       - name: Checkout
         id: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install pnpm for the shard plan
+        id: plan-install-pnpm
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 10.13.1
+      - name: Setup Node for the shard plan
+        id: plan-setup-node
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Install workspace dependencies for the shard plan
+        id: plan-install-deps
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        run: |
+          [ "$GITHUB_EVENT_NAME" = "merge_group" ] || { echo "no partition outside the merge queue"; exit 0; }
+          pnpm install --frozen-lockfile --ignore-scripts
+      - name: Plan the Playwright shards
+        id: plan
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node packages/scripts-ts/src/ci-e2e-shard.ts plan
+      - name: Upload the shard plan
+        id: plan-upload
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-shard-plan-${{ github.run_attempt }}
+          path: apps/front/e2e-artifacts/e2e-shard-plan.json
+          retention-days: 7
+          if-no-files-found: ${{ github.event_name == 'merge_group' && 'error' || 'ignore' }}
       - name: Resolve image tag
         id: image-tag
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
@@ -1289,9 +1324,9 @@ jobs:
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
           CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
-          CI_LANE_SPECS: '{"e2e":["e2e-build.checkout","e2e-build.image_tag","e2e-build.image_root","e2e-build.image_fork","e2e-build.setup_buildx","e2e-build.setup_runtime","e2e-build.login","e2e-build.image_reuse","e2e-build.images","e2e-build.runtime_guard","e2e-build.upload_images","e2e-build.not-applicable"]}'
+          CI_LANE_SPECS: '{"e2e":["e2e-build.checkout","e2e-build.plan_install_pnpm","e2e-build.plan_setup_node","e2e-build.plan_install_deps","e2e-build.plan","e2e-build.plan_upload","e2e-build.image_tag","e2e-build.image_root","e2e-build.image_fork","e2e-build.setup_buildx","e2e-build.setup_runtime","e2e-build.login","e2e-build.image_reuse","e2e-build.images","e2e-build.runtime_guard","e2e-build.upload_images","e2e-build.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"e2e":"${{ needs.classify.outputs.e2e }}"}'
-          CI_STEP_RESULTS: '{"e2e-build.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"e2e-build.image_tag":{"outcome":"${{ steps.image-tag.outcome }}"},"e2e-build.image_root":{"outcome":"${{ steps.image-root.outcome }}"},"e2e-build.image_fork":{"outcome":"${{ steps.image-fork.outcome }}"},"e2e-build.setup_buildx":{"outcome":"${{ steps.setup-buildx.outcome }}"},"e2e-build.setup_runtime":{"outcome":"${{ steps.setup-runtime.outcome }}"},"e2e-build.login":{"outcome":"${{ steps.login.outcome }}"},"e2e-build.image_reuse":{"outcome":"${{ steps.image-reuse.outcome }}"},"e2e-build.images":{"outcome":"${{ steps.images.outcome }}"},"e2e-build.runtime_guard":{"outcome":"${{ steps.runtime-guard.outcome }}"},"e2e-build.upload_images":{"outcome":"${{ steps.upload-images.outcome }}"},"e2e-build.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"e2e-build.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"e2e-build.plan_install_pnpm":{"outcome":"${{ steps.plan-install-pnpm.outcome }}"},"e2e-build.plan_setup_node":{"outcome":"${{ steps.plan-setup-node.outcome }}"},"e2e-build.plan_install_deps":{"outcome":"${{ steps.plan-install-deps.outcome }}"},"e2e-build.plan":{"outcome":"${{ steps.plan.outcome }}"},"e2e-build.plan_upload":{"outcome":"${{ steps.plan-upload.outcome }}"},"e2e-build.image_tag":{"outcome":"${{ steps.image-tag.outcome }}"},"e2e-build.image_root":{"outcome":"${{ steps.image-root.outcome }}"},"e2e-build.image_fork":{"outcome":"${{ steps.image-fork.outcome }}"},"e2e-build.setup_buildx":{"outcome":"${{ steps.setup-buildx.outcome }}"},"e2e-build.setup_runtime":{"outcome":"${{ steps.setup-runtime.outcome }}"},"e2e-build.login":{"outcome":"${{ steps.login.outcome }}"},"e2e-build.image_reuse":{"outcome":"${{ steps.image-reuse.outcome }}"},"e2e-build.images":{"outcome":"${{ steps.images.outcome }}"},"e2e-build.runtime_guard":{"outcome":"${{ steps.runtime-guard.outcome }}"},"e2e-build.upload_images":{"outcome":"${{ steps.upload-images.outcome }}"},"e2e-build.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
@@ -1440,22 +1475,24 @@ jobs:
           if-no-files-found: error
 
   e2e-test:
-    name: front-e2e (${{ matrix.shard }}/2)
+    name: front-e2e (${{ matrix.shard }}/6)
     needs: [classify, e2e-build]
     if: always()
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4, 5, 6]
     permissions:
       contents: read
       packages: read
+      actions: read
     env:
       E2E_IMAGE_NS: ${{ needs.e2e-build.outputs.root }}
       E2E_IMAGE_TAG: ${{ needs.e2e-build.outputs.tag }}
       COMPOSE_PROJECT_NAME: publyapp-e2e-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
       E2E_LANE: full
+      PLAYWRIGHT_JSON_OUTPUT: ${{ github.workspace }}/e2e-artifacts/playwright-${{ matrix.shard }}-of-6.json
     steps:
       - name: Checkout
         id: checkout
@@ -1539,16 +1576,26 @@ jobs:
         id: playwright
         if: always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && needs.e2e-build.result == 'success' && steps.wait-health.outcome == 'success'
         continue-on-error: true
-        run: node packages/scripts-ts/src/ci-e2e-playwright-shard.ts ${{ matrix.shard }} 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node packages/scripts-ts/src/ci-e2e-playwright-shard.ts ${{ matrix.shard }} 6
       - name: Upload Playwright report
         id: report-upload
         if: always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: front-e2e-playwright-report-${{ matrix.shard }}-of-2
+          name: front-e2e-playwright-report-${{ matrix.shard }}-of-6
           path: |
             apps/front/playwright-report
             apps/front/test-results
+          if-no-files-found: ignore
+      - name: Upload shard coverage report
+        id: evidence-upload
+        if: always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-shard-report-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: e2e-artifacts/playwright-${{ matrix.shard }}-of-6.json
           if-no-files-found: ignore
       - name: Tear down e2e stack
         id: teardown
@@ -1566,9 +1613,9 @@ jobs:
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
           CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
-          CI_LANE_SPECS: '{"e2e":["e2e-test.checkout","e2e-test.install_pnpm","e2e-test.setup_node","e2e-test.assert_pins","e2e-test.install_dependencies","e2e-test.login","e2e-test.rerun_guard","e2e-test.pull_stack","e2e-test.download_images","e2e-test.load_images","e2e-test.cache_playwright","e2e-test.up_stack","e2e-test.wait_health","e2e-test.playwright","e2e-test.report_upload","e2e-test.teardown","e2e-test.not-applicable"]}'
+          CI_LANE_SPECS: '{"e2e":["e2e-test.checkout","e2e-test.install_pnpm","e2e-test.setup_node","e2e-test.assert_pins","e2e-test.install_dependencies","e2e-test.login","e2e-test.rerun_guard","e2e-test.pull_stack","e2e-test.download_images","e2e-test.load_images","e2e-test.cache_playwright","e2e-test.up_stack","e2e-test.wait_health","e2e-test.playwright","e2e-test.report_upload","e2e-test.evidence_upload","e2e-test.teardown","e2e-test.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"e2e":"${{ needs.classify.outputs.e2e == ''true'' && github.event_name == ''merge_group'' }}"}'
-          CI_STEP_RESULTS: '{"e2e-test.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"e2e-test.install_pnpm":{"outcome":"${{ steps.install-pnpm.outcome }}"},"e2e-test.setup_node":{"outcome":"${{ steps.setup-node.outcome }}"},"e2e-test.assert_pins":{"outcome":"${{ steps.assert-pins.outcome }}"},"e2e-test.install_dependencies":{"outcome":"${{ steps.install-dependencies.outcome }}"},"e2e-test.login":{"outcome":"${{ steps.login.outcome }}"},"e2e-test.rerun_guard":{"outcome":"${{ steps.rerun-guard.outcome }}"},"e2e-test.pull_stack":{"outcome":"${{ steps.pull-stack.outcome }}"},"e2e-test.download_images":{"outcome":"${{ steps.download-images.outcome }}"},"e2e-test.load_images":{"outcome":"${{ steps.load-images.outcome }}"},"e2e-test.cache_playwright":{"outcome":"${{ steps.cache-playwright.outcome }}"},"e2e-test.up_stack":{"outcome":"${{ steps.up-stack.outcome }}"},"e2e-test.wait_health":{"outcome":"${{ steps.wait-health.outcome }}"},"e2e-test.playwright":{"outcome":"${{ steps.playwright.outcome }}"},"e2e-test.report_upload":{"outcome":"${{ steps.report-upload.outcome }}"},"e2e-test.teardown":{"outcome":"${{ steps.teardown.outcome }}"},"e2e-test.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"e2e-test.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"e2e-test.install_pnpm":{"outcome":"${{ steps.install-pnpm.outcome }}"},"e2e-test.setup_node":{"outcome":"${{ steps.setup-node.outcome }}"},"e2e-test.assert_pins":{"outcome":"${{ steps.assert-pins.outcome }}"},"e2e-test.install_dependencies":{"outcome":"${{ steps.install-dependencies.outcome }}"},"e2e-test.login":{"outcome":"${{ steps.login.outcome }}"},"e2e-test.rerun_guard":{"outcome":"${{ steps.rerun-guard.outcome }}"},"e2e-test.pull_stack":{"outcome":"${{ steps.pull-stack.outcome }}"},"e2e-test.download_images":{"outcome":"${{ steps.download-images.outcome }}"},"e2e-test.load_images":{"outcome":"${{ steps.load-images.outcome }}"},"e2e-test.cache_playwright":{"outcome":"${{ steps.cache-playwright.outcome }}"},"e2e-test.up_stack":{"outcome":"${{ steps.up-stack.outcome }}"},"e2e-test.wait_health":{"outcome":"${{ steps.wait-health.outcome }}"},"e2e-test.playwright":{"outcome":"${{ steps.playwright.outcome }}"},"e2e-test.report_upload":{"outcome":"${{ steps.report-upload.outcome }}"},"e2e-test.evidence_upload":{"outcome":"${{ steps.evidence-upload.outcome }}"},"e2e-test.teardown":{"outcome":"${{ steps.teardown.outcome }}"},"e2e-test.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
@@ -1586,10 +1633,36 @@ jobs:
     permissions:
       contents: read
       packages: write
+      actions: read
     steps:
       - name: Checkout
         id: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download shard coverage reports
+        id: download-shards
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node packages/scripts-ts/src/ci-e2e-shard.ts download
+      - name: Verify per-test coverage
+        id: coverage-proof
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        run: node packages/scripts-ts/src/ci-e2e-shard.ts verify
+      - name: Record Playwright file durations
+        id: record-durations
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        env:
+          E2E_TEST_RESULT: ${{ needs.e2e-test.result }}
+        run: node packages/scripts-ts/src/ci-e2e-shard.ts record
+      - name: Upload recorded durations
+        id: upload-durations
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-file-durations-${{ github.run_attempt }}
+          path: e2e-artifacts/playwright-file-durations.json
+          retention-days: 30
+          if-no-files-found: ignore
       - name: Cleanup e2e images
         id: cleanup
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'
@@ -1611,9 +1684,9 @@ jobs:
           CI_WORKFLOW_PATH: .github/workflows/ci.yml
           CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_WORKFLOW_EVENT: ${{ github.event_name }}
-          CI_LANE_SPECS: '{"e2e":["e2e-cleanup.checkout","e2e-cleanup.cleanup","e2e-cleanup.not-applicable"]}'
+          CI_LANE_SPECS: '{"e2e":["e2e-cleanup.checkout","e2e-cleanup.download_shards","e2e-cleanup.coverage_proof","e2e-cleanup.record_durations","e2e-cleanup.upload_durations","e2e-cleanup.cleanup","e2e-cleanup.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"e2e":"${{ needs.classify.outputs.e2e }}"}'
-          CI_STEP_RESULTS: '{"e2e-cleanup.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"e2e-cleanup.cleanup":{"outcome":"${{ steps.cleanup.outcome }}"},"e2e-cleanup.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"e2e-cleanup.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"e2e-cleanup.download_shards":{"outcome":"${{ steps.download-shards.outcome }}"},"e2e-cleanup.coverage_proof":{"outcome":"${{ steps.coverage-proof.outcome }}"},"e2e-cleanup.record_durations":{"outcome":"${{ steps.record-durations.outcome }}"},"e2e-cleanup.upload_durations":{"outcome":"${{ steps.upload-durations.outcome }}"},"e2e-cleanup.cleanup":{"outcome":"${{ steps.cleanup.outcome }}"},"e2e-cleanup.not-applicable":{"outcome":"${{ steps.sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()

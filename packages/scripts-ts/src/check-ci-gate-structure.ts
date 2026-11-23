@@ -1087,7 +1087,7 @@ const prepareCheckNameClaims = async ({
 	);
 	authorizedExpressionNames.set(
 		'ci.yml::e2e-test',
-		'front-e2e (${{ matrix.shard }}/2)',
+		'front-e2e (${{ matrix.shard }}/6)',
 	);
 	authorizedExpressionNames.set(
 		'ci.yml::gate',
@@ -1248,8 +1248,12 @@ export const CENTRAL_VISIBLE_CHECKS = [
 	'front-ci (4/4)',
 	'Build e2e images',
 	'front-e2e-smoke',
-	'front-e2e (1/2)',
-	'front-e2e (2/2)',
+	'front-e2e (1/6)',
+	'front-e2e (2/6)',
+	'front-e2e (3/6)',
+	'front-e2e (4/6)',
+	'front-e2e (5/6)',
+	'front-e2e (6/6)',
 	'Clean up e2e images',
 	'ci-final-gate',
 ] as const;
@@ -1283,12 +1287,13 @@ const CENTRAL_PERMISSIONS = {
 	e2eBuild: {
 		contents: 'read',
 		packages: 'write',
+		actions: 'read',
 		'id-token': 'write',
 		attestations: 'write',
 	},
 	e2eSmoke: { contents: 'read', packages: 'read' },
-	e2eTest: { contents: 'read', packages: 'read' },
-	e2eCleanup: { contents: 'read', packages: 'write' },
+	e2eTest: { contents: 'read', packages: 'read', actions: 'read' },
+	e2eCleanup: { contents: 'read', packages: 'write', actions: 'read' },
 	gate: {
 		actions: 'read',
 		contents: 'read',
@@ -1626,7 +1631,7 @@ const checkShardAxes = (jobs: CentralJobs, findings: string[]): void => {
 	const expectedShardsByJob = {
 		api: [1, 2, 3, 4],
 		'front-vitest': [1, 2, 3, 4],
-		'e2e-test': [1, 2],
+		'e2e-test': [1, 2, 3, 4, 5, 6],
 	} satisfies Record<string, number[]>;
 	for (const [jobId, expectedShards] of Object.entries(expectedShardsByJob)) {
 		const strategy = jobs[jobId]?.strategy;
@@ -2449,7 +2454,7 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 			condition:
 				"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')",
 			with: {
-				name: 'front-e2e-playwright-report-\${{ matrix.shard }}-of-2',
+				name: 'front-e2e-playwright-report-\${{ matrix.shard }}-of-6',
 				path: 'apps/front/playwright-report\napps/front/test-results\n',
 				'if-no-files-found': 'ignore',
 			},
@@ -2463,6 +2468,45 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 			with: {
 				name: 'front-e2e-smoke-playwright-report',
 				path: 'apps/front/playwright-report\napps/front/test-results\n',
+				'if-no-files-found': 'ignore',
+			},
+		},
+		{
+			jobId: 'e2e-test',
+			stepName: 'Upload shard coverage report',
+			stepId: 'evidence-upload',
+			condition:
+				"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'",
+			with: {
+				name: 'e2e-shard-report-\${{ matrix.shard }}-\${{ github.run_attempt }}',
+				path: 'e2e-artifacts/playwright-\${{ matrix.shard }}-of-6.json',
+				'if-no-files-found': 'ignore',
+			},
+		},
+		{
+			jobId: 'e2e-build',
+			stepName: 'Upload the shard plan',
+			stepId: 'plan-upload',
+			condition:
+				"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'",
+			with: {
+				name: 'e2e-shard-plan-\${{ github.run_attempt }}',
+				path: 'apps/front/e2e-artifacts/e2e-shard-plan.json',
+				'retention-days': 7,
+				'if-no-files-found':
+					"${{ github.event_name == 'merge_group' && 'error' || 'ignore' }}",
+			},
+		},
+		{
+			jobId: 'e2e-cleanup',
+			stepName: 'Upload recorded durations',
+			stepId: 'upload-durations',
+			condition:
+				"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'",
+			with: {
+				name: 'e2e-file-durations-\${{ github.run_attempt }}',
+				path: 'e2e-artifacts/playwright-file-durations.json',
+				'retention-days': 30,
 				'if-no-files-found': 'ignore',
 			},
 		},
@@ -2641,15 +2685,18 @@ const checkCentralLivePrAndE2e = (
 	// The health-wait and Playwright-shard logic moved into scripts (#2306);
 	// pin both the call site AND the script bodies, so deleting a step or
 	// gutting a script each trip this guard.
-	const e2eHelpers = [
+	const e2eEntrypoints = [
 		'ci-e2e-wait-health.ts',
 		'ci-e2e-playwright-shard.ts',
 	] as const;
-	const e2eEvidence = `${e2eTestText}\n${e2eHelpers
+	// The wrapper is three lines: the shard logic lives in ci-e2e-shard.ts, so
+	// the pin must read the implementation, not a comment that claims it.
+	const e2eEvidenceScripts = [...e2eEntrypoints, 'ci-e2e-shard.ts'] as const;
+	const e2eEvidence = `${e2eTestText}\n${e2eEvidenceScripts
 		.map((name) => readCentralScript(rootDir, name))
 		.join('\n')}`;
 	if (
-		!e2eHelpers.every((name) => e2eTestText.includes(name)) ||
+		!e2eEntrypoints.every((name) => e2eTestText.includes(name)) ||
 		!e2eEvidence.includes(
 			'front api request-counter traefik toxiproxy postgres',
 		) ||

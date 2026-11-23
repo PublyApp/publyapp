@@ -142,8 +142,17 @@ const counterProject: Project = {
 	// The spec is now hermetic by construction instead: it marks its own traffic
 	// with a unique `?__e2e_counter=` parameter and reads only that bucket
 	// (review-r1-tests.md F11, e2e/request-counter.spec.ts). No ordering
-	// requirement, no dependency, and it can fail on its own terms.
+	// requirement on `chromium`/`chromium-faults`, and it can fail on its own
+	// terms.
+	//
+	// It DOES depend on `setup`, for the same reason `chromium` does: it starts
+	// from `STAFF_ADMIN_STORAGE_STATE`, so a shard whose files are all counter
+	// specs would otherwise never write that file and Playwright would throw
+	// `Error reading storage state ... ENOENT` before any test runs (round-3
+	// review, MEDIUM). A failed `setup` still reds the shard — Playwright skips
+	// the dependent project, never the step's exit code.
 	name: 'chromium-hermetic-counter',
+	dependencies: ['setup'],
 	testIgnore: helperSpecs,
 	testMatch: hermeticCounterSpecs,
 	workers: 1,

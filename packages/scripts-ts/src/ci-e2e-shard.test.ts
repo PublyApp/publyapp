@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+	copyFileSync,
 	existsSync,
 	mkdirSync,
 	mkdtempSync,
@@ -14,6 +15,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { test } from 'vitest';
+import { parse as parseYaml } from 'yaml';
 
 import { buildPlan, flattenTests, partition } from './ci-e2e-shard.ts';
 
@@ -174,6 +176,7 @@ const shardScript = path.join(
 	path.dirname(fileURLToPath(import.meta.url)),
 	'ci-e2e-shard.ts',
 );
+const repoRoot = path.resolve(path.dirname(shardScript), '../../..');
 
 const fakePnpm = `const fs = require('node:fs');
 const path = require('node:path');
@@ -221,10 +224,49 @@ if (args[0] === 'api') {
 	process.exit(0);
 }
 if (process.env.FAKE_GH_DOWNLOAD === 'true') {
-	const name = args[args.indexOf('-n') + 1] ?? '';
+	const allowed = ['-D', '--dir', '-n', '--name', '-p', '--pattern', '-R', '--repo'];
+	const unknown = args.filter((arg) => arg.startsWith('-')).find((flag) => !allowed.includes(flag));
+	if (unknown !== undefined) {
+		process.stderr.write('unknown flag: ' + unknown + '\\n');
+		process.exit(1);
+	}
+	const name = args.includes('-n') ? args[args.indexOf('-n') + 1] : '';
+	const pattern = args.includes('-p') ? args[args.indexOf('-p') + 1] : '';
 	const dir = args[args.indexOf('-D') + 1] ?? process.env.E2E_ARTIFACTS;
+	const store = process.env.FAKE_GH_ARTIFACT_STORE;
 	fs.mkdirSync(dir, { recursive: true });
-	if (name.startsWith('e2e-shard-plan')) {
+	if (store !== undefined) {
+		if (pattern.length > 0) {
+			const prefix = pattern.replace('*', '');
+			for (const artifact of fs.readdirSync(store)) {
+				if (artifact.startsWith(prefix)) {
+					fs.cpSync(path.join(store, artifact), path.join(dir, artifact), { recursive: true });
+				}
+			}
+		} else {
+			const source = path.join(store, name);
+			if (!fs.existsSync(source)) {
+				process.stderr.write('gh: no valid artifacts found to download\\n');
+				process.exit(1);
+			}
+			fs.cpSync(source, dir, { recursive: true });
+		}
+		process.exit(0);
+	}
+	if (pattern.length > 0) {
+		for (const artifact of ['e2e-shard-report-1-1', 'e2e-shard-report-1-3', 'e2e-shard-report-2-1']) {
+			const target = path.join(dir, artifact);
+			fs.mkdirSync(target, { recursive: true });
+			fs.writeFileSync(
+				path.join(target, 'playwright-' + artifact.split('-')[3] + '-of-6.json'),
+				JSON.stringify({ attempt: Number(artifact.split('-')[4]) }),
+			);
+		}
+	} else if (name.startsWith('e2e-shard-plan')) {
+		if (process.env.FAKE_GH_PLAN_ATTEMPT !== undefined && name !== 'e2e-shard-plan-' + process.env.FAKE_GH_PLAN_ATTEMPT) {
+			process.stderr.write('gh: no valid artifacts found to download\\n');
+			process.exit(1);
+		}
 		fs.writeFileSync(path.join(dir, 'e2e-shard-plan.json'), process.env.FAKE_GH_PLAN ?? '{}');
 	} else if (name.startsWith('e2e-file-durations')) {
 		fs.writeFileSync(path.join(dir, 'durations.json'), process.env.FAKE_GH_DURATIONS ?? '{}');
@@ -353,6 +395,88 @@ test('plan refuses to publish an empty test list instead of creating six empty s
 	}
 });
 
+test('the merge_queue step sequence uploads the plan under the name the shards download', () => {
+	const sandbox = makeSandbox();
+	const store = path.join(sandbox.root, 'artifact-store');
+	try {
+		const workflow = parseYaml(
+			readFileSync(path.join(repoRoot, '.github/workflows/ci.yml'), 'utf8'),
+		) as {
+			jobs: Record<
+				string,
+				{
+					steps?: {
+						id?: string;
+						run?: string;
+						with?: Record<string, unknown>;
+					}[];
+				}
+			>;
+		};
+		const steps = workflow.jobs['e2e-build']?.steps ?? [];
+		const planStep = steps.find((step) => step.id === 'plan');
+		const upload = steps.find((step) => step.id === 'plan-upload');
+		assert.equal(
+			planStep?.run?.trim(),
+			'node packages/scripts-ts/src/ci-e2e-shard.ts plan',
+		);
+		assert.match(
+			String(upload?.with?.['if-no-files-found']),
+			/merge_group.*'error'/,
+			'a merge_queue upload must fail when the plan file is missing',
+		);
+		const uploadName = String(upload?.with?.name).replace(
+			'${{ github.run_attempt }}',
+			'1',
+		);
+		const uploadPath = String(upload?.with?.path);
+		assert.equal(uploadName, 'e2e-shard-plan-1');
+		assert.equal(uploadPath, 'apps/front/e2e-artifacts/e2e-shard-plan.json');
+
+		const planned = runShardCli(sandbox, 'plan');
+		assert.equal(planned.status, 0, `${planned.stdout}\n${planned.stderr}`);
+
+		// actions/upload-artifact stores the file relative to the uploaded path's directory.
+		const stored = path.join(store, uploadName, path.basename(uploadPath));
+		mkdirSync(path.dirname(stored), { recursive: true });
+		copyFileSync(planFilePath(sandbox), stored);
+		const shardReport = path.join(
+			store,
+			'e2e-shard-report-1-1',
+			'playwright-1-of-6.json',
+		);
+		mkdirSync(path.dirname(shardReport), { recursive: true });
+		writeFileSync(shardReport, '{}');
+
+		const shard = runShardCli(sandbox, 'download', {
+			GITHUB_RUN_ID: '45108911907',
+			FAKE_GH_DOWNLOAD: 'true',
+			FAKE_GH_ARTIFACT_STORE: store,
+		});
+		assert.equal(shard.status, 0, `${shard.stdout}\n${shard.stderr}`);
+		assert.doesNotMatch(`${shard.stdout}${shard.stderr}`, /unavailable/);
+		const plan = JSON.parse(readFileSync(planFilePath(sandbox), 'utf8')) as {
+			shards: unknown[];
+		};
+		assert.equal(plan.shards.length, 6);
+		const downloads = readFileSync(sandbox.ghLog, 'utf8')
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line) as string[])
+			.filter((args) => args[0] === 'run');
+		assert.deepEqual(
+			downloads.map((args) =>
+				args.includes('-n')
+					? args[args.indexOf('-n') + 1]
+					: args[args.indexOf('-p') + 1],
+			),
+			['e2e-shard-report-*', 'e2e-shard-plan-1'],
+		);
+	} finally {
+		rmSync(sandbox.root, { recursive: true, force: true });
+	}
+});
+
 const expectedTest = {
 	key: 'e2e/a.spec.ts::chromium::a.spec.ts > x',
 	file: 'e2e/a.spec.ts',
@@ -467,7 +591,7 @@ test('verify refuses to run without the plan artifact instead of certifying noth
 	}
 });
 
-test('download is a no-op outside the merge queue and flattens this attempt reports inside it', () => {
+test('download keeps the latest report per shard and falls back to the attempt that has the plan', () => {
 	const sandbox = makeSandbox();
 	const artifacts = path.join(sandbox.root, 'e2e-artifacts');
 	try {
@@ -486,16 +610,34 @@ test('download is a no-op outside the merge queue and flattens this attempt repo
 		const mergeQueue = runShardCli(sandbox, 'download', {
 			GITHUB_EVENT_NAME: 'merge_group',
 			GITHUB_RUN_ID: '77',
-			GITHUB_RUN_ATTEMPT: '3',
+			// A re-run attempt: only attempt 1 holds the plan artifact.
+			GITHUB_RUN_ATTEMPT: '2',
 			E2E_ARTIFACTS: artifacts,
 			FAKE_GH_DOWNLOAD: 'true',
+			FAKE_GH_PLAN_ATTEMPT: '1',
 		});
 		assert.equal(
 			mergeQueue.status,
 			0,
 			`${mergeQueue.stdout}\n${mergeQueue.stderr}`,
 		);
-		assert.deepEqual(readdirSync(artifacts), ['playwright-1-of-6.json']);
+		assert.deepEqual(readdirSync(artifacts).sort(), [
+			'playwright-1-of-6.json',
+			'playwright-2-of-6.json',
+		]);
+		const attempts = readdirSync(artifacts)
+			.sort()
+			.map(
+				(file) =>
+					JSON.parse(readFileSync(path.join(artifacts, file), 'utf8')) as {
+						attempt: number;
+					},
+			);
+		assert.deepEqual(
+			attempts.map((entry) => entry.attempt),
+			[3, 1],
+			'shard 1 keeps attempt 3, shard 2 keeps attempt 1',
+		);
 		const ghArgs = readFileSync(sandbox.ghLog, 'utf8')
 			.trim()
 			.split('\n')
@@ -503,13 +645,13 @@ test('download is a no-op outside the merge queue and flattens this attempt repo
 		const pattern = ghArgs[0]?.[ghArgs[0].indexOf('-p') + 1];
 		assert.equal(
 			pattern,
-			'e2e-shard-report-*-3',
-			'the download must only read this attempt reports',
+			'e2e-shard-report-*',
+			'non-re-run shards only exist in earlier attempts',
 		);
-		assert.equal(
-			ghArgs[1]?.[ghArgs[1].indexOf('-n') + 1],
-			'e2e-shard-plan-3',
-			'the verify input plan is this attempt artifact',
+		assert.deepEqual(
+			ghArgs.slice(1).map((args) => args[args.indexOf('-n') + 1]),
+			['e2e-shard-plan-2', 'e2e-shard-plan-1'],
+			'the re-run attempt falls back to the attempt that uploaded the plan',
 		);
 		assert.ok(existsSync(planFilePath(sandbox)));
 

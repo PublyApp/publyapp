@@ -91,3 +91,7 @@ apps/mobile/expo-env.d.ts
 
 # Local pnpm store/cache used when the shared store is not writable
 .pnpm-cache/
+
+# Playwright shard plans and reports (generated; uploaded as CI artifacts)
+apps/front/e2e-artifacts/
+/e2e-artifacts/

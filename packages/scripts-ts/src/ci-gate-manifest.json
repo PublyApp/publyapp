@@ -1,20 +1,4 @@
 {
-	"$comment": [
-		"Reconciliation manifest for the local CI gate. Read by packages/scripts-ts/src/check-ci-drift.ts.",
-		"",
-		"One entry per step in .github/workflows, keyed by '<workflow>::<job>::<step name>'.",
-		"  hash   - content hash of the step (run/uses + with + env + if) when it was last",
-		"           reconciled. The guard recomputes it; a mismatch fails the gate.",
-		"  mirror - the local command asserted to cover this step, or null when exempt.",
-		"  reason - why the mirror covers it, or why it cannot run locally. Required.",
-		"",
-		"IMPORTANT: `mirror` is a HUMAN ASSERTION, not something the guard verifies. The",
-		"guard's job is to make sure that assertion is re-made whenever the CI step changes,",
-		"so the local gate cannot drift out of sync in silence. When a hash mismatch sends",
-		"you here, actually re-read the workflow step before bumping the hash.",
-		"",
-		"See docs/guides/local-ci-gate.md."
-	],
 	"steps": {
 		"ci.yml::api::Build API and OpenAPI document": {
 			"hash": "fb833bdcf95c6304",
@@ -352,7 +336,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'E2E image build is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Collect ci-lane-result": {
-			"hash": "83554a69fad9cf93",
+			"hash": "ae3a9d1cadbaad64",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -417,7 +401,7 @@
 			"reason": "No exact local command match for run step \"Cleanup e2e images\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-cleanup.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-cleanup::Collect ci-lane-result": {
-			"hash": "cab897cc055dead5",
+			"hash": "9b708f2403ecf794",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -542,7 +526,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable\"; normalized workflow command(s): [\"echo 'E2E shard is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Collect ci-lane-result": {
-			"hash": "337967168a1d1891",
+			"hash": "0260d39070c0ba4a",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -582,9 +566,9 @@
 			"reason": "No exact local command match for run step \"Pull stack images\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-image-trust.ts pull\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Run Playwright shard": {
-			"hash": "0e62fd2b287dd4a7",
+			"hash": "989225c2c5e6f471",
 			"mirror": null,
-			"reason": "No exact local command match for run step \"Run Playwright shard\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-playwright-shard.ts ${{ matrix.shard }} 2\"]. The recursive just call graph was checked without inferring a broader local boundary."
+			"reason": "No exact local command match for run step \"Run Playwright shard\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-playwright-shard.ts ${{ matrix.shard }} 6\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-test::Setup Node": {
 			"hash": "ffdd064f68f94812",
@@ -607,9 +591,9 @@
 			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-e2e-test-${{ matrix.shard }}\",\"path\":\"ci-results/e2e-test-${{ matrix.shard }}.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Upload Playwright report": {
-			"hash": "3a8cedb2b96c916e",
+			"hash": "106e33e84eb5bcfb",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload Playwright report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')\",\"with\":{\"name\":\"front-e2e-playwright-report-${{ matrix.shard }}-of-2\",\"path\":\"apps/front/playwright-report\\napps/front/test-results\\n\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload Playwright report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.playwright.outcome == 'failure' || steps.playwright.outcome == 'cancelled')\",\"with\":{\"name\":\"front-e2e-playwright-report-${{ matrix.shard }}-of-6\",\"path\":\"apps/front/playwright-report\\napps/front/test-results\\n\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
 		},
 		"ci.yml::e2e-test::Wait for e2e stack health": {
 			"hash": "f60c45c86d686294",
@@ -1295,6 +1279,56 @@
 			"hash": "6ef482029baec139",
 			"mirror": "just ci-quality-ratchet",
 			"reason": "Local mirror just ci-quality-ratchet is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-quality-ratchet.test.ts\"]."
+		},
+		"ci.yml::e2e-build::Install pnpm for the shard plan": {
+			"hash": "a426b40155bf13b8",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Install pnpm for the shard plan\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+		},
+		"ci.yml::e2e-build::Setup Node for the shard plan": {
+			"hash": "db3d6f3954158291",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup Node for the shard plan\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":{\"node-version\":24},\"env\":null}."
+		},
+		"ci.yml::e2e-build::Install workspace dependencies for the shard plan": {
+			"hash": "ae7e2b9ac84df1b3",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Install workspace dependencies for the shard plan\"; normalized workflow command(s): [\"[ \\\"$GITHUB_EVENT_NAME\\\" = \\\"merge_group\\\" ] || { echo \\\"no partition outside the merge queue\\\"; exit 0; }\",\"pnpm install --frozen-lockfile --ignore-scripts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-build::Plan the Playwright shards": {
+			"hash": "e296d0b87fac5e77",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Plan the Playwright shards\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-shard.ts plan\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-build::Upload the shard plan": {
+			"hash": "3889cb0aff26eb7d",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Upload the shard plan\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":{\"name\":\"e2e-shard-plan-${{ github.run_attempt }}\",\"path\":\"apps/front/e2e-artifacts/e2e-shard-plan.json\",\"retention-days\":7,\"if-no-files-found\":\"${{ github.event_name == 'merge_group' && 'error' || 'ignore' }}\"},\"env\":null}."
+		},
+		"ci.yml::e2e-cleanup::Download shard coverage reports": {
+			"hash": "9fca9ac1775d502c",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Download shard coverage reports\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-shard.ts download\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-cleanup::Verify per-test coverage": {
+			"hash": "118d75f299335edc",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Verify per-test coverage\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-shard.ts verify\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-cleanup::Record Playwright file durations": {
+			"hash": "25ccaa40c8dadbc4",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Record Playwright file durations\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-shard.ts record\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::e2e-cleanup::Upload recorded durations": {
+			"hash": "3cb874c00877354b",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Upload recorded durations\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":{\"name\":\"e2e-file-durations-${{ github.run_attempt }}\",\"path\":\"e2e-artifacts/playwright-file-durations.json\",\"retention-days\":30,\"if-no-files-found\":\"ignore\"},\"env\":null}."
+		},
+		"ci.yml::e2e-test::Upload shard coverage report": {
+			"hash": "659901c8c2586624",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Upload shard coverage report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && github.event_name == 'merge_group' && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":{\"name\":\"e2e-shard-report-${{ matrix.shard }}-${{ github.run_attempt }}\",\"path\":\"e2e-artifacts/playwright-${{ matrix.shard }}-of-6.json\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Detect reusable e2e images": {
 			"hash": "4344004a3cd33395",
