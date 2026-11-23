@@ -1218,7 +1218,7 @@ jobs:
           name: e2e-shard-plan-${{ github.run_attempt }}
           path: apps/front/e2e-artifacts/e2e-shard-plan.json
           retention-days: 7
-          if-no-files-found: ignore
+          if-no-files-found: ${{ github.event_name == 'merge_group' && 'error' || 'ignore' }}
       - name: Resolve image tag
         id: image-tag
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'

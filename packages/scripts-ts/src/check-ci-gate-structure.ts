@@ -2493,7 +2493,8 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 				name: 'e2e-shard-plan-\${{ github.run_attempt }}',
 				path: 'apps/front/e2e-artifacts/e2e-shard-plan.json',
 				'retention-days': 7,
-				'if-no-files-found': 'ignore',
+				'if-no-files-found':
+					"${{ github.event_name == 'merge_group' && 'error' || 'ignore' }}",
 			},
 		},
 		{

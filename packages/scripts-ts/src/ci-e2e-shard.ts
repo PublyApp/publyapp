@@ -353,23 +353,15 @@ export const downloadPlan = () => {
 	for (const attempt of planAttempts()) {
 		const download = spawnSync(
 			'gh',
-			[
-				'run',
-				'download',
-				runId,
-				'-n',
-				`e2e-shard-plan-${attempt}`,
-				'-D',
-				dir,
-				'--clobber',
-			],
+			['run', 'download', runId, '-n', `e2e-shard-plan-${attempt}`, '-D', dir],
 			{ encoding: 'utf8' },
 		);
 		if (download.status === 0) {
 			return;
 		}
+		const reason = download.stderr.trim().split('\n')[0] ?? '';
 		console.log(
-			`::warning::plan artifact e2e-shard-plan-${attempt} is unavailable; trying an earlier attempt`,
+			`::warning::plan artifact e2e-shard-plan-${attempt} is unavailable${reason.length > 0 ? ` (${reason})` : ''}; trying an earlier attempt`,
 		);
 	}
 	throw new Error(`no plan artifact found for run ${runId}`);
@@ -431,16 +423,7 @@ export const downloadShards = () => {
 	mkdirSync(dir, { recursive: true });
 	execFileSync(
 		'gh',
-		[
-			'run',
-			'download',
-			runId,
-			'-p',
-			'e2e-shard-report-*',
-			'-D',
-			dir,
-			'--clobber',
-		],
+		['run', 'download', runId, '-p', 'e2e-shard-report-*', '-D', dir],
 		{ stdio: 'inherit' },
 	);
 	flattenDownloadedArtifacts(dir);
