@@ -47,6 +47,8 @@ vi.mock('@org/shared-ts/lib/logger', () => ({
 		info: vi.fn(),
 		debug: vi.fn(),
 	},
+	toLogError: (error: unknown) =>
+		error instanceof Error ? error : new Error(String(error)),
 }));
 
 vi.mock('~/lib/session/session-invalidation-channel', () => ({

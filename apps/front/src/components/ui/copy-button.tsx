@@ -9,8 +9,7 @@ import {
 } from '~/components/ui/tooltip';
 import { copyToClipboard, isClipboardAvailable } from '~/utils/clipboard';
 
-import { logger } from '@org/shared-ts/lib/logger';
-import { toLogError } from '@org/shared-ts/lib/logger/logger.contract';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 
 const COPY_FEEDBACK_MS = 1500;
 

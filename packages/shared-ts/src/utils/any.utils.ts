@@ -1,7 +1,7 @@
 import forEach from 'lodash/forEach.js';
 import get from 'lodash/get.js';
 
-import type { LogValue } from '../lib/logger/logger.contract';
+import type { LogValue } from '../lib/logger/index.ts';
 
 export const delay = <T = unknown>(
 	timeout: number,

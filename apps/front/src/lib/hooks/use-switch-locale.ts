@@ -5,8 +5,7 @@ import { switchLocale } from '~/lib/i18n/locale-switch';
 import { setLocale } from '~/server/i18n-locale';
 
 import type { SupportedLanguage } from '@org/shared-ts/lib/i18n/shared';
-import { logger } from '@org/shared-ts/lib/logger';
-import { toLogError } from '@org/shared-ts/lib/logger/logger.contract';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 
 export const useSwitchLocale = () => {
 	const router = useRouter();

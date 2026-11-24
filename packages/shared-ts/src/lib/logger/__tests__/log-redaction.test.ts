@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { LogMeta } from '../logger.contract';
-import { redactMeta, redactText } from '../redact';
+import { redactEntry, redactMeta, redactText } from '../log-redaction';
+import type { LogMeta } from '../logger.types';
 
 type ErrorOut = {
 	name: string;
@@ -18,6 +18,7 @@ describe('redactText', () => {
 		['db mongodb://user:pw@host/db', 'db mongodb://[REDACTED]@host/db'],
 		['jwt eyJhbGciOi.eyJzdWIiOi.sig_nature-1', 'jwt [redacted-jwt]'],
 		['blob abcdefghijklmnopqrstuvwxyz0123', 'blob [redacted-token]'],
+		['bell\u0007and\u0009tab', 'bell and tab'],
 	])('%s', (input, expected) => {
 		expect(redactText(input)).toBe(expected);
 	});
@@ -26,6 +27,12 @@ describe('redactText', () => {
 		expect(redactText('/a/very/long/path/segment/here 2026-11-24')).toBe(
 			'/a/very/long/path/segment/here 2026-11-24',
 		);
+	});
+
+	it('bounds a single text to 2 KB', () => {
+		const out = redactText('abcdefgh '.repeat(500));
+		expect(out).toHaveLength(2048 + '[Truncated]'.length);
+		expect(out.endsWith('[Truncated]')).toBe(true);
 	});
 });
 
@@ -80,5 +87,18 @@ describe('redactMeta', () => {
 			a: { v: 1 },
 			b: { v: 1 },
 		});
+	});
+});
+
+describe('redactEntry', () => {
+	it('redacts message and meta in one pass', () => {
+		const entry = redactEntry({
+			level: 'error',
+			message: 'failed for a@b.com',
+			meta: { authorization: 'Bearer x' },
+			time: new Date('2026-11-24T10:00:00Z'),
+		});
+		expect(entry.message).toBe('failed for [redacted-email]');
+		expect(entry.meta).toEqual({ authorization: '[REDACTED]' });
 	});
 });

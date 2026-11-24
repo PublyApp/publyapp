@@ -1,12 +1,15 @@
-import type { LogMeta, LogValue } from './logger.contract';
+import type { LogEntry, LogMeta, LogValue } from './logger.types';
 
-// Aligned on apps/api/Lib/Logging/SanitizingLogEventSink.cs (+ JobErrorSanitizer):
-// e-mails and token-shaped blobs in text, bounded depth. Plus key-based masking.
+// Aligned on apps/api/Infrastructure/Jobs/JobErrorSanitizer.cs and
+// apps/api/Lib/Logging/SanitizingLogEventSink.cs: e-mails and long token-shaped
+// blobs in text, control characters collapsed, bounded depth and length. Sensitive
+// keys are masked by name too, which the C# sink does through its destructuring.
 const SENSITIVE_KEY =
-	/password|passwd|passphrase|secret|token|authorization|cookie|api[-_]?key|credential|email|phone|iban|card(number)?$/i;
+	/password|passwd|passphrase|secret|token|authorization|cookie|api[-_]?key|credential|email|phone|iban|card(number)?|ssn/i;
 const SAFE_KEYS = new Set(['emailhash', 'tokentype', 'tokencount']);
 
 const TEXT_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
+	[/[\x00-\x1F]+/g, ' '],
 	[/\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@:]+:[^\s/@]+@/gi, '$1[REDACTED]@'],
 	[/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[redacted-jwt]'],
 	[/\bBearer\s+\S+/gi, 'Bearer [REDACTED]'],
@@ -17,6 +20,7 @@ const TEXT_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
 
 const MAX_DEPTH = 6;
 const MAX_ITEMS = 100;
+const MAX_LENGTH = 2048;
 const TRUNCATED = '[Truncated]';
 
 export const redactText = (text: string): string => {
@@ -24,7 +28,10 @@ export const redactText = (text: string): string => {
 	for (const [pattern, replacement] of TEXT_PATTERNS) {
 		result = result.replace(pattern, replacement);
 	}
-	return result;
+	if (result.length <= MAX_LENGTH) {
+		return result;
+	}
+	return `${result.slice(0, MAX_LENGTH)}${TRUNCATED}`;
 };
 
 const isSensitiveKey = (key: string) =>
@@ -108,3 +115,10 @@ const redactValue = (value: LogValue, seen: Seen, depth: number): LogValue => {
 
 export const redactMeta = (meta: LogMeta): LogMeta =>
 	redactEntries(meta, new Set(), -1) as LogMeta;
+
+/** Redact exactly once, at the service boundary, before any adapter sees it. */
+export const redactEntry = (entry: LogEntry): LogEntry => ({
+	...entry,
+	message: redactText(entry.message),
+	meta: entry.meta && redactMeta(entry.meta),
+});

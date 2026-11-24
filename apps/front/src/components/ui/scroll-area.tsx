@@ -2,8 +2,7 @@ import * as React from 'react';
 import SimpleBarCore from 'simplebar-core';
 import { cn } from '~/lib/utils';
 
-import { logger } from '@org/shared-ts/lib/logger';
-import { toLogError } from '@org/shared-ts/lib/logger/logger.contract';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 
 /**
  * SSR-safe shared scroll area primitive (#840).

@@ -6,8 +6,7 @@ import type {
 	QueryMeta,
 } from '@tanstack/react-query';
 
-import { logger } from '@org/shared-ts/lib/logger';
-import { toLogError } from '@org/shared-ts/lib/logger/logger.contract';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 
 /** A `lib/query/*` factory (`buildStaffQueryOptions` shape): key builder + fetcher.
  *

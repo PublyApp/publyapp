@@ -6,8 +6,7 @@ import { z } from 'zod';
 
 import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger';
-import { toLogError } from '@org/shared-ts/lib/logger/logger.contract';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 import {
 	selectToken,
 	formatSessionCookie,

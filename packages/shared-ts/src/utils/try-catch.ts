@@ -1,5 +1,4 @@
-import { logger } from '../lib/logger/index.ts';
-import { toLogError } from '../lib/logger/logger.contract';
+import { logger, toLogError } from '../lib/logger/index.ts';
 import { isAsyncFunction, isPromise } from './any.utils.ts';
 import { getErrorMessage } from './error.utils.ts';
 

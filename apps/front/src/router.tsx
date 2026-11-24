@@ -6,8 +6,7 @@ import { displayMutationFeedback } from '~/lib/mutation-feedback/mutation-toast'
 import { triggerSessionInvalidated } from '~/lib/session/session-invalidation-channel';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { logger } from '@org/shared-ts/lib/logger';
-import { toLogError } from '@org/shared-ts/lib/logger/logger.contract';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 import {
 	resolveMutationFailureIntent,
 	resolveMutationSuccessIntent,

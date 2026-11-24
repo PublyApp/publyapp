@@ -19,6 +19,8 @@ type ClipboardExecutor = {
 
 vi.mock('@org/shared-ts/lib/logger', () => ({
 	logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
+	toLogError: (error: unknown) =>
+		error instanceof Error ? error : new Error(String(error)),
 }));
 
 const getStatusText = () => screen.getByRole('status').textContent?.trim();

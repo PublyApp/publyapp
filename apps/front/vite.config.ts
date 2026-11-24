@@ -47,6 +47,18 @@ export default defineConfig(({ mode }) => {
 				// specifier fails to resolve on the first request inside the
 				// container. Inlining them here keeps every server chunk
 				// self-contained.
+				//
+				// `winston` is deliberately NOT listed here: it is a CJS module
+				// that Vite's SSR module runner cannot transform when forced
+				// into the bundle (`require is not defined` at winston's entry).
+				// It is pulled in transitively by `@org/shared-ts`
+				// (`iso-logger` does `await import('winston')`), and because
+				// `@org/shared-ts` itself is bundled above, winston is reached as
+				// an *external* `require` at runtime — which resolves correctly
+				// in dev, in the e2e Vite SSR runner, and in the deployed image
+				// (winston ships as a transitive dependency of `@org/shared-ts`).
+				// Listing `winston` here regresses the focus-ring-cascade e2e
+				// spec, which renders the real ui primitives through this config.
 				'@org/client-ts',
 				'@org/shared-ts',
 				/@microsoft\/kiota-serialization-(json|form|multipart|text)/,

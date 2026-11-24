@@ -34,6 +34,8 @@ vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
 
 vi.mock('@org/shared-ts/lib/logger', () => ({
 	logger: { error: vi.fn() },
+	toLogError: (error: unknown) =>
+		error instanceof Error ? error : new Error(String(error)),
 }));
 
 import { SELECTED_TENANT_STORAGE_KEY } from '~/lib/session/selected-tenant-storage';

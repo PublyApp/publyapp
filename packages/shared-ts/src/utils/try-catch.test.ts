@@ -13,6 +13,8 @@ vi.mock('@org/shared-ts/lib/logger', () => ({
 		error: (...args: unknown[]) => errorSpy(...args),
 		debug: vi.fn(),
 	},
+	toLogError: (error: unknown) =>
+		error instanceof Error ? error : new Error(String(error)),
 }));
 
 import { tryCatchWrapper } from './try-catch';

@@ -1,58 +1,57 @@
 import { isServer } from '../constants';
-import { type LogEnv, parseLevel, resolveLevel } from './level';
-import { createLogger } from './logger';
-import type { ILogger, LogSink } from './logger.contract';
-import { nodeProcess, viteEnv } from './runtime';
-import { BrowserProdSink } from './sinks/browser-prod.sink';
-import { JsonStdoutSink } from './sinks/json-stdout.sink';
-import { MemorySink } from './sinks/memory.sink';
-import { PrettyConsoleSink } from './sinks/pretty-console.sink';
+import { BrowserConsoleLoggerAdapter } from './adapters/browser-console-logger-adapter';
+import { JsonLoggerAdapter } from './adapters/json-logger-adapter';
+import { MemoryLoggerAdapter } from './adapters/memory-logger-adapter';
+import {
+	createBrowserWinstonAdapter,
+	createServerWinstonAdapter,
+} from './adapters/winston-logger-adapter';
+import { type LogEnv, parseLevel, readEnv, resolveLevel } from './log-level';
+import { Logger } from './logger';
+import type { ILogger } from './logger.types';
 
-export * from './logger.contract';
-export { createLogger } from './logger';
-export { MemorySink } from './sinks/memory.sink';
+export * from './logger.types';
+export { Logger } from './logger';
+export { MemoryLoggerAdapter } from './adapters/memory-logger-adapter';
 
-export const readEnv = (): LogEnv => ({
-	NODE_ENV: nodeProcess?.env.NODE_ENV ?? viteEnv?.MODE,
-	LOG_LEVEL: nodeProcess?.env.LOG_LEVEL ?? viteEnv?.VITE_LOG_LEVEL,
-	LOG_SINK: nodeProcess?.env.LOG_SINK ?? viteEnv?.VITE_LOG_SINK,
-});
+const winstonAdapter = (server: boolean): ILogger =>
+	server ? createServerWinstonAdapter() : createBrowserWinstonAdapter();
 
-const FORCED_SINKS = {
-	json: () => new JsonStdoutSink(),
-	pretty: () => new PrettyConsoleSink(),
+const autoAdapter = (env: LogEnv, server: boolean): ILogger => {
+	if (env.NODE_ENV === 'test') {
+		return new MemoryLoggerAdapter();
+	}
+	if (env.NODE_ENV === 'production') {
+		return server ? new JsonLoggerAdapter() : new BrowserConsoleLoggerAdapter();
+	}
+	return winstonAdapter(server);
 };
 
-const isForcedSink = (
-	name: string | undefined,
-): name is keyof typeof FORCED_SINKS =>
-	name !== undefined && Object.hasOwn(FORCED_SINKS, name);
+const isKnownAdapter = (name: string): name is 'winston' | 'json' =>
+	name === 'winston' || name === 'json';
 
-const autoSink = ({ NODE_ENV }: LogEnv): LogSink => {
-	if (NODE_ENV === 'test') {
-		return new MemorySink();
+/** `LOG_ADAPTER=winston|json` forces an adapter; anything else is automatic. */
+export const resolveAdapter = (
+	env: LogEnv = readEnv(),
+	server: boolean = isServer,
+): ILogger => {
+	if (env.LOG_ADAPTER === 'winston') {
+		return winstonAdapter(server);
 	}
-	if (NODE_ENV !== 'production') {
-		return new PrettyConsoleSink();
+	if (env.LOG_ADAPTER === 'json') {
+		return new JsonLoggerAdapter();
 	}
-	return isServer ? new JsonStdoutSink() : new BrowserProdSink();
+	return autoAdapter(env, server);
 };
-
-/** `LOG_SINK=json|pretty` forces the sink; anything else means automatic. */
-export const resolveSink = (env: LogEnv = readEnv()): LogSink =>
-	isForcedSink(env.LOG_SINK) ? FORCED_SINKS[env.LOG_SINK]() : autoSink(env);
 
 const env = readEnv();
-export const logger: ILogger = createLogger(
-	resolveSink(env),
-	resolveLevel(env),
-);
+export const logger = new Logger(resolveAdapter(env), resolveLevel(env));
 
+if (env.LOG_ADAPTER && !isKnownAdapter(env.LOG_ADAPTER)) {
+	logger.warn('Invalid LOG_ADAPTER, using automatic selection', {
+		value: env.LOG_ADAPTER,
+	});
+}
 if (env.LOG_LEVEL && !parseLevel(env.LOG_LEVEL)) {
 	logger.warn('Invalid LOG_LEVEL, using the default', { value: env.LOG_LEVEL });
-}
-if (env.LOG_SINK && !isForcedSink(env.LOG_SINK)) {
-	logger.warn('Invalid LOG_SINK, using automatic selection', {
-		value: env.LOG_SINK,
-	});
 }

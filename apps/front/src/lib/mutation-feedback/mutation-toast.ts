@@ -1,8 +1,7 @@
 import type { i18n as I18nInstance, Namespace } from 'i18next';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { logger } from '@org/shared-ts/lib/logger';
-import { toLogError } from '@org/shared-ts/lib/logger/logger.contract';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 import { resolveMutationFailureIntent } from '@org/shared-ts/lib/mutation-feedback/policy';
 import type { MutationFeedbackIntent } from '@org/shared-ts/lib/mutation-feedback/types';
 

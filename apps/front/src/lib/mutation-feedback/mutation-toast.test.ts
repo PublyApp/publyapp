@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@org/shared-ts/lib/logger', () => ({
 	logger: { error: mocks.loggerError },
+	toLogError: (error: unknown) =>
+		error instanceof Error ? error : new Error(String(error)),
 }));
 
 import { createI18nFromResources } from '../i18n/react-i18n';

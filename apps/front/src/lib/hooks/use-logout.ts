@@ -9,8 +9,7 @@ import {
 	postBroadcast,
 } from '~/lib/tab-sync/broadcast-sync';
 
-import { logger } from '@org/shared-ts/lib/logger';
-import { toLogError } from '@org/shared-ts/lib/logger/logger.contract';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 import { buildLoginRedirectSearch } from '@org/shared-ts/lib/login-redirect-search';
 import { resolveRouteRedirect } from '@org/shared-ts/lib/safe-redirect-path';
 
