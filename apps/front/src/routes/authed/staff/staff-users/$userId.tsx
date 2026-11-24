@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query';
 import {
 	createFileRoute,
 	useNavigate,
@@ -8,41 +7,34 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
 import QueryDisplay from '~/components/query-display';
-import { ConfirmDialog } from '~/components/ui/confirm-dialog';
 import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
-	invalidateStaffUsers,
-	removeStaffUserDetails,
 	staffUserDetailsQueryOptions,
 	staffUserRolesQueryOptions,
 	toStaffUserDetails,
-	useDeleteStaffUserMutation,
-	useReactivateStaffUserMutation,
 	useStaffUserDetailsQuery,
 	useStaffUserRolesQuery,
-	useSuspendStaffUserMutation,
 } from '~/lib/query/staff-users';
 
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-import {
-	DeleteConfirmField,
-	ConfirmHeaderInfo,
-} from '../_staff-user-delete-confirm';
-import { StaffUserIdentityHeader } from '../_staff-user-identity-header';
 import { staffUserCrumbsBase } from './$userId/_crumbs';
 import { StaffUserDetailsEmptyPayload } from './$userId/_detail-views';
+import { StaffUserDetailsBody } from './$userId/_details-body';
 import {
-	getActiveSection,
-	getSuspendDialogKeys,
-	getSuspendLabelKey,
 	normalizeStatus,
 	STAFF_STATUS_ACTIVE,
 	STAFF_STATUS_SUSPENDED,
 } from './$userId/_lifecycle';
-import type { StaffUserOverviewContextValue } from './$userId/_overview-context';
+import {
+	useStaffDeleteAction,
+	useStaffLifecycleAction,
+} from './_use-staff-user-actions';
 import { StaffUserDetailsError } from './_user-details-error';
+
+const isLogoutFailure = (failure: unknown) =>
+	failure !== null && shouldLogoutForFailure(failure);
 
 /** The page's two queries, declared once: the loader warms them and the page
  * reads the same variables. */
@@ -59,21 +51,11 @@ const staffUserQueries = ({ userId }: { userId: string }) => ({
 
 const StaffUserDetailsPage = () => {
 	const { userId } = Route.useParams();
-	const { t, i18n } = useTranslation(['staff-users', 'common']);
-	const queryClient = useQueryClient();
-	const navigate = useNavigate();
-	const [deleteConfirmText, setDeleteConfirmText] = useState('');
-	const [isSuspendDialogOpen, setSuspendDialogOpen] = useState(false);
-	const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
+	const { i18n } = useTranslation(['staff-users', 'common']);
 	const [shouldLogout, setShouldLogout] = useState(false);
-	const suspendUser = useSuspendStaffUserMutation();
-	const reactivateUser = useReactivateStaffUserMutation();
-	const deleteUser = useDeleteStaffUserMutation();
-
 	const pathname = useRouterState({
 		select: (state) => state.location.pathname,
 	});
-	const activeSection = getActiveSection(pathname);
 
 	const queries = staffUserQueries({ userId });
 	const detailQuery = useStaffUserDetailsQuery(queries.details.variables, {
@@ -83,192 +65,70 @@ const StaffUserDetailsPage = () => {
 		enabled: userId.length > 0,
 	});
 	const user = toStaffUserDetails(detailQuery.data);
+	const normalizedStatus = normalizeStatus(user?.status);
+	const canSuspend = normalizedStatus === STAFF_STATUS_ACTIVE;
+	const canReactivate = normalizedStatus === STAFF_STATUS_SUSPENDED;
+	const onLogout = () => setShouldLogout(true);
+	const navigate = useNavigate();
+	// `navigate` is a router call, so it stays in the page's event handler path
+	// rather than in the data hook — same reason as `submitStaffUserEdit`.
+	const onDeleted = async () => {
+		try {
+			await navigate({ to: '/staff/staff-users' });
+		} catch (error) {
+			// navigation rejection after a successful delete — don't reuse the failure message
+			logger.warn('Staff user delete navigation failed', error);
+		}
+	};
+	const lifecycle = useStaffLifecycleAction({
+		userId,
+		canSuspend,
+		canReactivate,
+		onLogout,
+	});
+	const deletion = useStaffDeleteAction({ userId, onLogout, onDeleted });
 
 	// Hoisted so the fatal-error gates read plain locals, not query flags —
 	// QueryDisplay owns the loading/error/data rendering below.
 	const detailError = detailQuery.error;
 	const rolesError = rolesQuery.error;
 	if (
-		(detailError !== null && shouldLogoutForFailure(detailError)) ||
-		(rolesError !== null && shouldLogoutForFailure(rolesError))
+		shouldLogout ||
+		isLogoutFailure(detailError) ||
+		isLogoutFailure(rolesError)
 	) {
 		return <LogoutRedirect />;
 	}
 
-	if (shouldLogout) {
-		return <LogoutRedirect />;
-	}
-
-	const renderDetailErrorSlot = (
-		<StaffUserDetailsError
-			error={detailError}
-			onRetry={() => {
-				void detailQuery.refetch();
-			}}
-		/>
-	);
-
 	return (
-		<QueryDisplay query={detailQuery} ErrorSlot={renderDetailErrorSlot}>
-			{() => {
-				if (!user) {
-					return <StaffUserDetailsEmptyPayload />;
-				}
-
-				const normalizedStatus = normalizeStatus(user.status);
-				const isActive = normalizedStatus === STAFF_STATUS_ACTIVE;
-				const canSuspend = isActive;
-				const canReactivate = normalizedStatus === STAFF_STATUS_SUSPENDED;
-				const pendingAction = suspendUser.isPending || reactivateUser.isPending;
-
-				const handleLifecycleAction = async () => {
-					if (!canSuspend && !canReactivate) {
-						setSuspendDialogOpen(false);
-
-						return;
-					}
-
-					try {
-						if (canSuspend) {
-							await suspendUser.mutateAsync({ userId });
-						} else if (canReactivate) {
-							await reactivateUser.mutateAsync({ userId });
-						}
-					} catch (error) {
-						// Close the dialog on every exit path — no try/finally, which the
-						// React Compiler cannot lower yet and would skip this component.
-						if (shouldLogoutForFailure(error)) {
-							setShouldLogout(true);
-							setSuspendDialogOpen(false);
-							return;
-						}
-						setSuspendDialogOpen(false);
-						return;
-					}
-					setSuspendDialogOpen(false);
-
-					try {
-						await invalidateStaffUsers(queryClient);
-					} catch (error) {
-						logger.warn('Staff user lifecycle invalidation failed', error);
-					}
-				};
-
-				const handleDeleteAction = async () => {
-					try {
-						await deleteUser.mutateAsync({ userId });
-					} catch (error) {
-						// Close the dialog on every exit path — no try/finally, which the
-						// React Compiler cannot lower yet and would skip this component.
-						if (shouldLogoutForFailure(error)) {
-							setShouldLogout(true);
-							setDeleteDialogOpen(false);
-							setDeleteConfirmText('');
-							return;
-						}
-						setDeleteDialogOpen(false);
-						setDeleteConfirmText('');
-						return;
-					}
-					setDeleteDialogOpen(false);
-					setDeleteConfirmText('');
-
-					try {
-						await navigate({ to: '/staff/staff-users' });
-					} catch (error) {
-						// navigation rejection after successful delete — don't reuse failure message
-						logger.warn('Staff user delete navigation failed', error);
-					}
-
-					removeStaffUserDetails(queryClient);
-					void invalidateStaffUsers(queryClient);
-				};
-
-				const isDeleteConfirmReady =
-					deleteConfirmText.trim().toLowerCase() === 'delete';
-				const maxRolesPerUser = rolesQuery.data?.maxRolesPerUser;
-
-				// Memoizing this literal would require hoisting it above the early returns,
-				// breaking conditional hook order on this page. The Provider re-renders only
-				// with this page, and the overview tab consumes the same query data, so the
-				// extra renders are local and bounded.
-				const overviewContextValue: StaffUserOverviewContextValue = {
-					user,
-					locale: i18n.language,
-					query: rolesQuery,
-					maxRolesPerUser: maxRolesPerUser ?? 0,
-					canSuspend,
-					canReactivate,
-					suspendLabelKey: getSuspendLabelKey(user.status),
-					suspendDescription: t(
-						getSuspendDialogKeys(user.status).descriptionKey,
-					),
-					isDeletePending: deleteUser.isPending,
-					onOpenSuspendDialog: () => {
-						setSuspendDialogOpen(true);
-					},
-					onOpenDeleteDialog: () => {
-						setDeleteDialogOpen(true);
-					},
-				};
-
-				return (
-					<div
-						className="publy-detail-page space-y-5"
-						data-testid="staff-user-details-page"
-					>
-						<StaffUserIdentityHeader
-							user={user}
-							userId={userId}
-							suspendDialogOpen={isSuspendDialogOpen}
-							onSuspendDialogOpenChange={(open) => setSuspendDialogOpen(open)}
-							onConfirmLifecycle={() => {
-								void handleLifecycleAction();
-							}}
-							isLifecyclePending={pendingAction}
-							getSuspendDialogKeys={getSuspendDialogKeys}
-							getSuspendLabelKey={getSuspendLabelKey}
-							activeSection={activeSection}
-							overviewContextValue={overviewContextValue}
-						/>
-
-						<ConfirmDialog
-							isOpen={isDeleteDialogOpen}
-							title={t('confirm-delete-staff-user-title')}
-							description={t('confirm-delete-staff-user-message')}
-							confirmLabel={t('common:delete')}
-							tone="danger"
-							isPending={deleteUser.isPending}
-							isConfirmDisabled={!isDeleteConfirmReady}
-							onConfirm={() => {
-								if (isDeleteConfirmReady) {
-									void handleDeleteAction();
-								}
-							}}
-							onOpenChange={(isOpen) => {
-								setDeleteDialogOpen(isOpen);
-								if (!isOpen) {
-									setDeleteConfirmText('');
-								}
-							}}
-						>
-							<div className="space-y-2">
-								<ConfirmHeaderInfo
-									name={user.displayName}
-									email={user.email}
-									avatarUrl={user.avatarUrl}
-								/>
-								<DeleteConfirmField
-									value={deleteConfirmText}
-									onChange={(next) => {
-										setDeleteConfirmText(next);
-									}}
-								/>
-							</div>
-						</ConfirmDialog>
-					</div>
-				);
-			}}
+		<QueryDisplay
+			query={detailQuery}
+			ErrorSlot={
+				<StaffUserDetailsError
+					error={detailError}
+					onRetry={() => {
+						void detailQuery.refetch();
+					}}
+				/>
+			}
+		>
+			{() =>
+				user ? (
+					<StaffUserDetailsBody
+						user={user}
+						userId={userId}
+						locale={i18n.language}
+						pathname={pathname}
+						rolesQuery={rolesQuery}
+						canSuspend={canSuspend}
+						canReactivate={canReactivate}
+						lifecycle={lifecycle}
+						deletion={deletion}
+					/>
+				) : (
+					<StaffUserDetailsEmptyPayload />
+				)
+			}
 		</QueryDisplay>
 	);
 };

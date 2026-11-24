@@ -1,36 +1,26 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useBlocker } from '@tanstack/react-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
-import { Field, Form, FormActionBar, FormPageLayout } from '~/components/field';
+import { FormPageLayout } from '~/components/field';
 import QueryDisplay from '~/components/query-display';
-import { Button } from '~/components/ui/button';
 import { ConfirmDialog } from '~/components/ui/confirm-dialog';
-import {
-	displayLocalMutationFailure,
-	toastLocalMutationResult,
-} from '~/lib/mutation-feedback/mutation-toast';
 import { preloadRouteQueries } from '~/lib/query/route-preload';
 import {
-	invalidateGlobalTenantUsers,
 	toGlobalTenantUserDetails,
 	useGlobalTenantUserDetailsQuery,
-	useUpdateGlobalTenantUserIdentityMutation,
 } from '~/lib/query/staff-global-tenant-users';
-
-import {
-	getFailureMessage,
-	toApiFailure,
-} from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
-import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { tenantUserDetailsCrumbs } from './_crumbs';
 import { TenantUserDetailsShell } from './_details-shell';
+import {
+	IdentityForm,
+	useHydrateIdentity,
+	useIdentitySubmit,
+} from './_identity-edit-parts';
 import { globalTenantUserQueries } from './_queries';
 
 const getIdentitySchema = (t: (key: string) => string) =>
@@ -75,21 +65,11 @@ export const Route = createFileRoute(
 
 const IdentityEditSection = ({ userId }: { userId: string }) => {
 	const { t } = useTranslation('common');
-	const queryClient = useQueryClient();
-	const updateIdentity = useUpdateGlobalTenantUserIdentityMutation();
-	const [shouldLogout, setShouldLogout] = useState(false);
-	// Saved-flag as STATE (not a ref): `useBlocker`'s shouldBlockFn runs while
-	// the component renders, and react-doctor forbids ref reads there. The
-	// flag flips only on a successful submit, so the extra render it causes
-	// is harmless.
-	const [hasSaved, setHasSaved] = useState(false);
-
 	const schema = useMemo(() => getIdentitySchema(t), [t]);
 	const methods = useForm<IdentityFormValues>({
 		resolver: zodResolver(schema),
 		defaultValues: { firstName: '', lastName: '' },
 	});
-	const { formState, reset, setError } = methods;
 
 	// Same key as the shell's query — served from cache, no second request.
 	const queries = globalTenantUserQueries({ userId });
@@ -100,84 +80,25 @@ const IdentityEditSection = ({ userId }: { userId: string }) => {
 		() => toGlobalTenantUserDetails(detailsQuery.data),
 		[detailsQuery.data],
 	);
+	useHydrateIdentity({
+		methods,
+		userId,
+		user,
+		isSuccess: detailsQuery.isSuccess,
+	});
 
-	// Hydrate once per user, never over an in-progress edit.
-	const hydratedUserIdRef = useRef<string | null>(null);
-	useEffect(() => {
-		if (!user || !detailsQuery.isSuccess) {
-			return;
-		}
-
-		if (hydratedUserIdRef.current === userId && formState.isDirty) {
-			return;
-		}
-
-		reset({ firstName: user.firstName ?? '', lastName: user.lastName ?? '' });
-		hydratedUserIdRef.current = userId;
-	}, [user, userId, detailsQuery.isSuccess, formState.isDirty, reset]);
-
+	const { onSubmit, hasSaved, shouldLogout, isPending } = useIdentitySubmit(
+		methods,
+		userId,
+	);
 	const blocker = useBlocker({
-		shouldBlockFn: () => formState.isDirty && !hasSaved,
+		shouldBlockFn: () => methods.formState.isDirty && !hasSaved,
 		withResolver: true,
 	});
 
 	if (shouldLogout) {
 		return <LogoutRedirect />;
 	}
-
-	const onSubmit = methods.handleSubmit(async (values) => {
-		setError('root', {});
-
-		try {
-			await updateIdentity.mutateAsync({
-				userId,
-				firstName: values.firstName.trim(),
-				lastName: values.lastName.trim(),
-			});
-		} catch (error) {
-			if (shouldLogoutForFailure(error)) {
-				setShouldLogout(true);
-				return;
-			}
-
-			const failure = toApiFailure(error);
-			if (failure.kind === 'validation') {
-				let mappedToField = false;
-				for (const field of ['firstName', 'lastName'] as const) {
-					const message = failure.fieldErrors[field]?.[0];
-					if (message) {
-						setError(field, { message });
-						mappedToField = true;
-					}
-				}
-				if (!mappedToField) {
-					setError('root', {
-						message: getFailureMessage(failure, {
-							fallback: t('an-error-occurred'),
-						}),
-					});
-				}
-				return;
-			}
-
-			await displayLocalMutationFailure(error, t('an-error-occurred'));
-			return;
-		}
-
-		setHasSaved(true);
-		methods.reset(
-			{ firstName: values.firstName.trim(), lastName: values.lastName.trim() },
-			{ keepValues: true },
-		);
-
-		try {
-			await invalidateGlobalTenantUsers(queryClient);
-		} catch (invalidationError) {
-			logger.warn('Global tenant-user invalidation failed', invalidationError);
-		}
-
-		toastLocalMutationResult.success(t('tenant-user-updated-success'));
-	});
 
 	// The form is fed by the details payload: it only exists once the query has
 	// one (the shell above already renders the loading/error states, and this
@@ -186,34 +107,12 @@ const IdentityEditSection = ({ userId }: { userId: string }) => {
 		<QueryDisplay query={detailsQuery}>
 			{() => (
 				<FormPageLayout data-testid="tenant-user-general-tab">
-					<Form methods={methods} onSubmit={onSubmit}>
-						<div className="rounded-[var(--publy-radius-card)] border border-[var(--publy-row-border)] bg-[var(--publy-surface-raised)] p-5">
-							<h2 className="text-sm font-medium text-foreground">
-								{t('metadata')}
-							</h2>
-							<div className="mt-4 grid gap-4 sm:grid-cols-2">
-								<Field.Text
-									name="firstName"
-									label={t('firstname')}
-									isDisabled={updateIdentity.isPending}
-								/>
-								<Field.Text
-									name="lastName"
-									label={t('lastname')}
-									isDisabled={updateIdentity.isPending}
-								/>
-							</div>
-							<p className="mt-4 text-[13px] text-muted-foreground">
-								{t('email-address')}: {user?.email ?? ''}
-							</p>
-						</div>
-
-						<FormActionBar>
-							<Button type="submit" disabled={updateIdentity.isPending}>
-								{t('save-changes')}
-							</Button>
-						</FormActionBar>
-					</Form>
+					<IdentityForm
+						methods={methods}
+						onSubmit={onSubmit}
+						isPending={isPending}
+						email={user?.email ?? ''}
+					/>
 					<ConfirmDialog
 						isOpen={blocker.status === 'blocked'}
 						title={t('unsaved-changes-dialog-title')}
