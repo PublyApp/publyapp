@@ -464,15 +464,16 @@ export const renamedTo = (name: string): string =>
 		.replace(/^.* => /, '')
 		.replace('//', '/');
 
+/** Only added lines count: deleting code is cheap to review and must never push a PR over the budget. */
 export const countSizedLines = (numstat: string): number => {
 	let total = 0;
 	for (const line of numstat.split('\n')) {
-		const [added, deleted, ...rest] = line.split('\t');
+		const [added, , ...rest] = line.split('\t');
 		const file = renamedTo(rest.join('\t'));
 		if (!file || isSizeExempt(file) || added === '-') {
 			continue;
 		}
-		total += Number(added) + Number(deleted);
+		total += Number(added);
 	}
 	return total;
 };
@@ -486,7 +487,7 @@ export const checkPrSize = (
 		return [];
 	}
 	return [
-		`SIZE ${lines} changed lines (excluding tests, generated files, migrations, lockfiles, snapshots) > ${baseline.prSizeMaxLines}. Split the PR; only the owner may allow it with the "${SIZE_LABEL}" label.`,
+		`SIZE ${lines} added lines (excluding tests, generated files, migrations, lockfiles, snapshots) > ${baseline.prSizeMaxLines}. Split the PR; only the owner may allow it with the "${SIZE_LABEL}" label.`,
 	];
 };
 
