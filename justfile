@@ -463,11 +463,13 @@ ci-front:
   # shape behind the next dependabot srvx bump.
   pnpm --filter front check:server-static-imports
   pnpm --filter front test:server-static-imports-guard
-  # Built-artifact guard (#1234): proves the React Compiler actually ran on
-  # the dist produced above (runtime chunk present, compiled-module count
-  # >= floor). Same pattern as check:design-system: a step of `pnpm --filter
-  # front test` AND an explicit ci.yml::front-build::Test front (non-vitest report-all) step.
+  # Built-artifact guards: both read the dist produced above, so they run here
+  # and in ci.yml::front-build, never in the dist-less front-guards job.
+  # - check:react-compiler (#1234): proves the React Compiler actually ran
+  #   (runtime chunk present, compiled-module count >= floor).
+  # - test:runtime-env-startup: exercises the real built server's startup guard.
   pnpm --filter front check:react-compiler
+  pnpm --filter front test:runtime-env-startup
   pnpm --filter front test
   # #1948: the 4-way vitest shard matrix must partition the suite exactly
   # once. Reads the REAL discovery of every shard (`vitest list --shard=i/n`)

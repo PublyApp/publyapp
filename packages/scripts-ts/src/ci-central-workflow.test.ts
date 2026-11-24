@@ -1014,7 +1014,7 @@ test('central workflow rejects every classifier producer, consumer, relevance, s
 	}
 });
 
-test('central workflow rejects six mutations for every one of its 119 classifier conditions', async () => {
+test('central workflow rejects six mutations for every one of its 120 classifier conditions', async () => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-ci-condition-delete-'),
 	);
@@ -1036,12 +1036,12 @@ test('central workflow rejects six mutations for every one of its 119 classifier
 				)
 				.map((step) => ({ jobId, stepId: String(step.id) })),
 	);
-	assert.equal(classifierTrueSteps.length, 119);
+	assert.equal(classifierTrueSteps.length, 120);
 	assert.equal(
 		new Set(
 			classifierTrueSteps.map(({ jobId, stepId }) => `${jobId}/${stepId}`),
 		).size,
-		119,
+		120,
 	);
 	assert.deepEqual(
 		classifierTrueSteps
@@ -1118,8 +1118,8 @@ test('central workflow rejects six mutations for every one of its 119 classifier
 				rejected += 1;
 			}
 		}
-		assert.equal(mutatedWorkflows.size, 714);
-		assert.equal(rejected, 714);
+		assert.equal(mutatedWorkflows.size, 720);
+		assert.equal(rejected, 720);
 	} finally {
 		await rm(rootDir, { recursive: true, force: true });
 	}
@@ -1385,6 +1385,7 @@ test('central workflow rejects the complete ratified topology mutation matrix', 
 			'guards',
 			'docs-react',
 			'front-build',
+			'front-guards',
 			'front-quality',
 			'audit-development',
 			'audit-production',
@@ -1660,6 +1661,7 @@ test('central workflow owns the predecessor evidence as unconditional, named che
 		'guards',
 		'docs-react',
 		'front-build',
+		'front-guards',
 		'front-quality',
 	];
 	const verification = split.flatMap(
@@ -1701,6 +1703,66 @@ test('central workflow owns the predecessor evidence as unconditional, named che
 			step.if,
 			'always()',
 			`${String(step.name)} must be unconditional`,
+		);
+	}
+});
+
+test('build-output consumers run in front-build, never in the dist-less front-guards job', async () => {
+	const workflow = parse(await readFile(workflowPath, 'utf8')) as {
+		jobs: Record<
+			string,
+			{
+				steps?: Array<{ name?: unknown; run?: unknown; if?: unknown }>;
+			}
+		>;
+	};
+	const frontPackage = JSON.parse(
+		await readFile(path.join(repoRoot, 'apps/front/package.json'), 'utf8'),
+	) as { ciNonVitestCommandInventory: string[][] };
+	// `pnpm <script>` entries expose the script as their second word; the two
+	// `node …` entries expose a file path and can never match a script name.
+	const inventoryScripts = new Set(
+		frontPackage.ciNonVitestCommandInventory
+			.filter((argv) => argv[0] === 'pnpm')
+			.map((argv) => argv[1]),
+	);
+
+	// Both commands read apps/front/dist. The split kept them out of the
+	// non-Vitest inventory (front-guards never builds), so they can only be
+	// green in front-build, after `Build front`.
+	const consumers = [
+		['pnpm --filter front check:react-compiler', 'check:react-compiler'],
+		[
+			'pnpm --filter front test:runtime-env-startup',
+			'test:runtime-env-startup',
+		],
+	];
+	const buildSteps = workflow.jobs['front-build']?.steps ?? [];
+	const buildRunCommands = buildSteps
+		.filter((step) => typeof step.run === 'string')
+		.map((step) => String(step.run));
+	const buildIndex = buildRunCommands.indexOf('pnpm --filter front build');
+	assert.notEqual(buildIndex, -1, 'front-build must still build the app');
+
+	for (const [command, script] of consumers) {
+		const index = buildRunCommands.indexOf(command);
+		assert.notEqual(index, -1, `front-build must run ${command}`);
+		assert.ok(index > buildIndex, `${command} must run after Build front`);
+		const otherJobs = Object.entries(workflow.jobs).filter(
+			([jobId]) => jobId !== 'front-build',
+		);
+		for (const [jobId, job] of otherJobs) {
+			const runs = (job.steps ?? [])
+				.filter((step) => typeof step.run === 'string')
+				.map((step) => String(step.run));
+			assert.ok(
+				!runs.includes(command),
+				`${command} must not run in ${jobId}: that job has no dist`,
+			);
+		}
+		assert.ok(
+			!inventoryScripts.has(script),
+			`${script} must not be in the non-Vitest inventory`,
 		);
 	}
 });
@@ -2150,7 +2212,7 @@ const deriveManifestEvidence = (
 	};
 };
 
-test('central manifest derives honest evidence for every one of its 263 entries', async () => {
+test('central manifest derives honest evidence for every one of its 276 entries', async () => {
 	const manifest = JSON.parse(
 		await readFile(
 			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
@@ -2163,7 +2225,7 @@ test('central manifest derives honest evidence for every one of its 263 entries'
 	const central = Object.entries(manifest.steps).filter(([id]) =>
 		id.startsWith('ci.yml::'),
 	);
-	assert.equal(central.length, 263);
+	assert.equal(central.length, 276);
 	const justDump = JSON.parse(
 		execFileSync('just', ['--dump', '--dump-format', 'json'], {
 			cwd: repoRoot,
@@ -2189,7 +2251,7 @@ test('central manifest derives honest evidence for every one of its 263 entries'
 			`${id} evidence must be derived from its exact step kind and command graph`,
 		);
 	}
-	assert.equal(decisions.size, 263);
+	assert.equal(decisions.size, 276);
 	assert.equal(
 		manifest.steps['ci.yml::quality-js::Install pnpm']?.mirror,
 		null,

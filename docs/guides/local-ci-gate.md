@@ -6,10 +6,10 @@ a green run locally is a strong prediction that CI would be green too.
 ## Central PR CI
 
 `.github/workflows/ci.yml` is the additive central workflow for pull requests,
-merge groups, and pushes to `develop`. It creates the stable 23 visible checks:
-one classifier (`CI classifier`), six parallel verification jobs, two audit jobs,
+merge groups, and pushes to `develop`. It creates the stable 28 visible checks:
+one classifier (`CI classifier`), seven parallel verification jobs, two audit jobs,
 four API suite shards, four front Vitest shards, one e2e image build, one E2E
-smoke lane (every pull request, one stack), two E2E full shards (merge queue only),
+smoke lane (every pull request, one stack), six E2E full shards (merge queue only),
 cleanup, and one artifact-backed `ci-final-gate` (or `ci-push-check` on
 `develop`). The classifier emits the six lane decisions once; irrelevant lanes run
 named success sentinels rather than becoming skipped jobs. The two e2e test lanes are
@@ -17,9 +17,10 @@ event-scoped on top of the classifier: a lane that does not belong to the curren
 reports `not_applicable` through the same sentinel, so the aggregate gate sees one
 consistent shape on `pull_request`, `merge_group` and `push`.
 
-The single serial `verification` job was split into six parallel jobs so no job sits
+The single serial `verification` job was split into seven parallel jobs so no job sits
 behind a meta-check it does not need: `CI quality (JS)`, `CI quality (.NET)`, `CI
-guard battery`, `CI docs and React Doctor`, `CI front build`, and `CI front checks`.
+guard battery`, `CI docs and React Doctor`, `CI front build`, `CI front guards`, and
+`CI front checks`.
 Every check that ran before still runs, in the job whose classifier lane gates it;
 the split only moved job boundaries and gives each job its own `ci-lane-result`
 artifact.
@@ -60,7 +61,9 @@ checks — `quality-js` owns format/lint/knip/typechecks/shared tests, `quality-
 owns restore/build/NuGet audit/analyzers, `guards` owns the batched scripts-ts guard
 suite plus the CI-contract, drift, action-version, project-closure, tracked-file and
 API path-coverage checks, `docs-react` owns doc links/prune and React Doctor,
-`front-build` owns the build and the 33-command non-Vitest report, and
+`front-build` owns the build plus the two checks that read its output (React
+Compiler artifacts and runtime-env startup), `front-guards` owns the
+30-command non-Vitest report, and
 `front-checks` owns typecheck/lint/design/import guards, proofs, and the Vitest
 shard-coverage equality guard; the `api` lane
 executes API/OpenAPI/client generation and drift checks, the shard-partition proof and
@@ -69,7 +72,7 @@ owns it); the four `front-ci` shards execute install/postinstall/hooks and
 Vitest; and the E2E build/test/cleanup jobs execute the run-scoped image, all-service
 health, Playwright, last-shard hermetic/drawer guards, failure-report, teardown, and
 cleanup steps; the smoke lane runs the twelve smoke specs on a single stack under the same
-lifecycle. The nested front report records the complete ordered 33-command
+lifecycle. The nested front report records the complete ordered 30-command
 non-Vitest chain. The central workflow is the sole PR validation owner.
 
 This matters more than it normally would: the repo is on a Free plan with a private

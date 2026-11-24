@@ -706,6 +706,88 @@ jobs:
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
         continue-on-error: true
         run: pnpm --filter front check:react-compiler
+      - name: Test front runtime env startup
+        id: front_runtime_env
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
+        continue-on-error: true
+        run: pnpm --filter front test:runtime-env-startup
+      - name: CI lane not applicable (front)
+        id: front-sentinel
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'false'
+        run: echo 'front verification is not applicable'
+      - name: Collect ci-lane-result
+        if: always()
+        env:
+          CI_JOB_KEY: front-build
+          CI_WORKFLOW_PATH: '.github/workflows/ci.yml'
+          CI_WORKFLOW_REF: '${{ github.workflow_ref }}'
+          CI_WORKFLOW_EVENT: '${{ github.event_name }}'
+          CI_LANE_SPECS: '{"setup":["front-build.checkout","front-build.install_pnpm","front-build.setup_node","front-build.setup_dotnet","front-build.setup_just","front-build.install_workspace","front-build.trusted_postinstall","front-build.prepare_hooks","front-build.materialize_env"],"front":["front-build.front_build","front-build.front_css","front-build.front_font","front-build.front_smoke","front-build.front_react_compiler","front-build.front_runtime_env","front-build.front.not-applicable"]}'
+          CI_CLASSIFIER_OUTPUTS: '{"front":"${{ needs.classify.outputs.front }}"}'
+          CI_LANE_MODES: '{"setup":"relevant"}'
+          CI_STEP_RESULTS: '{"front-build.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"front-build.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"front-build.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"front-build.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"front-build.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"front-build.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"front-build.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"front-build.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"front-build.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"front-build.front_build":{"outcome":"${{ steps.front_build.outcome }}"},"front-build.front_css":{"outcome":"${{ steps.front_css.outcome }}"},"front-build.front_font":{"outcome":"${{ steps.front_font.outcome }}"},"front-build.front_smoke":{"outcome":"${{ steps.front_smoke.outcome }}"},"front-build.front_react_compiler":{"outcome":"${{ steps.front_react_compiler.outcome }}"},"front-build.front_runtime_env":{"outcome":"${{ steps.front_runtime_env.outcome }}"},"front-build.front.not-applicable":{"outcome":"${{ steps.front-sentinel.outcome }}"}}'
+        run: node packages/scripts-ts/src/ci-lane-result.ts
+      - name: Upload ci-lane-result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-front-build
+          path: ci-results/front-build.json
+          if-no-files-found: error
+
+  front-guards:
+    name: CI front guards
+    needs: classify
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install pnpm
+        id: install_pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 10.13.1
+      - name: Setup Node
+        id: setup_node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Setup .NET
+        id: setup_dotnet
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.102'
+      - name: Setup just
+        id: setup_just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
+      - name: Install workspace dependencies
+        id: install_workspace
+        if: always()
+        continue-on-error: true
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run trusted first-party postinstall
+        id: trusted_postinstall
+        if: always()
+        continue-on-error: true
+        run: pnpm --filter @org/shared-ts run postinstall
+      - name: Install Git hooks
+        id: prepare_hooks
+        if: always()
+        continue-on-error: true
+        run: pnpm run prepare
+      - name: Materialize .env.development
+        id: materialize_env
+        if: always()
+        continue-on-error: true
+        run: |
+          cp .env.example .env.development
+          sed -i 's/^APP_ROLE=.*/APP_ROLE="api"/' .env.development
       - name: Test front (non-vitest report-all)
         id: front
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
@@ -721,22 +803,22 @@ jobs:
       - name: Collect ci-lane-result
         if: always()
         env:
-          CI_JOB_KEY: front-build
+          CI_JOB_KEY: front-guards
           CI_WORKFLOW_PATH: '.github/workflows/ci.yml'
           CI_WORKFLOW_REF: '${{ github.workflow_ref }}'
           CI_WORKFLOW_EVENT: '${{ github.event_name }}'
-          CI_LANE_SPECS: '{"setup":["front-build.checkout","front-build.install_pnpm","front-build.setup_node","front-build.setup_dotnet","front-build.setup_just","front-build.install_workspace","front-build.trusted_postinstall","front-build.prepare_hooks","front-build.materialize_env"],"front":["front-build.front_build","front-build.front_css","front-build.front_font","front-build.front_smoke","front-build.front_react_compiler","front-build.front","front-build.front.not-applicable"]}'
+          CI_LANE_SPECS: '{"setup":["front-guards.checkout","front-guards.install_pnpm","front-guards.setup_node","front-guards.setup_dotnet","front-guards.setup_just","front-guards.install_workspace","front-guards.trusted_postinstall","front-guards.prepare_hooks","front-guards.materialize_env"],"front":["front-guards.front","front-guards.front.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"front":"${{ needs.classify.outputs.front }}"}'
           CI_LANE_MODES: '{"setup":"relevant"}'
           CI_NESTED_REPORT_PATH: 'apps/front/test-results/non-vitest-report.json'
-          CI_STEP_RESULTS: '{"front-build.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"front-build.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"front-build.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"front-build.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"front-build.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"front-build.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"front-build.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"front-build.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"front-build.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"front-build.front_build":{"outcome":"${{ steps.front_build.outcome }}"},"front-build.front_css":{"outcome":"${{ steps.front_css.outcome }}"},"front-build.front_font":{"outcome":"${{ steps.front_font.outcome }}"},"front-build.front_smoke":{"outcome":"${{ steps.front_smoke.outcome }}"},"front-build.front_react_compiler":{"outcome":"${{ steps.front_react_compiler.outcome }}"},"front-build.front":{"outcome":"${{ steps.front.outcome }}"},"front-build.front.not-applicable":{"outcome":"${{ steps.front-sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"front-guards.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"front-guards.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"front-guards.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"front-guards.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"front-guards.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"front-guards.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"front-guards.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"front-guards.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"front-guards.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"front-guards.front":{"outcome":"${{ steps.front.outcome }}"},"front-guards.front.not-applicable":{"outcome":"${{ steps.front-sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-front-build
-          path: ci-results/front-build.json
+          name: ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-front-guards
+          path: ci-results/front-guards.json
           if-no-files-found: error
 
   front-quality:
@@ -1706,6 +1788,7 @@ jobs:
         guards,
         docs-react,
         front-build,
+        front-guards,
         front-quality,
         audit-development,
         audit-production,
@@ -1790,7 +1873,7 @@ jobs:
           CI_WORKFLOW_REF: ${{ github.workflow_ref }}
           CI_ARTIFACT_DIRECTORY: ci-results
           CI_CLASSIFIER_OUTPUTS: '{"quality":"${{ needs.classify.outputs.quality }}","front":"${{ needs.classify.outputs.front }}","api":"${{ needs.classify.outputs.api }}","e2e":"${{ needs.classify.outputs.e2e }}","docs":"${{ needs.classify.outputs.docs }}","react":"${{ needs.classify.outputs.react }}"}'
-          CI_CENTRAL_RESULTS: '{"quality-js":"${{ needs.quality-js.result }}","quality-dotnet":"${{ needs.quality-dotnet.result }}","guards":"${{ needs.guards.result }}","docs-react":"${{ needs.docs-react.result }}","front-build":"${{ needs.front-build.result }}","front-quality":"${{ needs.front-quality.result }}","audit-development":"${{ needs.audit-development.result }}","audit-production":"${{ needs.audit-production.result }}","api":"${{ needs.api.result }}","front-vitest":"${{ needs.front-vitest.result }}","e2e-build":"${{ needs.e2e-build.result }}","e2e-smoke":"${{ needs.e2e-smoke.result }}","e2e-test":"${{ needs.e2e-test.result }}","e2e-cleanup":"${{ needs.e2e-cleanup.result }}"}'
+          CI_CENTRAL_RESULTS: '{"quality-js":"${{ needs.quality-js.result }}","quality-dotnet":"${{ needs.quality-dotnet.result }}","guards":"${{ needs.guards.result }}","docs-react":"${{ needs.docs-react.result }}","front-build":"${{ needs.front-build.result }}","front-guards":"${{ needs.front-guards.result }}","front-quality":"${{ needs.front-quality.result }}","audit-development":"${{ needs.audit-development.result }}","audit-production":"${{ needs.audit-production.result }}","api":"${{ needs.api.result }}","front-vitest":"${{ needs.front-vitest.result }}","e2e-build":"${{ needs.e2e-build.result }}","e2e-smoke":"${{ needs.e2e-smoke.result }}","e2e-test":"${{ needs.e2e-test.result }}","e2e-cleanup":"${{ needs.e2e-cleanup.result }}"}'
         run: node packages/scripts-ts/src/check-ci-gate-aggregation.ts ci-results
       - name: Write live PR snapshot
         if: github.event_name == 'pull_request'
