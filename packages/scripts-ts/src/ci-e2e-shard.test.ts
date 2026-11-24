@@ -427,7 +427,7 @@ test('the merge_queue step sequence uploads the plan under the name the shards d
 		);
 		assert.equal(
 			String(upload?.with?.['if-no-files-found']),
-			'error',
+			"${{ github.event_name == 'merge_group' && 'error' || 'ignore' }}",
 			'a merge_queue upload must fail when the plan file is missing',
 		);
 		const uploadName = String(upload?.with?.name).replace(

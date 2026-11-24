@@ -2040,56 +2040,6 @@ const checkCentralClassifierEdges = (
 	}
 };
 
-/** The e2e-build steps that only run on a merge_queue entry, gated in ci.yml. */
-const PLAN_STEP_IDS = new Set(['plan-install-deps', 'plan', 'plan-upload']);
-const MERGE_QUEUE_PLAN_TERM = "github.event_name == 'merge_group'";
-
-/**
- * The classifier-edge check owns the classifier condition alone. Hand it a
- * view without the extra merge-queue gate so that check stays exact and
- * unchanged; `checkCentralPlanStepGating` owns the gate itself.
- */
-const withoutPlanStepGating = (jobs: CentralJobs) => {
-	const build = jobs['e2e-build'];
-	if (build === undefined) {
-		return jobs;
-	}
-	return {
-		...jobs,
-		'e2e-build': {
-			...build,
-			steps: (build.steps ?? []).map((step) =>
-				PLAN_STEP_IDS.has(String(step.id))
-					? {
-							...step,
-							if: String(step.if ?? '').replace(
-								` && ${MERGE_QUEUE_PLAN_TERM}`,
-								'',
-							),
-						}
-					: step,
-			),
-		},
-	};
-};
-
-/** The shard-plan steps must be gated to a merge_queue entry (ci.yml). */
-const checkCentralPlanStepGating = (
-	jobs: CentralJobs,
-	findings: string[],
-): void => {
-	const steps = jobs['e2e-build']?.steps ?? [];
-	for (const stepId of PLAN_STEP_IDS) {
-		const step = steps.find((candidate) => String(candidate.id) === stepId);
-		const condition = String(step?.if ?? '');
-		if (!condition.includes(MERGE_QUEUE_PLAN_TERM)) {
-			findings.push(
-				`e2e-build: shard-plan step ${stepId} must be gated to a merge_queue entry with " && ${MERGE_QUEUE_PLAN_TERM}" (found ${condition || '<missing>'})`,
-			);
-		}
-	}
-};
-
 const checkCentralLaneEvidence = (
 	jobs: CentralJobs,
 	findings: string[],
@@ -2538,12 +2488,13 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 			stepName: 'Upload the shard plan',
 			stepId: 'plan-upload',
 			condition:
-				"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && github.event_name == 'merge_group'",
+				"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'",
 			with: {
 				name: 'e2e-shard-plan-\${{ github.run_attempt }}',
 				path: 'apps/front/e2e-artifacts/e2e-shard-plan.json',
 				'retention-days': 7,
-				'if-no-files-found': 'error',
+				'if-no-files-found':
+					"${{ github.event_name == 'merge_group' && 'error' || 'ignore' }}",
 			},
 		},
 		{
@@ -2785,8 +2736,7 @@ export const findCentralCiStructureProblems = async ({
 	checkCentralTopologyInvariants(document, jobs, findings);
 
 	checkCentralLaneEvidence(jobs, findings);
-	checkCentralClassifierEdges(withoutPlanStepGating(jobs), findings);
-	checkCentralPlanStepGating(jobs, findings);
+	checkCentralClassifierEdges(jobs, findings);
 	/*
 		The lane evidence helper owns the collector, sentinel, and step-result
 		dataflow checks for every upstream job.

@@ -8,11 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 
 import { getExpectedJobLanes } from './check-ci-gate-aggregation.ts';
-import {
-	createCiLaneResult,
-	type LaneResultOptions,
-	type StepResult,
-} from './ci-lane-result.ts';
+import { createCiLaneResult, type StepResult } from './ci-lane-result.ts';
 
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -136,7 +132,6 @@ test('a skipped plan upload is accepted outside the merge queue', () => {
 			'e2e-build.not-applicable',
 		],
 		mode: 'relevant',
-		workflowEvent: 'pull_request',
 		runId: 42,
 		runAttempt: 3,
 		eventSha: 'event-sha',
@@ -150,128 +145,6 @@ test('a skipped plan upload is accepted outside the merge queue', () => {
 	});
 
 	assert.equal(result.job.conclusion, 'success');
-});
-
-test('skipped plan steps are accepted outside the merge queue', () => {
-	const result = createCiLaneResult({
-		jobKey: 'e2e-build',
-		lane: 'e2e',
-		expectedSteps: [
-			'e2e-build.plan_install_pnpm',
-			'e2e-build.plan_setup_node',
-			'e2e-build.plan_install_deps',
-			'e2e-build.plan',
-			'e2e-build.plan_upload',
-			'e2e-build.login',
-			'e2e-build.upload_images',
-			'e2e-build.not-applicable',
-		],
-		mode: 'relevant',
-		workflowEvent: 'pull_request',
-		runId: 42,
-		runAttempt: 3,
-		eventSha: 'event-sha',
-		stepResults: {
-			'e2e-build.plan_install_pnpm': { outcome: 'success' },
-			'e2e-build.plan_setup_node': { outcome: 'success' },
-			'e2e-build.plan_install_deps': { outcome: 'skipped' },
-			'e2e-build.plan': { outcome: 'skipped' },
-			'e2e-build.plan_upload': { outcome: 'skipped' },
-			'e2e-build.login': { outcome: 'success' },
-			'e2e-build.upload_images': { outcome: 'skipped' },
-			'e2e-build.not-applicable': { outcome: 'skipped' },
-		},
-	});
-
-	assert.equal(result.job.conclusion, 'success');
-});
-
-test('a skipped plan step still fails the merge queue lane', () => {
-	const result = createCiLaneResult({
-		jobKey: 'e2e-build',
-		lane: 'e2e',
-		expectedSteps: [
-			'e2e-build.plan_install_pnpm',
-			'e2e-build.plan_setup_node',
-			'e2e-build.plan_install_deps',
-			'e2e-build.plan',
-			'e2e-build.plan_upload',
-			'e2e-build.login',
-			'e2e-build.upload_images',
-			'e2e-build.not-applicable',
-		],
-		mode: 'relevant',
-		workflowEvent: 'merge_group',
-		runId: 42,
-		runAttempt: 3,
-		eventSha: 'event-sha',
-		stepResults: {
-			'e2e-build.plan_install_pnpm': { outcome: 'success' },
-			'e2e-build.plan_setup_node': { outcome: 'success' },
-			'e2e-build.plan_install_deps': { outcome: 'success' },
-			'e2e-build.plan': { outcome: 'skipped' },
-			'e2e-build.plan_upload': { outcome: 'success' },
-			'e2e-build.login': { outcome: 'success' },
-			'e2e-build.upload_images': { outcome: 'skipped' },
-			'e2e-build.not-applicable': { outcome: 'skipped' },
-		},
-	});
-
-	assert.equal(result.job.conclusion, 'failure');
-});
-
-/** One e2e-build lane whose only variable is the plan steps' event/outcome. */
-const planLane = (
-	workflowEvent: string | undefined,
-	planOutcome: StepResult['outcome'],
-	planUploadOutcome: StepResult['outcome'],
-): ReturnType<typeof createCiLaneResult> => {
-	const options: LaneResultOptions = {
-		jobKey: 'e2e-build',
-		lane: 'e2e',
-		expectedSteps: [
-			'e2e-build.plan_install_deps',
-			'e2e-build.plan',
-			'e2e-build.plan_upload',
-			'e2e-build.login',
-			'e2e-build.upload_images',
-			'e2e-build.not-applicable',
-		],
-		mode: 'relevant',
-		runId: 42,
-		runAttempt: 3,
-		eventSha: 'event-sha',
-		stepResults: {
-			'e2e-build.plan_install_deps': { outcome: 'success' },
-			'e2e-build.plan': { outcome: planOutcome },
-			'e2e-build.plan_upload': { outcome: planUploadOutcome },
-			'e2e-build.login': { outcome: 'success' },
-			'e2e-build.upload_images': { outcome: 'skipped' },
-			'e2e-build.not-applicable': { outcome: 'skipped' },
-		},
-	};
-	if (workflowEvent !== undefined) {
-		options.workflowEvent = workflowEvent;
-	}
-	return createCiLaneResult(options);
-};
-
-test('a skipped plan upload still fails the merge queue lane', () => {
-	const result = planLane('merge_group', 'success', 'skipped');
-
-	assert.equal(result.job.conclusion, 'failure');
-});
-
-test('an undefined or empty event fails closed on a skipped plan step', () => {
-	for (const workflowEvent of [undefined, '']) {
-		const result = planLane(workflowEvent, 'skipped', 'skipped');
-
-		assert.equal(
-			result.job.conclusion,
-			'failure',
-			`event ${String(workflowEvent)} must require the plan steps`,
-		);
-	}
 });
 
 const e2eBuildExpectedSteps = [

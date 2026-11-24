@@ -1307,19 +1307,19 @@
 			"reason": "Hosted-only action step \"Setup Node for the shard plan\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Install workspace dependencies for the shard plan": {
-			"hash": "c9b67d981776f1d1",
-			"mirror": "just ci-install",
-			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
+			"hash": "ae7e2b9ac84df1b3",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Install workspace dependencies for the shard plan\"; normalized workflow command(s): [\"[ \\\"$GITHUB_EVENT_NAME\\\" = \\\"merge_group\\\" ] || { echo \\\"no partition outside the merge queue\\\"; exit 0; }\",\"pnpm install --frozen-lockfile --ignore-scripts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Plan the Playwright shards": {
-			"hash": "5fc1a9ddf082a21c",
+			"hash": "e296d0b87fac5e77",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Plan the Playwright shards\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-shard.ts plan\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Upload the shard plan": {
-			"hash": "f74d903414140352",
+			"hash": "3889cb0aff26eb7d",
 			"mirror": null,
-			"reason": "Hosted-only action step \"Upload the shard plan\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && github.event_name == 'merge_group'\",\"with\":{\"name\":\"e2e-shard-plan-${{ github.run_attempt }}\",\"path\":\"apps/front/e2e-artifacts/e2e-shard-plan.json\",\"retention-days\":7,\"if-no-files-found\":\"error\"},\"env\":null}."
+			"reason": "Hosted-only action step \"Upload the shard plan\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":{\"name\":\"e2e-shard-plan-${{ github.run_attempt }}\",\"path\":\"apps/front/e2e-artifacts/e2e-shard-plan.json\",\"retention-days\":7,\"if-no-files-found\":\"${{ github.event_name == 'merge_group' && 'error' || 'ignore' }}\"},\"env\":null}."
 		},
 		"ci.yml::e2e-cleanup::Download shard coverage reports": {
 			"hash": "9fca9ac1775d502c",
