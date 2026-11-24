@@ -65,11 +65,13 @@ export const maskAnalyticsEvent = (event: AnalyticsEvent): AnalyticsEvent => {
 		case 'capture':
 			return {
 				...event,
+				distinctId: maskText(event.distinctId),
 				properties: event.properties && maskProperties(event.properties),
 			};
 		case 'identify':
 			return {
 				...event,
+				distinctId: maskText(event.distinctId),
 				properties: event.properties && maskProperties(event.properties),
 				propertiesSetOnce:
 					event.propertiesSetOnce && maskProperties(event.propertiesSetOnce),
@@ -77,6 +79,7 @@ export const maskAnalyticsEvent = (event: AnalyticsEvent): AnalyticsEvent => {
 		case 'exception':
 			return {
 				...event,
+				distinctId: event.distinctId && maskText(event.distinctId),
 				error: maskError(event.error),
 				additionalProperties:
 					event.additionalProperties &&

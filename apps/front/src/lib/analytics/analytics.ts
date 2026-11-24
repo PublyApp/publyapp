@@ -112,12 +112,17 @@ export const captureBadRequest = async (
 		logger.debug('bad-request analytics has no client IP for hashing');
 	}
 
-	await client.send({
+	const sent = await client.send({
 		type: 'capture',
 		distinctId: distinctId || randomUUID(),
 		event: 'bad_request',
 		properties,
 	});
+
+	// The service already logged the failure; never log a success line after it.
+	if (!sent) {
+		return;
+	}
 
 	const logContext = { path: input.path, status: input.status };
 	if (disposition === 'error') {

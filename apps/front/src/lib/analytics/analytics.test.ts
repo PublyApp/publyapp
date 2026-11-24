@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
 	debug: vi.fn(),
 	error: vi.fn(),
 	isProductionRuntime: vi.fn(() => true),
-	send: vi.fn(async () => undefined),
+	send: vi.fn(async () => true),
 	warn: vi.fn(),
 }));
 
@@ -98,5 +98,16 @@ describe('captureBadRequest policy', () => {
 		await captureStatus(503);
 
 		expect(mocks.send).not.toHaveBeenCalled();
+	});
+
+	test('does not log a success line when the service reports the send failed', async () => {
+		mocks.send.mockResolvedValueOnce(false);
+
+		await captureStatus(503);
+
+		expect(mocks.send).toHaveBeenCalledTimes(1);
+		expect(mocks.error).not.toHaveBeenCalled();
+		expect(mocks.debug).not.toHaveBeenCalled();
+		expect(mocks.warn).not.toHaveBeenCalled();
 	});
 });

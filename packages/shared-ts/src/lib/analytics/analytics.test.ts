@@ -96,17 +96,62 @@ describe('Analytics', () => {
 		);
 	});
 
+	test('masks an e-mail-looking distinct id before the adapter sees it', async () => {
+		const adapter = new MemoryAnalyticsAdapter();
+		const analytics = new Analytics(adapter);
+
+		await analytics.send({
+			type: 'identify',
+			distinctId: 'jane@example.com',
+			properties: { plan: 'pro' },
+		});
+		await analytics.send({
+			type: 'exception',
+			error: new Error('failure'),
+			distinctId: 'john@example.com',
+		});
+
+		const identify = adapter.events[0];
+		const exception = adapter.events[1];
+		if (identify?.type !== 'identify' || exception?.type !== 'exception') {
+			throw new Error('expected identify then exception');
+		}
+
+		expect(identify.distinctId).toBe('[redacted-email]');
+		expect(exception.distinctId).toBe('[redacted-email]');
+	});
+
+	test('keeps a non-email distinct id unchanged', async () => {
+		const adapter = new MemoryAnalyticsAdapter();
+		const analytics = new Analytics(adapter);
+
+		await analytics.send(capture());
+
+		const event = lastEvent(adapter);
+		expect(event.distinctId).toBe('user-1');
+	});
+
 	test('does not touch the adapter without consent', async () => {
 		const adapter = new MemoryAnalyticsAdapter();
 		let consented = false;
 		const analytics = new Analytics(adapter, () => consented);
 
-		await analytics.send(capture());
+		await expect(analytics.send(capture())).resolves.toBe(false);
 		expect(adapter.events).toHaveLength(0);
 
 		consented = true;
-		await analytics.send(capture());
+		await expect(analytics.send(capture())).resolves.toBe(true);
 		expect(adapter.events).toHaveLength(1);
+	});
+
+	test('never throws into the caller when the consent provider throws', async () => {
+		const adapter = new MemoryAnalyticsAdapter();
+		const analytics = new Analytics(adapter, () => {
+			throw new Error('consent store unavailable');
+		});
+
+		await expect(analytics.send(capture())).resolves.toBe(false);
+		expect(adapter.events).toHaveLength(0);
 	});
 
 	test('never throws into the caller when the adapter throws', async () => {
@@ -116,6 +161,6 @@ describe('Analytics', () => {
 			},
 		});
 
-		await expect(analytics.send(capture())).resolves.toBeUndefined();
+		await expect(analytics.send(capture())).resolves.toBe(false);
 	});
 });

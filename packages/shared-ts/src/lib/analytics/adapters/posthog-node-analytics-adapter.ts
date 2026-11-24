@@ -8,13 +8,37 @@ import type {
 
 const POSTHOG_HOST = 'https://us.i.posthog.com';
 
+/** Only the calls this adapter makes: a test fake needs no full PostHog. */
+export type PostHogNodeClient = Pick<
+	PostHog,
+	'capture' | 'identify' | 'captureException'
+>;
+
+export type PostHogNodeOptions = {
+	host: string;
+	enableExceptionAutocapture: boolean;
+};
+
+export type PostHogNodeClientFactory = (
+	apiKey: string,
+	options: PostHogNodeOptions,
+) => Promise<PostHogNodeClient>;
+
+const createPostHogClient: PostHogNodeClientFactory = (apiKey, options) =>
+	import('posthog-node').then(({ PostHog }) => new PostHog(apiKey, options));
+
 /** Server-side adapter: translates one event to posthog-node calls. */
 export class PostHogNodeAnalyticsAdapter implements IAnalytics {
 	readonly #apiKey: string;
-	#client: Promise<PostHog> | undefined;
+	readonly #createClient: PostHogNodeClientFactory;
+	#client: Promise<PostHogNodeClient> | undefined;
 
-	constructor(apiKey: string) {
+	constructor(
+		apiKey: string,
+		createClient: PostHogNodeClientFactory = createPostHogClient,
+	) {
 		this.#apiKey = apiKey;
+		this.#createClient = createClient;
 	}
 
 	async send(event: AnalyticsEvent): Promise<void> {
@@ -54,14 +78,11 @@ export class PostHogNodeAnalyticsAdapter implements IAnalytics {
 		}
 	}
 
-	#getClient(): Promise<PostHog> {
-		this.#client ??= import('posthog-node').then(
-			({ PostHog }) =>
-				new PostHog(this.#apiKey, {
-					host: POSTHOG_HOST,
-					enableExceptionAutocapture: true,
-				}),
-		);
+	#getClient(): Promise<PostHogNodeClient> {
+		this.#client ??= this.#createClient(this.#apiKey, {
+			host: POSTHOG_HOST,
+			enableExceptionAutocapture: true,
+		});
 		return this.#client;
 	}
 }

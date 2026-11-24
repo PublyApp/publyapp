@@ -26,21 +26,26 @@ export class Analytics {
 		this.#hasConsent = hasConsent;
 	}
 
-	async send(event: AnalyticsEvent): Promise<void> {
-		if (!this.#hasConsent()) {
-			return;
-		}
-
+	/** `false` means nothing was sent: no consent, or the adapter failed. */
+	async send(event: AnalyticsEvent): Promise<boolean> {
 		try {
+			// A throwing consent provider is a side effect failure like any other;
+			// it must not reject the request that produced the event.
+			if (!this.#hasConsent()) {
+				return false;
+			}
+
 			const masked = maskAnalyticsEvent(event);
 			if (this.logOnly) {
 				logger.info(`Analytics.${event.type}`, masked);
-				return;
+				return true;
 			}
 			await this.#adapter.send(masked);
+			return true;
 		} catch {
 			// Analytics must never break the request that produced the event.
 			logger.error('Analytics send failed', { type: event.type });
+			return false;
 		}
 	}
 }
