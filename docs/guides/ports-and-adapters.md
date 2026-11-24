@@ -1,7 +1,7 @@
 # Ports and adapters in PublyApp
 
-The rule itself lives in the shared conventions:
-[rules/architecture/ports-and-adapters.md](https://github.com/radandevist/conventions/blob/main/rules/architecture/ports-and-adapters.md).
+The rule itself: [`docs/conventions/ports-and-adapters.md`](../conventions/ports-and-adapters.md) (local copy of
+the shared rule from radandevist/conventions).
 This page only maps it onto PublyApp: what already follows it and what still has to move.
 
 ## Closest to the rule today

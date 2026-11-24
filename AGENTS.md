@@ -204,8 +204,9 @@ For when a change needs an end-to-end test (the five criteria) and the tag vocab
 ### Ports and adapters (HARD, owner decision 2026-11-24, TypeScript and .NET)
 
 Every side effect or I/O (logs, e-mail, analytics, external APIs, storage, browser storage) goes
-**service → small port → adapter**. Defined once in the shared conventions and linked here, never copied:
-[ports and adapters rule](https://github.com/radandevist/conventions/blob/main/rules/architecture/ports-and-adapters.md).
+**service → small port → adapter**. Full rule: [`docs/conventions/ports-and-adapters.md`](docs/conventions/ports-and-adapters.md),
+a verbatim local copy of the shared rule (radandevist/conventions); it is replaced by the installed
+`@radandevist/conventions` package once PublyApp depends on it. Never edit the copy: change the shared rule, then copy it again.
 In short:
 
 - Business code calls the **service** only (for example `logger`, `EmailService`). The service does the
