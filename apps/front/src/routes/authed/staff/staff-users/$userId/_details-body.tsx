@@ -92,10 +92,8 @@ export const StaffUserDetailsBody = ({
 }: Props) => {
 	const { t } = useTranslation(['staff-users', 'common']);
 
-	// Memoizing this literal would require hoisting it above the early returns,
-	// breaking conditional hook order on this page. The Provider re-renders only
-	// with this page, and the overview tab consumes the same query data, so the
-	// extra renders are local and bounded.
+	// Not memoized: the Provider re-renders only with this page and the overview
+	// tab reads the same query data, so the extra renders stay local.
 	const overviewContextValue: StaffUserOverviewContextValue = {
 		user,
 		locale,

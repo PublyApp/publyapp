@@ -122,6 +122,5 @@ export const useStaffDeleteAction = ({
 		isConfirmReady: confirmText.trim().toLowerCase() === 'delete',
 		isPending: deleteUser.isPending,
 		confirm,
-		close,
 	};
 };
