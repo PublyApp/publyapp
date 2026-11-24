@@ -4,7 +4,8 @@
 ; NOTE: The "Severity" column below reflects each rule's `isEnabledByDefault` descriptor
 ; default — which is why every PUBLY rule reads "Disabled". This is intentional: all PUBLY
 ; rules ship dormant by default so they never break consumers that reference the analyzer
-; package without opting in.
+; package without opting in. PUBLY0013 is the one exception: bypassing a port's registry is a
+; correctness bug, so it ships enabled at error severity.
 ;
 ; Effective per-repo enforcement is configured in the repo-root .editorconfig via
 ; `dotnet_diagnostic.PUBLYxxxx.severity = warning`. Combined with
@@ -12,6 +13,7 @@
 ; each opted-in rule into a hard build error. Currently enforced as warnings:
 ;   PUBLY0001, PUBLY0002, PUBLY0003, PUBLY0004, PUBLY0005, PUBLY0006, PUBLY0007, PUBLY0008,
 ;   PUBLY0009, PUBLY0010, PUBLY0011, PUBLY0012.
+; PUBLY0013 is enforced at error.
 
 ### New Rules
 
@@ -29,3 +31,4 @@ PUBLY0009 | PublyApp.ErrorHandling | Disabled | Avoid TypedResults.Forbid() — 
 PUBLY0010 | PublyApp.Security | Disabled | Do not log session-token values (X-Session-Token / SessionToken)
 PUBLY0011 | PublyApp.Security | Disabled | Require an explicit endpoint rate-limit disposition
 PUBLY0012 | PublyApp.Style | Disabled | Use explicit member access
+PUBLY0013 | PublyApp.Architecture | Error | Only inject a port into its [OnlyInjectedInto] classes

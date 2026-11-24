@@ -217,4 +217,23 @@ public static class DiagnosticCatalog {
 		description: "Eligible instance members should use this.Member and eligible static members "
 			+ "should use the nearest containing type as an explicit receiver."
 	);
+
+	/// <summary>
+	/// PUBLY0013 — a type marked with <c>[OnlyInjectedInto(...)]</c> may only be requested by the
+	/// classes the attribute names. A port that several adapters implement is otherwise reachable
+	/// from business code, which bypasses the registry that owns them. Unlike the other PUBLY
+	/// rules this one is enabled by default at error severity: bypassing the registry is a
+	/// correctness bug, not a style preference.
+	/// </summary>
+	public static readonly DiagnosticDescriptor OnlyInjectedInto = new(
+		DiagnosticIds.PUBLY0013,
+		"Restrict port injection to its registry",
+		"'{0}' may only be injected into {1}",
+		"PublyApp.Architecture",
+		DiagnosticSeverity.Error,
+		isEnabledByDefault: true,
+		description: "A port implemented by several adapters must only be injected into the "
+			+ "class(es) listed in [OnlyInjectedInto]; resolving it elsewhere bypasses the "
+			+ "registry that routes networks to their adapter."
+	);
 }
