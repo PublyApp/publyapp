@@ -8,40 +8,58 @@ using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Lib.Testing.Helpers;
 using PublyApp.Api.Modules.Publishing.Lib;
+using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
-using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 using Xunit;
 
-namespace PublyApp.Api.Modules.Publishing.Providers;
+namespace PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 
 // Contract spec over a recording fake HTTP handler: no Mastodon instance is ever
 // contacted. Pins the wire shape (statuses, async media, Idempotency-Key, reply
 // chain) and the failure classification.
-public sealed class MastodonPublishProviderSpec {
+public sealed class MastodonSocialAdapterSpec {
 	private const string _Host = "https://social.example";
 	private const string _Token = "tok-secret-123";
 	private static readonly string _Key = PublicationIdempotencyKey.For(Guid.NewGuid());
 
+	[Fact]
+	public void ItShouldExposeItsNetworksAsAnImmutableSet() {
+		var adapter = MastodonSocialAdapterSpec._Provider(
+			new RecordingHandler(_ => MastodonSocialAdapterSpec._Status("1"))
+		);
+
+		adapter.Networks.Should().BeEquivalentTo([
+			SocialProvider.Mastodon,
+			SocialProvider.Pixelfed,
+		]);
+		var mutable = (ISet<SocialProvider>)adapter.Networks;
+		var add = () => mutable.Add(SocialProvider.Bluesky);
+		add.Should().Throw<NotSupportedException>(
+			"a caller must not be able to mutate the static network set"
+		);
+		adapter.Networks.Should().HaveCount(2);
+	}
+
 	private static PublishRequest _Request() {
 		return new PublishRequest {
 			PublicationId = Guid.NewGuid(),
-			IdempotencyKey = MastodonPublishProviderSpec._Key,
+			IdempotencyKey = MastodonSocialAdapterSpec._Key,
 			PostBody = "hello fediverse",
 			ScheduledAtUtc = DateTime.UtcNow,
 			Provider = SocialProvider.Mastodon,
-			Session = new SocialSession("1@social.example", "me@social.example", MastodonPublishProviderSpec._Token, MastodonPublishProviderSpec._Host),
+			Session = new SocialSession("1@social.example", "me@social.example", MastodonSocialAdapterSpec._Token, MastodonSocialAdapterSpec._Host),
 		};
 	}
 
-	private static MastodonPublishProvider _Provider(HttpMessageHandler handler) {
+	private static MastodonSocialAdapter _Provider(HttpMessageHandler handler) {
 		var services = new ServiceCollection();
 		services.AddHttpClient(MastodonHostGuard.HttpClientName)
 			.ConfigurePrimaryHttpMessageHandler(() => handler);
 		var factory = services.BuildServiceProvider().GetRequiredService<IHttpClientFactory>();
-		return new MastodonPublishProvider(factory, TimeSpan.Zero, 3);
+		return new MastodonSocialAdapter(factory, TimeSpan.Zero, 3);
 	}
 
 	private static HttpResponseMessage _Json(int status, string json) {
@@ -51,7 +69,7 @@ public sealed class MastodonPublishProviderSpec {
 	}
 
 	private static HttpResponseMessage _Status(string id) {
-		return MastodonPublishProviderSpec._Json(
+		return MastodonSocialAdapterSpec._Json(
 			200, $$"""{"id":"{{id}}","url":"https://social.example/@me/{{id}}"}"""
 		);
 	}
@@ -76,9 +94,9 @@ public sealed class MastodonPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldPostTheStatusWithBearerTokenAndIdempotencyKey() {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("111"));
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Status("111"));
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		var published = result.Should().BeOfType<PublishResult.Published>().Subject;
 		published.RecordId.Should().Be("111");
@@ -86,9 +104,9 @@ public sealed class MastodonPublishProviderSpec {
 		handler.Requests.Should().HaveCount(1);
 		var request = handler.Requests[0];
 		request.RequestUri?.ToString().Should().Be("https://social.example/api/v1/statuses");
-		request.Headers.Authorization?.ToString().Should().Be($"Bearer {MastodonPublishProviderSpec._Token}");
-		request.Headers.GetValues("Idempotency-Key").Should().Equal(MastodonPublishProviderSpec._Key);
-		var body = MastodonPublishProviderSpec._Body(handler, 0);
+		request.Headers.Authorization?.ToString().Should().Be($"Bearer {MastodonSocialAdapterSpec._Token}");
+		request.Headers.GetValues("Idempotency-Key").Should().Equal(MastodonSocialAdapterSpec._Key);
+		var body = MastodonSocialAdapterSpec._Body(handler, 0);
 		body.GetProperty("status").GetString().Should().Be("hello fediverse");
 		body.GetProperty("visibility").GetString().Should().Be("public");
 		body.TryGetProperty("in_reply_to_id", out _).Should().BeFalse();
@@ -101,21 +119,21 @@ public sealed class MastodonPublishProviderSpec {
 		var handler = new RecordingHandler(request => {
 			if (request.RequestUri?.AbsolutePath == "/api/v2/media") {
 				uploads += 1;
-				return MastodonPublishProviderSpec._Json(200, $$"""{"id":"m{{uploads}}","url":"https://cdn/m{{uploads}}.png"}""");
+				return MastodonSocialAdapterSpec._Json(200, $$"""{"id":"m{{uploads}}","url":"https://cdn/m{{uploads}}.png"}""");
 			}
 
-			return MastodonPublishProviderSpec._Status("111");
+			return MastodonSocialAdapterSpec._Status("111");
 		});
-		var request = MastodonPublishProviderSpec._Request() with {
+		var request = MastodonSocialAdapterSpec._Request() with {
 			Media = [
-				MastodonPublishProviderSpec._Media("alt one"),
-				MastodonPublishProviderSpec._Media("alt two"),
-				MastodonPublishProviderSpec._Media(null),
-				MastodonPublishProviderSpec._Media("alt four"),
+				MastodonSocialAdapterSpec._Media("alt one"),
+				MastodonSocialAdapterSpec._Media("alt two"),
+				MastodonSocialAdapterSpec._Media(null),
+				MastodonSocialAdapterSpec._Media("alt four"),
 			],
 		};
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.Published>();
 		handler.Requests.Select(r => r.RequestUri?.AbsolutePath).Should().Equal(
@@ -125,7 +143,7 @@ public sealed class MastodonPublishProviderSpec {
 		handler.Bodies[1].Should().Contain("alt two");
 		handler.Bodies[2].Should().NotContain("name=description");
 		handler.Bodies[3].Should().Contain("alt four");
-		MastodonPublishProviderSpec._Body(handler, 4).GetProperty("media_ids")
+		MastodonSocialAdapterSpec._Body(handler, 4).GetProperty("media_ids")
 			.EnumerateArray().Select(id => id.GetString()).Should().Equal("m1", "m2", "m3", "m4");
 	}
 
@@ -134,21 +152,21 @@ public sealed class MastodonPublishProviderSpec {
 		var polls = 0;
 		var handler = new RecordingHandler(request => {
 			if (request.RequestUri?.AbsolutePath == "/api/v2/media") {
-				return MastodonPublishProviderSpec._Json(202, """{"id":"m1","url":null}""");
+				return MastodonSocialAdapterSpec._Json(202, """{"id":"m1","url":null}""");
 			}
 
 			if (request.RequestUri?.AbsolutePath == "/api/v1/media/m1") {
 				polls += 1;
 				return polls < 3
-					? MastodonPublishProviderSpec._Json(206, """{"id":"m1","url":null}""")
-					: MastodonPublishProviderSpec._Json(200, """{"id":"m1","url":"https://cdn/m1.png"}""");
+					? MastodonSocialAdapterSpec._Json(206, """{"id":"m1","url":null}""")
+					: MastodonSocialAdapterSpec._Json(200, """{"id":"m1","url":"https://cdn/m1.png"}""");
 			}
 
-			return MastodonPublishProviderSpec._Status("111");
+			return MastodonSocialAdapterSpec._Status("111");
 		});
-		var request = MastodonPublishProviderSpec._Request() with { Media = [MastodonPublishProviderSpec._Media("a")] };
+		var request = MastodonSocialAdapterSpec._Request() with { Media = [MastodonSocialAdapterSpec._Media("a")] };
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.Published>();
 		polls.Should().Be(3);
@@ -157,26 +175,26 @@ public sealed class MastodonPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldTreatAMediaUploadThatNeverFinishesAsTransient() {
 		var handler = new RecordingHandler(request => request.RequestUri?.AbsolutePath == "/api/v2/media"
-			? MastodonPublishProviderSpec._Json(202, """{"id":"m1","url":null}""")
-			: MastodonPublishProviderSpec._Json(206, """{"id":"m1","url":null}"""));
-		var request = MastodonPublishProviderSpec._Request() with { Media = [MastodonPublishProviderSpec._Media("a")] };
+			? MastodonSocialAdapterSpec._Json(202, """{"id":"m1","url":null}""")
+			: MastodonSocialAdapterSpec._Json(206, """{"id":"m1","url":null}"""));
+		var request = MastodonSocialAdapterSpec._Request() with { Media = [MastodonSocialAdapterSpec._Media("a")] };
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.TransientFailure>().Which.Cause.Should().Contain("still processing image 1");
-		handler.Requests.Should().NotContain(r => MastodonPublishProviderSpec._IsStatus(r));
+		handler.Requests.Should().NotContain(r => MastodonSocialAdapterSpec._IsStatus(r));
 	}
 
 	[Fact]
 	public async Task ItShouldRefuseMoreImagesThanTheInstanceAdvertises() {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("1"));
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Status("1"));
 		var capability = ProviderCapabilityRegistry.Mastodon with { MaxImages = 1 };
-		var request = MastodonPublishProviderSpec._Request() with {
+		var request = MastodonSocialAdapterSpec._Request() with {
 			Capability = capability,
-			Media = [MastodonPublishProviderSpec._Media("a"), MastodonPublishProviderSpec._Media("b")],
+			Media = [MastodonSocialAdapterSpec._Media("a"), MastodonSocialAdapterSpec._Media("b")],
 		};
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.ContentFailure>();
 		handler.Requests.Should().BeEmpty();
@@ -187,10 +205,10 @@ public sealed class MastodonPublishProviderSpec {
 		var created = 0;
 		var handler = new RecordingHandler(_ => {
 			created += 1;
-			return MastodonPublishProviderSpec._Status($"s{created}");
+			return MastodonSocialAdapterSpec._Status($"s{created}");
 		});
 		var progress = new List<CompletedSegment>();
-		var request = MastodonPublishProviderSpec._Request() with {
+		var request = MastodonSocialAdapterSpec._Request() with {
 			FollowUpSegments = ["second", "third"],
 			OnSegmentCompleted = (segment, _) => {
 				progress.Add(segment);
@@ -198,13 +216,13 @@ public sealed class MastodonPublishProviderSpec {
 			},
 		};
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.Published>().Which.RecordId.Should().Be("s1");
-		MastodonPublishProviderSpec._Body(handler, 1).GetProperty("in_reply_to_id").GetString().Should().Be("s1");
-		MastodonPublishProviderSpec._Body(handler, 2).GetProperty("in_reply_to_id").GetString().Should().Be("s2");
+		MastodonSocialAdapterSpec._Body(handler, 1).GetProperty("in_reply_to_id").GetString().Should().Be("s1");
+		MastodonSocialAdapterSpec._Body(handler, 2).GetProperty("in_reply_to_id").GetString().Should().Be("s2");
 		handler.Requests.Select(r => r.Headers.GetValues("Idempotency-Key").Single()).Should().Equal(
-			MastodonPublishProviderSpec._Key, $"{MastodonPublishProviderSpec._Key}-s1", $"{MastodonPublishProviderSpec._Key}-s2"
+			MastodonSocialAdapterSpec._Key, $"{MastodonSocialAdapterSpec._Key}-s1", $"{MastodonSocialAdapterSpec._Key}-s2"
 		);
 		progress.Select(p => p.Position).Should().Equal(0, 1, 2);
 		progress.Select(p => p.RecordId).Should().Equal("s1", "s2", "s3");
@@ -212,9 +230,9 @@ public sealed class MastodonPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldResumeAThreadAfterTheLastStoredSegmentWithoutRepublishing() {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("s3"));
-		var request = MastodonPublishProviderSpec._Request() with {
-			Media = [MastodonPublishProviderSpec._Media("a")],
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Status("s3"));
+		var request = MastodonSocialAdapterSpec._Request() with {
+			Media = [MastodonSocialAdapterSpec._Media("a")],
 			FollowUpSegments = ["second", "third"],
 			CompletedSegments = [
 				new CompletedSegment(0, "s1", string.Empty, "https://social.example/@me/s1"),
@@ -222,11 +240,11 @@ public sealed class MastodonPublishProviderSpec {
 			],
 		};
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
 
 		handler.Requests.Should().HaveCount(1, "stored segments and their images are never sent again");
-		MastodonPublishProviderSpec._Body(handler, 0).GetProperty("in_reply_to_id").GetString().Should().Be("s2");
-		MastodonPublishProviderSpec._Body(handler, 0).GetProperty("status").GetString().Should().Be("third");
+		MastodonSocialAdapterSpec._Body(handler, 0).GetProperty("in_reply_to_id").GetString().Should().Be("s2");
+		MastodonSocialAdapterSpec._Body(handler, 0).GetProperty("status").GetString().Should().Be("third");
 		// A resumed chain reports the identity of its root, like a fresh one.
 		result.Should().BeOfType<PublishResult.Published>().Which.RecordId.Should().Be("s1");
 	}
@@ -237,31 +255,31 @@ public sealed class MastodonPublishProviderSpec {
 		var handler = new RecordingHandler(_ => {
 			attempt += 1;
 			return attempt == 1
-				? MastodonPublishProviderSpec._Json(502, """{"error":"bad gateway"}""")
-				: MastodonPublishProviderSpec._Status("111");
+				? MastodonSocialAdapterSpec._Json(502, """{"error":"bad gateway"}""")
+				: MastodonSocialAdapterSpec._Status("111");
 		});
-		var provider = MastodonPublishProviderSpec._Provider(handler);
+		var provider = MastodonSocialAdapterSpec._Provider(handler);
 
-		var first = await provider.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
-		var second = await provider.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var first = await provider.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
+		var second = await provider.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		first.Should().BeOfType<PublishResult.Ambiguous>();
 		second.Should().BeOfType<PublishResult.Published>();
 		handler.Requests.Select(r => r.Headers.GetValues("Idempotency-Key").Single()).Distinct()
-			.Should().Equal(MastodonPublishProviderSpec._Key);
+			.Should().Equal(MastodonSocialAdapterSpec._Key);
 	}
 
 	[Theory]
 	[InlineData(401)]
 	[InlineData(403)]
 	public async Task ItShouldMapAuthRefusalsToAnAccountFailureWithoutTheToken(int status) {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Json(status, """{"error":"The access token is invalid"}"""));
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Json(status, """{"error":"The access token is invalid"}"""));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		var failure = result.Should().BeOfType<PublishResult.AccountFailure>().Subject;
-		failure.Cause.Should().NotContain(MastodonPublishProviderSpec._Token);
+		failure.Cause.Should().NotContain(MastodonSocialAdapterSpec._Token);
 	}
 
 	// #2186: the cause is persisted on the publication and shown to the user, so a body that
@@ -275,12 +293,12 @@ public sealed class MastodonPublishProviderSpec {
 	[InlineData(503, "gateway echoed Bearer {token}")]
 	[InlineData(400, "Invalid token '{token}' rejected")]
 	public async Task ItShouldScrubTheCredentialFromAnErrorBodyOnEveryFailureClass(int status, string template) {
-		var body = template.Replace("{token}", MastodonPublishProviderSpec._Token, StringComparison.Ordinal);
+		var body = template.Replace("{token}", MastodonSocialAdapterSpec._Token, StringComparison.Ordinal);
 		var json = JsonSerializer.Serialize(new { error = body });
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Json(status, json));
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Json(status, json));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		var cause = result switch {
 			PublishResult.AccountFailure failure => failure.Cause,
@@ -289,17 +307,17 @@ public sealed class MastodonPublishProviderSpec {
 			PublishResult.Ambiguous failure => failure.Cause,
 			_ => throw new InvalidOperationException($"unexpected {result.GetType().Name}"),
 		};
-		cause.Should().NotContain(MastodonPublishProviderSpec._Token);
+		cause.Should().NotContain(MastodonSocialAdapterSpec._Token);
 	}
 
 	[Fact]
 	public async Task ItShouldScrubTheCredentialFromATransportErrorMessage() {
-		var handler = new RecordingHandler(_ => throw new HttpRequestException($"reset while sending Bearer {MastodonPublishProviderSpec._Token}"));
+		var handler = new RecordingHandler(_ => throw new HttpRequestException($"reset while sending Bearer {MastodonSocialAdapterSpec._Token}"));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
-		result.Should().BeOfType<PublishResult.Ambiguous>().Which.Cause.Should().NotContain(MastodonPublishProviderSpec._Token);
+		result.Should().BeOfType<PublishResult.Ambiguous>().Which.Cause.Should().NotContain(MastodonSocialAdapterSpec._Token);
 	}
 
 	[Theory]
@@ -308,35 +326,35 @@ public sealed class MastodonPublishProviderSpec {
 	[InlineData(SocialPostVisibility.Private, "private")]
 	public async Task ItShouldPostWithTheRequestedVisibilityOnEverySegmentOfAThread(SocialPostVisibility visibility, string wire) {
 		var counter = 0;
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status($"s{++counter}"));
-		var request = MastodonPublishProviderSpec._Request() with {
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Status($"s{++counter}"));
+		var request = MastodonSocialAdapterSpec._Request() with {
 			Visibility = visibility,
 			FollowUpSegments = ["second"],
 		};
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.Published>();
-		MastodonPublishProviderSpec._Body(handler, 0).GetProperty("visibility").GetString().Should().Be(wire);
-		MastodonPublishProviderSpec._Body(handler, 1).GetProperty("visibility").GetString().Should().Be(wire);
+		MastodonSocialAdapterSpec._Body(handler, 0).GetProperty("visibility").GetString().Should().Be(wire);
+		MastodonSocialAdapterSpec._Body(handler, 1).GetProperty("visibility").GetString().Should().Be(wire);
 	}
 
 	[Fact]
 	public async Task ItShouldKeepPostingPubliclyWhenNoVisibilityIsSet() {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("1"));
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Status("1"));
 
-		await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
-		MastodonPublishProviderSpec._Body(handler, 0).GetProperty("visibility").GetString().Should().Be("public");
+		MastodonSocialAdapterSpec._Body(handler, 0).GetProperty("visibility").GetString().Should().Be("public");
 	}
 
 	[Fact]
 	public async Task ItShouldMapAnUnprocessableStatusToAContentFailureWithTheInstancesReason() {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Json(422, """{"error":"Validation failed: Text character limit of 500 exceeded"}"""));
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Json(422, """{"error":"Validation failed: Text character limit of 500 exceeded"}"""));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.ContentFailure>().Which.Cause.Should().Contain("character limit of 500");
 	}
@@ -344,13 +362,13 @@ public sealed class MastodonPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldMapRateLimitingToTransientHonoringRetryAfter() {
 		var handler = new RecordingHandler(_ => {
-			var response = MastodonPublishProviderSpec._Json(429, """{"error":"Too many requests"}""");
+			var response = MastodonSocialAdapterSpec._Json(429, """{"error":"Too many requests"}""");
 			response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(45));
 			return response;
 		});
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.TransientFailure>().Which.RetryAfter.Should().Be(TimeSpan.FromSeconds(45));
 	}
@@ -359,13 +377,13 @@ public sealed class MastodonPublishProviderSpec {
 	public async Task ItShouldReadTheMastodonRateLimitResetWhenThereIsNoRetryAfter() {
 		var reset = DateTimeOffset.UtcNow.AddMinutes(10).ToString("o", System.Globalization.CultureInfo.InvariantCulture);
 		var handler = new RecordingHandler(_ => {
-			var response = MastodonPublishProviderSpec._Json(429, """{"error":"Throttled"}""");
+			var response = MastodonSocialAdapterSpec._Json(429, """{"error":"Throttled"}""");
 			response.Headers.Add("X-RateLimit-Reset", reset);
 			return response;
 		});
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		var delay = result.Should().BeOfType<PublishResult.TransientFailure>().Subject.RetryAfter;
 		delay.Should().BeGreaterThan(TimeSpan.FromMinutes(9)).And.BeLessThanOrEqualTo(TimeSpan.FromMinutes(10));
@@ -374,13 +392,13 @@ public sealed class MastodonPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldCapAFarAwayRateLimitReset() {
 		var handler = new RecordingHandler(_ => {
-			var response = MastodonPublishProviderSpec._Json(429, "{}");
+			var response = MastodonSocialAdapterSpec._Json(429, "{}");
 			response.Headers.Add("X-RateLimit-Reset", DateTimeOffset.UtcNow.AddDays(2).ToString("o", System.Globalization.CultureInfo.InvariantCulture));
 			return response;
 		});
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.TransientFailure>().Which.RetryAfter.Should().Be(TimeSpan.FromHours(1));
 	}
@@ -391,8 +409,8 @@ public sealed class MastodonPublishProviderSpec {
 			Content = new StringContent("<html>proxy error</html>", Encoding.UTF8, "text/html"),
 		});
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.Ambiguous>();
 	}
@@ -401,8 +419,8 @@ public sealed class MastodonPublishProviderSpec {
 	public async Task ItShouldMapTransportErrorsOnTheWriteToAmbiguous() {
 		var handler = new RecordingHandler(_ => throw new HttpRequestException("connection reset"));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.Ambiguous>();
 	}
@@ -410,13 +428,13 @@ public sealed class MastodonPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldIgnoreTheRateLimitResetOnA5xx() {
 		var handler = new RecordingHandler(_ => {
-			var response = MastodonPublishProviderSpec._Json(503, "{}");
+			var response = MastodonSocialAdapterSpec._Json(503, "{}");
 			response.Headers.Add("X-RateLimit-Reset", DateTimeOffset.UtcNow.AddMinutes(10).ToString("o", System.Globalization.CultureInfo.InvariantCulture));
 			return response;
 		});
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.Ambiguous>().Which.RetryAfter
 			.Should().BeNull("X-RateLimit-Reset only describes a 429 window");
@@ -425,13 +443,13 @@ public sealed class MastodonPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldStillHonourRetryAfterOnA5xx() {
 		var handler = new RecordingHandler(_ => {
-			var response = MastodonPublishProviderSpec._Json(503, "{}");
+			var response = MastodonSocialAdapterSpec._Json(503, "{}");
 			response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(30));
 			return response;
 		});
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.Ambiguous>().Which.RetryAfter.Should().Be(TimeSpan.FromSeconds(30));
 	}
@@ -441,19 +459,19 @@ public sealed class MastodonPublishProviderSpec {
 		var order = new List<string>();
 		var handler = new RecordingHandler(request => {
 			order.Add(request.RequestUri?.AbsolutePath ?? string.Empty);
-			return MastodonPublishProviderSpec._IsStatus(request)
-				? MastodonPublishProviderSpec._Status("1")
-				: MastodonPublishProviderSpec._Json(200, """{"id":"m1","url":"https://x/m1"}""");
+			return MastodonSocialAdapterSpec._IsStatus(request)
+				? MastodonSocialAdapterSpec._Status("1")
+				: MastodonSocialAdapterSpec._Json(200, """{"id":"m1","url":"https://x/m1"}""");
 		});
-		var request = MastodonPublishProviderSpec._Request() with {
-			Media = [MastodonPublishProviderSpec._Media(null)],
+		var request = MastodonSocialAdapterSpec._Request() with {
+			Media = [MastodonSocialAdapterSpec._Media(null)],
 			OnBeforeWrite = (position, _) => {
 				order.Add($"journal {position}");
 				return Task.CompletedTask;
 			},
 		};
 
-		await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+		await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
 
 		order.Should().Equal("/api/v2/media", "journal 0", "/api/v1/statuses");
 	}
@@ -462,8 +480,8 @@ public sealed class MastodonPublishProviderSpec {
 	public async Task ItShouldReconcileAsSafeToResendWithinTheIdempotencyWindowWithoutAnyHttpCall() {
 		var handler = new RecordingHandler(_ => throw new InvalidOperationException("no call expected"));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).ReconcileAsync(
-			MastodonPublishProviderSpec._Reconcile(TimeSpan.FromMinutes(10)), CancellationToken.None
+		var result = await MastodonSocialAdapterSpec._Provider(handler).ReconcileAsync(
+			MastodonSocialAdapterSpec._Reconcile(TimeSpan.FromMinutes(10)), CancellationToken.None
 		);
 
 		result.Should().BeOfType<ReconcileResult.SafeToResend>();
@@ -480,8 +498,8 @@ public sealed class MastodonPublishProviderSpec {
 	public async Task ItShouldOnlyResendInsideTheWindowAndOtherwiseAskTheUser(int minutes, bool safe) {
 		var handler = new RecordingHandler(_ => throw new InvalidOperationException("no call expected"));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).ReconcileAsync(
-			MastodonPublishProviderSpec._Reconcile(TimeSpan.FromMinutes(minutes)), CancellationToken.None
+		var result = await MastodonSocialAdapterSpec._Provider(handler).ReconcileAsync(
+			MastodonSocialAdapterSpec._Reconcile(TimeSpan.FromMinutes(minutes)), CancellationToken.None
 		);
 
 		if (safe) {
@@ -490,15 +508,15 @@ public sealed class MastodonPublishProviderSpec {
 			result.Should().BeOfType<ReconcileResult.NeedsReview>();
 		}
 
-		MastodonPublishProvider.IdempotencyWindow.Should().BeLessThan(TimeSpan.FromHours(1));
+		MastodonSocialAdapter.IdempotencyWindow.Should().BeLessThan(TimeSpan.FromHours(1));
 	}
 
 	[Fact]
 	public async Task ItShouldNeverVouchForAResendUnderANewKeyEvenInsideTheWindow() {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("111"));
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Status("111"));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).ReconcileAsync(
-			MastodonPublishProviderSpec._Reconcile(TimeSpan.FromMinutes(1)) with { ResendUnderNewKey = true },
+		var result = await MastodonSocialAdapterSpec._Provider(handler).ReconcileAsync(
+			MastodonSocialAdapterSpec._Reconcile(TimeSpan.FromMinutes(1)) with { ResendUnderNewKey = true },
 			CancellationToken.None
 		);
 
@@ -507,19 +525,19 @@ public sealed class MastodonPublishProviderSpec {
 	}
 
 	private static HttpResponseMessage _StatusWithContent(string id, string html) {
-		return MastodonPublishProviderSpec._Json(
+		return MastodonSocialAdapterSpec._Json(
 			200, JsonSerializer.Serialize(new { id, url = $"https://social.example/@me/{id}", content = html })
 		);
 	}
 
 	[Fact]
 	public async Task ItShouldRefuseToRecordTheOldTextWhenADedupedResendReturnsAStatusWithOtherText() {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._StatusWithContent(
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._StatusWithContent(
 			"111", "<p>the text before the edit</p>"
 		));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(
-			MastodonPublishProviderSpec._Request() with { ResendPosition = 0 }, CancellationToken.None
+		var result = await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(
+			MastodonSocialAdapterSpec._Request() with { ResendPosition = 0 }, CancellationToken.None
 		);
 
 		var failure = result.Should().BeOfType<PublishResult.ContentFailure>().Subject;
@@ -530,15 +548,15 @@ public sealed class MastodonPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldRecordADedupedResendWhoseRenderedContentStillReadsAsTheTextSent() {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._StatusWithContent(
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._StatusWithContent(
 			"111", "<p>hello <a href=\"https://x.example/a\" rel=\"nofollow\"><span class=\"invisible\">https://</span>x.example/a</a> &amp; fediverse<br />line two</p><p>para</p>"
 		));
-		var request = MastodonPublishProviderSpec._Request() with {
+		var request = MastodonSocialAdapterSpec._Request() with {
 			PostBody = "hello https://x.example/a & fediverse\nline two\n\npara",
 			ResendPosition = 0,
 		};
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.Published>().Which.RecordId.Should().Be("111");
 	}
@@ -552,10 +570,10 @@ public sealed class MastodonPublishProviderSpec {
 		"<p>see <a href=\"https://example.com/a/very/long/path/that/gets/cut/off\" rel=\"nofollow noopener\"><span class=\"invisible\">https://</span><span class=\"ellipsis\">example.com/a/very/long/path</span><span class=\"invisible\">/that/gets/cut/off</span></a> ok</p>"
 	)]
 	public async Task ItShouldRecordADedupedResendWhoseTextHasLiteralMarkupEmojiOrALongLink(string sent, string rendered) {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._StatusWithContent("111", rendered));
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._StatusWithContent("111", rendered));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(
-			MastodonPublishProviderSpec._Request() with { PostBody = sent, ResendPosition = 0 }, CancellationToken.None
+		var result = await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(
+			MastodonSocialAdapterSpec._Request() with { PostBody = sent, ResendPosition = 0 }, CancellationToken.None
 		);
 
 		result.Should().BeOfType<PublishResult.Published>();
@@ -564,16 +582,16 @@ public sealed class MastodonPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldRefuseADedupedStatusWhoseImageCountDiffersFromTheSegment() {
 		var handler = new RecordingHandler(httpRequest => httpRequest.RequestUri?.AbsolutePath == "/api/v2/media"
-			? MastodonPublishProviderSpec._Json(200, """{"id":"m1","url":"https://social.example/m1"}""")
-			: MastodonPublishProviderSpec._Json(
+			? MastodonSocialAdapterSpec._Json(200, """{"id":"m1","url":"https://social.example/m1"}""")
+			: MastodonSocialAdapterSpec._Json(
 				200,
 				"""{"id":"111","url":"https://social.example/@me/111","content":"<p>hello fediverse</p>","media_attachments":[]}"""
 			));
-		var request = MastodonPublishProviderSpec._Request() with {
+		var request = MastodonSocialAdapterSpec._Request() with {
 			ResendPosition = 0,
-			Media = [MastodonPublishProviderSpec._Media(null)],
+			Media = [MastodonSocialAdapterSpec._Media(null)],
 		};
-		var provider = MastodonPublishProviderSpec._Provider(handler);
+		var provider = MastodonSocialAdapterSpec._Provider(handler);
 
 		var result = await provider.PublishAsync(request, CancellationToken.None);
 
@@ -582,10 +600,10 @@ public sealed class MastodonPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldNotRetryAResendWhoseStatusCarriesNoContentToCompare() {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("111"));
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Status("111"));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(
-			MastodonPublishProviderSpec._Request() with { ResendPosition = 0 }, CancellationToken.None
+		var result = await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(
+			MastodonSocialAdapterSpec._Request() with { ResendPosition = 0 }, CancellationToken.None
 		);
 
 		var failure = result.Should().BeOfType<PublishResult.ContentFailure>("a live status must not burn retries as Ambiguous").Subject;
@@ -595,10 +613,10 @@ public sealed class MastodonPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldNotLookUpTheStatusTextOnAFirstSend() {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("111"));
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Status("111"));
 
-		await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._Request(), CancellationToken.None);
+		await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._Request(), CancellationToken.None);
 
 		handler.Requests.Should().ContainSingle();
 	}
@@ -607,8 +625,8 @@ public sealed class MastodonPublishProviderSpec {
 	public async Task ItShouldReconcileAsNeedsReviewBeyondTheIdempotencyWindowWithoutAnyHttpCall() {
 		var handler = new RecordingHandler(_ => throw new InvalidOperationException("no call expected"));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).ReconcileAsync(
-			MastodonPublishProviderSpec._Reconcile(TimeSpan.FromMinutes(61)), CancellationToken.None
+		var result = await MastodonSocialAdapterSpec._Provider(handler).ReconcileAsync(
+			MastodonSocialAdapterSpec._Reconcile(TimeSpan.FromMinutes(61)), CancellationToken.None
 		);
 
 		result.Should().BeOfType<ReconcileResult.NeedsReview>();
@@ -616,19 +634,19 @@ public sealed class MastodonPublishProviderSpec {
 	}
 
 	private static PublishRequest _PixelfedRequest() {
-		return MastodonPublishProviderSpec._Request() with {
+		return MastodonSocialAdapterSpec._Request() with {
 			Provider = SocialProvider.Pixelfed,
 			PostBody = string.Empty,
-			Media = [MastodonPublishProviderSpec._Media("a sunset")],
+			Media = [MastodonSocialAdapterSpec._Media("a sunset")],
 		};
 	}
 
 	[Fact]
 	public async Task ItShouldRefuseATextOnlyPixelfedPostWithoutAnyCall() {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Status("1"));
-		var request = MastodonPublishProviderSpec._PixelfedRequest() with { PostBody = "caption", Media = [] };
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Status("1"));
+		var request = MastodonSocialAdapterSpec._PixelfedRequest() with { PostBody = "caption", Media = [] };
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler).PublishAsync(request, CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.ContentFailure>().Which.Cause.Should().Contain("at least one image");
 		handler.Requests.Should().BeEmpty();
@@ -637,26 +655,26 @@ public sealed class MastodonPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldPublishAPixelfedPhotoThroughTheV1MediaEndpointWithAltAndNoEmptyCaption() {
 		var handler = new RecordingHandler(request => request.RequestUri?.AbsolutePath == "/api/v1/media"
-			? MastodonPublishProviderSpec._Json(200, """{"id":"m1","url":"https://cdn/m1.png"}""")
-			: MastodonPublishProviderSpec._Status("111"));
+			? MastodonSocialAdapterSpec._Json(200, """{"id":"m1","url":"https://cdn/m1.png"}""")
+			: MastodonSocialAdapterSpec._Status("111"));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._PixelfedRequest(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._PixelfedRequest(), CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.Published>();
 		handler.Requests.Select(r => r.RequestUri?.AbsolutePath).Should().Equal("/api/v1/media", "/api/v1/statuses");
 		handler.Bodies[0].Should().Contain("a sunset");
-		var body = MastodonPublishProviderSpec._Body(handler, 1);
+		var body = MastodonSocialAdapterSpec._Body(handler, 1);
 		body.TryGetProperty("status", out _).Should().BeFalse();
 		body.GetProperty("media_ids").EnumerateArray().Select(id => id.GetString()).Should().Equal("m1");
 	}
 
 	[Fact]
 	public async Task ItShouldNameTheNetworkInAPixelfedAuthFailure() {
-		var handler = new RecordingHandler(_ => MastodonPublishProviderSpec._Json(401, """{"error":"invalid token"}"""));
+		var handler = new RecordingHandler(_ => MastodonSocialAdapterSpec._Json(401, """{"error":"invalid token"}"""));
 
-		var result = await MastodonPublishProviderSpec._Provider(handler)
-			.PublishAsync(MastodonPublishProviderSpec._PixelfedRequest(), CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler)
+			.PublishAsync(MastodonSocialAdapterSpec._PixelfedRequest(), CancellationToken.None);
 
 		result.Should().BeOfType<PublishResult.AccountFailure>().Which.Cause.Should().StartWith("Pixelfed rejected");
 	}
@@ -664,9 +682,9 @@ public sealed class MastodonPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldNeverAssumeAPixelfedResendIsDeduplicated() {
 		var handler = new RecordingHandler(_ => throw new InvalidOperationException("no call expected"));
-		var request = MastodonPublishProviderSpec._Reconcile(TimeSpan.FromMinutes(1)) with { Provider = SocialProvider.Pixelfed };
+		var request = MastodonSocialAdapterSpec._Reconcile(TimeSpan.FromMinutes(1)) with { Provider = SocialProvider.Pixelfed };
 
-		var result = await MastodonPublishProviderSpec._Provider(handler).ReconcileAsync(request, CancellationToken.None);
+		var result = await MastodonSocialAdapterSpec._Provider(handler).ReconcileAsync(request, CancellationToken.None);
 
 		result.Should().BeOfType<ReconcileResult.NeedsReview>();
 	}
@@ -674,10 +692,10 @@ public sealed class MastodonPublishProviderSpec {
 	private static ReconcileRequest _Reconcile(TimeSpan age) {
 		return new ReconcileRequest {
 			PublicationId = Guid.NewGuid(),
-			IdempotencyKey = MastodonPublishProviderSpec._Key,
+			IdempotencyKey = MastodonSocialAdapterSpec._Key,
 			SegmentPosition = 0,
 			Provider = SocialProvider.Mastodon,
-			Session = MastodonPublishProviderSpec._Request().Session,
+			Session = MastodonSocialAdapterSpec._Request().Session,
 			FirstAttemptAtUtc = DateTime.UtcNow - age,
 		};
 	}

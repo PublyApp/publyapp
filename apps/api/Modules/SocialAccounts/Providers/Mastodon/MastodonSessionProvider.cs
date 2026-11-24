@@ -61,9 +61,7 @@ public sealed class MastodonSessionProvider : ISocialSessionProvider {
 /// </summary>
 public sealed class RoutingSocialSessionProvider : ISocialSessionProvider {
 	private readonly AppDbContext _Db;
-	private readonly BlueskySessionProvider _Bluesky;
-	private readonly MastodonSessionProvider _Mastodon;
-	private readonly DiscordWebhookSessionProvider _Discord;
+	private readonly IReadOnlyDictionary<SocialProvider, ISocialSessionProvider> _Providers;
 
 	public RoutingSocialSessionProvider(
 		AppDbContext db,
@@ -72,9 +70,12 @@ public sealed class RoutingSocialSessionProvider : ISocialSessionProvider {
 		DiscordWebhookSessionProvider discord
 	) {
 		this._Db = db;
-		this._Bluesky = bluesky;
-		this._Mastodon = mastodon;
-		this._Discord = discord;
+		this._Providers = new (SocialProvider Network, ISocialSessionProvider Provider)[] {
+			(SocialProvider.Bluesky, bluesky),
+			(SocialProvider.Mastodon, mastodon),
+			(SocialProvider.Pixelfed, mastodon),
+			(SocialProvider.DiscordWebhook, discord),
+		}.ToDictionary(entry => entry.Network, entry => entry.Provider);
 	}
 
 	public async Task<SocialSessionResult> OpenSessionAsync(
@@ -91,12 +92,12 @@ public sealed class RoutingSocialSessionProvider : ISocialSessionProvider {
 			return new SocialSessionResult.AccountFailure("social account not found");
 		}
 
-		if (provider == SocialProvider.DiscordWebhook) {
-			return await this._Discord.OpenSessionAsync(socialAccountId, cancellationToken);
+		if (!this._Providers.TryGetValue(provider.Value, out var sessionProvider)) {
+			return new SocialSessionResult.AccountFailure(
+				$"no session provider is registered for network '{provider.Value}'"
+			);
 		}
 
-		return provider is SocialProvider.Mastodon or SocialProvider.Pixelfed
-			? await this._Mastodon.OpenSessionAsync(socialAccountId, cancellationToken)
-			: await this._Bluesky.OpenSessionAsync(socialAccountId, cancellationToken);
+		return await sessionProvider.OpenSessionAsync(socialAccountId, cancellationToken);
 	}
 }

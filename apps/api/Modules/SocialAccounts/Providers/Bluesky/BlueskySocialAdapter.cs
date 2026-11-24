@@ -1,13 +1,19 @@
+using System.Collections.Frozen;
 using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
+using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
+using PublyApp.Api.Modules.SocialAccounts.Adapters;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
-namespace PublyApp.Api.Modules.Publishing.Providers;
+namespace PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 
 /// <summary>
 /// Bluesky delivery over <c>com.atproto.repo.createRecord</c> (Epic D §3). The
@@ -18,24 +24,37 @@ namespace PublyApp.Api.Modules.Publishing.Providers;
 /// transient, already-exists → success after read-back. Tokens live only in the
 /// Authorization header; causes pass the sanitiser and never contain them.
 /// </summary>
-public sealed class BlueskyPublishProvider : IPublishProvider {
-	public const string HttpClientName = "BlueskyPublishProvider";
+public sealed partial class BlueskySocialAdapter
+	: ISocialPublisher, IBlueskyClient {
+	public const string HttpClientName = "BlueskySocialAdapter";
 
 	private const string _Collection = "app.bsky.feed.post";
 
 	private static readonly JsonSerializerOptions _WireOptions = new(JsonSerializerDefaults.Web);
 
-	private readonly IHttpClientFactory _HttpClientFactory;
+	private static readonly FrozenSet<SocialProvider> _Networks =
+		new[] { SocialProvider.Bluesky }.ToFrozenSet();
 
-	public BlueskyPublishProvider(IHttpClientFactory httpClientFactory) {
+	private readonly IHttpClientFactory _HttpClientFactory;
+	private readonly ILogger<BlueskySocialAdapter> _Logger;
+
+	public BlueskySocialAdapter(
+		IHttpClientFactory httpClientFactory,
+		ILogger<BlueskySocialAdapter>? logger = null
+	) {
 		this._HttpClientFactory = httpClientFactory;
+		this._Logger = logger ?? NullLogger<BlueskySocialAdapter>.Instance;
+	}
+
+	public IReadOnlySet<SocialProvider> Networks {
+		get { return BlueskySocialAdapter._Networks; }
 	}
 
 	public async Task<PublishResult> PublishAsync(
 		PublishRequest request,
 		CancellationToken cancellationToken
 	) {
-		var client = this._HttpClientFactory.CreateClient(BlueskyPublishProvider.HttpClientName);
+		var client = this._HttpClientFactory.CreateClient(BlueskySocialAdapter.HttpClientName);
 
 		try {
 			// Segment 0 is the post body (with the images); 1..N are the thread
@@ -62,7 +81,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				var outcome = position == 0
 					? await this._LookUpRootAsync(request, isThread, cancellationToken)
 					: null;
-				outcome ??= await BlueskyPublishProvider._CreateSegmentAsync(
+				outcome ??= await BlueskySocialAdapter._CreateSegmentAsync(
 					client, request, position, texts[position], isThread, root, parent, cancellationToken
 				);
 				if (outcome.Segment is null) {
@@ -121,7 +140,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				return null;
 			case ReconcileResult.NeedsReview:
 				return new SegmentOutcome(
-					new PublishResult.ContentFailure(BlueskyPublishProvider._DifferentTextCause(isThread, 0)),
+					new PublishResult.ContentFailure(BlueskySocialAdapter._DifferentTextCause(isThread, 0)),
 					null
 				);
 			case ReconcileResult.Found found when isThread && found.Segment.Cid.Length == 0:
@@ -158,48 +177,48 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		ReconcileRequest request,
 		CancellationToken cancellationToken
 	) {
-		var client = this._HttpClientFactory.CreateClient(BlueskyPublishProvider.HttpClientName);
-		var rkey = BlueskyPublishProvider.RecordKey(request.IdempotencyKey, request.SegmentPosition);
+		var client = this._HttpClientFactory.CreateClient(BlueskySocialAdapter.HttpClientName);
+		var rkey = BlueskySocialAdapter.RecordKey(request.IdempotencyKey, request.SegmentPosition);
 		var session = request.Session;
 		var url = $"{session.PdsHost.TrimEnd('/')}/xrpc/com.atproto.repo.getRecord"
 			+ $"?repo={Uri.EscapeDataString(session.Did)}"
-			+ $"&collection={Uri.EscapeDataString(BlueskyPublishProvider._Collection)}"
+			+ $"&collection={Uri.EscapeDataString(BlueskySocialAdapter._Collection)}"
 			+ $"&rkey={Uri.EscapeDataString(rkey)}";
 
 		try {
 			using var response = await client.GetAsync(url, cancellationToken);
 			if (response.IsSuccessStatusCode) {
-				var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
+				var payload = await BlueskySocialAdapter._ReadJsonAsync(response, cancellationToken);
 				if (request.ExpectedText is { } expected
-					&& BlueskyPublishProvider._TextMismatch(payload, expected) is not null) {
+					&& BlueskySocialAdapter._TextMismatch(payload, expected) is not null) {
 					return new ReconcileResult.NeedsReview(
 						$"segment {request.SegmentPosition + 1} exists on Bluesky with different text "
 						+ "than the one now being published (it was edited after the earlier write)"
 					);
 				}
 
-				var recordId = BlueskyPublishProvider._RecordIdentity(payload, session.Did, rkey);
-				var webUrl = BlueskyPublishProvider._WebUrl(recordId, session.Did, rkey);
+				var recordId = BlueskySocialAdapter._RecordIdentity(payload, session.Did, rkey);
+				var webUrl = BlueskySocialAdapter._WebUrl(recordId, session.Did, rkey);
 				return new ReconcileResult.Found(new CompletedSegment(
-					request.SegmentPosition, recordId, BlueskyPublishProvider._Cid(payload), webUrl
+					request.SegmentPosition, recordId, BlueskySocialAdapter._Cid(payload), webUrl
 				));
 			}
 
-			var (error, message) = await BlueskyPublishProvider._ReadErrorAsync(response, cancellationToken);
+			var (error, message) = await BlueskySocialAdapter._ReadErrorAsync(response, cancellationToken);
 			if (response.StatusCode == HttpStatusCode.NotFound
 				|| error.Contains("RecordNotFound", StringComparison.OrdinalIgnoreCase)) {
 				return new ReconcileResult.SafeToResend();
 			}
 
-			return new ReconcileResult.Unavailable(BlueskyPublishProvider._Clean(
+			return new ReconcileResult.Unavailable(BlueskySocialAdapter._Clean(
 				$"the earlier write could not be looked up ({(int)response.StatusCode} {error}: {message})"
 			));
 		} catch (HttpRequestException exception) {
-			return new ReconcileResult.Unavailable(BlueskyPublishProvider._Clean(
+			return new ReconcileResult.Unavailable(BlueskySocialAdapter._Clean(
 				$"network error looking up the earlier write: {exception.Message}"
 			));
 		} catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested) {
-			return new ReconcileResult.Unavailable(BlueskyPublishProvider._Clean(
+			return new ReconcileResult.Unavailable(BlueskySocialAdapter._Clean(
 				$"the PDS did not answer the lookup in time: {exception.Message}"
 			));
 		} catch (JsonException) {
@@ -231,10 +250,10 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		CompletedSegment? parent,
 		CancellationToken cancellationToken
 	) {
-		var rkey = BlueskyPublishProvider.RecordKey(request.IdempotencyKey, position);
+		var rkey = BlueskySocialAdapter.RecordKey(request.IdempotencyKey, position);
 		var images = new List<Dictionary<string, object?>>();
 		if (request.MediaAt(position).Count > 0) {
-			var uploaded = await BlueskyPublishProvider._UploadImagesAsync(
+			var uploaded = await BlueskySocialAdapter._UploadImagesAsync(
 				client, request, position, cancellationToken
 			);
 			if (uploaded.Failure is not null) {
@@ -252,19 +271,19 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 
 		// From here on a transport failure is AMBIGUOUS: the PDS may have applied it.
 		try {
-			return await BlueskyPublishProvider._WriteSegmentAsync(
+			return await BlueskySocialAdapter._WriteSegmentAsync(
 				client, request, rkey, text, position, images, isThread, root, parent, cancellationToken
 			);
 		} catch (HttpRequestException exception) {
 			return new SegmentOutcome(
-				new PublishResult.Ambiguous(BlueskyPublishProvider._Clean(
+				new PublishResult.Ambiguous(BlueskySocialAdapter._Clean(
 					$"network error while writing to the PDS: {exception.Message}"
 				)),
 				null
 			);
 		} catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested) {
 			return new SegmentOutcome(
-				new PublishResult.Ambiguous(BlueskyPublishProvider._Clean(
+				new PublishResult.Ambiguous(BlueskySocialAdapter._Clean(
 					$"the PDS did not answer in time: {exception.Message}"
 				)),
 				null
@@ -314,14 +333,14 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		CompletedSegment? parent,
 		CancellationToken cancellationToken
 	) {
-		using var response = await BlueskyPublishProvider._SendCreateRecordAsync(
+		using var response = await BlueskySocialAdapter._SendCreateRecordAsync(
 			client, request, rkey, text, position, images, root, parent, cancellationToken
 		);
 
 		if (response.IsSuccessStatusCode) {
-			var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
-			var recordId = BlueskyPublishProvider._RecordIdentity(payload, request.Session.Did, rkey);
-			var cid = BlueskyPublishProvider._Cid(payload);
+			var payload = await BlueskySocialAdapter._ReadJsonAsync(response, cancellationToken);
+			var recordId = BlueskySocialAdapter._RecordIdentity(payload, request.Session.Did, rkey);
+			var cid = BlueskySocialAdapter._Cid(payload);
 			if (isThread && cid.Length == 0) {
 				return new SegmentOutcome(
 					new PublishResult.Ambiguous(
@@ -331,14 +350,14 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 				);
 			}
 
-			var url = BlueskyPublishProvider._WebUrl(recordId, request.Session.Did, rkey);
+			var url = BlueskySocialAdapter._WebUrl(recordId, request.Session.Did, rkey);
 			return new SegmentOutcome(
 				new PublishResult.Published(recordId, url),
 				new CompletedSegment(position, recordId, cid, url)
 			);
 		}
 
-		var (error, message) = await BlueskyPublishProvider._ReadErrorAsync(response, cancellationToken);
+		var (error, message) = await BlueskySocialAdapter._ReadErrorAsync(response, cancellationToken);
 		var cause = $"{(int)response.StatusCode} {error}: {message}";
 
 		if (response.StatusCode is HttpStatusCode.Unauthorized
@@ -352,8 +371,8 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 			);
 		}
 
-		if (BlueskyPublishProvider._LooksLikeAlreadyExists(error, message)) {
-			var readBack = await BlueskyPublishProvider._ReadExistingBackAsync(
+		if (BlueskySocialAdapter._LooksLikeAlreadyExists(error, message)) {
+			var readBack = await BlueskySocialAdapter._ReadExistingBackAsync(
 				client, request.Session, rkey, position, isThread, text, cancellationToken
 			);
 			return readBack;
@@ -394,7 +413,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		CancellationToken cancellationToken
 	) {
 		var record = new Dictionary<string, object?> {
-			["$type"] = BlueskyPublishProvider._Collection,
+			["$type"] = BlueskySocialAdapter._Collection,
 			["text"] = text,
 			// A few milliseconds per segment keeps the thread's order stable.
 			["createdAt"] = DateTime.SpecifyKind(request.ScheduledAtUtc, DateTimeKind.Utc)
@@ -417,7 +436,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 
 		var payload = new Dictionary<string, object?> {
 			["repo"] = request.Session.Did,
-			["collection"] = BlueskyPublishProvider._Collection,
+			["collection"] = BlueskySocialAdapter._Collection,
 			["rkey"] = rkey,
 			["record"] = record,
 		};
@@ -431,7 +450,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 			request.Session.AccessJwt
 		);
 		httpRequest.Content = new StringContent(
-			JsonSerializer.Serialize(payload, BlueskyPublishProvider._WireOptions),
+			JsonSerializer.Serialize(payload, BlueskySocialAdapter._WireOptions),
 			Encoding.UTF8,
 			"application/json"
 		);
@@ -460,7 +479,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		var limits = ProviderCapabilityRegistry.Bluesky;
 		var entries = new List<Dictionary<string, object?>>();
 		var mediaList = request.MediaAt(position);
-		var invalid = BlueskyPublishProvider._InvalidMedia(mediaList);
+		var invalid = BlueskySocialAdapter._InvalidMedia(mediaList);
 		if (invalid is not null) {
 			return new UploadedImages(entries, invalid);
 		}
@@ -493,14 +512,14 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 
 			using var response = await client.SendAsync(httpRequest, cancellationToken);
 			if (!response.IsSuccessStatusCode) {
-				var (error, message) = await BlueskyPublishProvider._ReadErrorAsync(response, cancellationToken);
+				var (error, message) = await BlueskySocialAdapter._ReadErrorAsync(response, cancellationToken);
 				return new UploadedImages(
 					entries,
-					BlueskyPublishProvider._ClassifyUploadFailure(response.StatusCode, number, error, message)
+					BlueskySocialAdapter._ClassifyUploadFailure(response.StatusCode, number, error, message)
 				);
 			}
 
-			var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
+			var payload = await BlueskySocialAdapter._ReadJsonAsync(response, cancellationToken);
 			if (!payload.TryGetProperty("blob", out var blob)) {
 				return new UploadedImages(
 					entries,
@@ -561,28 +580,28 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 	) {
 		var url = $"{session.PdsHost.TrimEnd('/')}/xrpc/com.atproto.repo.getRecord"
 			+ $"?repo={Uri.EscapeDataString(session.Did)}"
-			+ $"&collection={Uri.EscapeDataString(BlueskyPublishProvider._Collection)}"
+			+ $"&collection={Uri.EscapeDataString(BlueskySocialAdapter._Collection)}"
 			+ $"&rkey={Uri.EscapeDataString(rkey)}";
 
 		try {
 			using var response = await client.GetAsync(url, cancellationToken);
 			if (response.IsSuccessStatusCode) {
-				var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
+				var payload = await BlueskySocialAdapter._ReadJsonAsync(response, cancellationToken);
 				// The record under our deterministic key must be the content we are about to
 				// publish: an earlier attempt that landed before the text was edited would
 				// otherwise be recorded as this segment's success (#2181).
-				var differs = BlueskyPublishProvider._TextMismatch(payload, expectedText);
+				var differs = BlueskySocialAdapter._TextMismatch(payload, expectedText);
 				if (differs is not null) {
 					return new SegmentOutcome(
 						new PublishResult.ContentFailure(
-							BlueskyPublishProvider._DifferentTextCause(isThread, position)
+							BlueskySocialAdapter._DifferentTextCause(isThread, position)
 						),
 						null
 					);
 				}
 
-				var recordId = BlueskyPublishProvider._RecordIdentity(payload, session.Did, rkey);
-				var cid = BlueskyPublishProvider._Cid(payload);
+				var recordId = BlueskySocialAdapter._RecordIdentity(payload, session.Did, rkey);
+				var cid = BlueskySocialAdapter._Cid(payload);
 				if (isThread && cid.Length == 0) {
 					return new SegmentOutcome(
 						new PublishResult.TransientFailure(
@@ -592,14 +611,14 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 					);
 				}
 
-				var webUrl = BlueskyPublishProvider._WebUrl(recordId, session.Did, rkey);
+				var webUrl = BlueskySocialAdapter._WebUrl(recordId, session.Did, rkey);
 				return new SegmentOutcome(
 					new PublishResult.AlreadyExistsTreatedAsPublished(recordId, webUrl),
 					new CompletedSegment(position, recordId, cid, webUrl)
 				);
 			}
 
-			var (error, message) = await BlueskyPublishProvider._ReadErrorAsync(response, cancellationToken);
+			var (error, message) = await BlueskySocialAdapter._ReadErrorAsync(response, cancellationToken);
 			return new SegmentOutcome(
 				new PublishResult.TransientFailure(
 					LastErrorSanitiser.Sanitize(
@@ -659,11 +678,11 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 			}
 		}
 
-		return $"at://{did}/{BlueskyPublishProvider._Collection}/{rkey}";
+		return $"at://{did}/{BlueskySocialAdapter._Collection}/{rkey}";
 	}
 
 	private static string _WebUrl(string recordId, string did, string rkey) {
-		var marker = $"{BlueskyPublishProvider._Collection}/";
+		var marker = $"{BlueskySocialAdapter._Collection}/";
 		var index = recordId.IndexOf(marker, StringComparison.Ordinal);
 		var suffix = index < 0 ? rkey : recordId[(index + marker.Length)..];
 		return $"https://bsky.app/role/{did}/post/{suffix}";
@@ -676,7 +695,7 @@ public sealed class BlueskyPublishProvider : IPublishProvider {
 		var error = "unknown_error";
 		var message = "the PDS returned an error without a parsable body";
 		try {
-			var payload = await BlueskyPublishProvider._ReadJsonAsync(response, cancellationToken);
+			var payload = await BlueskySocialAdapter._ReadJsonAsync(response, cancellationToken);
 			if (payload.TryGetProperty("error", out var errorElement)) {
 				error = errorElement.GetString() ?? error;
 			}

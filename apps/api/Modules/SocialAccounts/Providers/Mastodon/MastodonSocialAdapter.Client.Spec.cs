@@ -9,15 +9,15 @@ using Xunit;
 
 namespace PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 
-public sealed class MastodonClientSpec {
-	private static MastodonClient _Client(Func<HttpRequestMessage, HttpResponseMessage> responder, List<string>? seen = null) {
+public sealed class MastodonSocialAdapterClientSpec {
+	private static MastodonSocialAdapter _Client(Func<HttpRequestMessage, HttpResponseMessage> responder, List<string>? seen = null) {
 		var services = new ServiceCollection();
 		services.AddHttpClient(MastodonHostGuard.HttpClientName)
 			.ConfigurePrimaryHttpMessageHandler(() => new StubHandler(request => {
 				seen?.Add($"{request.Method} {request.RequestUri}");
 				return responder(request);
 			}));
-		return new MastodonClient(services.BuildServiceProvider().GetRequiredService<IHttpClientFactory>());
+		return new MastodonSocialAdapter(services.BuildServiceProvider().GetRequiredService<IHttpClientFactory>());
 	}
 
 	private static HttpResponseMessage _Json(int status, string json) {
@@ -28,7 +28,7 @@ public sealed class MastodonClientSpec {
 
 	[Fact]
 	public async Task ItShouldReadLimitsFromTheV2InstanceDocument() {
-		var client = MastodonClientSpec._Client(_ => MastodonClientSpec._Json(200, """
+		var client = MastodonSocialAdapterClientSpec._Client(_ => MastodonSocialAdapterClientSpec._Json(200, """
 			{"configuration":{"statuses":{"max_characters":5000,"max_media_attachments":8,"characters_reserved_per_url":23},
 			"media_attachments":{"supported_mime_types":["image/jpeg","image/png"],"image_size_limit":10485760}}}
 			"""));
@@ -41,9 +41,9 @@ public sealed class MastodonClientSpec {
 	[Fact]
 	public async Task ItShouldFallBackToV1WhenV2IsMissing() {
 		var seen = new List<string>();
-		var client = MastodonClientSpec._Client(request => request.RequestUri?.AbsolutePath == "/api/v2/instance"
-			? MastodonClientSpec._Json(404, """{"error":"not found"}""")
-			: MastodonClientSpec._Json(200, """{"max_toot_chars":1000}"""), seen);
+		var client = MastodonSocialAdapterClientSpec._Client(request => request.RequestUri?.AbsolutePath == "/api/v2/instance"
+			? MastodonSocialAdapterClientSpec._Json(404, """{"error":"not found"}""")
+			: MastodonSocialAdapterClientSpec._Json(200, """{"max_toot_chars":1000}"""), seen);
 
 		var limits = await client.GetInstanceLimitsAsync("old.example", CancellationToken.None);
 
@@ -53,16 +53,16 @@ public sealed class MastodonClientSpec {
 
 	[Fact]
 	public async Task ItShouldReturnNullWhenNeitherDocumentIsAvailable() {
-		var client = MastodonClientSpec._Client(_ => throw new HttpRequestException("down"));
+		var client = MastodonSocialAdapterClientSpec._Client(_ => throw new HttpRequestException("down"));
 
 		(await client.GetInstanceLimitsAsync("down.example", CancellationToken.None)).Should().BeNull();
 	}
 
 	[Fact]
 	public async Task ItShouldClassifyAppRegistrationOutcomes() {
-		var ok = MastodonClientSpec._Client(_ => MastodonClientSpec._Json(200, """{"client_id":"cid","client_secret":"sec"}"""));
-		var refused = MastodonClientSpec._Client(_ => MastodonClientSpec._Json(422, """{"error":"bad"}"""));
-		var down = MastodonClientSpec._Client(_ => MastodonClientSpec._Json(503, "{}"));
+		var ok = MastodonSocialAdapterClientSpec._Client(_ => MastodonSocialAdapterClientSpec._Json(200, """{"client_id":"cid","client_secret":"sec"}"""));
+		var refused = MastodonSocialAdapterClientSpec._Client(_ => MastodonSocialAdapterClientSpec._Json(422, """{"error":"bad"}"""));
+		var down = MastodonSocialAdapterClientSpec._Client(_ => MastodonSocialAdapterClientSpec._Json(503, "{}"));
 
 		(await ok.RegisterAppAsync("a.example", "https://front/x", "read", CancellationToken.None))
 			.Should().BeOfType<MastodonResult<MastodonApp>.Ok>().Which.Value.ClientId.Should().Be("cid");
@@ -75,7 +75,7 @@ public sealed class MastodonClientSpec {
 	[Fact]
 	public async Task ItShouldDetectPkceWhenTheServerMetadataAdvertisesS256() {
 		var seen = new List<string>();
-		var client = MastodonClientSpec._Client(_ => MastodonClientSpec._Json(
+		var client = MastodonSocialAdapterClientSpec._Client(_ => MastodonSocialAdapterClientSpec._Json(
 			200, """{"issuer":"https://a.example","code_challenge_methods_supported":["S256"]}"""
 		), seen);
 
@@ -90,14 +90,14 @@ public sealed class MastodonClientSpec {
 	[InlineData(404, """{"error":"not found"}""")]
 	[InlineData(503, "{}")]
 	public async Task ItShouldTreatMissingOrUnusableMetadataAsNoPkce(int status, string body) {
-		var client = MastodonClientSpec._Client(_ => MastodonClientSpec._Json(status, body));
+		var client = MastodonSocialAdapterClientSpec._Client(_ => MastodonSocialAdapterClientSpec._Json(status, body));
 
 		(await client.SupportsPkceAsync("old.example", CancellationToken.None)).Should().BeFalse();
 	}
 
 	[Fact]
 	public async Task ItShouldTreatAnUnreachableServerAsNoPkce() {
-		var client = MastodonClientSpec._Client(_ => throw new HttpRequestException("down"));
+		var client = MastodonSocialAdapterClientSpec._Client(_ => throw new HttpRequestException("down"));
 
 		(await client.SupportsPkceAsync("down.example", CancellationToken.None)).Should().BeFalse();
 	}
@@ -111,9 +111,9 @@ public sealed class MastodonClientSpec {
 		services.AddHttpClient(MastodonHostGuard.HttpClientName)
 			.ConfigurePrimaryHttpMessageHandler(() => new StubHandler(request => {
 				sent = request.Content?.ReadAsStringAsync().GetAwaiter().GetResult();
-				return MastodonClientSpec._Json(200, """{"access_token":"tok"}""");
+				return MastodonSocialAdapterClientSpec._Json(200, """{"access_token":"tok"}""");
 			}));
-		var client = new MastodonClient(services.BuildServiceProvider().GetRequiredService<IHttpClientFactory>());
+		var client = new MastodonSocialAdapter(services.BuildServiceProvider().GetRequiredService<IHttpClientFactory>());
 
 		var result = await client.ExchangeCodeAsync(
 			"a.example", new MastodonApp("cid", "sec"), "https://front/x", "the-code", verifier, CancellationToken.None

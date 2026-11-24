@@ -1,13 +1,16 @@
+using System.Collections.Frozen;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
 using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
-using PublyApp.Api.Modules.SocialAccounts.Providers.Discord;
+using PublyApp.Api.Modules.SocialAccounts.Adapters;
+using PublyApp.Api.Modules.SocialAccounts.Entities;
 
-namespace PublyApp.Api.Modules.Publishing.Providers;
+namespace PublyApp.Api.Modules.SocialAccounts.Providers.Discord;
 
 /// <summary>
 /// Discord incoming-webhook delivery (#2175): one <c>POST {webhook}?wait=true</c> per
@@ -22,15 +25,22 @@ namespace PublyApp.Api.Modules.Publishing.Providers;
 /// honoring <c>Retry-After</c>/<c>retry_after</c>, 5xx/transport → ambiguous.
 /// The webhook URL is a secret: it is never put in a cause or a log.
 /// </summary>
-public sealed class DiscordWebhookPublishProvider : IPublishProvider {
+public sealed class DiscordWebhookSocialAdapter : ISocialPublisher {
 	public const int MaxContentLength = 2000;
 
 	private static readonly JsonSerializerOptions _Json = new(JsonSerializerDefaults.Web);
 
+	private static readonly FrozenSet<SocialProvider> _Networks =
+		new[] { SocialProvider.DiscordWebhook }.ToFrozenSet();
+
 	private readonly IHttpClientFactory _HttpClientFactory;
 
-	public DiscordWebhookPublishProvider(IHttpClientFactory httpClientFactory) {
+	public DiscordWebhookSocialAdapter(IHttpClientFactory httpClientFactory) {
 		this._HttpClientFactory = httpClientFactory;
+	}
+
+	public IReadOnlySet<SocialProvider> Networks {
+		get { return DiscordWebhookSocialAdapter._Networks; }
 	}
 
 	public Task<ReconcileResult> ReconcileAsync(
@@ -49,7 +59,7 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 		}
 
 		var limits = request.Capability ?? ProviderCapabilityRegistry.DiscordWebhook;
-		var prepared = DiscordWebhookPublishProvider._Prepare(request, limits);
+		var prepared = DiscordWebhookSocialAdapter._Prepare(request, limits);
 		if (prepared.Failure is not null) {
 			return prepared.Failure;
 		}
@@ -66,8 +76,8 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 			var client = this._HttpClientFactory.CreateClient(DiscordWebhookClient.HttpClientName);
 			using var response = await client.SendAsync(message, cancellationToken);
 			return response.IsSuccessStatusCode
-				? await DiscordWebhookPublishProvider._ReadPublishedAsync(response, request, cancellationToken)
-				: await DiscordWebhookPublishProvider._ClassifyAsync(response, cancellationToken);
+				? await DiscordWebhookSocialAdapter._ReadPublishedAsync(response, request, cancellationToken)
+				: await DiscordWebhookSocialAdapter._ClassifyAsync(response, cancellationToken);
 		} catch (JsonException) {
 			return new PublishResult.Ambiguous("Discord answered with an unreadable body");
 		} catch (HttpRequestException) {
@@ -83,9 +93,9 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 	// (JSON for text, multipart when images ride along).
 	private static Prepared _Prepare(PublishRequest request, ProviderCapability limits) {
 		var text = request.PostBody;
-		if (text.Length > DiscordWebhookPublishProvider.MaxContentLength) {
+		if (text.Length > DiscordWebhookSocialAdapter.MaxContentLength) {
 			return new Prepared(null, new PublishResult.ContentFailure(
-				$"the message has {text.Length} characters, Discord accepts {DiscordWebhookPublishProvider.MaxContentLength}"
+				$"the message has {text.Length} characters, Discord accepts {DiscordWebhookSocialAdapter.MaxContentLength}"
 			));
 		}
 
@@ -107,7 +117,7 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 		}
 
 		if (request.Media.Count == 0) {
-			return new Prepared(DiscordWebhookPublishProvider._JsonContent(payload), null);
+			return new Prepared(DiscordWebhookSocialAdapter._JsonContent(payload), null);
 		}
 
 		var form = new MultipartFormDataContent();
@@ -133,7 +143,7 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 			}
 
 			var derivative = (ImageDerivative.Fitted)fitted;
-			var filename = $"image-{number}{DiscordWebhookPublishProvider._Extension(derivative.ContentType)}";
+			var filename = $"image-{number}{DiscordWebhookSocialAdapter._Extension(derivative.ContentType)}";
 			var file = new ByteArrayContent(derivative.Content);
 			file.Headers.ContentType = new MediaTypeHeaderValue(derivative.ContentType);
 			form.Add(file, $"files[{index}]", filename);
@@ -146,13 +156,13 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 		}
 
 		payload["attachments"] = attachments;
-		form.Add(DiscordWebhookPublishProvider._JsonContent(payload), "payload_json");
+		form.Add(DiscordWebhookSocialAdapter._JsonContent(payload), "payload_json");
 		return new Prepared(form, null);
 	}
 
 	private static StringContent _JsonContent(object payload) {
 		return new StringContent(
-			JsonSerializer.Serialize(payload, DiscordWebhookPublishProvider._Json), Encoding.UTF8, "application/json"
+			JsonSerializer.Serialize(payload, DiscordWebhookSocialAdapter._Json), Encoding.UTF8, "application/json"
 		);
 	}
 
@@ -169,7 +179,7 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 		PublishRequest request,
 		CancellationToken cancellationToken
 	) {
-		var body = await DiscordWebhookPublishProvider._ReadJsonAsync(response, cancellationToken);
+		var body = await DiscordWebhookSocialAdapter._ReadJsonAsync(response, cancellationToken);
 		var id = body.GetStringPropertyOrNull("id");
 		if (id is null) {
 			return new PublishResult.Ambiguous("Discord accepted the message but returned no id");
@@ -190,7 +200,7 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 		var status = (int)response.StatusCode;
 		JsonElement? payload = null;
 		try {
-			payload = await DiscordWebhookPublishProvider._ReadJsonAsync(response, cancellationToken);
+			payload = await DiscordWebhookSocialAdapter._ReadJsonAsync(response, cancellationToken);
 		} catch (JsonException) {
 			// Status only.
 		}
@@ -198,7 +208,7 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 		var detail = payload is { } body ? body.GetStringPropertyOrNull("message") : null;
 		// Belt and braces: an answer that echoes a webhook path is never copied.
 		detail = detail is not null && detail.Contains("webhooks/", StringComparison.OrdinalIgnoreCase) ? null : detail;
-		var cause = DiscordWebhookPublishProvider._Clean($"Discord answered {status}" + (detail is null ? string.Empty : $": {detail}"));
+		var cause = DiscordWebhookSocialAdapter._Clean($"Discord answered {status}" + (detail is null ? string.Empty : $": {detail}"));
 		if (status is 401 or 403 or 404) {
 			return new PublishResult.AccountFailure(
 				$"the Discord webhook was refused, it may have been deleted ({cause})"
@@ -206,12 +216,12 @@ public sealed class DiscordWebhookPublishProvider : IPublishProvider {
 		}
 
 		if (status == (int)HttpStatusCode.TooManyRequests) {
-			return new PublishResult.TransientFailure(cause, DiscordWebhookPublishProvider._RetryAfter(response, payload));
+			return new PublishResult.TransientFailure(cause, DiscordWebhookSocialAdapter._RetryAfter(response, payload));
 		}
 
 		// A 5xx on the write may have been applied; 4xx provably was not.
 		return status >= 500
-			? new PublishResult.Ambiguous(cause, DiscordWebhookPublishProvider._RetryAfter(response, payload))
+			? new PublishResult.Ambiguous(cause, DiscordWebhookSocialAdapter._RetryAfter(response, payload))
 			: new PublishResult.ContentFailure(cause);
 	}
 

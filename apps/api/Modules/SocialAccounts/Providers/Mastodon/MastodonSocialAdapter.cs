@@ -1,16 +1,18 @@
+using System.Collections.Frozen;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
 using PublyApp.Api.Lib.Extensions;
+using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.Publishing.Providers.Capabilities;
+using PublyApp.Api.Modules.SocialAccounts.Adapters;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
-using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
-namespace PublyApp.Api.Modules.Publishing.Providers;
+namespace PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 
 /// <summary>
 /// Mastodon delivery (#2174): images through <c>POST /api/v2/media</c> (async:
@@ -27,21 +29,29 @@ namespace PublyApp.Api.Modules.Publishing.Providers;
 /// Failures: 401/403 → account, 422 → content, 429/5xx/transport → transient
 /// (honoring <c>Retry-After</c>). Tokens live only in the Authorization header.
 /// </summary>
-public sealed class MastodonPublishProvider : IPublishProvider {
+public sealed partial class MastodonSocialAdapter
+	: ISocialPublisher, IMastodonClient {
 	private static readonly JsonSerializerOptions _Json = new(JsonSerializerDefaults.Web);
+
+	private static readonly FrozenSet<SocialProvider> _Networks =
+		new[] { SocialProvider.Mastodon, SocialProvider.Pixelfed }.ToFrozenSet();
 
 	private readonly IHttpClientFactory _HttpClientFactory;
 	private readonly TimeSpan _PollInterval;
 	private readonly int _MaxPolls;
 
-	public MastodonPublishProvider(IHttpClientFactory httpClientFactory)
+	public MastodonSocialAdapter(IHttpClientFactory httpClientFactory)
 		: this(httpClientFactory, TimeSpan.FromSeconds(1), 30) {
 	}
 
-	internal MastodonPublishProvider(IHttpClientFactory httpClientFactory, TimeSpan pollInterval, int maxPolls) {
+	internal MastodonSocialAdapter(IHttpClientFactory httpClientFactory, TimeSpan pollInterval, int maxPolls) {
 		this._HttpClientFactory = httpClientFactory;
 		this._PollInterval = pollInterval;
 		this._MaxPolls = maxPolls;
+	}
+
+	public IReadOnlySet<SocialProvider> Networks {
+		get { return MastodonSocialAdapter._Networks; }
 	}
 
 	/// <summary>The instance dedupe key of one segment: position 0 keeps the bare key.</summary>
@@ -54,7 +64,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			&& request.Media.Count == 0
 			&& request.CompletedSegments.All(segment => segment.Position != 0)) {
 			return new PublishResult.ContentFailure(
-				$"{MastodonPublishProvider._Network(request)} posts need at least one image"
+				$"{MastodonSocialAdapter._Network(request)} posts need at least one image"
 			);
 		}
 
@@ -102,11 +112,11 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			// the Idempotency-Key keeps a repeat from double-posting.
 			return new PublishResult.TransientFailure("the instance answered with an unreadable body");
 		} catch (HttpRequestException exception) {
-			return new PublishResult.TransientFailure(MastodonPublishProvider._Clean(
+			return new PublishResult.TransientFailure(MastodonSocialAdapter._Clean(
 				$"network error reaching the instance: {exception.Message}"
 			));
 		} catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested) {
-			return new PublishResult.TransientFailure(MastodonPublishProvider._Clean(
+			return new PublishResult.TransientFailure(MastodonSocialAdapter._Clean(
 				$"the instance did not answer in time: {exception.Message}"
 			));
 		}
@@ -121,7 +131,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		ReconcileRequest request,
 		CancellationToken cancellationToken
 	) {
-		return Task.FromResult(MastodonPublishProvider.Reconcile(request));
+		return Task.FromResult(MastodonSocialAdapter.Reconcile(request));
 	}
 
 	/// <summary>The reconcile rule itself, shared with the e2e fake so it cannot drift.</summary>
@@ -141,7 +151,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		}
 
 		var age = DateTime.UtcNow - request.FirstAttemptAtUtc;
-		ReconcileResult result = age <= MastodonPublishProvider.IdempotencyWindow
+		ReconcileResult result = age <= MastodonSocialAdapter.IdempotencyWindow
 			? new ReconcileResult.SafeToResend()
 			: new ReconcileResult.NeedsReview(
 				"Mastodon can no longer confirm whether the post went out; check your role"
@@ -199,14 +209,14 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			payload["in_reply_to_id"] = parent.RecordId;
 		}
 
-		using var httpRequest = MastodonPublishProvider._Request(
+		using var httpRequest = MastodonSocialAdapter._Request(
 			HttpMethod.Post, request, "/api/v1/statuses"
 		);
 		httpRequest.Headers.Add(
-			"Idempotency-Key", MastodonPublishProvider.SegmentKey(request.IdempotencyKey, position)
+			"Idempotency-Key", MastodonSocialAdapter.SegmentKey(request.IdempotencyKey, position)
 		);
 		httpRequest.Content = new StringContent(
-			JsonSerializer.Serialize(payload, MastodonPublishProvider._Json), Encoding.UTF8, "application/json"
+			JsonSerializer.Serialize(payload, MastodonSocialAdapter._Json), Encoding.UTF8, "application/json"
 		);
 
 		if (request.OnBeforeWrite is not null) {
@@ -215,11 +225,11 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 
 		// From here on a transport failure is AMBIGUOUS: the instance may have applied it.
 		try {
-			var sent = await MastodonPublishProvider._SendStatusAsync(
-				client, httpRequest, position, MastodonPublishProvider._Network(request), cancellationToken
+			var sent = await MastodonSocialAdapter._SendStatusAsync(
+				client, httpRequest, position, MastodonSocialAdapter._Network(request), cancellationToken
 			);
 			if (sent.Segment is not null && request.ResendPosition == position) {
-				return MastodonPublishProvider._VerifyDedupedText(sent, text, request.MediaAt(position).Count);
+				return MastodonSocialAdapter._VerifyDedupedText(sent, text, request.MediaAt(position).Count);
 			}
 
 			return sent;
@@ -228,11 +238,11 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 				new PublishResult.Ambiguous("the instance answered with an unreadable body"), null
 			);
 		} catch (HttpRequestException exception) {
-			return new Outcome(new PublishResult.Ambiguous(MastodonPublishProvider._Clean(
+			return new Outcome(new PublishResult.Ambiguous(MastodonSocialAdapter._Clean(
 				$"network error while writing to the instance: {exception.Message}"
 			)), null);
 		} catch (TaskCanceledException exception) when (!cancellationToken.IsCancellationRequested) {
-			return new Outcome(new PublishResult.Ambiguous(MastodonPublishProvider._Clean(
+			return new Outcome(new PublishResult.Ambiguous(MastodonSocialAdapter._Clean(
 				$"the instance did not answer in time: {exception.Message}"
 			)), null);
 		}
@@ -247,7 +257,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 	) {
 		using var response = await client.SendAsync(httpRequest, cancellationToken);
 		if (!response.IsSuccessStatusCode) {
-			var failure = await MastodonPublishProvider._ClassifyAsync(
+			var failure = await MastodonSocialAdapter._ClassifyAsync(
 				response, "publishing", network, cancellationToken
 			);
 			// A 5xx on the write may have been applied; 429 and 4xx provably were not.
@@ -259,7 +269,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			);
 		}
 
-		var body = await MastodonPublishProvider._ReadJsonAsync(response, cancellationToken);
+		var body = await MastodonSocialAdapter._ReadJsonAsync(response, cancellationToken);
 		var id = body.GetStringPropertyOrNull("id");
 		if (id is null) {
 			return new Outcome(
@@ -303,8 +313,8 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			), null);
 		}
 
-		var sameText = MastodonPublishProvider._WithoutSpaces(MastodonPublishProvider._FromHtml(sent.Content))
-			== MastodonPublishProvider._WithoutSpaces(text);
+		var sameText = MastodonSocialAdapter._WithoutSpaces(MastodonSocialAdapter._FromHtml(sent.Content))
+			== MastodonSocialAdapter._WithoutSpaces(text);
 		var sameImages = sent.MediaCount is not { } count || count == imageCount;
 		if (sameText && sameImages) {
 			return sent;
@@ -341,7 +351,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 
 			var tag = html[index..(close + 1)];
 			if (tag.StartsWith("<img", StringComparison.OrdinalIgnoreCase)) {
-				text.Append(MastodonPublishProvider._AltOf(tag));
+				text.Append(MastodonSocialAdapter._AltOf(tag));
 			} else if (tag.StartsWith("<br", StringComparison.OrdinalIgnoreCase)
 				|| tag.StartsWith("</p", StringComparison.OrdinalIgnoreCase)) {
 				text.Append(' ');
@@ -386,64 +396,89 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		}
 
 		for (var index = 0; index < mediaList.Count; index++) {
-			var number = index + 1;
-			var media = mediaList[index];
-			if (!limits.AcceptedImageContentTypes.Contains(media.ContentType)) {
-				return new Uploaded(ids, new PublishResult.ContentFailure(
-					$"image {number} is {media.ContentType}, which this instance does not accept"
-				));
-			}
-
-			var fitted = ImageDerivative.Fit(
-				media.Content, media.ContentType, media.WidthPx, media.HeightPx, limits.MaxImageBytes
+			var failure = await this._UploadImageAsync(
+				client, request, mediaList[index], index + 1, limits, ids, cancellationToken
 			);
-			if (fitted is ImageDerivative.CannotFit cannotFit) {
-				return new Uploaded(ids, new PublishResult.ContentFailure(
-					$"image {number} cannot be published: {cannotFit.Reason}"
-				));
+			if (failure is not null) {
+				return new Uploaded(ids, failure);
 			}
-
-			var derivative = (ImageDerivative.Fitted)fitted;
-			using var form = new MultipartFormDataContent();
-			var file = new ByteArrayContent(derivative.Content);
-			file.Headers.ContentType = new MediaTypeHeaderValue(derivative.ContentType);
-			form.Add(file, "file", $"image-{number}");
-			if (!string.IsNullOrWhiteSpace(media.AltText)) {
-				form.Add(new StringContent(media.AltText), "description");
-			}
-
-			using var upload = MastodonPublishProvider._Request(
-				HttpMethod.Post, request, request.Provider == SocialProvider.Pixelfed ? "/api/v1/media" : "/api/v2/media"
-			);
-			upload.Content = form;
-			using var response = await client.SendAsync(upload, cancellationToken);
-			if (!response.IsSuccessStatusCode) {
-				return new Uploaded(ids, await MastodonPublishProvider._ClassifyAsync(
-					response, $"uploading image {number}", MastodonPublishProvider._Network(request), cancellationToken
-				));
-			}
-
-			var body = await MastodonPublishProvider._ReadJsonAsync(response, cancellationToken);
-			var id = body.GetStringPropertyOrNull("id");
-			if (id is null) {
-				return new Uploaded(ids, new PublishResult.TransientFailure(
-					$"{MastodonPublishProvider._Network(request)} accepted image {number} but returned no media id"
-				));
-			}
-
-			// 200 = ready; 202 = still processing: poll until the media carries a url.
-			if (response.StatusCode == HttpStatusCode.Accepted
-				|| body.GetStringPropertyOrNull("url") is null) {
-				var pollFailure = await this._WaitForMediaAsync(client, request, id, number, cancellationToken);
-				if (pollFailure is not null) {
-					return new Uploaded(ids, pollFailure);
-				}
-			}
-
-			ids.Add(id);
 		}
 
 		return new Uploaded(ids, null);
+	}
+
+	/// <summary>
+	/// Uploads one image and returns its failure, or null once its id is in
+	/// <paramref name="ids"/>. The 202 polling stays here so each image owns its wait.
+	/// </summary>
+	private async Task<PublishResult?> _UploadImageAsync(
+		HttpClient client,
+		PublishRequest request,
+		PublishMedia media,
+		int number,
+		ProviderCapability limits,
+		List<string> ids,
+		CancellationToken cancellationToken
+	) {
+		if (!limits.AcceptedImageContentTypes.Contains(media.ContentType)) {
+			return new PublishResult.ContentFailure(
+				$"image {number} is {media.ContentType}, which this instance does not accept"
+			);
+		}
+
+		var fitted = ImageDerivative.Fit(
+			media.Content, media.ContentType, media.WidthPx, media.HeightPx, limits.MaxImageBytes
+		);
+		if (fitted is ImageDerivative.CannotFit cannotFit) {
+			return new PublishResult.ContentFailure(
+				$"image {number} cannot be published: {cannotFit.Reason}"
+			);
+		}
+
+		var derivative = (ImageDerivative.Fitted)fitted;
+		using var form = new MultipartFormDataContent();
+		var file = new ByteArrayContent(derivative.Content);
+		file.Headers.ContentType = new MediaTypeHeaderValue(derivative.ContentType);
+		form.Add(file, "file", $"image-{number}");
+		if (!string.IsNullOrWhiteSpace(media.AltText)) {
+			form.Add(new StringContent(media.AltText), "description");
+		}
+
+		using var upload = MastodonSocialAdapter._Request(
+			HttpMethod.Post,
+			request,
+			request.Provider == SocialProvider.Pixelfed ? "/api/v1/media" : "/api/v2/media"
+		);
+		upload.Content = form;
+		using var response = await client.SendAsync(upload, cancellationToken);
+		if (!response.IsSuccessStatusCode) {
+			return await MastodonSocialAdapter._ClassifyAsync(
+				response,
+				$"uploading image {number}",
+				MastodonSocialAdapter._Network(request),
+				cancellationToken
+			);
+		}
+
+		var body = await MastodonSocialAdapter._ReadJsonAsync(response, cancellationToken);
+		var id = body.GetStringPropertyOrNull("id");
+		if (id is null) {
+			return new PublishResult.TransientFailure(
+				$"{MastodonSocialAdapter._Network(request)} accepted image {number} but returned no media id"
+			);
+		}
+
+		// 200 = ready; 202 = still processing: poll until the media carries a url.
+		if (response.StatusCode == HttpStatusCode.Accepted
+			|| body.GetStringPropertyOrNull("url") is null) {
+			var pollFailure = await this._WaitForMediaAsync(client, request, id, number, cancellationToken);
+			if (pollFailure is not null) {
+				return pollFailure;
+			}
+		}
+
+		ids.Add(id);
+		return null;
 	}
 
 	private async Task<PublishResult?> _WaitForMediaAsync(
@@ -455,7 +490,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 	) {
 		for (var attempt = 0; attempt < this._MaxPolls; attempt++) {
 			await Task.Delay(this._PollInterval, cancellationToken);
-			using var poll = MastodonPublishProvider._Request(
+			using var poll = MastodonSocialAdapter._Request(
 				HttpMethod.Get, request, $"/api/v1/media/{Uri.EscapeDataString(mediaId)}"
 			);
 			using var response = await client.SendAsync(poll, cancellationToken);
@@ -464,19 +499,19 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 			}
 
 			if (!response.IsSuccessStatusCode) {
-				return await MastodonPublishProvider._ClassifyAsync(
-					response, $"processing image {number}", MastodonPublishProvider._Network(request), cancellationToken
+				return await MastodonSocialAdapter._ClassifyAsync(
+					response, $"processing image {number}", MastodonSocialAdapter._Network(request), cancellationToken
 				);
 			}
 
-			var body = await MastodonPublishProvider._ReadJsonAsync(response, cancellationToken);
+			var body = await MastodonSocialAdapter._ReadJsonAsync(response, cancellationToken);
 			if (body.GetStringPropertyOrNull("url") is not null) {
 				return null;
 			}
 		}
 
 		return new PublishResult.TransientFailure(
-			$"{MastodonPublishProvider._Network(request)} was still processing image {number} after {this._MaxPolls} checks"
+			$"{MastodonSocialAdapter._Network(request)} was still processing image {number} after {this._MaxPolls} checks"
 		);
 	}
 
@@ -498,14 +533,14 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 	) {
 		var error = "the instance returned an error without a parsable body";
 		try {
-			var payload = await MastodonPublishProvider._ReadJsonAsync(response, cancellationToken);
+			var payload = await MastodonSocialAdapter._ReadJsonAsync(response, cancellationToken);
 			error = payload.GetStringPropertyOrNull("error") ?? error;
 		} catch (JsonException) {
 			// Keep the descriptive default above.
 		}
 
 		var status = (int)response.StatusCode;
-		var cause = MastodonPublishProvider._Clean($"{action} failed: {status} {error}");
+		var cause = MastodonSocialAdapter._Clean($"{action} failed: {status} {error}");
 		if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) {
 			return new PublishResult.AccountFailure(network + " rejected the stored credential (" + cause + ")");
 		}
@@ -515,7 +550,7 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		}
 
 		if (status >= 500 || response.StatusCode == HttpStatusCode.TooManyRequests) {
-			return new PublishResult.TransientFailure(cause, MastodonPublishProvider._RetryAfter(response));
+			return new PublishResult.TransientFailure(cause, MastodonSocialAdapter._RetryAfter(response));
 		}
 
 		// Any other 4xx is about the request itself, which retrying cannot fix.
@@ -560,46 +595,5 @@ public sealed class MastodonPublishProvider : IPublishProvider {
 		await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
 		using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
 		return document.RootElement.Clone();
-	}
-}
-
-/// <summary>
-/// The registered <see cref="IPublishProvider"/>: one delivery per
-/// <see cref="PublishRequest.Provider"/> (#2174, #2175), so the publish job and every
-/// existing registration stay provider-blind. Pixelfed rides the Mastodon delivery.
-/// </summary>
-public sealed class RoutingPublishProvider : IPublishProvider {
-	private readonly BlueskyPublishProvider _Bluesky;
-	private readonly MastodonPublishProvider _Mastodon;
-	private readonly DiscordWebhookPublishProvider _Discord;
-
-	public RoutingPublishProvider(
-		BlueskyPublishProvider bluesky,
-		MastodonPublishProvider mastodon,
-		DiscordWebhookPublishProvider discord
-	) {
-		this._Bluesky = bluesky;
-		this._Mastodon = mastodon;
-		this._Discord = discord;
-	}
-
-	private IPublishProvider _For(SocialProvider provider) {
-		return provider switch {
-			SocialProvider.Bluesky => this._Bluesky,
-			SocialProvider.Mastodon or SocialProvider.Pixelfed => this._Mastodon,
-			SocialProvider.DiscordWebhook => this._Discord,
-			_ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unhandled SocialProvider"),
-		};
-	}
-
-	public Task<ReconcileResult> ReconcileAsync(
-		ReconcileRequest request,
-		CancellationToken cancellationToken
-	) {
-		return this._For(request.Provider).ReconcileAsync(request, cancellationToken);
-	}
-
-	public Task<PublishResult> PublishAsync(PublishRequest request, CancellationToken cancellationToken) {
-		return this._For(request.Provider).PublishAsync(request, cancellationToken);
 	}
 }

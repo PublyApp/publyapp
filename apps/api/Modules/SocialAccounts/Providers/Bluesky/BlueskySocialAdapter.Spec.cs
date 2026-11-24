@@ -7,21 +7,22 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Lib.Testing.Helpers;
+using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.SocialAccounts.Lib;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 using Xunit;
 
-namespace PublyApp.Api.Modules.Publishing.Providers;
+namespace PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 
 // Unit spec over faked HTTP (Bluesky is NEVER contacted for real). A recording
 // HttpMessageHandler captures every request so the spec pins the exact wire shape
 // of com.atproto.repo.createRecord and the four-way failure classification.
-public sealed class BlueskyPublishProviderSpec {
+public sealed class BlueskySocialAdapterSpec {
 	private const string _PdsHost = "https://pds.example";
 	private static readonly Guid _PublicationId = Guid.NewGuid();
 	private static readonly string _IdempotencyKey =
-		PublyApp.Api.Modules.Publishing.Lib.PublicationIdempotencyKey.For(BlueskyPublishProviderSpec._PublicationId);
+		PublyApp.Api.Modules.Publishing.Lib.PublicationIdempotencyKey.For(BlueskySocialAdapterSpec._PublicationId);
 
 	private static DateTime _ScheduledInstant() {
 		return new DateTime(2030, 5, 1, 12, 30, 0, DateTimeKind.Utc);
@@ -29,17 +30,17 @@ public sealed class BlueskyPublishProviderSpec {
 
 	private static PublishRequest _NewRequest(SocialSession session) {
 		return new PublishRequest {
-			PublicationId = BlueskyPublishProviderSpec._PublicationId,
-			IdempotencyKey = BlueskyPublishProviderSpec._IdempotencyKey,
+			PublicationId = BlueskySocialAdapterSpec._PublicationId,
+			IdempotencyKey = BlueskySocialAdapterSpec._IdempotencyKey,
 			PostBody = "hello from the publishing slice",
-			ScheduledAtUtc = BlueskyPublishProviderSpec._ScheduledInstant(),
+			ScheduledAtUtc = BlueskySocialAdapterSpec._ScheduledInstant(),
 			Session = session,
 		};
 	}
 
 	private static IHttpClientFactory _FactoryFromHandler(HttpMessageHandler handler) {
 		var services = new ServiceCollection();
-		services.AddHttpClient(BlueskyPublishProvider.HttpClientName)
+		services.AddHttpClient(BlueskySocialAdapter.HttpClientName)
 			.ConfigurePrimaryHttpMessageHandler(() => handler);
 		return services.BuildServiceProvider()
 			.GetRequiredService<IHttpClientFactory>();
@@ -50,8 +51,8 @@ public sealed class BlueskyPublishProviderSpec {
 		Func<HttpRequestMessage, HttpResponseMessage> responder
 	) {
 		var handler = new RecordingHandler(responder);
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
-		var result = await provider.PublishAsync(BlueskyPublishProviderSpec._NewRequest(session), CancellationToken.None);
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
+		var result = await provider.PublishAsync(BlueskySocialAdapterSpec._NewRequest(session), CancellationToken.None);
 		return (result, handler);
 	}
 
@@ -59,13 +60,13 @@ public sealed class BlueskyPublishProviderSpec {
 		string did = "did:plc:x",
 		string handle = "@h.test",
 		string accessJwt = "jwt-token",
-		string pdsHost = BlueskyPublishProviderSpec._PdsHost
+		string pdsHost = BlueskySocialAdapterSpec._PdsHost
 	) {
 		return new SocialSession(did, handle, accessJwt, pdsHost);
 	}
 
 	private static HttpResponseMessage _SuccessResponse(string uri) {
-		return BlueskyPublishProviderSpec._JsonResponse(
+		return BlueskySocialAdapterSpec._JsonResponse(
 			200,
 			$$"""{"uri":"{{uri}}","cid":"bafy-ci"}"""
 		);
@@ -79,28 +80,28 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldPostCreateRecordWithRepoCollectionDeterministicRkeyAndText() {
-		var (result, handler) = await BlueskyPublishProviderSpec._PublishOnceAsync(
-			BlueskyPublishProviderSpec._NewSession(),
-			(_) => BlueskyPublishProviderSpec._SuccessResponse($"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}")
+		var (result, handler) = await BlueskySocialAdapterSpec._PublishOnceAsync(
+			BlueskySocialAdapterSpec._NewSession(),
+			(_) => BlueskySocialAdapterSpec._SuccessResponse($"at://did:plc:x/app.bsky.feed.post/pub-{BlueskySocialAdapterSpec._IdempotencyKey}")
 		);
 
 		handler.Requests.Should().HaveCount(1);
 		var request = handler.Requests[0];
 		request.Method.Should().Be(HttpMethod.Post);
 		request.RequestUri.Required().ToString().Should().Be(
-			$"{BlueskyPublishProviderSpec._PdsHost}/xrpc/com.atproto.repo.createRecord"
+			$"{BlueskySocialAdapterSpec._PdsHost}/xrpc/com.atproto.repo.createRecord"
 		);
 
 		var body = JsonDocument.Parse(handler.Bodies[0]).RootElement;
 		body.GetProperty("repo").GetString().Should().Be("did:plc:x");
 		body.GetProperty("collection").GetString().Should().Be("app.bsky.feed.post");
-		body.GetProperty("rkey").GetString().Should().Be($"pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
+		body.GetProperty("rkey").GetString().Should().Be($"pub-{BlueskySocialAdapterSpec._IdempotencyKey}");
 
 		var record = body.GetProperty("record");
 		record.GetProperty("$type").GetString().Should().Be("app.bsky.feed.post");
 		record.GetProperty("text").GetString().Should().Be("hello from the publishing slice");
 		record.GetProperty("createdAt").GetString().Should().Be(
-			BlueskyPublishProviderSpec._ScheduledInstant().ToString("o", System.Globalization.CultureInfo.InvariantCulture)
+			BlueskySocialAdapterSpec._ScheduledInstant().ToString("o", System.Globalization.CultureInfo.InvariantCulture)
 		);
 
 		result.Should().BeOfType<PublishResult.Published>();
@@ -109,9 +110,9 @@ public sealed class BlueskyPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldDeriveTheSameRkeyFromTheSamePublicationEveryTime() {
 		async Task<string> CreateBodyAsync() {
-			var (_, handler) = await BlueskyPublishProviderSpec._PublishOnceAsync(
-				BlueskyPublishProviderSpec._NewSession(),
-				(_) => BlueskyPublishProviderSpec._SuccessResponse("at://did/x")
+			var (_, handler) = await BlueskySocialAdapterSpec._PublishOnceAsync(
+				BlueskySocialAdapterSpec._NewSession(),
+				(_) => BlueskySocialAdapterSpec._SuccessResponse("at://did/x")
 			);
 			return handler.Bodies[0];
 		}
@@ -129,22 +130,22 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldReturnPublishedWithRecordIdentityAndWebUrlOnSuccess() {
-		var (result, _) = await BlueskyPublishProviderSpec._PublishOnceAsync(
-			BlueskyPublishProviderSpec._NewSession(),
-			(_) => BlueskyPublishProviderSpec._SuccessResponse($"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}")
+		var (result, _) = await BlueskySocialAdapterSpec._PublishOnceAsync(
+			BlueskySocialAdapterSpec._NewSession(),
+			(_) => BlueskySocialAdapterSpec._SuccessResponse($"at://did:plc:x/app.bsky.feed.post/pub-{BlueskySocialAdapterSpec._IdempotencyKey}")
 		);
 
 		var published = result.Should().BeOfType<PublishResult.Published>().Subject;
-		published.RecordId.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
-		published.RecordUrl.Should().Be($"https://bsky.app/role/did:plc:x/post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
+		published.RecordId.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{BlueskySocialAdapterSpec._IdempotencyKey}");
+		published.RecordUrl.Should().Be($"https://bsky.app/role/did:plc:x/post/pub-{BlueskySocialAdapterSpec._IdempotencyKey}");
 	}
 
 	[Fact]
 	public async Task ItShouldClassifyInvalidCredentialsAsAccountFailureWithoutLeakingTheToken() {
-		var session = BlueskyPublishProviderSpec._NewSession(accessJwt: "jwt-super-secret-value");
-		var (result, handler) = await BlueskyPublishProviderSpec._PublishOnceAsync(
+		var session = BlueskySocialAdapterSpec._NewSession(accessJwt: "jwt-super-secret-value");
+		var (result, handler) = await BlueskySocialAdapterSpec._PublishOnceAsync(
 			session,
-			(_) => BlueskyPublishProviderSpec._JsonResponse(
+			(_) => BlueskySocialAdapterSpec._JsonResponse(
 				401,
 				"""{"error":"AuthenticationRequired","message":"invalid credentials"}"""
 			)
@@ -159,9 +160,9 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldClassifyATooLongBodyAsContentFailure() {
-		var (result, _) = await BlueskyPublishProviderSpec._PublishOnceAsync(
-			BlueskyPublishProviderSpec._NewSession(),
-			(_) => BlueskyPublishProviderSpec._JsonResponse(
+		var (result, _) = await BlueskySocialAdapterSpec._PublishOnceAsync(
+			BlueskySocialAdapterSpec._NewSession(),
+			(_) => BlueskySocialAdapterSpec._JsonResponse(
 				400,
 				"""{"error":"InvalidRequest","message":"text is too long (grapheme limit 300)"}"""
 			)
@@ -172,18 +173,18 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldClassifyServerAndTransportErrorsOnTheWriteAsAmbiguous() {
-		var (serverResult, _) = await BlueskyPublishProviderSpec._PublishOnceAsync(
-			BlueskyPublishProviderSpec._NewSession(),
-			(_) => BlueskyPublishProviderSpec._JsonResponse(503, """{"error":"TemporarilyUnavailable"}""")
+		var (serverResult, _) = await BlueskySocialAdapterSpec._PublishOnceAsync(
+			BlueskySocialAdapterSpec._NewSession(),
+			(_) => BlueskySocialAdapterSpec._JsonResponse(503, """{"error":"TemporarilyUnavailable"}""")
 		);
 		serverResult.Should().BeOfType<PublishResult.Ambiguous>("a 5xx write may have been applied");
 
 		var transportHandler = new RecordingHandler(
 			(_) => throw new HttpRequestException("boom")
 		);
-		var transportProvider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(transportHandler));
+		var transportProvider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(transportHandler));
 		var transportResult = await transportProvider.PublishAsync(
-			BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()),
+			BlueskySocialAdapterSpec._NewRequest(BlueskySocialAdapterSpec._NewSession()),
 			CancellationToken.None
 		);
 		transportResult.Should().BeOfType<PublishResult.Ambiguous>();
@@ -194,10 +195,10 @@ public sealed class BlueskyPublishProviderSpec {
 		var order = new List<string>();
 		var handler = new RecordingHandler(request => {
 			order.Add("http " + request.Method);
-			return BlueskyPublishProviderSpec._SuccessResponse("at://did:plc:x/app.bsky.feed.post/r");
+			return BlueskySocialAdapterSpec._SuccessResponse("at://did:plc:x/app.bsky.feed.post/r");
 		});
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
-		var request = BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()) with {
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
+		var request = BlueskySocialAdapterSpec._NewRequest(BlueskySocialAdapterSpec._NewSession()) with {
 			OnBeforeWrite = (position, _) => {
 				order.Add($"journal {position}");
 				return Task.CompletedTask;
@@ -212,10 +213,10 @@ public sealed class BlueskyPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldReportATimeoutOnTheWriteAsAmbiguous() {
 		var handler = new RecordingHandler(_ => throw new TaskCanceledException("timed out"));
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
 
 		var result = await provider.PublishAsync(
-			BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()),
+			BlueskySocialAdapterSpec._NewRequest(BlueskySocialAdapterSpec._NewSession()),
 			CancellationToken.None
 		);
 
@@ -224,54 +225,54 @@ public sealed class BlueskyPublishProviderSpec {
 
 	private static ReconcileRequest _ReconcileRequest(int position = 0) {
 		return new ReconcileRequest {
-			PublicationId = BlueskyPublishProviderSpec._PublicationId,
-			IdempotencyKey = BlueskyPublishProviderSpec._IdempotencyKey,
+			PublicationId = BlueskySocialAdapterSpec._PublicationId,
+			IdempotencyKey = BlueskySocialAdapterSpec._IdempotencyKey,
 			SegmentPosition = position,
-			Session = BlueskyPublishProviderSpec._NewSession(),
+			Session = BlueskySocialAdapterSpec._NewSession(),
 			FirstAttemptAtUtc = DateTime.UtcNow,
 		};
 	}
 
 	[Fact]
 	public async Task ItShouldReconcileAsFoundWhenGetRecordFindsTheDeterministicRecordAndNeverWrite() {
-		var handler = new RecordingHandler(_ => BlueskyPublishProviderSpec._JsonResponse(
+		var handler = new RecordingHandler(_ => BlueskySocialAdapterSpec._JsonResponse(
 			200, """{"uri":"at://did:plc:x/app.bsky.feed.post/pub-k","cid":"cid-9"}"""
 		), absentLookups: false);
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
 
-		var result = await provider.ReconcileAsync(BlueskyPublishProviderSpec._ReconcileRequest(), CancellationToken.None);
+		var result = await provider.ReconcileAsync(BlueskySocialAdapterSpec._ReconcileRequest(), CancellationToken.None);
 
 		var found = result.Should().BeOfType<ReconcileResult.Found>().Subject;
 		found.Segment.Cid.Should().Be("cid-9");
 		handler.Requests.Should().ContainSingle().Which.Method.Should().Be(HttpMethod.Get);
 		HttpUtility.ParseQueryString(handler.Requests[0].RequestUri.Required().Query)["rkey"]
-			.Should().Be($"pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
+			.Should().Be($"pub-{BlueskySocialAdapterSpec._IdempotencyKey}");
 	}
 
 	[Fact]
 	public async Task ItShouldUseTheSegmentRkeyAndReportAbsentWhenReconcilingAThreadReply() {
-		var handler = new RecordingHandler(_ => BlueskyPublishProviderSpec._JsonResponse(
+		var handler = new RecordingHandler(_ => BlueskySocialAdapterSpec._JsonResponse(
 			400, """{"error":"RecordNotFound","message":"Could not locate record"}"""
 		), absentLookups: false);
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
 
-		var result = await provider.ReconcileAsync(BlueskyPublishProviderSpec._ReconcileRequest(2), CancellationToken.None);
+		var result = await provider.ReconcileAsync(BlueskySocialAdapterSpec._ReconcileRequest(2), CancellationToken.None);
 
 		result.Should().BeOfType<ReconcileResult.SafeToResend>("the record is confirmed absent");
 		HttpUtility.ParseQueryString(handler.Requests[0].RequestUri.Required().Query)["rkey"]
-			.Should().Be($"pub-{BlueskyPublishProviderSpec._IdempotencyKey}-s2");
+			.Should().Be($"pub-{BlueskySocialAdapterSpec._IdempotencyKey}-s2");
 	}
 
 	[Theory]
 	[InlineData(503)]
 	[InlineData(500)]
 	public async Task ItShouldReconcileAsUnavailableWhenTheLookupItselfFails(int status) {
-		var handler = new RecordingHandler(_ => BlueskyPublishProviderSpec._JsonResponse(
+		var handler = new RecordingHandler(_ => BlueskySocialAdapterSpec._JsonResponse(
 			status, """{"error":"InternalServerError"}"""
 		), absentLookups: false);
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
 
-		var result = await provider.ReconcileAsync(BlueskyPublishProviderSpec._ReconcileRequest(), CancellationToken.None);
+		var result = await provider.ReconcileAsync(BlueskySocialAdapterSpec._ReconcileRequest(), CancellationToken.None);
 
 		result.Should().BeOfType<ReconcileResult.Unavailable>();
 	}
@@ -281,18 +282,18 @@ public sealed class BlueskyPublishProviderSpec {
 		var handler = new RecordingHandler(
 			_ => throw new HttpRequestException("reset"), absentLookups: false
 		);
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
 
-		var result = await provider.ReconcileAsync(BlueskyPublishProviderSpec._ReconcileRequest(), CancellationToken.None);
+		var result = await provider.ReconcileAsync(BlueskySocialAdapterSpec._ReconcileRequest(), CancellationToken.None);
 
 		result.Should().BeOfType<ReconcileResult.Unavailable>();
 	}
 
 	[Fact]
 	public async Task ItShouldClassifyCreateRecord429AsTransient() {
-		var (result, _) = await BlueskyPublishProviderSpec._PublishOnceAsync(
-			BlueskyPublishProviderSpec._NewSession(),
-			(_) => BlueskyPublishProviderSpec._JsonResponse(429, """{"error":"RateLimitExceeded"}""")
+		var (result, _) = await BlueskySocialAdapterSpec._PublishOnceAsync(
+			BlueskySocialAdapterSpec._NewSession(),
+			(_) => BlueskySocialAdapterSpec._JsonResponse(429, """{"error":"RateLimitExceeded"}""")
 		);
 
 		result.Should().BeOfType<PublishResult.TransientFailure>();
@@ -308,19 +309,19 @@ public sealed class BlueskyPublishProviderSpec {
 	public async Task ItShouldNotCreateADuplicateWhenTheRecordAlreadyExistsAfterATimeout() {
 		PublishRequest FreshRequest() {
 			return new PublishRequest {
-				PublicationId = BlueskyPublishProviderSpec._PublicationId,
+				PublicationId = BlueskySocialAdapterSpec._PublicationId,
 				IdempotencyKey =
 					PublyApp.Api.Modules.Publishing.Lib.PublicationIdempotencyKey.For(
-						BlueskyPublishProviderSpec._PublicationId
+						BlueskySocialAdapterSpec._PublicationId
 					),
 				PostBody = "hello from the publishing slice",
-				ScheduledAtUtc = BlueskyPublishProviderSpec._ScheduledInstant(),
-				Session = BlueskyPublishProviderSpec._NewSession(),
+				ScheduledAtUtc = BlueskySocialAdapterSpec._ScheduledInstant(),
+				Session = BlueskySocialAdapterSpec._NewSession(),
 			};
 		}
 
 		var fakePds = new RkeyStoringFakePds();
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(fakePds));
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(fakePds));
 
 		var first = await provider.PublishAsync(FreshRequest(), CancellationToken.None);
 		var second = await provider.PublishAsync(FreshRequest(), CancellationToken.None);
@@ -334,8 +335,8 @@ public sealed class BlueskyPublishProviderSpec {
 		second.Should().BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>();
 		var adopted = second.Should()
 			.BeOfType<PublishResult.AlreadyExistsTreatedAsPublished>().Subject;
-		adopted.RecordId.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
-		adopted.RecordUrl.Should().Be($"https://bsky.app/role/did:plc:x/post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
+		adopted.RecordId.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{BlueskySocialAdapterSpec._IdempotencyKey}");
+		adopted.RecordUrl.Should().Be($"https://bsky.app/role/did:plc:x/post/pub-{BlueskySocialAdapterSpec._IdempotencyKey}");
 
 		// The adoption went through the lookup before the write: GET getRecord
 		// carrying the freshly derived rkey (absent on run one, found on run two).
@@ -346,7 +347,7 @@ public sealed class BlueskyPublishProviderSpec {
 		var query = HttpUtility.ParseQueryString(readBackUri.Query);
 		query["repo"].Should().Be("did:plc:x");
 		query["collection"].Should().Be("app.bsky.feed.post");
-		query["rkey"].Should().Be($"pub-{BlueskyPublishProviderSpec._IdempotencyKey}");
+		query["rkey"].Should().Be($"pub-{BlueskySocialAdapterSpec._IdempotencyKey}");
 	}
 
 	[Fact]
@@ -358,10 +359,10 @@ public sealed class BlueskyPublishProviderSpec {
 			var opened = await sessionProvider.OpenSessionAsync(Guid.NewGuid(), CancellationToken.None);
 			var session = opened.Should().BeOfType<SocialSessionResult.Opened>().Subject.Session;
 			var handler = new RecordingHandler(
-				(_) => BlueskyPublishProviderSpec._SuccessResponse($"at://did:plc:same/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}")
+				(_) => BlueskySocialAdapterSpec._SuccessResponse($"at://did:plc:same/app.bsky.feed.post/pub-{BlueskySocialAdapterSpec._IdempotencyKey}")
 			);
-			var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
-			return await provider.PublishAsync(BlueskyPublishProviderSpec._NewRequest(session), CancellationToken.None);
+			var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
+			return await provider.PublishAsync(BlueskySocialAdapterSpec._NewRequest(session), CancellationToken.None);
 		}
 
 		var viaAppPassword = await PublishThroughAsync(new AppPasswordShapedSessionProvider());
@@ -387,11 +388,11 @@ public sealed class BlueskyPublishProviderSpec {
 	}
 
 	private static HttpResponseMessage _RecordNotFound() {
-		return BlueskyPublishProviderSpec._JsonResponse(400, """{"error":"RecordNotFound"}""");
+		return BlueskySocialAdapterSpec._JsonResponse(400, """{"error":"RecordNotFound"}""");
 	}
 
 	private static HttpResponseMessage _BlobResponse(int number, string mime = "image/png") {
-		return BlueskyPublishProviderSpec._JsonResponse(
+		return BlueskySocialAdapterSpec._JsonResponse(
 			200,
 			$$$"""{"blob":{"$type":"blob","ref":{"$link":"bafkrei-{{{number}}}"},"mimeType":"{{{mime}}}","size":{{{number}}}00}}"""
 		);
@@ -413,17 +414,17 @@ public sealed class BlueskyPublishProviderSpec {
 	) {
 		var uploads = 0;
 		var handler = new RecordingHandler(request => {
-			if (BlueskyPublishProviderSpec._IsUpload(request)) {
+			if (BlueskySocialAdapterSpec._IsUpload(request)) {
 				uploads += 1;
 				return responder(request, uploads);
 			}
 
-			return BlueskyPublishProviderSpec._SuccessResponse(
-				$"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}"
+			return BlueskySocialAdapterSpec._SuccessResponse(
+				$"at://did:plc:x/app.bsky.feed.post/pub-{BlueskySocialAdapterSpec._IdempotencyKey}"
 			);
 		});
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
-		var request = BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()) with {
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
+		var request = BlueskySocialAdapterSpec._NewRequest(BlueskySocialAdapterSpec._NewSession()) with {
 			Media = media,
 		};
 		return (await provider.PublishAsync(request, CancellationToken.None), handler);
@@ -433,20 +434,20 @@ public sealed class BlueskyPublishProviderSpec {
 	public async Task ItShouldUploadEachImageInOrderThenCreateOneRecordWithTheImagesEmbed() {
 		var first = TestImages.Png(40, 30);
 		var second = TestImages.Jpeg(64, 48);
-		var (result, handler) = await BlueskyPublishProviderSpec._PublishImagesAsync(
+		var (result, handler) = await BlueskySocialAdapterSpec._PublishImagesAsync(
 			[
-				BlueskyPublishProviderSpec._Media(first, "image/png", "a red door", 40, 30),
-				BlueskyPublishProviderSpec._Media(second, "image/jpeg", null, 64, 48),
+				BlueskySocialAdapterSpec._Media(first, "image/png", "a red door", 40, 30),
+				BlueskySocialAdapterSpec._Media(second, "image/jpeg", null, 64, 48),
 			],
-			(request, number) => BlueskyPublishProviderSpec._BlobResponse(
+			(request, number) => BlueskySocialAdapterSpec._BlobResponse(
 				number, number == 1 ? "image/png" : "image/jpeg"
 			)
 		);
 
 		result.Should().BeOfType<PublishResult.Published>();
 		handler.Requests.Should().HaveCount(3, "two blob uploads then ONE createRecord");
-		BlueskyPublishProviderSpec._IsUpload(handler.Requests[0]).Should().BeTrue();
-		BlueskyPublishProviderSpec._IsUpload(handler.Requests[1]).Should().BeTrue();
+		BlueskySocialAdapterSpec._IsUpload(handler.Requests[0]).Should().BeTrue();
+		BlueskySocialAdapterSpec._IsUpload(handler.Requests[1]).Should().BeTrue();
 		handler.Requests[2].RequestUri.Required().AbsolutePath
 			.Should().EndWith("com.atproto.repo.createRecord");
 
@@ -474,9 +475,9 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldNotSendAnEmbedForATextOnlyPost() {
-		var (_, handler) = await BlueskyPublishProviderSpec._PublishOnceAsync(
-			BlueskyPublishProviderSpec._NewSession(),
-			(_) => BlueskyPublishProviderSpec._SuccessResponse("at://did/x")
+		var (_, handler) = await BlueskySocialAdapterSpec._PublishOnceAsync(
+			BlueskySocialAdapterSpec._NewSession(),
+			(_) => BlueskySocialAdapterSpec._SuccessResponse("at://did/x")
 		);
 
 		JsonDocument.Parse(handler.Bodies[0]).RootElement.GetProperty("record")
@@ -488,9 +489,9 @@ public sealed class BlueskyPublishProviderSpec {
 		var big = TestImages.NoisyJpeg(1600, 1200);
 		big.Length.Should().BeGreaterThan(1_000_000, "the fixture must exceed the blob limit");
 
-		var (result, handler) = await BlueskyPublishProviderSpec._PublishImagesAsync(
-			[BlueskyPublishProviderSpec._Media(big, "image/jpeg", "noise", 1600, 1200)],
-			(request, number) => BlueskyPublishProviderSpec._BlobResponse(number, "image/jpeg")
+		var (result, handler) = await BlueskySocialAdapterSpec._PublishImagesAsync(
+			[BlueskySocialAdapterSpec._Media(big, "image/jpeg", "noise", 1600, 1200)],
+			(request, number) => BlueskySocialAdapterSpec._BlobResponse(number, "image/jpeg")
 		);
 
 		result.Should().BeOfType<PublishResult.Published>();
@@ -508,12 +509,12 @@ public sealed class BlueskyPublishProviderSpec {
 		var undecodable = new byte[1_500_000];
 		new Random(7).NextBytes(undecodable);
 
-		var (result, handler) = await BlueskyPublishProviderSpec._PublishImagesAsync(
+		var (result, handler) = await BlueskySocialAdapterSpec._PublishImagesAsync(
 			[
-				BlueskyPublishProviderSpec._Media(TestImages.Png(20, 20), "image/png", null, 20, 20),
-				BlueskyPublishProviderSpec._Media(undecodable, "image/png", null, 900, 900),
+				BlueskySocialAdapterSpec._Media(TestImages.Png(20, 20), "image/png", null, 20, 20),
+				BlueskySocialAdapterSpec._Media(undecodable, "image/png", null, 900, 900),
 			],
-			(request, number) => BlueskyPublishProviderSpec._BlobResponse(number)
+			(request, number) => BlueskySocialAdapterSpec._BlobResponse(number)
 		);
 
 		var failure = result.Should().BeOfType<PublishResult.ContentFailure>().Subject;
@@ -526,9 +527,9 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldRefuseAnImageTypeBlueskyDoesNotAccept() {
-		var (result, handler) = await BlueskyPublishProviderSpec._PublishImagesAsync(
-			[BlueskyPublishProviderSpec._Media([1, 2, 3], "image/gif", null, 1, 1)],
-			(request, number) => BlueskyPublishProviderSpec._BlobResponse(number)
+		var (result, handler) = await BlueskySocialAdapterSpec._PublishImagesAsync(
+			[BlueskySocialAdapterSpec._Media([1, 2, 3], "image/gif", null, 1, 1)],
+			(request, number) => BlueskySocialAdapterSpec._BlobResponse(number)
 		);
 
 		result.Should().BeOfType<PublishResult.ContentFailure>().Subject.Cause
@@ -540,9 +541,9 @@ public sealed class BlueskyPublishProviderSpec {
 	[InlineData(401)]
 	[InlineData(403)]
 	public async Task ItShouldClassifyABlobUpload401Or403AsAccountFailure(int status) {
-		var (result, handler) = await BlueskyPublishProviderSpec._PublishImagesAsync(
-			[BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", null, 10, 10)],
-			(request, number) => BlueskyPublishProviderSpec._JsonResponse(
+		var (result, handler) = await BlueskySocialAdapterSpec._PublishImagesAsync(
+			[BlueskySocialAdapterSpec._Media(TestImages.Png(10, 10), "image/png", null, 10, 10)],
+			(request, number) => BlueskySocialAdapterSpec._JsonResponse(
 				status, """{"error":"AuthenticationRequired","message":"bad token"}"""
 			)
 		);
@@ -555,14 +556,14 @@ public sealed class BlueskyPublishProviderSpec {
 	[InlineData(400)]
 	[InlineData(413)]
 	public async Task ItShouldClassifyABlobUpload400Or413AsContentFailureNamingTheImage(int status) {
-		var (result, _) = await BlueskyPublishProviderSpec._PublishImagesAsync(
+		var (result, _) = await BlueskySocialAdapterSpec._PublishImagesAsync(
 			[
-				BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", null, 10, 10),
-				BlueskyPublishProviderSpec._Media(TestImages.Png(11, 11), "image/png", null, 11, 11),
+				BlueskySocialAdapterSpec._Media(TestImages.Png(10, 10), "image/png", null, 10, 10),
+				BlueskySocialAdapterSpec._Media(TestImages.Png(11, 11), "image/png", null, 11, 11),
 			],
 			(request, number) => number == 1
-				? BlueskyPublishProviderSpec._BlobResponse(number)
-				: BlueskyPublishProviderSpec._JsonResponse(
+				? BlueskySocialAdapterSpec._BlobResponse(number)
+				: BlueskySocialAdapterSpec._JsonResponse(
 					status, """{"error":"BlobTooLarge","message":"blob too large"}"""
 				)
 		);
@@ -573,9 +574,9 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldClassifyABlobUpload503AsTransient() {
-		var (result, _) = await BlueskyPublishProviderSpec._PublishImagesAsync(
-			[BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", null, 10, 10)],
-			(request, number) => BlueskyPublishProviderSpec._JsonResponse(
+		var (result, _) = await BlueskySocialAdapterSpec._PublishImagesAsync(
+			[BlueskySocialAdapterSpec._Media(TestImages.Png(10, 10), "image/png", null, 10, 10)],
+			(request, number) => BlueskySocialAdapterSpec._JsonResponse(
 				503, """{"error":"TemporarilyUnavailable"}"""
 			)
 		);
@@ -588,18 +589,18 @@ public sealed class BlueskyPublishProviderSpec {
 		var creates = 0;
 		var attempt = 0;
 		var handler = new RecordingHandler(request => {
-			if (BlueskyPublishProviderSpec._IsUpload(request)) {
+			if (BlueskySocialAdapterSpec._IsUpload(request)) {
 				return attempt == 1
-					? BlueskyPublishProviderSpec._JsonResponse(503, """{"error":"TemporarilyUnavailable"}""")
-					: BlueskyPublishProviderSpec._BlobResponse(attempt);
+					? BlueskySocialAdapterSpec._JsonResponse(503, """{"error":"TemporarilyUnavailable"}""")
+					: BlueskySocialAdapterSpec._BlobResponse(attempt);
 			}
 
 			creates += 1;
-			return BlueskyPublishProviderSpec._SuccessResponse("at://did:plc:x/app.bsky.feed.post/pub-k");
+			return BlueskySocialAdapterSpec._SuccessResponse("at://did:plc:x/app.bsky.feed.post/pub-k");
 		});
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
-		var request = BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()) with {
-			Media = [BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", "x", 10, 10)],
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
+		var request = BlueskySocialAdapterSpec._NewRequest(BlueskySocialAdapterSpec._NewSession()) with {
+			Media = [BlueskySocialAdapterSpec._Media(TestImages.Png(10, 10), "image/png", "x", 10, 10)],
 		};
 
 		attempt = 1;
@@ -617,23 +618,23 @@ public sealed class BlueskyPublishProviderSpec {
 		var uploads = 0;
 		var creates = 0;
 		var handler = new RecordingHandler(request => {
-			if (BlueskyPublishProviderSpec._IsGetRecord(request)) {
-				return BlueskyPublishProviderSpec._SuccessResponse(
-					$"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}"
+			if (BlueskySocialAdapterSpec._IsGetRecord(request)) {
+				return BlueskySocialAdapterSpec._SuccessResponse(
+					$"at://did:plc:x/app.bsky.feed.post/pub-{BlueskySocialAdapterSpec._IdempotencyKey}"
 				);
 			}
 
-			if (BlueskyPublishProviderSpec._IsUpload(request)) {
+			if (BlueskySocialAdapterSpec._IsUpload(request)) {
 				uploads += 1;
-				return BlueskyPublishProviderSpec._JsonResponse(401, """{"error":"ExpiredToken"}""");
+				return BlueskySocialAdapterSpec._JsonResponse(401, """{"error":"ExpiredToken"}""");
 			}
 
 			creates += 1;
-			return BlueskyPublishProviderSpec._SuccessResponse("at://did:plc:x/app.bsky.feed.post/pub-k");
+			return BlueskySocialAdapterSpec._SuccessResponse("at://did:plc:x/app.bsky.feed.post/pub-k");
 		}, absentLookups: false);
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
-		var request = BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()) with {
-			Media = [BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", "x", 10, 10)],
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
+		var request = BlueskySocialAdapterSpec._NewRequest(BlueskySocialAdapterSpec._NewSession()) with {
+			Media = [BlueskySocialAdapterSpec._Media(TestImages.Png(10, 10), "image/png", "x", 10, 10)],
 		};
 
 		var result = await provider.PublishAsync(request, CancellationToken.None);
@@ -645,28 +646,28 @@ public sealed class BlueskyPublishProviderSpec {
 
 	// A retry of a publication that is already live must never turn into a
 	// credential pause: expired token, text-only post, thread root.
-	private static BlueskyPublishProvider _ProviderFor(HttpMessageHandler handler) {
-		return new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+	private static BlueskySocialAdapter _ProviderFor(HttpMessageHandler handler) {
+		return new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
 	}
 
 	[Fact]
 	public async Task ItShouldAdoptALiveTextOnlyPostWithoutWritingEvenWhenTheTokenIsExpired() {
 		var writes = 0;
 		var handler = new RecordingHandler(request => {
-			if (BlueskyPublishProviderSpec._IsGetRecord(request)) {
-				return BlueskyPublishProviderSpec._SuccessResponse(
-					$"at://did:plc:x/app.bsky.feed.post/pub-{BlueskyPublishProviderSpec._IdempotencyKey}"
+			if (BlueskySocialAdapterSpec._IsGetRecord(request)) {
+				return BlueskySocialAdapterSpec._SuccessResponse(
+					$"at://did:plc:x/app.bsky.feed.post/pub-{BlueskySocialAdapterSpec._IdempotencyKey}"
 				);
 			}
 
 			writes += 1;
-			return BlueskyPublishProviderSpec._JsonResponse(401, """{"error":"ExpiredToken"}""");
+			return BlueskySocialAdapterSpec._JsonResponse(401, """{"error":"ExpiredToken"}""");
 		}, absentLookups: false);
-		var provider = BlueskyPublishProviderSpec._ProviderFor(handler);
+		var provider = BlueskySocialAdapterSpec._ProviderFor(handler);
 
 		var result = await provider.PublishAsync(
-			BlueskyPublishProviderSpec._NewRequest(
-			BlueskyPublishProviderSpec._NewSession()
+			BlueskySocialAdapterSpec._NewRequest(
+			BlueskySocialAdapterSpec._NewSession()
 		),
 			CancellationToken.None
 		);
@@ -678,24 +679,24 @@ public sealed class BlueskyPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldAdoptALiveThreadRootAndContinueWithTheReplies() {
 		var created = 0;
-		var key = BlueskyPublishProviderSpec._IdempotencyKey;
+		var key = BlueskySocialAdapterSpec._IdempotencyKey;
 		var handler = new RecordingHandler(request => {
-			if (BlueskyPublishProviderSpec._IsGetRecord(request)) {
-				return BlueskyPublishProviderSpec._JsonResponse(
+			if (BlueskySocialAdapterSpec._IsGetRecord(request)) {
+				return BlueskySocialAdapterSpec._JsonResponse(
 					200,
 					$$"""{"uri":"at://did:plc:x/app.bsky.feed.post/pub-{{key}}","cid":"cid-root"}"""
 				);
 			}
 
 			created += 1;
-			return BlueskyPublishProviderSpec._JsonResponse(
+			return BlueskySocialAdapterSpec._JsonResponse(
 				200, $$"""{"uri":"at://did:plc:x/app.bsky.feed.post/s{{created}}","cid":"cid-{{created}}"}"""
 			);
 		}, absentLookups: false);
-		var provider = BlueskyPublishProviderSpec._ProviderFor(handler);
+		var provider = BlueskySocialAdapterSpec._ProviderFor(handler);
 
 		var result = await provider.PublishAsync(
-			BlueskyPublishProviderSpec._ThreadRequest(["two"]),
+			BlueskySocialAdapterSpec._ThreadRequest(["two"]),
 			CancellationToken.None
 		);
 
@@ -705,13 +706,13 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldNotContinueAThreadFromALiveRootWithoutACid() {
-		var handler = new RecordingHandler(request => BlueskyPublishProviderSpec._JsonResponse(
+		var handler = new RecordingHandler(request => BlueskySocialAdapterSpec._JsonResponse(
 			200, """{"uri":"at://did:plc:x/app.bsky.feed.post/r0"}"""
 		), absentLookups: false);
-		var provider = BlueskyPublishProviderSpec._ProviderFor(handler);
+		var provider = BlueskySocialAdapterSpec._ProviderFor(handler);
 
 		var result = await provider.PublishAsync(
-			BlueskyPublishProviderSpec._ThreadRequest(["two"]),
+			BlueskySocialAdapterSpec._ThreadRequest(["two"]),
 			CancellationToken.None
 		);
 
@@ -734,23 +735,23 @@ public sealed class BlueskyPublishProviderSpec {
 		bool withImages
 	) {
 		var handler = new RecordingHandler(request => failure switch {
-			LookupFailure.ServerError => BlueskyPublishProviderSpec._JsonResponse(
+			LookupFailure.ServerError => BlueskySocialAdapterSpec._JsonResponse(
 				500, """{"error":"InternalServerError"}"""
 			),
-			LookupFailure.Unauthorized => BlueskyPublishProviderSpec._JsonResponse(
+			LookupFailure.Unauthorized => BlueskySocialAdapterSpec._JsonResponse(
 				401, """{"error":"AuthRequired"}"""
 			),
 			LookupFailure.Timeout => throw new TaskCanceledException("timed out"),
 			LookupFailure.Transport => throw new HttpRequestException("reset"),
 			_ => throw new ArgumentOutOfRangeException(nameof(failure)),
 		}, absentLookups: false);
-		var provider = BlueskyPublishProviderSpec._ProviderFor(handler);
-		var request = BlueskyPublishProviderSpec._NewRequest(
-			BlueskyPublishProviderSpec._NewSession()
+		var provider = BlueskySocialAdapterSpec._ProviderFor(handler);
+		var request = BlueskySocialAdapterSpec._NewRequest(
+			BlueskySocialAdapterSpec._NewSession()
 		);
 		if (withImages) {
 			request = request with {
-				Media = [BlueskyPublishProviderSpec._Media(TestImages.Png(10, 10), "image/png", "x", 10, 10)],
+				Media = [BlueskySocialAdapterSpec._Media(TestImages.Png(10, 10), "image/png", "x", 10, 10)],
 			};
 		}
 
@@ -771,11 +772,11 @@ public sealed class BlueskyPublishProviderSpec {
 		Func<CompletedSegment, CancellationToken, Task>? onCompleted = null
 	) {
 		return new PublishRequest {
-			PublicationId = BlueskyPublishProviderSpec._PublicationId,
-			IdempotencyKey = BlueskyPublishProviderSpec._IdempotencyKey,
+			PublicationId = BlueskySocialAdapterSpec._PublicationId,
+			IdempotencyKey = BlueskySocialAdapterSpec._IdempotencyKey,
 			PostBody = "segment one",
-			ScheduledAtUtc = BlueskyPublishProviderSpec._ScheduledInstant(),
-			Session = BlueskyPublishProviderSpec._NewSession(),
+			ScheduledAtUtc = BlueskySocialAdapterSpec._ScheduledInstant(),
+			Session = BlueskySocialAdapterSpec._NewSession(),
 			FollowUpSegments = followUps,
 			CompletedSegments = completed ?? [],
 			OnSegmentCompleted = onCompleted,
@@ -791,18 +792,18 @@ public sealed class BlueskyPublishProviderSpec {
 		var created = 0;
 		var handler = new RecordingHandler(request => {
 			created += 1;
-			var rkey = $"pub-{BlueskyPublishProviderSpec._IdempotencyKey}"
+			var rkey = $"pub-{BlueskySocialAdapterSpec._IdempotencyKey}"
 				+ (created == 1 ? string.Empty : $"-s{created - 1}");
-			return BlueskyPublishProviderSpec._JsonResponse(
+			return BlueskySocialAdapterSpec._JsonResponse(
 				200,
 				$$"""{"uri":"at://did:plc:x/app.bsky.feed.post/{{rkey}}","cid":"cid-{{created}}"}"""
 			);
 		});
 		var progress = new List<CompletedSegment>();
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
 
 		var result = await provider.PublishAsync(
-			BlueskyPublishProviderSpec._ThreadRequest(
+			BlueskySocialAdapterSpec._ThreadRequest(
 				["segment two", "segment three"],
 				onCompleted: (segment, _) => {
 					progress.Add(segment);
@@ -812,12 +813,12 @@ public sealed class BlueskyPublishProviderSpec {
 			CancellationToken.None
 		);
 
-		var key = BlueskyPublishProviderSpec._IdempotencyKey;
+		var key = BlueskySocialAdapterSpec._IdempotencyKey;
 		handler.Bodies.Should().HaveCount(3);
-		var first = BlueskyPublishProviderSpec._Record(handler.Bodies[0]);
+		var first = BlueskySocialAdapterSpec._Record(handler.Bodies[0]);
 		first.TryGetProperty("reply", out _).Should().BeFalse("the first segment is the root");
 
-		var second = BlueskyPublishProviderSpec._Record(handler.Bodies[1]);
+		var second = BlueskySocialAdapterSpec._Record(handler.Bodies[1]);
 		second.GetProperty("text").GetString().Should().Be("segment two");
 		var secondReply = second.GetProperty("reply");
 		secondReply.GetProperty("root").GetProperty("uri").GetString()
@@ -827,7 +828,7 @@ public sealed class BlueskyPublishProviderSpec {
 			.Should().Be($"at://did:plc:x/app.bsky.feed.post/pub-{key}");
 		secondReply.GetProperty("parent").GetProperty("cid").GetString().Should().Be("cid-1");
 
-		var third = BlueskyPublishProviderSpec._Record(handler.Bodies[2]);
+		var third = BlueskySocialAdapterSpec._Record(handler.Bodies[2]);
 		var thirdReply = third.GetProperty("reply");
 		thirdReply.GetProperty("root").GetProperty("cid").GetString().Should().Be("cid-1");
 		thirdReply.GetProperty("parent").GetProperty("uri").GetString()
@@ -839,7 +840,7 @@ public sealed class BlueskyPublishProviderSpec {
 		JsonDocument.Parse(handler.Bodies[2]).RootElement.GetProperty("rkey").GetString()
 			.Should().Be($"pub-{key}-s2");
 		second.GetProperty("createdAt").GetString().Should().Be(
-			BlueskyPublishProviderSpec._ScheduledInstant().AddMilliseconds(1)
+			BlueskySocialAdapterSpec._ScheduledInstant().AddMilliseconds(1)
 				.ToString("o", System.Globalization.CultureInfo.InvariantCulture)
 		);
 
@@ -850,27 +851,27 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldStopTheChainAtAFailingSegmentAndResumeOnlyTheRest() {
-		var key = BlueskyPublishProviderSpec._IdempotencyKey;
+		var key = BlueskySocialAdapterSpec._IdempotencyKey;
 		var created = 0;
 		var failThird = true;
 		var handler = new RecordingHandler(request => {
 			if (created == 2 && failThird) {
-				return BlueskyPublishProviderSpec._JsonResponse(
+				return BlueskySocialAdapterSpec._JsonResponse(
 					400, """{"error":"InvalidRequest","message":"bad record"}"""
 				);
 			}
 
 			created += 1;
-			return BlueskyPublishProviderSpec._JsonResponse(
+			return BlueskySocialAdapterSpec._JsonResponse(
 				200,
 				$$"""{"uri":"at://did:plc:x/app.bsky.feed.post/r{{created}}","cid":"cid-{{created}}"}"""
 			);
 		});
 		var progress = new List<CompletedSegment>();
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
 
 		var failed = await provider.PublishAsync(
-			BlueskyPublishProviderSpec._ThreadRequest(
+			BlueskySocialAdapterSpec._ThreadRequest(
 				["two", "three"],
 				onCompleted: (segment, _) => {
 					progress.Add(segment);
@@ -886,14 +887,14 @@ public sealed class BlueskyPublishProviderSpec {
 		failThird = false;
 		handler.Bodies.Clear();
 		var resumed = await provider.PublishAsync(
-			BlueskyPublishProviderSpec._ThreadRequest(["two", "three"], completed: progress),
+			BlueskySocialAdapterSpec._ThreadRequest(["two", "three"], completed: progress),
 			CancellationToken.None
 		);
 
 		resumed.Should().BeOfType<PublishResult.Published>().Which.RecordId
 			.Should().Be("at://did:plc:x/app.bsky.feed.post/r1", "the thread root stays segment one");
 		handler.Bodies.Should().ContainSingle("only the unpublished segment is created");
-		var record = BlueskyPublishProviderSpec._Record(handler.Bodies[0]);
+		var record = BlueskySocialAdapterSpec._Record(handler.Bodies[0]);
 		record.GetProperty("text").GetString().Should().Be("three");
 		record.GetProperty("reply").GetProperty("parent").GetProperty("cid").GetString()
 			.Should().Be("cid-2", "the chain continues from the stored uri and cid");
@@ -906,12 +907,12 @@ public sealed class BlueskyPublishProviderSpec {
 	[Fact]
 	public async Task ItShouldReadBackASegmentCreatedBeforeItWasRecordedAndContinueWithoutDuplicates() {
 		var fakePds = new RkeyStoringFakePds();
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(fakePds));
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(fakePds));
 
 		// A previous attempt created segments one and two, but only recorded one.
 		var firstAttempt = new List<CompletedSegment>();
 		await provider.PublishAsync(
-			BlueskyPublishProviderSpec._ThreadRequest(
+			BlueskySocialAdapterSpec._ThreadRequest(
 				["two"],
 				onCompleted: (segment, _) => {
 					firstAttempt.Add(segment);
@@ -924,7 +925,7 @@ public sealed class BlueskyPublishProviderSpec {
 
 		var recorded = new List<CompletedSegment>();
 		var resumed = await provider.PublishAsync(
-			BlueskyPublishProviderSpec._ThreadRequest(
+			BlueskySocialAdapterSpec._ThreadRequest(
 				["two", "three"],
 				completed: [firstAttempt[0]],
 				onCompleted: (segment, _) => {
@@ -947,18 +948,18 @@ public sealed class BlueskyPublishProviderSpec {
 		// read-back finds a record without a content id.
 		var lookups = 0;
 		var handler = new RecordingHandler(request => request.Method == HttpMethod.Post
-			? BlueskyPublishProviderSpec._JsonResponse(
+			? BlueskySocialAdapterSpec._JsonResponse(
 				400, """{"error":"InvalidRequest","message":"record_already_exists"}"""
 			)
 			: ++lookups == 1
-				? BlueskyPublishProviderSpec._RecordNotFound()
-				: BlueskyPublishProviderSpec._JsonResponse(
+				? BlueskySocialAdapterSpec._RecordNotFound()
+				: BlueskySocialAdapterSpec._JsonResponse(
 					200, """{"uri":"at://did:plc:x/app.bsky.feed.post/r0"}"""
 				), absentLookups: false);
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
 
 		var result = await provider.PublishAsync(
-			BlueskyPublishProviderSpec._ThreadRequest(["two"]),
+			BlueskySocialAdapterSpec._ThreadRequest(["two"]),
 			CancellationToken.None
 		);
 
@@ -974,21 +975,21 @@ public sealed class BlueskyPublishProviderSpec {
 		var created = 0;
 		var uploads = 0;
 		var handler = new RecordingHandler(request => {
-			if (BlueskyPublishProviderSpec._IsUpload(request)) {
+			if (BlueskySocialAdapterSpec._IsUpload(request)) {
 				uploads += 1;
-				return BlueskyPublishProviderSpec._BlobResponse(uploads);
+				return BlueskySocialAdapterSpec._BlobResponse(uploads);
 			}
 
 			created += 1;
-			return BlueskyPublishProviderSpec._JsonResponse(
+			return BlueskySocialAdapterSpec._JsonResponse(
 				200,
 				$$"""{"uri":"at://did:plc:x/app.bsky.feed.post/r{{created}}","cid":"cid-{{created}}"}"""
 			);
 		});
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
-		var request = BlueskyPublishProviderSpec._ThreadRequest(["two", "three"]) with {
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
+		var request = BlueskySocialAdapterSpec._ThreadRequest(["two", "three"]) with {
 			FollowUpMedia = [
-				[BlueskyPublishProviderSpec._Media(TestImages.Png(40, 30), "image/png", "second alt", 40, 30)],
+				[BlueskySocialAdapterSpec._Media(TestImages.Png(40, 30), "image/png", "second alt", 40, 30)],
 				[],
 			],
 		};
@@ -997,23 +998,23 @@ public sealed class BlueskyPublishProviderSpec {
 
 		result.Should().BeOfType<PublishResult.Published>();
 		handler.Requests.Should().HaveCount(4, "three records and ONE blob upload, for the second segment only");
-		BlueskyPublishProviderSpec._IsUpload(handler.Requests[0]).Should().BeFalse("the root has no image");
-		BlueskyPublishProviderSpec._IsUpload(handler.Requests[1]).Should().BeTrue();
-		BlueskyPublishProviderSpec._Record(handler.Bodies[0]).TryGetProperty("embed", out _).Should().BeFalse();
-		var embed = BlueskyPublishProviderSpec._Record(handler.Bodies[2]).GetProperty("embed");
+		BlueskySocialAdapterSpec._IsUpload(handler.Requests[0]).Should().BeFalse("the root has no image");
+		BlueskySocialAdapterSpec._IsUpload(handler.Requests[1]).Should().BeTrue();
+		BlueskySocialAdapterSpec._Record(handler.Bodies[0]).TryGetProperty("embed", out _).Should().BeFalse();
+		var embed = BlueskySocialAdapterSpec._Record(handler.Bodies[2]).GetProperty("embed");
 		embed.GetProperty("images")[0].GetProperty("alt").GetString().Should().Be("second alt");
-		BlueskyPublishProviderSpec._Record(handler.Bodies[2]).GetProperty("text").GetString().Should().Be("two");
-		BlueskyPublishProviderSpec._Record(handler.Bodies[3]).TryGetProperty("embed", out _).Should().BeFalse();
+		BlueskySocialAdapterSpec._Record(handler.Bodies[2]).GetProperty("text").GetString().Should().Be("two");
+		BlueskySocialAdapterSpec._Record(handler.Bodies[3]).TryGetProperty("embed", out _).Should().BeFalse();
 	}
 
 	[Fact]
 	public async Task ItShouldNameTheSegmentWhenAFollowUpImageIsRefused() {
-		var handler = new RecordingHandler(request => BlueskyPublishProviderSpec._IsUpload(request)
-			? BlueskyPublishProviderSpec._JsonResponse(400, """{"error":"InvalidRequest","message":"bad blob"}""")
-			: BlueskyPublishProviderSpec._JsonResponse(200, """{"uri":"at://did:plc:x/app.bsky.feed.post/r","cid":"c"}"""));
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
-		var request = BlueskyPublishProviderSpec._ThreadRequest(["two"]) with {
-			FollowUpMedia = [[BlueskyPublishProviderSpec._Media(TestImages.Png(40, 30), "image/png", null, 40, 30)]],
+		var handler = new RecordingHandler(request => BlueskySocialAdapterSpec._IsUpload(request)
+			? BlueskySocialAdapterSpec._JsonResponse(400, """{"error":"InvalidRequest","message":"bad blob"}""")
+			: BlueskySocialAdapterSpec._JsonResponse(200, """{"uri":"at://did:plc:x/app.bsky.feed.post/r","cid":"c"}"""));
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
+		var request = BlueskySocialAdapterSpec._ThreadRequest(["two"]) with {
+			FollowUpMedia = [[BlueskySocialAdapterSpec._Media(TestImages.Png(40, 30), "image/png", null, 40, 30)]],
 		};
 
 		var result = await provider.PublishAsync(request, CancellationToken.None);
@@ -1024,10 +1025,10 @@ public sealed class BlueskyPublishProviderSpec {
 
 	private static RecordingHandler _AlreadyExistsHandler(string storedText) {
 		return new RecordingHandler(request => request.Method == HttpMethod.Post
-			? BlueskyPublishProviderSpec._JsonResponse(
+			? BlueskySocialAdapterSpec._JsonResponse(
 				400, """{"error":"InvalidRequest","message":"record_already_exists"}"""
 			)
-			: BlueskyPublishProviderSpec._JsonResponse(
+			: BlueskySocialAdapterSpec._JsonResponse(
 				200,
 				"""{"uri":"at://did:plc:x/app.bsky.feed.post/r0","cid":"cid-old","value":{"text":"""
 				+ JsonSerializer.Serialize(storedText) + "}}"
@@ -1036,12 +1037,12 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldNotRecordAnExistingRecordAsPublishedWhenItsTextIsNotTheEditedText() {
-		var handler = BlueskyPublishProviderSpec._AlreadyExistsHandler("the text before the edit");
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var handler = BlueskySocialAdapterSpec._AlreadyExistsHandler("the text before the edit");
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
 		var recorded = new List<CompletedSegment>();
 
 		var result = await provider.PublishAsync(
-			BlueskyPublishProviderSpec._ThreadRequest(
+			BlueskySocialAdapterSpec._ThreadRequest(
 				[],
 				onCompleted: (segment, _) => {
 					recorded.Add(segment);
@@ -1058,11 +1059,11 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldNameTheSegmentWhenAThreadSegmentExistsWithDifferentText() {
-		var handler = BlueskyPublishProviderSpec._AlreadyExistsHandler("old");
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var handler = BlueskySocialAdapterSpec._AlreadyExistsHandler("old");
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
 
 		var result = await provider.PublishAsync(
-			BlueskyPublishProviderSpec._ThreadRequest(["two"]),
+			BlueskySocialAdapterSpec._ThreadRequest(["two"]),
 			CancellationToken.None
 		);
 
@@ -1072,11 +1073,11 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldStillAdoptAnExistingRecordWhoseTextMatches() {
-		var handler = BlueskyPublishProviderSpec._AlreadyExistsHandler("hello from the publishing slice");
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
+		var handler = BlueskySocialAdapterSpec._AlreadyExistsHandler("hello from the publishing slice");
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
 
 		var result = await provider.PublishAsync(
-			BlueskyPublishProviderSpec._NewRequest(BlueskyPublishProviderSpec._NewSession()),
+			BlueskySocialAdapterSpec._NewRequest(BlueskySocialAdapterSpec._NewSession()),
 			CancellationToken.None
 		);
 
@@ -1085,11 +1086,11 @@ public sealed class BlueskyPublishProviderSpec {
 
 	[Fact]
 	public async Task ItShouldAskForReviewWhenTheReconciledRecordHoldsOtherTextThanTheOneNowPublished() {
-		var handler = new RecordingHandler(_ => BlueskyPublishProviderSpec._JsonResponse(
+		var handler = new RecordingHandler(_ => BlueskySocialAdapterSpec._JsonResponse(
 			200, """{"uri":"at://did:plc:x/app.bsky.feed.post/pub-k","cid":"cid-9","value":{"text":"old"}}"""
 		), absentLookups: false);
-		var provider = new BlueskyPublishProvider(BlueskyPublishProviderSpec._FactoryFromHandler(handler));
-		var request = BlueskyPublishProviderSpec._ReconcileRequest();
+		var provider = new BlueskySocialAdapter(BlueskySocialAdapterSpec._FactoryFromHandler(handler));
+		var request = BlueskySocialAdapterSpec._ReconcileRequest();
 
 		var edited = await provider.ReconcileAsync(request with { ExpectedText = "new" }, CancellationToken.None);
 		var same = await provider.ReconcileAsync(request with { ExpectedText = "old" }, CancellationToken.None);
@@ -1129,8 +1130,8 @@ public sealed class BlueskyPublishProviderSpec {
 			var raw = request.Content is null
 				? []
 				: await request.Content.ReadAsByteArrayAsync(cancellationToken);
-			if (this._AbsentLookups && BlueskyPublishProviderSpec._IsGetRecord(request)) {
-				return BlueskyPublishProviderSpec._RecordNotFound();
+			if (this._AbsentLookups && BlueskySocialAdapterSpec._IsGetRecord(request)) {
+				return BlueskySocialAdapterSpec._RecordNotFound();
 			}
 
 			this.Requests.Add(request);
@@ -1168,9 +1169,9 @@ public sealed class BlueskyPublishProviderSpec {
 				)) {
 				this.CreateAttempts += 1;
 				var body = await request.Content.Required().ReadAsStringAsync(cancellationToken);
-				var rkey = BlueskyPublishProviderSpec.RkeyStoringFakePds._ExtractRkey(body);
+				var rkey = BlueskySocialAdapterSpec.RkeyStoringFakePds._ExtractRkey(body);
 				if (this.StoredRkeys.Contains(rkey)) {
-					return _JsonResponse(400, BlueskyPublishProviderSpec.RkeyStoringFakePds._DuplicateBody);
+					return _JsonResponse(400, BlueskySocialAdapterSpec.RkeyStoringFakePds._DuplicateBody);
 				}
 
 				this.StoredRkeys.Add(rkey);

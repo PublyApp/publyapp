@@ -19,6 +19,7 @@ using PublyApp.Api.Modules.Aggregators.Fakes;
 using PublyApp.Api.Modules.Aggregators.Ports;
 using PublyApp.Api.Modules.Aggregators.Services;
 using PublyApp.Api.Modules.Publishing.Providers;
+using PublyApp.Api.Modules.SocialAccounts.Adapters;
 using PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Discord;
@@ -198,20 +199,11 @@ public static class ServiceRegistration {
 		// ResendEmailClientAdapter wraps IResend behind the repo-owned IResendEmailClient
 		// port, so only this one file breaks when the SDK interface changes.
 		builder.Services.AddSingleton<IResendEmailClient, ResendEmailClientAdapter>();
-		// C2 (#641): Bluesky HTTP adapter. Named typed-client factory keeps the base
-		// address testable; the adapter classifies account-caused refusals vs transient
-		// failures so no exception crosses the seam. Integration specs replace IBlueskyClient
-		// with FakeBlueskyClient (ApiFactory) — the real network is never contacted in
-		// tests. The Epic-D session seam (BlueskySessionProvider → ISocialSessionProvider)
-		// is registered right after it.
-		BlueskyClient.RegisterHttpClient(builder.Services);
-		builder.Services.AddScoped<IBlueskyClient, BlueskyClient>();
 		// #2174: one session provider per network behind a routing seam, so the
 		// publish job stays provider-blind.
 		builder.Services.AddScoped<BlueskySessionProvider>();
 		builder.Services.AddScoped<MastodonSessionProvider>();
 		builder.Services.AddScoped<ISocialSessionProvider, RoutingSocialSessionProvider>();
-		builder.Services.AddScoped<IMastodonClient, MastodonClient>();
 		builder.Services.AddScoped<MastodonOAuthService>();
 		builder.Services.AddScoped<DiscordWebhookSessionProvider>();
 		builder.Services.AddScoped<DiscordWebhookClient>();
@@ -303,12 +295,18 @@ public static class ServiceRegistration {
 		// Register RequestAuthContext (unified auth + tenant context)
 		builder.Services.AddScoped<IRequestAuthContext, RequestAuthContext>();
 
-		// Publishing (Epic D §3): the delivery seam is stateless and shares no
-		// per-request context, so it registers as a singleton; its named HttpClient
-		// carries the pooled handler. Registered here (every role) so the worker's
-		// PublishPublicationJobHandler resolves it without any API-surface coupling.
-		builder.Services.AddHttpClient(BlueskyPublishProvider.HttpClientName);
-		builder.Services.AddSingleton<BlueskyPublishProvider>();
+		// Social adapters (#2509): one publisher per network. The adapters only hold
+		// IHttpClientFactory/ILogger, both singletons, so the singleton registrations
+		// keep the lifetimes the publish providers already had.
+		BlueskySocialAdapter.RegisterHttpClient(builder.Services);
+		// The publish half of Bluesky keeps its own named client (#2509 review): the
+		// PDS session client above pins a base address and no timeout, the publish
+		// client deliberately has neither. The timeout is HttpClient's default made
+		// explicit, so the registration is real for a future handler/proxy.
+		builder.Services.AddHttpClient(
+			BlueskySocialAdapter.HttpClientName,
+			client => client.Timeout = TimeSpan.FromSeconds(100)
+		);
 		// Mastodon talks to user-entered hosts: every connection goes through the
 		// SSRF-guarded handler (public addresses only, no redirects).
 		builder.Services
@@ -317,7 +315,6 @@ public static class ServiceRegistration {
 				client.MaxResponseContentBufferSize = 4 * 1024 * 1024;
 			})
 			.ConfigurePrimaryHttpMessageHandler(() => MastodonHostGuard.CreateHandler());
-		builder.Services.AddSingleton<MastodonPublishProvider>();
 		// Discord webhooks: the URL is validated against a host allowlist, and the
 		// same guarded handler still refuses non-public addresses and redirects.
 		builder.Services
@@ -328,7 +325,11 @@ public static class ServiceRegistration {
 			// The webhook token is in the URL path: no request/response log lines for it.
 			.RemoveAllLoggers()
 			.ConfigurePrimaryHttpMessageHandler(() => MastodonHostGuard.CreateHandler());
-		builder.Services.AddSingleton<DiscordWebhookPublishProvider>();
+		builder.Services.AddSocialAdapter<MastodonSocialAdapter>();
+		builder.Services.AddSocialAdapter<BlueskySocialAdapter>();
+		builder.Services.AddSocialAdapter<DiscordWebhookSocialAdapter>();
+		builder.Services.AddSingleton<ISocialAdapterRegistry, SocialAdapterRegistry>();
+		builder.Services.AddHostedService<SocialAdapterRegistryStartup>();
 		builder.Services.AddSingleton<IPublishProvider, RoutingPublishProvider>();
 
 		// E2E publish-now seam (plan D2 reconciliation 4, round-2 blocker fix): ONLY
