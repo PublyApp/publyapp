@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { browserStorage } from '~/lib/browser-storage/browser-storage-instance';
 
 /**
  * Cookie consent state for the marketing shell (#1038).
@@ -96,13 +97,7 @@ const readStoredConsent = (): CookieConsent | null => {
 		return null;
 	}
 
-	try {
-		return parseConsent(
-			window.localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY),
-		);
-	} catch {
-		return null;
-	}
+	return parseConsent(browserStorage.get(COOKIE_CONSENT_STORAGE_KEY));
 };
 
 const writeStoredConsent = (consent: CookieConsent) => {
@@ -110,16 +105,14 @@ const writeStoredConsent = (consent: CookieConsent) => {
 		return;
 	}
 
-	try {
-		window.localStorage.setItem(
-			COOKIE_CONSENT_STORAGE_KEY,
-			JSON.stringify({ version: COOKIE_CONSENT_POLICY_VERSION, consent }),
-		);
-	} catch {
-		// Storage can be unavailable (private mode, quota, blocked): the
-		// in-memory decision still applies to this page view, and the band
-		// asks again next time — failing closed, as above.
-	}
+	// Storage can be unavailable (private mode, quota, blocked): the
+	// in-memory decision still applies to this page view, and the band
+	// asks again next time — failing closed, as above. The service drops
+	// the write when the adapter throws.
+	browserStorage.set(
+		COOKIE_CONSENT_STORAGE_KEY,
+		JSON.stringify({ version: COOKIE_CONSENT_POLICY_VERSION, consent }),
+	);
 };
 
 type CookieConsentState = {
