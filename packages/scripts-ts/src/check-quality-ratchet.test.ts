@@ -173,7 +173,11 @@ describe('PR size', () => {
 	].join('\n');
 
 	it('ignores tests, lockfiles, migrations and binaries', () => {
-		expect(countSizedLines(numstat)).toBe(700);
+		expect(countSizedLines(numstat)).toBe(500);
+	});
+
+	it('counts added lines only, never deleted ones', () => {
+		expect(countSizedLines('10\t5000\tapps/front/src/a.ts')).toBe(10);
 	});
 
 	it('fails over the limit unless the owner label is present', () => {
@@ -315,7 +319,7 @@ describe('renames', () => {
 		expect(renamedTo('a/{old => new}/x.ts')).toBe('a/new/x.ts');
 		expect(renamedTo('old.ts => new.ts')).toBe('new.ts');
 		expect(countSizedLines('0\t0\tapps/front/scripts/{a.mts => a.ts}')).toBe(0);
-		expect(countSizedLines('3\t1\tapps/api/{Old => New}/A.cs')).toBe(4);
+		expect(countSizedLines('3\t1\tapps/api/{Old => New}/A.cs')).toBe(3);
 	});
 
 	it('gives a pure rename no touched lines', () => {
