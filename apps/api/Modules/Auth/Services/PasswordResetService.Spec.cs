@@ -215,7 +215,7 @@ public sealed class PasswordResetServiceSpec : IClassFixture<ApiFixture> {
 			await using var handlerDb = this._CreateDbContext();
 			var handler = new PasswordResetEmailJobHandler(
 				handlerDb,
-				sender,
+				new EmailService(sender),
 				new EmailLogWriter(handlerDb),
 				new JobsMetrics(new JobWorkerInstance(), NullLogger<JobsMetrics>.Instance)
 			);

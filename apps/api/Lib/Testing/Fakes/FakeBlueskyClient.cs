@@ -6,7 +6,7 @@ namespace PublyApp.Api.Lib.Testing.Fakes;
 
 /// <summary>
 /// Fake Bluesky client for integration specs (spec §6: "faked in every spec — never
-/// the real network"). Mirrors <see cref="FakeEmailSender"/> ergonomics: records every
+/// the real network"). Mirrors <see cref="MemoryEmailAdapter"/> ergonomics: records every
 /// open attempt, programmable outcome via <see cref="NextResult"/>, deterministic
 /// success mapping by default.
 ///

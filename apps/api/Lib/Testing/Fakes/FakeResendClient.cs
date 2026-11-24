@@ -2,21 +2,22 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-using PublyApp.Api.Infrastructure.Messaging.Email;
+using Moq;
 
 using Resend;
 
 namespace PublyApp.Api.Lib.Testing.Fakes;
 
 /// <summary>
-/// Test double for the repository-owned <see cref="IResendEmailClient"/> port. Only the
-/// two <c>EmailSendAsync</c> overloads are functional: they drive a fabricated
+/// Test double for the third-party <see cref="IResend"/> client. Only the two
+/// <c>EmailSendAsync</c> overloads are functional: they drive a fabricated
 /// <see cref="ResendResponse{T}"/> (the F3 non-throwing unsuccessful-response shape,
 /// design §5.4) and the 30 s provider-timeout classification (§5.4 step 4) without a
-/// real network call. Implementing the repo port (not the third-party <see cref="IResend"/>)
-/// means SDK upgrades cannot break this file.
+/// real network call. <see cref="AsResend"/> exposes the narrow <see cref="IResend"/>
+/// surface the real adapter consumes, so specs never stub the client's 100+ unrelated
+/// API methods.
 /// </summary>
-public sealed class FakeResendClient : IResendEmailClient {
+public sealed class FakeResendClient {
 	/// <summary>
 	/// What <c>EmailSendAsync</c> returns once <see cref="Delay"/> elapses. Defaults to a
 	/// successful send carrying a random message id; set an exception-carrying response to
@@ -50,6 +51,20 @@ public sealed class FakeResendClient : IResendEmailClient {
 	public EmailMessage? LastEmailMessage { get; private set; }
 
 	/// <summary>
+	/// Whether the observed token was already cancelled when the provider call started,
+	/// proving the caller's cancellation reached the SDK. Snapshotted because the linked
+	/// timeout may cancel the same token later.
+	/// </summary>
+	public bool LastCallObservedCancelledToken { get; private set; }
+
+	/// <summary>
+	/// Whether the last call went through the idempotent (keyed) SDK overload. Both
+	/// overloads otherwise share one implementation, so this distinguishes them for the
+	/// non-idempotent-overload contract.
+	/// </summary>
+	public bool LastCallUsedIdempotentOverload { get; private set; }
+
+	/// <summary>
 	/// Idempotency keys already seen by the provider, each with the payload signature
 	/// it was first used with. A key seen again with the SAME payload is deduplicated
 	/// (no provider call); a key reused with a DIFFERENT payload is rejected with
@@ -57,11 +72,31 @@ public sealed class FakeResendClient : IResendEmailClient {
 	/// </summary>
 	private readonly Dictionary<string, JsonNode> _SeenPayloadSignatures = new();
 
+	public IResend AsResend() {
+		var mock = new Mock<IResend>();
+		mock
+			.Setup(client => client.EmailSendAsync(
+				It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
+			.Returns((EmailMessage email, CancellationToken cancellationToken) => {
+				this.LastCallUsedIdempotentOverload = false;
+				return this.EmailSendAsync(email, cancellationToken);
+			});
+		mock
+			.Setup(client => client.EmailSendAsync(
+				It.IsAny<string>(), It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
+			.Returns((string key, EmailMessage email, CancellationToken cancellationToken) => {
+				this.LastCallUsedIdempotentOverload = true;
+				return this.EmailSendAsync(key, email, cancellationToken);
+			});
+		return mock.Object;
+	}
+
 	public async Task<ResendResponse<Guid>> EmailSendAsync(
 		EmailMessage email,
 		CancellationToken cancellationToken = default
 	) {
 		this.LastEmailMessage = email;
+		this.LastCallObservedCancelledToken = cancellationToken.IsCancellationRequested;
 
 		if (this.Delay > TimeSpan.Zero) {
 			await Task.Delay(this.Delay, cancellationToken);

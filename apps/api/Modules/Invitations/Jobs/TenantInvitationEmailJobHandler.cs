@@ -19,10 +19,10 @@ public sealed class TenantInvitationEmailJobHandler
 	: EmailJobHandlerBase<TenantInvitationEmailPayload> {
 	public TenantInvitationEmailJobHandler(
 		AppDbContext db,
-		IEmailSender sender,
+		IEmailService emailService,
 		IEmailLogWriter logWriter,
 		JobsMetrics metrics
-	) : base(db, sender, logWriter, metrics) {
+	) : base(db, emailService, logWriter, metrics) {
 	}
 
 	public override string JobType {
@@ -66,7 +66,7 @@ public sealed class TenantInvitationEmailJobHandler
 			);
 		}
 
-		var envelope = EmailTemplates.TenantInvitation(
+		var envelope = this.EmailService.RenderTenantInvitation(
 			invitation.Email, invitation.Tenant.Name, invitation.Token
 		);
 

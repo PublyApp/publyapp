@@ -10,7 +10,7 @@ Shapes that follow the rule, or are close, with the gaps that remain:
 
 | Need | Service | Port | Adapters | Gap |
 |---|---|---|---|---|
-| E-mail (API) | `EmailService` | `IEmailSender` | `ResendEmailAdapter` | e-mail jobs call `IEmailSender` directly; Resend wrapped twice (`ResendEmailClientAdapter`); test double `FakeEmailSender` instead of `MemoryEmailAdapter` — [#2514](https://github.com/PublyApp/publyapp/issues/2514) |
+| E-mail (API) | `EmailService` | `IEmailSender` | `ResendEmailAdapter` | follows the rule since [#2514](https://github.com/PublyApp/publyapp/issues/2514): jobs call the service, one Resend adapter, tests use `MemoryEmailAdapter` |
 | Aggregator key check (API) | `AggregatorConnectionService` | `IAggregatorAdapter` (`Kind`, `Describe`, `CheckKeyAsync`) | `ZernioAdapter` | port and adapter names pending — [#2511](https://github.com/PublyApp/publyapp/issues/2511) |
 | Analytics (TS) | `Analytics` | `IAnalytics.send` | `PostHogNodeAnalyticsAdapter`, `PostHogBrowserAnalyticsAdapter`, `MemoryAnalyticsAdapter` | — |
 

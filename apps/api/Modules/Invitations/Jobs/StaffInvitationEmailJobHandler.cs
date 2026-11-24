@@ -18,10 +18,10 @@ public sealed class StaffInvitationEmailJobHandler
 	: EmailJobHandlerBase<StaffInvitationEmailPayload> {
 	public StaffInvitationEmailJobHandler(
 		AppDbContext db,
-		IEmailSender sender,
+		IEmailService emailService,
 		IEmailLogWriter logWriter,
 		JobsMetrics metrics
-	) : base(db, sender, logWriter, metrics) {
+	) : base(db, emailService, logWriter, metrics) {
 	}
 
 	public override string JobType {
@@ -59,7 +59,9 @@ public sealed class StaffInvitationEmailJobHandler
 			);
 		}
 
-		var envelope = EmailTemplates.StaffInvitation(invitation.Email, invitation.Token);
+		var envelope = this.EmailService.RenderStaffInvitation(
+			invitation.Email, invitation.Token
+		);
 
 		return new EmailJobPreparation.Ready(
 			envelope, invitation.Email, payload.InvitationId, null

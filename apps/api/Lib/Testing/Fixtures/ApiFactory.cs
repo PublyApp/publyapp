@@ -96,10 +96,10 @@ public sealed class ApiFactory
 			// 2) Replace email sender with fake
 			//    (captures emails)
 			services.RemoveAll<IEmailSender>();
-			services.AddSingleton<FakeEmailSender>();
+			services.AddSingleton<MemoryEmailAdapter>();
 			services.AddSingleton<IEmailSender>(
 				sp => sp
-					.GetRequiredService<FakeEmailSender>()
+					.GetRequiredService<MemoryEmailAdapter>()
 			);
 
 			// 2b) Replace the Bluesky HTTP adapter with the fake — specs never touch

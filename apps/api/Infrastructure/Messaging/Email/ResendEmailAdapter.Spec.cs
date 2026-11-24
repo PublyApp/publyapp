@@ -22,11 +22,34 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(messageId, new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		var receipt = await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
 		receipt.ProviderMessageId.Should().Be(messageId.ToString());
+	}
+
+	[Fact]
+	public async Task ItShouldSendWithoutIdempotencyKeyThroughTheNonIdempotentOverload() {
+		// Every inline send (welcome, verification, password reset) has no key and takes
+		// this branch. Sending a null key through the keyed overload would either break
+		// the provider contract or dedupe unrelated mail; pin the overload explicitly.
+		var messageId = Guid.NewGuid();
+		var fake = new FakeResendClient {
+			EmailSendResponse = new ResendResponse<Guid>(messageId, new ResendRateLimit())
+		};
+		var adapter = new ResendEmailAdapter(fake.AsResend());
+		var request = ResendEmailAdapterSpec._Request();
+
+		var receipt = await adapter.SendAsync(request);
+
+		receipt.ProviderMessageId.Should().Be(messageId.ToString());
+		fake.LastEmailMessage.Should().NotBeNull();
+		fake.LastEmailMessage?.To.Should().ContainSingle(address => address.Email == request.To);
+		fake.LastCallUsedIdempotentOverload.Should().BeFalse(
+			"a send without an idempotency key must use the non-idempotent SDK overload"
+		);
+		fake.ProviderCallCount.Should().Be(1);
 	}
 
 	[Fact]
@@ -37,7 +60,7 @@ public sealed class ResendEmailAdapterSpec {
 			"recipient rejected"
 		);
 		var fake = new FakeResendClient { ExceptionToThrow = providerError };
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		var act = async () => await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
@@ -59,7 +82,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(providerError, new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		var act = async () => await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
@@ -79,7 +102,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(providerError, new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		var act = async () => await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
@@ -105,7 +128,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(providerError, limits)
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		var act = async () => await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
@@ -130,12 +153,60 @@ public sealed class ResendEmailAdapterSpec {
 		// engine reschedules rather than dead-lettering a merely-slow provider. Driven with
 		// a 50 ms bound + a 30 s fake latency so the classification is proven instantly.
 		var fake = new FakeResendClient { Delay = TimeSpan.FromSeconds(30) };
-		var adapter = new ResendEmailAdapter(fake, TimeSpan.FromMilliseconds(50));
+		var adapter = new ResendEmailAdapter(fake.AsResend(), TimeSpan.FromMilliseconds(50));
 
 		var act = async () => await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
 		var thrown = await act.Should().ThrowAsync<EmailProviderTransientException>();
 		thrown.Which.Code.Should().Be("provider_timeout");
+	}
+
+	[Fact]
+	public async Task ItShouldPropagateCallerCancellationToTheSdkWithoutIdempotencyKey() {
+		// Host shutdown or a cancelled job must cancel the in-flight provider call. A
+		// linked token that forgot the caller's token would instead wait out the 30 s
+		// bound and classify the send as a transient provider timeout (and retry it).
+		var fake = new FakeResendClient { Delay = TimeSpan.FromSeconds(30) };
+		var adapter = new ResendEmailAdapter(fake.AsResend(), TimeSpan.FromMilliseconds(50));
+		using var cancellation = new CancellationTokenSource();
+		cancellation.Cancel();
+
+		var act = async () =>
+			await adapter.SendAsync(
+				ResendEmailAdapterSpec._Request(),
+				cancellationToken: cancellation.Token
+			);
+
+		var thrown = await act.Should().ThrowAsync<OperationCanceledException>();
+		thrown.Which.Should().NotBeOfType<EmailProviderTransientException>(
+			"caller cancellation is not a provider timeout"
+		);
+		fake.LastCallObservedCancelledToken.Should().BeTrue(
+			"the caller's cancelled token must reach the SDK, not a fresh unlinked bound"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldPropagateCallerCancellationToTheSdkWithIdempotencyKey() {
+		var fake = new FakeResendClient { Delay = TimeSpan.FromSeconds(30) };
+		var adapter = new ResendEmailAdapter(fake.AsResend(), TimeSpan.FromMilliseconds(50));
+		using var cancellation = new CancellationTokenSource();
+		cancellation.Cancel();
+
+		var act = async () =>
+			await adapter.SendAsync(
+				ResendEmailAdapterSpec._Request(),
+				"idem-key",
+				cancellation.Token
+			);
+
+		var thrown = await act.Should().ThrowAsync<OperationCanceledException>();
+		thrown.Which.Should().NotBeOfType<EmailProviderTransientException>(
+			"caller cancellation is not a provider timeout"
+		);
+		fake.LastCallObservedCancelledToken.Should().BeTrue(
+			"the caller's cancelled token must reach the SDK, not a fresh unlinked bound"
+		);
 	}
 
 	[Fact]
@@ -147,7 +218,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);
@@ -170,7 +241,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(messageId, new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		// First send with idempotency key
 		await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "same-idem-key");
@@ -195,7 +266,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);
@@ -224,7 +295,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
@@ -260,7 +331,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);
@@ -283,7 +354,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);

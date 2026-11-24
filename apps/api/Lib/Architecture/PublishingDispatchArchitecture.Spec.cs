@@ -1556,9 +1556,9 @@ public sealed partial class PublishingDispatchArchitectureSpec : IDisposable {
 				);
 
 				services.RemoveAll<Infrastructure.Messaging.Email.IEmailSender>();
-				services.AddSingleton<FakeEmailSender>();
+				services.AddSingleton<MemoryEmailAdapter>();
 				services.AddSingleton<Infrastructure.Messaging.Email.IEmailSender>(
-					sp => sp.GetRequiredService<FakeEmailSender>()
+					sp => sp.GetRequiredService<MemoryEmailAdapter>()
 				);
 
 				ApiFactory.RemoveWorkerHostedServices(services);

@@ -322,9 +322,9 @@ public sealed class EndpointPermissionMetadataGuardSpec : IDisposable {
 
 				// Replace email sender with the test fake so no real SMTP is needed.
 				services.RemoveAll<Infrastructure.Messaging.Email.IEmailSender>();
-				services.AddSingleton<FakeEmailSender>();
+				services.AddSingleton<MemoryEmailAdapter>();
 				services.AddSingleton<Infrastructure.Messaging.Email.IEmailSender>(
-					sp => sp.GetRequiredService<FakeEmailSender>()
+					sp => sp.GetRequiredService<MemoryEmailAdapter>()
 				);
 
 				// Route discovery needs no hosted worker loops. In particular, the migration

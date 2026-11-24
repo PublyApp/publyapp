@@ -24,7 +24,7 @@ namespace PublyApp.Api.Modules.Tenants.Handlers.Staff;
 // Email-observing sibling of CreateTenantAsStaffSpec. xUnit instantiates a test class
 // fresh per test method; because this class owns its ApiFixture directly (constructed
 // here, not injected via IClassFixture), every method gets its own database and its own
-// DI-registered FakeEmailSender. No two methods — present or future — can ever see each
+// DI-registered MemoryEmailAdapter. No two methods — present or future — can ever see each
 // other's sent emails, so there is nothing to Clear() and no dependency on run order. See
 // docs/guides/api-integration-tests.md ("Fixture Lifecycle and Mutable Test State").
 public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
@@ -45,7 +45,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 	[Fact]
 	public async Task
 	ItShouldCreatePendingTenantDefaultRoleInvitationsAndEmails() {
-		var fakeEmailSender = this._Fixture.GetFakeEmailSender();
+		var memoryEmailAdapter = this._Fixture.GetMemoryEmailAdapter();
 
 		var token =
 			await this._AuthClient.Required().LoginAsStaffAdminAsync();
@@ -159,7 +159,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 			);
 		}
 
-		var sentEmails = fakeEmailSender.SentEmails;
+		var sentEmails = memoryEmailAdapter.SentEmails;
 		sentEmails.Select(email => email.To)
 			.Should().BeEquivalentTo([adminEmail, userEmail]);
 		sentEmails.Should().OnlyContain(email =>
@@ -171,16 +171,16 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 	// Regression probe for #548-class contamination: this method neither Clears the fake
 	// nor runs before/after the method above in any guaranteed order — it cannot, because
 	// each method in this class stands up its own ApiFixture (own database, own DI
-	// container, own FakeEmailSender). The empty-queue assertion at the top proves nothing
+	// container, own MemoryEmailAdapter). The empty-queue assertion at the top proves nothing
 	// leaked IN from another method; the exact-count assertion at the bottom proves nothing
 	// this method sends is visible to any other method. Kept permanently: it is the cheapest
 	// possible guard against a future refactor reintroducing a shared fixture here.
 	[Fact]
 	public async Task
 	ItShouldObserveOnlyItsOwnEmailWithNoResetRegardlessOfExecutionOrder() {
-		var fakeEmailSender = this._Fixture.GetFakeEmailSender();
-		fakeEmailSender.SentEmails.Should().BeEmpty(
-			"this method owns a fresh FakeEmailSender — nothing else can have written to it"
+		var memoryEmailAdapter = this._Fixture.GetMemoryEmailAdapter();
+		memoryEmailAdapter.SentEmails.Should().BeEmpty(
+			"this method owns a fresh MemoryEmailAdapter — nothing else can have written to it"
 		);
 
 		var token =
@@ -237,7 +237,7 @@ public sealed class CreateTenantAsStaffEmailSpec : IAsyncLifetime {
 			CancellationToken.None
 		);
 
-		fakeEmailSender.SentEmails.Should().ContainSingle(
+		memoryEmailAdapter.SentEmails.Should().ContainSingle(
 			email => email.To == adminEmail,
 			"only this method's own send should be visible, with no cross-method leftovers"
 		);

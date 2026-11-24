@@ -13,10 +13,10 @@ public sealed class EmailVerificationEmailJobHandler
 	: EmailJobHandlerBase<VerifyEmailPayload> {
 	public EmailVerificationEmailJobHandler(
 		AppDbContext db,
-		IEmailSender sender,
+		IEmailService emailService,
 		IEmailLogWriter logWriter,
 		JobsMetrics metrics
-	) : base(db, sender, logWriter, metrics) {
+	) : base(db, emailService, logWriter, metrics) {
 	}
 
 	public override string JobType {
@@ -59,9 +59,9 @@ public sealed class EmailVerificationEmailJobHandler
 			);
 		}
 
-		var envelope = payload.IsWelcomeEmail
-			? EmailTemplates.EmailVerificationWelcome(user.Email, user.EmailVerifyToken)
-			: EmailTemplates.EmailVerificationRequest(user.Email, user.EmailVerifyToken);
+		var envelope = this.EmailService.RenderEmailVerification(
+			user.Email, user.EmailVerifyToken, payload.IsWelcomeEmail
+		);
 
 		return new EmailJobPreparation.Ready(envelope, user.Email, null, payload.UserId);
 	}

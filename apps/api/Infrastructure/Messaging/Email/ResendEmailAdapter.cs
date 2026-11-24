@@ -3,7 +3,8 @@ using Resend;
 namespace PublyApp.Api.Infrastructure.Messaging.Email;
 
 /// <summary>
-/// Adapts the Resend SDK to <see cref="IEmailSender"/> with the corrected F3 contract
+/// The ONE Resend adapter: wraps <see cref="IResend"/> behind <see cref="IEmailSender"/>
+/// with the corrected F3 contract
 /// (design §5.4): a provider rejection is THROWN as a classified
 /// <see cref="EmailProviderException"/> — never mapped to a silent success flag — and a
 /// success returns the provider message id in an <see cref="EmailSendReceipt"/>. When an
@@ -16,16 +17,16 @@ public class ResendEmailAdapter : IEmailSender {
 	// waiting revoke indefinitely. A timeout is a TRANSIENT fault → Retry, never Permanent.
 	private static readonly TimeSpan _DefaultProviderTimeout = TimeSpan.FromSeconds(30);
 
-	private readonly IResendEmailClient _ResendClient;
+	private readonly IResend _ResendClient;
 	private readonly TimeSpan _ProviderTimeout;
 
-	public ResendEmailAdapter(IResendEmailClient resendClient)
+	public ResendEmailAdapter(IResend resendClient)
 		: this(resendClient, ResendEmailAdapter._DefaultProviderTimeout) {
 	}
 
 	// Overload with an explicit bound: production always uses the 30 s default above;
 	// specs pass a tiny bound to drive the timeout->Retry classification without waiting.
-	public ResendEmailAdapter(IResendEmailClient resendClient, TimeSpan providerTimeout) {
+	public ResendEmailAdapter(IResend resendClient, TimeSpan providerTimeout) {
 		this._ResendClient = resendClient;
 		this._ProviderTimeout = providerTimeout;
 	}

@@ -196,9 +196,6 @@ public static class ServiceRegistration {
 		builder.Services.AddSingleton<IResend>((sp) => {
 			return ResendClient.Create(AppEnvironment.Instance.RESEND_API_KEY);
 		});
-		// ResendEmailClientAdapter wraps IResend behind the repo-owned IResendEmailClient
-		// port, so only this one file breaks when the SDK interface changes.
-		builder.Services.AddSingleton<IResendEmailClient, ResendEmailClientAdapter>();
 		// #2174: one session provider per network behind a routing seam, so the
 		// publish job stays provider-blind.
 		builder.Services.AddScoped<BlueskySessionProvider>();
@@ -228,6 +225,7 @@ public static class ServiceRegistration {
 		builder.Services.AddScoped<IAggregatorAdapter, ZernioAdapter>();
 		builder.Services.AddScoped<AggregatorConnectionService>();
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
+		// Business code and the email job handlers both depend on the interface only.
 		builder.Services.AddSingleton<IEmailService, EmailService>();
 		builder.Services.AddSingleton<IFileStorage>(
 			_ => new LocalDiskFileStorage(AppEnvironment.Instance.FILE_STORAGE_ROOT)

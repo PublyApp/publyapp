@@ -41,7 +41,7 @@ public sealed class CreateTenantAsStaffSpec
 	}
 
 	// Email-observing coverage for tenant creation (pending state, default role,
-	// invitations, and the outbox->dispatcher->FakeEmailSender path) lives in the sibling
+	// invitations, and the outbox->dispatcher->MemoryEmailAdapter path) lives in the sibling
 	// CreateTenantAsStaffEmailSpec, which owns an exclusive ApiFixture per test method —
 	// see that file's header comment for why.
 

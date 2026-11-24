@@ -141,7 +141,7 @@ public sealed class ApiFixture : IAsyncLifetime {
 	}
 
 	/// <summary>
-	/// Retrieves the FakeEmailSender to inspect captured emails.
+	/// Retrieves the MemoryEmailAdapter to inspect captured emails.
 	/// NOTE: this instance is scoped to the ApiFixture it came from, and emails persist
 	/// across every test method sharing that instance. If a test asserts on email state,
 	/// do not share this fixture (via IClassFixture) with any other email-observing test
@@ -150,9 +150,9 @@ public sealed class ApiFixture : IAsyncLifetime {
 	/// taking one through IClassFixture&lt;ApiFixture&gt;). Ownership, not resetting a
 	/// shared instance, is what keeps email assertions independent of run order.
 	/// </summary>
-	public FakeEmailSender GetFakeEmailSender() {
+	public MemoryEmailAdapter GetMemoryEmailAdapter() {
 		return this.Factory.Services
-			.GetRequiredService<FakeEmailSender>();
+			.GetRequiredService<MemoryEmailAdapter>();
 	}
 
 	/// <summary>
