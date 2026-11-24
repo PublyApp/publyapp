@@ -20,7 +20,7 @@ import {
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
-export type IdentityFormValues = { firstName: string; lastName: string };
+type IdentityFormValues = { firstName: string; lastName: string };
 type Methods = UseFormReturn<IdentityFormValues>;
 type Failure = ReturnType<typeof toApiFailure>;
 

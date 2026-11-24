@@ -1,4 +1,8 @@
-import { createFileRoute, useRouterState } from '@tanstack/react-router';
+import {
+	createFileRoute,
+	useNavigate,
+	useRouterState,
+} from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LogoutRedirect } from '~/components/error-views/LogoutRedirect';
@@ -12,6 +16,7 @@ import {
 	useStaffUserRolesQuery,
 } from '~/lib/query/staff-users';
 
+import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { staffUserCrumbsBase } from './$userId/_crumbs';
@@ -64,13 +69,24 @@ const StaffUserDetailsPage = () => {
 	const canSuspend = normalizedStatus === STAFF_STATUS_ACTIVE;
 	const canReactivate = normalizedStatus === STAFF_STATUS_SUSPENDED;
 	const onLogout = () => setShouldLogout(true);
+	const navigate = useNavigate();
+	// `navigate` is a router call, so it stays in the page's event handler path
+	// rather than in the data hook — same reason as `submitStaffUserEdit`.
+	const onDeleted = async () => {
+		try {
+			await navigate({ to: '/staff/staff-users' });
+		} catch (error) {
+			// navigation rejection after a successful delete — don't reuse the failure message
+			logger.warn('Staff user delete navigation failed', error);
+		}
+	};
 	const lifecycle = useStaffLifecycleAction({
 		userId,
 		canSuspend,
 		canReactivate,
 		onLogout,
 	});
-	const deletion = useStaffDeleteAction({ userId, onLogout });
+	const deletion = useStaffDeleteAction({ userId, onLogout, onDeleted });
 
 	// Hoisted so the fatal-error gates read plain locals, not query flags —
 	// QueryDisplay owns the loading/error/data rendering below.

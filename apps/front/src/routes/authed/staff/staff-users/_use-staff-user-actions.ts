@@ -1,5 +1,4 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import {
 	invalidateStaffUsers,
@@ -79,12 +78,15 @@ export const useStaffLifecycleAction = ({
 export const useStaffDeleteAction = ({
 	userId,
 	onLogout,
+	onDeleted,
 }: {
 	userId: string;
 	onLogout: () => void;
+	/** Runs the route change after a successful delete; the owner (the page)
+	 * owns where to go and how to log a navigation failure. */
+	onDeleted: () => Promise<void>;
 }) => {
 	const queryClient = useQueryClient();
-	const navigate = useNavigate();
 	const deleteUser = useDeleteStaffUserMutation();
 	const [isOpen, setOpen] = useState(false);
 	const [confirmText, setConfirmText] = useState('');
@@ -103,12 +105,8 @@ export const useStaffDeleteAction = ({
 			return;
 		}
 
-		try {
-			await navigate({ to: '/staff/staff-users' });
-		} catch (error) {
-			// navigation rejection after successful delete — don't reuse failure message
-			logger.warn('Staff user delete navigation failed', error);
-		}
+		// Awaited before the cache cleanup so navigation still happens first.
+		await onDeleted();
 
 		removeStaffUserDetails(queryClient);
 		void invalidateStaffUsers(queryClient);
