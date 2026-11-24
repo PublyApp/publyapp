@@ -11,6 +11,24 @@ const FRONT_DIR = path.resolve(__dirname, '..', '..');
 const SERVER_ENTRY = path.join(FRONT_DIR, 'server.ts');
 const DIST_SERVER_JS = path.join(FRONT_DIR, 'dist', 'server', 'server.js');
 
+/**
+ * CI must never turn missing build output into a silent skip: a skipped check
+ * is a green check that asserts nothing. Locally the hint is still a skip so
+ * the file can be run before a build.
+ */
+export const distServerAction = (
+	present: boolean,
+	ci: string | undefined,
+): 'run' | 'skip' | 'fail' => {
+	if (present) {
+		return 'run';
+	}
+	return ci === 'true' ? 'fail' : 'skip';
+};
+
+const DIST_SERVER_HINT =
+	'dist/server/server.js not found; run `pnpm --filter front build` first';
+
 const getFreePort = (): Promise<number> => {
 	return new Promise((resolve, reject) => {
 		const probe = createServer();
@@ -30,6 +48,13 @@ const getFreePort = (): Promise<number> => {
 	});
 };
 
+void test('missing build output fails under CI and skips only locally', () => {
+	assert.equal(distServerAction(false, 'true'), 'fail');
+	assert.equal(distServerAction(false, undefined), 'skip');
+	assert.equal(distServerAction(false, 'false'), 'skip');
+	assert.equal(distServerAction(true, 'true'), 'run');
+});
+
 // This test exercises the REAL startup path of server.ts — not a model of it.
 // GREEN with validateRuntimeEnv(): the production server exits on its own with
 // a non-zero code and names PUBLIC_ORIGIN when the variable is missing. RED if
@@ -38,10 +63,15 @@ const getFreePort = (): Promise<number> => {
 // This inline RED/GREEN explanation is the durable non-vacuity record; no local
 // trace is required.
 void test('startup: NODE_ENV=production without PUBLIC_ORIGIN exits non-zero and names PUBLIC_ORIGIN', async (t) => {
-	if (!existsSync(DIST_SERVER_JS)) {
-		t.skip(
-			'dist/server/server.js not found; run `pnpm --filter front build` first',
-		);
+	const action = distServerAction(existsSync(DIST_SERVER_JS), process.env.CI);
+	if (action !== 'run') {
+		// A skip in CI would hide the whole startup assertion; fail loudly instead.
+		if (action === 'fail') {
+			assert.fail(
+				`CI cannot verify the production startup path: ${DIST_SERVER_HINT}`,
+			);
+		}
+		t.skip(DIST_SERVER_HINT);
 		return;
 	}
 

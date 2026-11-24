@@ -706,6 +706,11 @@ jobs:
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
         continue-on-error: true
         run: pnpm --filter front check:react-compiler
+      - name: Test front runtime env startup
+        id: front_runtime_env
+        if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'true'
+        continue-on-error: true
+        run: pnpm --filter front test:runtime-env-startup
       - name: CI lane not applicable (front)
         id: front-sentinel
         if: always() && needs.classify.result == 'success' && needs.classify.outputs.front == 'false'
@@ -717,10 +722,10 @@ jobs:
           CI_WORKFLOW_PATH: '.github/workflows/ci.yml'
           CI_WORKFLOW_REF: '${{ github.workflow_ref }}'
           CI_WORKFLOW_EVENT: '${{ github.event_name }}'
-          CI_LANE_SPECS: '{"setup":["front-build.checkout","front-build.install_pnpm","front-build.setup_node","front-build.setup_dotnet","front-build.setup_just","front-build.install_workspace","front-build.trusted_postinstall","front-build.prepare_hooks","front-build.materialize_env"],"front":["front-build.front_build","front-build.front_css","front-build.front_font","front-build.front_smoke","front-build.front_react_compiler","front-build.front.not-applicable"]}'
+          CI_LANE_SPECS: '{"setup":["front-build.checkout","front-build.install_pnpm","front-build.setup_node","front-build.setup_dotnet","front-build.setup_just","front-build.install_workspace","front-build.trusted_postinstall","front-build.prepare_hooks","front-build.materialize_env"],"front":["front-build.front_build","front-build.front_css","front-build.front_font","front-build.front_smoke","front-build.front_react_compiler","front-build.front_runtime_env","front-build.front.not-applicable"]}'
           CI_CLASSIFIER_OUTPUTS: '{"front":"${{ needs.classify.outputs.front }}"}'
           CI_LANE_MODES: '{"setup":"relevant"}'
-          CI_STEP_RESULTS: '{"front-build.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"front-build.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"front-build.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"front-build.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"front-build.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"front-build.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"front-build.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"front-build.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"front-build.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"front-build.front_build":{"outcome":"${{ steps.front_build.outcome }}"},"front-build.front_css":{"outcome":"${{ steps.front_css.outcome }}"},"front-build.front_font":{"outcome":"${{ steps.front_font.outcome }}"},"front-build.front_smoke":{"outcome":"${{ steps.front_smoke.outcome }}"},"front-build.front_react_compiler":{"outcome":"${{ steps.front_react_compiler.outcome }}"},"front-build.front.not-applicable":{"outcome":"${{ steps.front-sentinel.outcome }}"}}'
+          CI_STEP_RESULTS: '{"front-build.checkout":{"outcome":"${{ steps.checkout.outcome }}"},"front-build.install_pnpm":{"outcome":"${{ steps.install_pnpm.outcome }}"},"front-build.setup_node":{"outcome":"${{ steps.setup_node.outcome }}"},"front-build.setup_dotnet":{"outcome":"${{ steps.setup_dotnet.outcome }}"},"front-build.setup_just":{"outcome":"${{ steps.setup_just.outcome }}"},"front-build.install_workspace":{"outcome":"${{ steps.install_workspace.outcome }}"},"front-build.trusted_postinstall":{"outcome":"${{ steps.trusted_postinstall.outcome }}"},"front-build.prepare_hooks":{"outcome":"${{ steps.prepare_hooks.outcome }}"},"front-build.materialize_env":{"outcome":"${{ steps.materialize_env.outcome }}"},"front-build.front_build":{"outcome":"${{ steps.front_build.outcome }}"},"front-build.front_css":{"outcome":"${{ steps.front_css.outcome }}"},"front-build.front_font":{"outcome":"${{ steps.front_font.outcome }}"},"front-build.front_smoke":{"outcome":"${{ steps.front_smoke.outcome }}"},"front-build.front_react_compiler":{"outcome":"${{ steps.front_react_compiler.outcome }}"},"front-build.front_runtime_env":{"outcome":"${{ steps.front_runtime_env.outcome }}"},"front-build.front.not-applicable":{"outcome":"${{ steps.front-sentinel.outcome }}"}}'
         run: node packages/scripts-ts/src/ci-lane-result.ts
       - name: Upload ci-lane-result
         if: always()

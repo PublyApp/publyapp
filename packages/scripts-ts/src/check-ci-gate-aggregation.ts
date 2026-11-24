@@ -371,6 +371,7 @@ const baseJobLaneContracts = {
 				'front-build.front_font',
 				'front-build.front_smoke',
 				'front-build.front_react_compiler',
+				'front-build.front_runtime_env',
 				'front-build.front.not-applicable',
 			],
 			'front',

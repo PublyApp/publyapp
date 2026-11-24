@@ -198,6 +198,7 @@
 		"ci.yml::front-build::Setup Node",
 		"ci.yml::front-build::Setup just",
 		"ci.yml::front-build::Smoke front production server",
+		"ci.yml::front-build::Test front runtime env startup",
 		"ci.yml::front-build::Upload ci-lane-result",
 		"ci.yml::front-build::Verify front CSS asset",
 		"ci.yml::front-build::Verify front font bundle",
@@ -821,6 +822,10 @@
 		"ci.yml::front-build::Check front React Compiler artifacts": {
 			"reason_hash": "c08c79cb8a7e7f03",
 			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:react-compiler\"]."
+		},
+		"ci.yml::front-build::Test front runtime env startup": {
+			"reason_hash": "19397c9dc4a6cc29",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front test:runtime-env-startup\"]."
 		},
 		"ci.yml::front-build::Checkout": {
 			"reason_hash": "51be5bfa577c7732",

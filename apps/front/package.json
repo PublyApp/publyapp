@@ -149,10 +149,6 @@
 		],
 		[
 			"pnpm",
-			"check:react-compiler"
-		],
-		[
-			"pnpm",
 			"check:shared-ts-import-paths"
 		],
 		[
@@ -178,10 +174,6 @@
 		[
 			"pnpm",
 			"check:server-static-imports"
-		],
-		[
-			"pnpm",
-			"test:runtime-env-startup"
 		],
 		[
 			"pnpm",

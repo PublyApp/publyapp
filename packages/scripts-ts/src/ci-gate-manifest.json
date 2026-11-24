@@ -610,6 +610,11 @@
 			"mirror": "just ci-front",
 			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front check:react-compiler\"]."
 		},
+		"ci.yml::front-build::Test front runtime env startup": {
+			"hash": "82fcf510dd4555bb",
+			"mirror": "just ci-front",
+			"reason": "Local mirror just ci-front is derived from exact normalized workflow command match(es): [\"pnpm --filter front test:runtime-env-startup\"]."
+		},
 		"ci.yml::front-build::Checkout": {
 			"hash": "f6bbd86f711cad8c",
 			"mirror": null,
@@ -621,7 +626,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable (front)\"; normalized workflow command(s): [\"echo 'front verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-build::Collect ci-lane-result": {
-			"hash": "6c45b9ef85aac430",
+			"hash": "76195c819ad97982",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},

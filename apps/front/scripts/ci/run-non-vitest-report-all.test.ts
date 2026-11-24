@@ -14,7 +14,7 @@ import {
 	validateNonVitestManifest,
 } from './run-non-vitest-report-all.ts';
 
-test('keeps the exact ordered 32-command manifest', () => {
+test('keeps the exact ordered 30-command manifest', () => {
 	const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 	const expected = [
 		['pnpm', 'check:guard-coverage'],
@@ -43,7 +43,6 @@ test('keeps the exact ordered 32-command manifest', () => {
 		['pnpm', 'test:font-bundle'],
 		['pnpm', 'test:shared-ts-node-resolution'],
 		['pnpm', 'check:design-system'],
-		['pnpm', 'check:react-compiler'],
 		['pnpm', 'check:shared-ts-import-paths'],
 		['pnpm', 'check:shared-ts-node-resolution'],
 		['pnpm', 'check:e2e-shared-constants'],
@@ -51,7 +50,6 @@ test('keeps the exact ordered 32-command manifest', () => {
 		['pnpm', 'test:guard-coverage-guard'],
 		['pnpm', 'check:column-type-imports'],
 		['pnpm', 'check:server-static-imports'],
-		['pnpm', 'test:runtime-env-startup'],
 		['pnpm', 'test:front-runtime-image-guard'],
 		['pnpm', 'test:assert-pinned'],
 	].map(([file, ...args]) => [file === 'pnpm' ? pnpm : file, ...args]);
@@ -64,7 +62,7 @@ test('keeps the exact ordered 32-command manifest', () => {
 test('rejects a removed command from the report-all manifest', () => {
 	assert.throws(
 		() => validateNonVitestManifest(NON_VITEST_COMMANDS.slice(0, -1)),
-		/exactly 32/,
+		/exactly 30/,
 	);
 });
 
@@ -84,8 +82,8 @@ test('reports every command after the first command fails', async () => {
 	});
 
 	assert.equal(result.exit_code, 1);
-	assert.equal(result.records.length, 32);
-	assert.equal(calls.length, 32);
+	assert.equal(result.records.length, 30);
+	assert.equal(calls.length, 30);
 	assert.equal(result.records[0].exit_code, 7);
 	assert.equal(result.records[1].outcome, 'success');
 });
@@ -113,7 +111,7 @@ test('lists every failure with its captured output', async () => {
 		concurrency: 2,
 		log: (text) => logs.push(text),
 		spawn: async (argv) =>
-			argv.includes('check:react-compiler')
+			argv.includes('check:shared-ts-import-paths')
 				? {
 						execution: 'executed',
 						outcome: 'failure',
@@ -127,10 +125,10 @@ test('lists every failure with its captured output', async () => {
 	assert.equal(result.exit_code, 1);
 	assert.match(
 		output,
-		/\[non-vitest 22\/32 failure \d+ms\] pnpm check:react-compiler/,
+		/\[non-vitest 22\/30 failure \d+ms\] pnpm check:shared-ts-import-paths/,
 	);
 	assert.match(output, /react compiler boom/);
-	assert.match(output, /failed: 22 pnpm check:react-compiler/);
+	assert.match(output, /failed: 22 pnpm check:shared-ts-import-paths/);
 });
 
 test('bounds concurrency at the pool size and isolates route-tree writes', async () => {
@@ -154,7 +152,7 @@ test('bounds concurrency at the pool size and isolates route-tree writes', async
 		},
 	});
 
-	assert.equal(result.records.length, 32);
+	assert.equal(result.records.length, 30);
 	assert.ok(maxInFlight > 1);
 	assert.ok(maxInFlight <= 3);
 	assert.equal(routeTreeMaxInFlight, 1);
@@ -202,8 +200,8 @@ test('never strands commands on a NaN or zero concurrency', async () => {
 				exit_code: 0,
 			}),
 		});
-		assert.equal(result.records.length, 32);
-		assert.equal(result.records.filter(Boolean).length, 32);
+		assert.equal(result.records.length, 30);
+		assert.equal(result.records.filter(Boolean).length, 30);
 	}
 });
 
@@ -239,15 +237,15 @@ test('streams each command as it ends and persists one log file per command', as
 		await new Promise((resolve) => setTimeout(resolve, 100));
 		assert.match(
 			logs.join(''),
-			/\[non-vitest 1\/32 ok \d+ms\] pnpm check:guard-coverage/,
+			/\[non-vitest 1\/30 ok \d+ms\] pnpm check:guard-coverage/,
 		);
-		assert.doesNotMatch(logs.join(''), /\[non-vitest\] \d+\/32 passed/);
+		assert.doesNotMatch(logs.join(''), /\[non-vitest\] \d+\/30 passed/);
 		releaseBlocked();
 		const result = await run;
 		assert.equal(result.exit_code, 0);
 		const logDirectory = path.join(root, 'test-results', 'non-vitest-logs');
 		const files = await readdir(logDirectory);
-		assert.equal(files.length, 32);
+		assert.equal(files.length, 30);
 		const first = await readFile(
 			path.join(logDirectory, '01-check-guard-coverage.log'),
 			'utf8',
