@@ -1,3 +1,4 @@
+using PublyApp.Api.Lib.DI;
 using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 
@@ -7,6 +8,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Adapters;
 /// The publish half of a social adapter: exactly the two operations the publish job
 /// needs, one per network. Implementations classify every outcome instead of throwing.
 /// </summary>
+[OnlyInjectedInto(typeof(SocialAdapterRegistry))]
 public interface ISocialPublisher {
 	/// <summary>Every network this adapter serves (Mastodon serves Mastodon and Pixelfed).</summary>
 	IReadOnlySet<SocialProvider> Networks { get; }
