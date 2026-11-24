@@ -147,6 +147,74 @@ test('a skipped plan upload is accepted outside the merge queue', () => {
 	assert.equal(result.job.conclusion, 'success');
 });
 
+test('skipped plan steps are accepted outside the merge queue', () => {
+	const result = createCiLaneResult({
+		jobKey: 'e2e-build',
+		lane: 'e2e',
+		expectedSteps: [
+			'e2e-build.plan_install_pnpm',
+			'e2e-build.plan_setup_node',
+			'e2e-build.plan_install_deps',
+			'e2e-build.plan',
+			'e2e-build.plan_upload',
+			'e2e-build.login',
+			'e2e-build.upload_images',
+			'e2e-build.not-applicable',
+		],
+		mode: 'relevant',
+		workflowEvent: 'pull_request',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults: {
+			'e2e-build.plan_install_pnpm': { outcome: 'skipped' },
+			'e2e-build.plan_setup_node': { outcome: 'skipped' },
+			'e2e-build.plan_install_deps': { outcome: 'skipped' },
+			'e2e-build.plan': { outcome: 'skipped' },
+			'e2e-build.plan_upload': { outcome: 'skipped' },
+			'e2e-build.login': { outcome: 'success' },
+			'e2e-build.upload_images': { outcome: 'skipped' },
+			'e2e-build.not-applicable': { outcome: 'skipped' },
+		},
+	});
+
+	assert.equal(result.job.conclusion, 'success');
+});
+
+test('a skipped plan step still fails the merge queue lane', () => {
+	const result = createCiLaneResult({
+		jobKey: 'e2e-build',
+		lane: 'e2e',
+		expectedSteps: [
+			'e2e-build.plan_install_pnpm',
+			'e2e-build.plan_setup_node',
+			'e2e-build.plan_install_deps',
+			'e2e-build.plan',
+			'e2e-build.plan_upload',
+			'e2e-build.login',
+			'e2e-build.upload_images',
+			'e2e-build.not-applicable',
+		],
+		mode: 'relevant',
+		workflowEvent: 'merge_group',
+		runId: 42,
+		runAttempt: 3,
+		eventSha: 'event-sha',
+		stepResults: {
+			'e2e-build.plan_install_pnpm': { outcome: 'success' },
+			'e2e-build.plan_setup_node': { outcome: 'success' },
+			'e2e-build.plan_install_deps': { outcome: 'success' },
+			'e2e-build.plan': { outcome: 'skipped' },
+			'e2e-build.plan_upload': { outcome: 'success' },
+			'e2e-build.login': { outcome: 'success' },
+			'e2e-build.upload_images': { outcome: 'skipped' },
+			'e2e-build.not-applicable': { outcome: 'skipped' },
+		},
+	});
+
+	assert.equal(result.job.conclusion, 'failure');
+});
+
 const e2eBuildExpectedSteps = [
 	'e2e-build.checkout',
 	'e2e-build.image_tag',

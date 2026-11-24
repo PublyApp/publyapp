@@ -193,10 +193,28 @@ const isSkipped = (step: StepEvidence): boolean =>
 const isExecutedSuccess = (step: StepEvidence): boolean =>
 	step.execution === 'executed' && step.outcome === 'success';
 
+/** The shard-plan steps only run on a merge_queue entry; ci.yml gates them. */
+const isMergeQueueOnlyPlanStep = (id: string): boolean =>
+	/\.(plan|plan_install_pnpm|plan_setup_node|plan_install_deps|plan_upload)$/.test(
+		id,
+	);
+
+/** An unknown event fails closed: the plan steps are then required. */
+const allowsSkippedPlanSteps = (workflowEvent: string | undefined): boolean =>
+	workflowEvent !== undefined &&
+	workflowEvent !== '' &&
+	workflowEvent !== 'merge_group';
+
 /** Whether one step of a `relevant` lane is acceptable. */
-const relevantStepOk = (step: StepEvidence): boolean => {
+const relevantStepOk = (
+	step: StepEvidence,
+	allowSkippedPlanSteps: boolean,
+): boolean => {
 	if (step.id.endsWith('.not-applicable')) {
 		return isSkipped(step);
+	}
+	if (allowSkippedPlanSteps && isMergeQueueOnlyPlanStep(step.id)) {
+		return isSkipped(step) || isExecutedSuccess(step);
 	}
 	if (
 		step.id.endsWith('.report_upload') ||
@@ -214,6 +232,7 @@ const relevantLaneSucceeded = (
 	jobKey: string,
 	expectedSteps: readonly string[],
 	steps: StepEvidence[],
+	allowSkippedPlanSteps: boolean,
 ): boolean => {
 	if (!isValidE2eTransportProfile(jobKey, expectedSteps, steps)) {
 		return false;
@@ -223,7 +242,7 @@ const relevantLaneSucceeded = (
 		(step) =>
 			(hasTransportContract &&
 				isE2eTransportStep(jobKey, expectedSteps, step.id)) ||
-			relevantStepOk(step),
+			relevantStepOk(step, allowSkippedPlanSteps),
 	);
 };
 
@@ -248,9 +267,10 @@ const laneSucceeded = (
 	mode: LaneResultMode,
 	expectedSteps: readonly string[],
 	steps: StepEvidence[],
+	allowSkippedPlanSteps: boolean,
 ): boolean =>
 	mode === 'relevant'
-		? relevantLaneSucceeded(jobKey, expectedSteps, steps)
+		? relevantLaneSucceeded(jobKey, expectedSteps, steps, allowSkippedPlanSteps)
 		: notApplicableLaneSucceeded(steps);
 
 export const createCiLaneResult = ({
@@ -283,7 +303,16 @@ export const createCiLaneResult = ({
 			...result,
 		};
 	});
-	const conclusion = laneSucceeded(jobKey, mode, expectedSteps, steps)
+	// Only a merge_queue entry runs the shard-plan steps; if the event is
+	// unknown, fail closed and require them.
+	const allowSkippedPlanSteps = allowsSkippedPlanSteps(workflowEvent);
+	const conclusion = laneSucceeded(
+		jobKey,
+		mode,
+		expectedSteps,
+		steps,
+		allowSkippedPlanSteps,
+	)
 		? 'success'
 		: 'failure';
 	const job = {
@@ -414,8 +443,17 @@ if (isDirectRun) {
 		});
 		result.job.lanes[laneName] = laneResult.job.lanes[laneName];
 	}
+	const allowSkippedPlanSteps = allowsSkippedPlanSteps(
+		process.env.CI_WORKFLOW_EVENT,
+	);
 	result.job.conclusion = Object.values(result.job.lanes).every((lane) =>
-		laneSucceeded(jobKey, lane.mode, lane.expected_steps, lane.steps),
+		laneSucceeded(
+			jobKey,
+			lane.mode,
+			lane.expected_steps,
+			lane.steps,
+			allowSkippedPlanSteps,
+		),
 	)
 		? 'success'
 		: 'failure';

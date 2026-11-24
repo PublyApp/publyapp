@@ -359,7 +359,7 @@ export const downloadPlan = () => {
 		if (download.status === 0) {
 			return;
 		}
-		const reason = download.stderr.trim().split('\n')[0] ?? '';
+		const reason = (download.stderr ?? '').trim().split('\n')[0] ?? '';
 		console.log(
 			`::warning::plan artifact e2e-shard-plan-${attempt} is unavailable${reason.length > 0 ? ` (${reason})` : ''}; trying an earlier attempt`,
 		);

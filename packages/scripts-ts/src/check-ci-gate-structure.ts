@@ -1866,7 +1866,21 @@ const checkCentralClassifierEdges = (
 					],
 				],
 			]);
-			return classifierCondition(jobId, lane, terms.get(stepId) ?? []);
+			// The shard plan only exists on a merge_queue entry. `stepId` is the
+			// workflow's raw step id (dashes), not the lane's normalized id.
+			const planTerms = [
+				'plan-install-pnpm',
+				'plan-setup-node',
+				'plan-install-deps',
+				'plan',
+				'plan-upload',
+			].includes(stepId)
+				? ["github.event_name == 'merge_group'"]
+				: [];
+			return classifierCondition(jobId, lane, [
+				...planTerms,
+				...(terms.get(stepId) ?? []),
+			]);
 		}
 		if (jobId === 'e2e-test' || jobId === 'e2e-smoke') {
 			const terms = new Map([
@@ -2488,7 +2502,7 @@ const checkCentralArtifacts = (jobs: CentralJobs, findings: string[]): void => {
 			stepName: 'Upload the shard plan',
 			stepId: 'plan-upload',
 			condition:
-				"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'",
+				"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && github.event_name == 'merge_group'",
 			with: {
 				name: 'e2e-shard-plan-\${{ github.run_attempt }}',
 				path: 'apps/front/e2e-artifacts/e2e-shard-plan.json',
