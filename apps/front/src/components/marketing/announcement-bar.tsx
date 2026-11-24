@@ -1,6 +1,7 @@
 import { IconX } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { browserStorage } from '~/lib/browser-storage/browser-storage-instance';
 import { cn } from '~/lib/utils';
 
 import { MarketingContainer } from './marketing-container';
@@ -37,15 +38,10 @@ const readDismissed = (id: string): boolean => {
 		return false;
 	}
 
-	try {
-		return (
-			window.localStorage.getItem(
-				`${ANNOUNCEMENT_DISMISSED_STORAGE_KEY_PREFIX}${id}`,
-			) === 'true'
-		);
-	} catch {
-		return false;
-	}
+	return (
+		browserStorage.get(`${ANNOUNCEMENT_DISMISSED_STORAGE_KEY_PREFIX}${id}`) ===
+		'true'
+	);
 };
 
 const writeDismissed = (id: string) => {
@@ -53,14 +49,10 @@ const writeDismissed = (id: string) => {
 		return;
 	}
 
-	try {
-		window.localStorage.setItem(
-			`${ANNOUNCEMENT_DISMISSED_STORAGE_KEY_PREFIX}${id}`,
-			'true',
-		);
-	} catch {
-		// Unavailable storage only costs the visitor a repeat announcement.
-	}
+	browserStorage.set(
+		`${ANNOUNCEMENT_DISMISSED_STORAGE_KEY_PREFIX}${id}`,
+		'true',
+	);
 };
 
 export const AnnouncementBar = ({

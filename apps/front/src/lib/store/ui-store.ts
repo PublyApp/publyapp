@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { browserStorage } from '~/lib/browser-storage/browser-storage-instance';
 import {
 	postBroadcast,
 	THEME_SYNC_CHANNEL,
@@ -42,11 +43,7 @@ const readLocalStorageValue = (key: string): string | null => {
 		return null;
 	}
 
-	try {
-		return window.localStorage.getItem(key);
-	} catch {
-		return null;
-	}
+	return browserStorage.get(key);
 };
 
 const parseColorScheme = (value: string | null): ColorScheme => {
@@ -138,19 +135,15 @@ const writeColorScheme = (colorScheme: ColorScheme) => {
 		return;
 	}
 
-	try {
-		window.localStorage.setItem(
-			COLOR_SCHEME_STORAGE_KEY,
-			JSON.stringify({
-				state: {
-					colorScheme,
-				},
-				version: 0,
-			}),
-		);
-	} catch {
-		// no-op
-	}
+	browserStorage.set(
+		COLOR_SCHEME_STORAGE_KEY,
+		JSON.stringify({
+			state: {
+				colorScheme,
+			},
+			version: 0,
+		}),
+	);
 };
 
 const writeSidebarOpen = (sidebarOpen: boolean) => {
@@ -158,14 +151,7 @@ const writeSidebarOpen = (sidebarOpen: boolean) => {
 		return;
 	}
 
-	try {
-		window.localStorage.setItem(
-			SIDEBAR_OPEN_STORAGE_KEY,
-			JSON.stringify(sidebarOpen),
-		);
-	} catch {
-		// no-op
-	}
+	browserStorage.set(SIDEBAR_OPEN_STORAGE_KEY, JSON.stringify(sidebarOpen));
 };
 
 const applyThemeToDocument = (colorScheme: ColorScheme) => {
@@ -223,7 +209,7 @@ const readPersistedUiState = (): Pick<
 };
 
 /**
- * The client's INITIAL store state reads localStorage at module load, not in
+ * The client's INITIAL store state reads browser storage at module load, not in
  * a post-commit effect (#936): a persisted preference must hold from the very
  * first client render. The blocking head script already applies the theme to
  * `<html>` before first paint, but the store used to wake up on hardcoded
@@ -274,7 +260,7 @@ export const useUiStore = create<UiStore>((set, get) => ({
 		// Applied from another tab's broadcast: DOM + state only, no
 		// re-broadcast (would echo back and forth between tabs) and no
 		// re-persist (the origin tab already wrote this value to
-		// localStorage — writing it again here would be harmless but
+		// browser storage — writing it again here would be harmless but
 		// redundant).
 		const normalizedColorScheme = parseColorScheme(colorScheme);
 		applyThemeToDocument(normalizedColorScheme);
