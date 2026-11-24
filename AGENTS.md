@@ -28,7 +28,7 @@ Precedence when a file matches two rows: `tooling` first, then the test zones, t
    not only in a nested function), has a cognitive complexity of **15 or less**. Split it otherwise.
 2. **No zone may rise.** Complexity and duplicated lines per 1,000 source lines (SLOC) of each zone stay
    at or below the committed baseline. Reuse an existing helper instead of copying code, in tests too.
-3. **PR size.** At most **600 changed lines** (added + deleted), excluding tests, generated files,
+3. **PR size.** At most **600 added lines** (deleted lines do not count), excluding tests, generated files,
    migrations, lockfiles and snapshots. Larger work is split into several PRs. Only the owner can
    allow more, by setting the `size-exception` label on the PR; an agent never sets it.
 

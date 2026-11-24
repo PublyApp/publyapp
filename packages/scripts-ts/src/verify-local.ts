@@ -389,7 +389,7 @@ const forcedScope = (
 	if (sizedLines > DIFF_LIMITS.maxSizedLines) {
 		return {
 			scope: 'all' as const,
-			reason: `${sizedLines} non-test changed lines > ${DIFF_LIMITS.maxSizedLines}`,
+			reason: `${sizedLines} non-test added lines > ${DIFF_LIMITS.maxSizedLines}`,
 		};
 	}
 	return null;

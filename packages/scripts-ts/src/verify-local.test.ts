@@ -311,7 +311,7 @@ test('sized line budget exceeded -> FULL(all)', () => {
 		sizedLines: DIFF_LIMITS.maxSizedLines + 1,
 	});
 	assert.equal(plan.mode, 'full');
-	assert.match(plan.reason ?? '', /non-test changed lines > 600/);
+	assert.match(plan.reason ?? '', /non-test added lines > 600/);
 });
 
 test('shared component with 41 direct test importers -> full front vitest', () => {
