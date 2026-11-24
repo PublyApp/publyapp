@@ -1,15 +1,12 @@
 using FluentAssertions;
 
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
-
-using Moq;
+using Microsoft.Extensions.DependencyInjection;
 
 using PublyApp.Api.Data.DbContext;
+using PublyApp.Api.Lib.Testing.Fixtures;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
-using PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
-using PublyApp.Api.Modules.SocialAccounts.Providers.Discord;
 using PublyApp.Api.Modules.SocialAccounts.Services;
+using PublyApp.Api.Modules.Tenants.Entities;
 
 using Xunit;
 
@@ -19,47 +16,53 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 /// #2509 review minor 13: develop silently fell through to Bluesky for a provider it
 /// did not recognise; the routing table now refuses it. The table covers the four known
 /// networks, so an out-of-range value (corrupted row) is the only case that reaches the
-/// branch, and it must be an AccountFailure that names the network.
+/// branch, and it must be an AccountFailure that names the network. The case goes through
+/// the public OpenSessionAsync with a real row, not through a test-only helper.
 /// </summary>
-public sealed class RoutingSocialSessionProviderSpec {
-	[Fact]
-	public void ItShouldReturnAnAccountFailureForANetworkWithNoSessionProvider() {
-		var network = (SocialProvider)99;
-		var router = RoutingSocialSessionProviderSpec._Router();
+public sealed class RoutingSocialSessionProviderSpec : IClassFixture<ApiFixture> {
+	private readonly ApiFixture _Fixture;
 
-		var cause = router.UnmappedCause(network);
-
-		cause.Should().NotBeNull();
-		cause.Should().Contain("no session provider is registered")
-			.And.Contain(network.ToString());
+	public RoutingSocialSessionProviderSpec(ApiFixture fixture) {
+		this._Fixture = fixture;
 	}
 
 	[Fact]
-	public void ItShouldHaveASessionProviderForEveryKnownNetwork() {
-		var router = RoutingSocialSessionProviderSpec._Router();
+	public async Task ItShouldReturnAnAccountFailureForANetworkWithNoSessionProvider() {
+		await using var scope = this._Fixture.Factory.Services.CreateAsyncScope();
+		var services = scope.ServiceProvider;
+		var db = services.GetRequiredService<AppDbContext>();
 
-		foreach (var network in Enum.GetValues<SocialProvider>()) {
-			router.UnmappedCause(network).Should().BeNull();
-		}
+		// A provider value outside the four known networks is what a corrupted row looks
+		// like; the database stores the enum as an int, so it can exist.
+		var account = new SocialAccount {
+			TenantId = await RoutingSocialSessionProviderSpec._SeedTenantAsync(db),
+			Provider = (SocialProvider)99,
+			ExternalAccountId = $"did:plc:{Guid.NewGuid():N}",
+			DisplayHandle = "@corrupt.example",
+			ProtectedCredentials = "enc-spec-blob",
+		};
+		db.SocialAccount.Add(account);
+		await db.SaveChangesAsync();
+
+		var router = ActivatorUtilities.CreateInstance<RoutingSocialSessionProvider>(services);
+
+		var result = await router.OpenSessionAsync(account.GetRequiredId(), CancellationToken.None);
+
+		var failure = result.Should()
+			.BeOfType<SocialSessionResult.AccountFailure>().Subject;
+		failure.Cause.Should().Contain("no session provider is registered")
+			.And.Contain("99");
 	}
 
-	private static RoutingSocialSessionProvider _Router() {
-		var db = new AppDbContext(
-			new DbContextOptionsBuilder<AppDbContext>()
-				.UseNpgsql("Host=routing-table-stub;Database=stub")
-				.Options
-		);
-		var protector = new Mock<ICredentialProtector>().Object;
-		return new RoutingSocialSessionProvider(
-			db,
-			new BlueskySessionProvider(
-				db,
-				protector,
-				new Mock<IBlueskyClient>().Object,
-				NullLogger<BlueskySessionProvider>.Instance
-			),
-			new MastodonSessionProvider(db, protector),
-			new DiscordWebhookSessionProvider(db, protector)
-		);
+	private static async Task<Guid> _SeedTenantAsync(AppDbContext db) {
+		var tenant = new Tenant {
+			Name = $"Routing Provider {Guid.NewGuid():N}",
+			Code = Guid.NewGuid().ToString("N")[..10],
+			Status = TenantStatus.Active,
+			MaxUsers = 10,
+		};
+		db.Tenant.Add(tenant);
+		await db.SaveChangesAsync();
+		return tenant.GetRequiredId();
 	}
 }

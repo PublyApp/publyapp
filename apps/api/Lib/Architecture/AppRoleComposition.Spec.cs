@@ -69,6 +69,13 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 		// that Host.StartAsync actually starts, where the web host service is added during
 		// Build(). Absent in the Worker Generic Host (no Kestrel), so it never masks a leak.
 		"Microsoft.AspNetCore.Hosting.GenericWebHostService",
+
+		// #2509: resolves the social adapter registry once at startup so a duplicate
+		// network fails the boot in every role. Resolving the registry in the constructor
+		// IS the whole check; StartAsync/StopAsync are no-ops, so it claims no queue work
+		// and starts no loop. It is registered in AddAppServices, hence present in both
+		// the api and the worker role (the worker test below asserts that).
+		"PublyApp.Api.Modules.SocialAccounts.Adapters.SocialAdapterRegistryStartup",
 	];
 
 	public AppRoleCompositionSpec(ApiFixture fixture) {
@@ -327,6 +334,14 @@ public sealed class AppRoleCompositionSpec : IClassFixture<ApiFixture> {
 			"Microsoft.AspNetCore.Hosting.GenericWebHostService",
 			"a REAL Production worker process is a Generic Host: the deployed worker "
 			+ "must never start Kestrel (no HTTP surface, issue #1716)"
+		);
+
+		// #2509: the registry guard is shared infra, so the worker must start it too —
+		// a duplicate network has to fail the worker boot, not just the api's.
+		resolved.Should().Contain(
+			"PublyApp.Api.Modules.SocialAccounts.Adapters.SocialAdapterRegistryStartup",
+			"the worker role shares AddAppServices and must fail its boot on a duplicate "
+			+ "social network (#2509)"
 		);
 	}
 
