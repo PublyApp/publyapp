@@ -166,8 +166,10 @@ public sealed class OnlyInjectedIntoAnalyzerSpec {
 	[InlineData("IPort[]")]
 	[InlineData("IEnumerable<IPort>")]
 	[InlineData("IReadOnlyList<IPort>")]
+	[InlineData("IReadOnlyCollection<IPort>")]
 	[InlineData("ICollection<IPort>")]
 	[InlineData("IList<IPort>")]
+	[InlineData("List<IPort>")]
 	public async Task ItShouldReportDiagnosticForEveryPublisherContainerShape(string container) {
 		var source = $$"""
 			using System.Collections.Generic;
@@ -195,6 +197,97 @@ public sealed class OnlyInjectedIntoAnalyzerSpec {
 
 			public sealed class Unrelated
 			{
+			}
+			""";
+
+		await OnlyInjectedIntoAnalyzerSpec._VerifyAsync(source);
+	}
+
+	[Fact]
+	public async Task ItShouldNotReportDiagnosticWhenTheAllowedClassTakesThePort() {
+		const string source = """
+			using System;
+			using System.Collections.Generic;
+			using PublyApp.Api.Lib.DI;
+
+			namespace Sample;
+
+			[OnlyInjectedInto(typeof(AllowedHost))]
+			public interface ISecondPort
+			{
+			}
+
+			public sealed class AllowedHost
+			{
+				public AllowedHost(ISecondPort port, IEnumerable<ISecondPort> ports)
+				{
+				}
+			}
+			""";
+
+		await OnlyInjectedIntoAnalyzerSpec._VerifyAsync(source);
+	}
+
+	[Fact]
+	public async Task ItShouldIgnoreASameNamedAttributeFromAnotherNamespace() {
+		const string source = """
+			using System;
+
+			namespace Other
+			{
+				[AttributeUsage(AttributeTargets.Interface)]
+				public sealed class OnlyInjectedIntoAttribute : Attribute
+				{
+					public OnlyInjectedIntoAttribute(params Type[] allowed)
+					{
+					}
+				}
+			}
+
+			namespace Sample
+			{
+				[Other.OnlyInjectedInto(typeof(SomeOtherClass))]
+				public interface IAlien
+				{
+				}
+
+				public sealed class SomeOtherClass
+				{
+				}
+
+				public sealed class Consumer
+				{
+					public Consumer(IAlien alien)
+					{
+					}
+				}
+			}
+			""";
+
+		await OnlyInjectedIntoAnalyzerSpec._VerifyAsync(source);
+	}
+
+	[Fact]
+	public async Task ItShouldIgnoreASameNamedFromServicesAttributeFromAnotherNamespace() {
+		const string source = """
+			using System;
+
+			namespace Other
+			{
+				[AttributeUsage(AttributeTargets.Parameter)]
+				public sealed class FromServicesAttribute : Attribute
+				{
+				}
+			}
+
+			namespace Sample
+			{
+				public sealed class Consumer
+				{
+					public void Handle([Other.FromServices] IPort port)
+					{
+					}
+				}
 			}
 			""";
 

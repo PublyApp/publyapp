@@ -18,7 +18,10 @@ namespace PublyApp.Analyzers;
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class OnlyInjectedIntoAnalyzer : DiagnosticAnalyzer {
-	private const string _AttributeName = "OnlyInjectedIntoAttribute";
+	private const string _AttributeMetadataName =
+		"PublyApp.Api.Lib.DI.OnlyInjectedIntoAttribute";
+	private const string _FromServicesMetadataName =
+		"Microsoft.AspNetCore.Mvc.FromServicesAttribute";
 	private const string _RegistrationMethodName = "AddSocialAdapter";
 	private const string _DependencyInjectionNamespace = "Microsoft.Extensions.DependencyInjection";
 
@@ -58,12 +61,30 @@ public sealed class OnlyInjectedIntoAnalyzer : DiagnosticAnalyzer {
 				return;
 			}
 
-			startContext.RegisterSyntaxNodeAction(_AnalyzeParameter, SyntaxKind.Parameter);
-			startContext.RegisterSyntaxNodeAction(_AnalyzeInvocation, SyntaxKind.InvocationExpression);
+			// Resolve both attributes once per compilation and match them by symbol identity:
+			// a same-named attribute declared in another namespace is not ours.
+			var attributeType =
+				startContext.Compilation.GetTypeByMetadataName(_AttributeMetadataName);
+			if (attributeType is null) {
+				return;
+			}
+
+			var fromServicesType =
+				startContext.Compilation.GetTypeByMetadataName(_FromServicesMetadataName);
+
+			startContext.RegisterSyntaxNodeAction(
+				nodeContext => _AnalyzeParameter(nodeContext, attributeType, fromServicesType),
+				SyntaxKind.Parameter);
+			startContext.RegisterSyntaxNodeAction(
+				nodeContext => _AnalyzeInvocation(nodeContext, attributeType),
+				SyntaxKind.InvocationExpression);
 		});
 	}
 
-	private static void _AnalyzeParameter(SyntaxNodeAnalysisContext context) {
+	private static void _AnalyzeParameter(
+		SyntaxNodeAnalysisContext context,
+		INamedTypeSymbol attributeType,
+		INamedTypeSymbol? fromServicesType) {
 		if (context.Node is not ParameterSyntax parameter
 			|| context.SemanticModel.GetDeclaredSymbol(parameter, context.CancellationToken)
 				is not IParameterSymbol symbol) {
@@ -72,8 +93,10 @@ public sealed class OnlyInjectedIntoAnalyzer : DiagnosticAnalyzer {
 
 		var owner = parameter.Parent?.Parent;
 		var isConstructorParameter = owner is ConstructorDeclarationSyntax or TypeDeclarationSyntax;
-		var isFromServices = symbol.GetAttributes().Any(attribute =>
-			attribute.AttributeClass?.Name == "FromServicesAttribute");
+		var isFromServices = fromServicesType is not null
+			&& symbol.GetAttributes().Any(attribute => SymbolEqualityComparer.Default.Equals(
+				attribute.AttributeClass,
+				fromServicesType));
 		var isInjectedMethodParameter =
 			owner is MethodDeclarationSyntax or LocalFunctionStatementSyntax && isFromServices;
 
@@ -90,10 +113,13 @@ public sealed class OnlyInjectedIntoAnalyzer : DiagnosticAnalyzer {
 			context,
 			symbol.Type,
 			containingType,
+			attributeType,
 			parameter.Type?.GetLocation() ?? parameter.Identifier.GetLocation());
 	}
 
-	private static void _AnalyzeInvocation(SyntaxNodeAnalysisContext context) {
+	private static void _AnalyzeInvocation(
+		SyntaxNodeAnalysisContext context,
+		INamedTypeSymbol attributeType) {
 		if (context.Node is not InvocationExpressionSyntax invocation
 			|| !_TryGetGenericTypeArgument(invocation, out var typeArgument)) {
 			return;
@@ -118,15 +144,17 @@ public sealed class OnlyInjectedIntoAnalyzer : DiagnosticAnalyzer {
 			return;
 		}
 
-		_ReportIfProtected(context, requestedType, containingType, typeArgument.GetLocation());
+		_ReportIfProtected(
+			context, requestedType, containingType, attributeType, typeArgument.GetLocation());
 	}
 
 	private static void _ReportIfProtected(
 		SyntaxNodeAnalysisContext context,
 		ITypeSymbol requestedType,
 		INamedTypeSymbol containingType,
+		INamedTypeSymbol attributeType,
 		Location location) {
-		if (!_TryGetProtectedPort(requestedType, out var port, out var allowed)
+		if (!_TryGetProtectedPort(requestedType, attributeType, out var port, out var allowed)
 			|| _IsAllowed(containingType, allowed)) {
 			return;
 		}
@@ -168,6 +196,7 @@ public sealed class OnlyInjectedIntoAnalyzer : DiagnosticAnalyzer {
 
 	private static bool _TryGetProtectedPort(
 		ITypeSymbol requestedType,
+		INamedTypeSymbol attributeType,
 		out INamedTypeSymbol port,
 		out ImmutableArray<INamedTypeSymbol> allowed) {
 		port = null!;
@@ -178,7 +207,7 @@ public sealed class OnlyInjectedIntoAnalyzer : DiagnosticAnalyzer {
 		}
 
 		var attribute = named.GetAttributes().FirstOrDefault(candidate =>
-			candidate.AttributeClass?.Name == _AttributeName);
+			SymbolEqualityComparer.Default.Equals(candidate.AttributeClass, attributeType));
 		if (attribute is null) {
 			return false;
 		}

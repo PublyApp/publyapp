@@ -365,6 +365,20 @@ Each rule has an ID, descriptor in `DiagnosticCatalog.cs`, and is referenced in 
 - **Enforced in:** #2157 (issue #2111)
 - **Admission:** The owner-approved bespoke-guard exception is recorded in the explicit member access design spec.
 
+### `PUBLY0013` — only inject a port into the classes it allows
+
+- **Severity in `.editorconfig`:** `error` (enforced)
+- **Category:** `PublyApp.Architecture`
+- **Source:** `packages/lint-cs/OnlyInjectedIntoAnalyzer.cs`
+- **Spec:** `packages/lint-cs/OnlyInjectedIntoAnalyzer.Spec.cs`
+- **Attribute:** `apps/api/Lib/DI/OnlyInjectedIntoAttribute.cs`
+- **Behavior:** Error-severity guard, the only PUBLY rule enabled by default (`isEnabledByDefault: true`): bypassing a port's registry is a correctness bug, not a style preference. A type carrying `[OnlyInjectedInto(...)]` may only be requested by the classes it names. It flags constructor and primary-constructor parameters, `[FromServices]` method/local-function parameters, and `GetRequiredService<T>`/`GetService<T>`/`GetServices<T>` generic arguments — bare, array, and any generic collection shape DI resolves (`IEnumerable<T>`, `IReadOnlyList<T>`, `IReadOnlyCollection<T>`, `ICollection<T>`, `IList<T>`, `List<T>`).
+- **Attribute matching:** by full metadata name via `Compilation.GetTypeByMetadataName` and `SymbolEqualityComparer`, so a same-named attribute from another namespace is ignored.
+- **Exemptions:** the `AddSocialAdapter` registration extension, and assemblies whose name ends in `.Tests`.
+- **AGENTS.md:** "Only the wiring and tests import adapters."
+- **Shipped in:** #2523
+- **Enforced in:** #2523
+
 ## How to add a new rule
 
 See the Phase-2 PRs (#463 for the JS scaffold pattern, #464 for the Roslyn scaffold pattern). The short version:
