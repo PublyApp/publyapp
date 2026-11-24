@@ -9,7 +9,8 @@ import {
 } from '~/components/ui/tooltip';
 import { copyToClipboard, isClipboardAvailable } from '~/utils/clipboard';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger } from '@org/shared-ts/lib/logger';
+import { toLogError } from '@org/shared-ts/lib/logger/logger.contract';
 
 const COPY_FEEDBACK_MS = 1500;
 
@@ -54,7 +55,7 @@ export const CopyButton = ({
 		if (!result.ok) {
 			if (result.reason === 'failed') {
 				logger.warn('Failed to copy value to clipboard', {
-					error: result.error,
+					error: toLogError(result.error),
 				});
 			}
 			setFailed(true);

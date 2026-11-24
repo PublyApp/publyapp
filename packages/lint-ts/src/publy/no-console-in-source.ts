@@ -12,7 +12,7 @@ import { isFrontSourceFile, normalizeFilename } from './path-scopes.ts';
  * enabled in `.oxlintrc.json` at error level. It does not report test files,
  * server scripts, or obvious Node CLI entrypoints.
  */
-const LOGGER_IMPORT_SOURCE = '@org/shared-ts/lib/logger/iso-logger';
+const LOGGER_IMPORT_SOURCE = '@org/shared-ts/lib/logger';
 const LOGGER_IMPORT = `import { logger } from '${LOGGER_IMPORT_SOURCE}';\n`;
 const CONSOLE_METHODS: ReadonlySet<string> = new Set([
 	'log',

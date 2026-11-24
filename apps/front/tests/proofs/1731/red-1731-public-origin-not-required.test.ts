@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger } from '@org/shared-ts/lib/logger';
 
 // Mock the env module so we can control PUBLIC_ORIGIN per test
 const mockGetServerEnv = vi.fn();

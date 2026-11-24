@@ -40,7 +40,7 @@ const mocks = vi.hoisted(() => ({
 	triggerSessionInvalidated: vi.fn(),
 }));
 
-vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
+vi.mock('@org/shared-ts/lib/logger', () => ({
 	logger: {
 		warn: mocks.loggerWarn,
 		error: vi.fn(),

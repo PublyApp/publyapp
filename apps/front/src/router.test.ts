@@ -15,7 +15,7 @@ vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayMutationFeedback: mocks.displayMutationFeedback,
 }));
 
-vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
+vi.mock('@org/shared-ts/lib/logger', () => ({
 	logger: { error: mocks.loggerError },
 }));
 

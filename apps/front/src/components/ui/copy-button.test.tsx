@@ -17,7 +17,7 @@ type ClipboardExecutor = {
 	reject: (error: Error) => void;
 };
 
-vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
+vi.mock('@org/shared-ts/lib/logger', () => ({
 	logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
@@ -131,7 +131,7 @@ describe('CopyButton', () => {
 		vi.useFakeTimers();
 		const writeText = vi.fn().mockRejectedValue(new Error('denied'));
 		Object.assign(navigator, { clipboard: { writeText } });
-		const { logger } = await import('@org/shared-ts/lib/logger/iso-logger');
+		const { logger } = await import('@org/shared-ts/lib/logger');
 		const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
 
 		const { container } = render(<CopyButton value="secret" label="Copy" />);

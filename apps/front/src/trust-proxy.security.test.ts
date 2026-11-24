@@ -10,7 +10,7 @@ import {
 	vi,
 } from 'vitest';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger } from '@org/shared-ts/lib/logger';
 
 // Mock the env module so resolveOrigin works without a real runtime env —
 // SERVER_API_BASE_URL would otherwise fail Zod validation and throw.

@@ -2,7 +2,7 @@ import {
 	NETWORK_FAILURE_MESSAGE,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger } from '@org/shared-ts/lib/logger';
 
 /**
  * What went wrong, as far as an error screen cares. Mirrors ShopKart OS's

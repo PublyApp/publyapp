@@ -41,8 +41,6 @@ export default defineConfig({
 			'@org/shared-ts',
 			/@microsoft\/kiota-serialization-(json|form|multipart|text)/,
 			/^lodash\//,
-			'winston',
-			'winston-console-format',
 		],
 	},
 	test: {

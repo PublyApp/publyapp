@@ -5,7 +5,8 @@ import { switchLocale } from '~/lib/i18n/locale-switch';
 import { setLocale } from '~/server/i18n-locale';
 
 import type { SupportedLanguage } from '@org/shared-ts/lib/i18n/shared';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger } from '@org/shared-ts/lib/logger';
+import { toLogError } from '@org/shared-ts/lib/logger/logger.contract';
 
 export const useSwitchLocale = () => {
 	const router = useRouter();
@@ -26,7 +27,9 @@ export const useSwitchLocale = () => {
 
 			switchLocale(locale, router, setLocaleFn)
 				.catch((error: unknown) => {
-					logger.error('switchLocale: failed to switch locale', error);
+					logger.error('switchLocale: failed to switch locale', {
+						error: toLogError(error),
+					});
 					setHasFailed(true);
 				})
 				.finally(() => {

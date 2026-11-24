@@ -1,6 +1,8 @@
 import forEach from 'lodash/forEach.js';
 import get from 'lodash/get.js';
 
+import type { LogValue } from '../lib/logger/logger.contract';
+
 export const delay = <T = unknown>(
 	timeout: number,
 	value?: T,
@@ -8,8 +10,11 @@ export const delay = <T = unknown>(
 ) => {
 	if (options.trace) {
 		const traceLog = async (): Promise<void> => {
-			const { logger } = await import('@org/shared-ts/lib/logger/iso-logger');
-			logger.warn('delay function invoked', { timeout, value });
+			const { logger } = await import('@org/shared-ts/lib/logger');
+			logger.warn('delay function invoked', {
+				timeout,
+				value: value as LogValue,
+			});
 		};
 		// Fire-and-forget, but never let a throwing logger surface as an
 		// unhandled rejection: delay() must resolve regardless.

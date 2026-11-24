@@ -10,7 +10,7 @@ import {
 } from '@org/shared-ts/lib/i18n/backend';
 import { GLOBAL_I18N_NAMESPACES } from '@org/shared-ts/lib/i18n/namespaces';
 import type { SupportedLanguage } from '@org/shared-ts/lib/i18n/shared';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger } from '@org/shared-ts/lib/logger';
 
 import {
 	captureBadRequest,

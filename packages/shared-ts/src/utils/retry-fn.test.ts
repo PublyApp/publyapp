@@ -5,7 +5,7 @@ const { warnSpy } = vi.hoisted(() => {
 	return { warnSpy };
 });
 
-vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
+vi.mock('@org/shared-ts/lib/logger', () => ({
 	logger: {
 		warn: (...args: unknown[]) => warnSpy(...args),
 		info: vi.fn(),

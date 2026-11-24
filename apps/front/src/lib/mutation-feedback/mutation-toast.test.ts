@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
 	},
 }));
 
-vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
+vi.mock('@org/shared-ts/lib/logger', () => ({
 	logger: { error: mocks.loggerError },
 }));
 

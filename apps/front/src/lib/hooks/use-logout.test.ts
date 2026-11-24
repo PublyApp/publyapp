@@ -32,7 +32,7 @@ vi.mock('~/lib/tab-sync/broadcast-sync', () => ({
 	postBroadcast: mocks.postBroadcast,
 }));
 
-vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
+vi.mock('@org/shared-ts/lib/logger', () => ({
 	logger: { error: vi.fn() },
 }));
 

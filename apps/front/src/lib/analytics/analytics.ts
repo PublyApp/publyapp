@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 
 import type { AnalyticsProperties } from '@org/shared-ts/lib/analytics/analytics.types';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger } from '@org/shared-ts/lib/logger';
 
 import { isProductionRuntime } from '../env';
 import { getAnalytics } from './analytics-instance';
