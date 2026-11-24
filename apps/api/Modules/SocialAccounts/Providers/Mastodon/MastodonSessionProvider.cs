@@ -92,12 +92,26 @@ public sealed class RoutingSocialSessionProvider : ISocialSessionProvider {
 			return new SocialSessionResult.AccountFailure("social account not found");
 		}
 
-		if (!this._Providers.TryGetValue(provider.Value, out var sessionProvider)) {
-			return new SocialSessionResult.AccountFailure(
-				$"no session provider is registered for network '{provider.Value}'"
-			);
+		var failure = this.UnmappedCause(provider.Value);
+		if (failure is not null) {
+			return new SocialSessionResult.AccountFailure(failure);
 		}
 
-		return await sessionProvider.OpenSessionAsync(socialAccountId, cancellationToken);
+		return await this._Providers[provider.Value].OpenSessionAsync(socialAccountId, cancellationToken);
+	}
+
+	/// <summary>
+	/// The cause for a network with no registered session provider, or null when one
+	/// exists. Exposed to specs so an out-of-range provider can be pinned without a
+	/// database row.
+	/// </summary>
+	internal string? UnmappedCause(SocialProvider network) {
+		return this._Providers.ContainsKey(network)
+			? null
+			: RoutingSocialSessionProvider._MissingProviderCause(network);
+	}
+
+	private static string _MissingProviderCause(SocialProvider network) {
+		return $"no session provider is registered for network '{network}'";
 	}
 }

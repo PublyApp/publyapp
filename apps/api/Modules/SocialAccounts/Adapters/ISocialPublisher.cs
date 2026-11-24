@@ -14,15 +14,12 @@ public interface ISocialPublisher {
 	Task<PublishResult> PublishAsync(PublishRequest request, CancellationToken cancellationToken);
 
 	/// <summary>
-	/// READ-ONLY check of an ambiguous earlier write (#2176); never writes. The default
-	/// is "cannot look it up", which parks the publication for the user to review.
+	/// READ-ONLY check of an ambiguous earlier write (#2176); never writes. Every
+	/// network needs its own rule, so adapters implement it instead of inheriting a
+	/// default that would silently park every publication for review.
 	/// </summary>
 	Task<ReconcileResult> ReconcileAsync(
 		ReconcileRequest request,
 		CancellationToken cancellationToken
-	) {
-		return Task.FromResult<ReconcileResult>(
-			new ReconcileResult.NeedsReview("this adapter cannot confirm whether the post went out")
-		);
-	}
+	);
 }

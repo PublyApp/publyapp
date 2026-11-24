@@ -3,7 +3,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Adapters;
 public static class SocialAdapterServiceCollectionExtensions {
 	/// <summary>
 	/// Registers one adapter as a singleton, then forwards every port it implements to
-	/// that same instance, so resolving a publisher and a connector yields one object.
+	/// that same instance, so resolving a port always yields the adapter itself.
 	/// </summary>
 	public static IServiceCollection AddSocialAdapter<TAdapter>(this IServiceCollection services)
 		where TAdapter : class {

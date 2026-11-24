@@ -8,6 +8,4 @@ namespace PublyApp.Api.Modules.SocialAccounts.Adapters;
 /// </summary>
 public interface ISocialAdapterRegistry {
 	ISocialPublisher Publisher(SocialProvider network);
-
-	ISocialConnector Connector(SocialProvider network);
 }

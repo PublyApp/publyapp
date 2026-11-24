@@ -25,6 +25,24 @@ public sealed class MastodonSocialAdapterSpec {
 	private const string _Token = "tok-secret-123";
 	private static readonly string _Key = PublicationIdempotencyKey.For(Guid.NewGuid());
 
+	[Fact]
+	public void ItShouldExposeItsNetworksAsAnImmutableSet() {
+		var adapter = MastodonSocialAdapterSpec._Provider(
+			new RecordingHandler(_ => MastodonSocialAdapterSpec._Status("1"))
+		);
+
+		adapter.Networks.Should().BeEquivalentTo([
+			SocialProvider.Mastodon,
+			SocialProvider.Pixelfed,
+		]);
+		var mutable = (ISet<SocialProvider>)adapter.Networks;
+		var add = () => mutable.Add(SocialProvider.Bluesky);
+		add.Should().Throw<NotSupportedException>(
+			"a caller must not be able to mutate the static network set"
+		);
+		adapter.Networks.Should().HaveCount(2);
+	}
+
 	private static PublishRequest _Request() {
 		return new PublishRequest {
 			PublicationId = Guid.NewGuid(),

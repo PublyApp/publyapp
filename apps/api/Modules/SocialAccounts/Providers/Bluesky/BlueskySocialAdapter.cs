@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Globalization;
 using System.Net;
 using System.Text;
@@ -24,15 +25,15 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 /// Authorization header; causes pass the sanitiser and never contain them.
 /// </summary>
 public sealed partial class BlueskySocialAdapter
-	: ISocialPublisher, ISocialConnector, IBlueskyClient {
+	: ISocialPublisher, IBlueskyClient {
 	public const string HttpClientName = "BlueskySocialAdapter";
 
 	private const string _Collection = "app.bsky.feed.post";
 
 	private static readonly JsonSerializerOptions _WireOptions = new(JsonSerializerDefaults.Web);
 
-	private static readonly IReadOnlySet<SocialProvider> _Networks =
-		new HashSet<SocialProvider> { SocialProvider.Bluesky };
+	private static readonly FrozenSet<SocialProvider> _Networks =
+		new[] { SocialProvider.Bluesky }.ToFrozenSet();
 
 	private readonly IHttpClientFactory _HttpClientFactory;
 	private readonly ILogger<BlueskySocialAdapter> _Logger;
@@ -47,27 +48,6 @@ public sealed partial class BlueskySocialAdapter
 
 	public IReadOnlySet<SocialProvider> Networks {
 		get { return BlueskySocialAdapter._Networks; }
-	}
-
-	public async Task<SocialSessionResult> ConnectAsync(
-		SocialConnectRequest request,
-		CancellationToken cancellationToken
-	) {
-		var opened = await this.CreateSessionAsync(
-			new BlueskyCredentials(request.Identifier, request.Credential),
-			cancellationToken
-		);
-		return opened switch {
-			BlueskySessionResult.Success success => new SocialSessionResult.Opened(new SocialSession(
-				Did: success.Identity.Did,
-				Handle: success.Identity.Handle,
-				AccessJwt: success.AccessJwt,
-				PdsHost: success.PdsHost
-			)),
-			BlueskySessionResult.AccountFailure failure =>
-				new SocialSessionResult.AccountFailure(failure.Reason),
-			_ => new SocialSessionResult.Transient("bluesky unreachable"),
-		};
 	}
 
 	public async Task<PublishResult> PublishAsync(

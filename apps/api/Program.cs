@@ -26,7 +26,6 @@ using PublyApp.Api.Modules.Projects.Endpoints;
 using PublyApp.Api.Modules.Publishing.Endpoints;
 using PublyApp.Api.Modules.Roles.Endpoints;
 using PublyApp.Api.Modules.Settings.Endpoints;
-using PublyApp.Api.Modules.SocialAccounts.Adapters;
 using PublyApp.Api.Modules.SocialAccounts.Endpoints;
 using PublyApp.Api.Modules.SystemNotices.Endpoints;
 using PublyApp.Api.Modules.Tenants.Endpoints;
@@ -104,9 +103,6 @@ public class Program {
 		// "zero mapped endpoints" on a web host would still start an HTTP server.
 		if (role is AppRole.Worker) {
 			using var workerHost = Program.CreateWorkerHostBuilder(args).Build();
-			// #2509: build the adapter table once at startup, so a duplicate network fails
-			// here instead of on the first publish.
-			workerHost.Services.GetRequiredService<ISocialAdapterRegistry>();
 			workerHost.LogDiManifestIfPresent();
 			// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing, wrong-size,
 			// or wrong-VALUE. The canary (review r3) decrypts a sentinel persisted beside
@@ -138,9 +134,6 @@ public class Program {
 		// #1708: `using` so every exit (incl. the boot-probe early return) disposes the host,
 		// whose teardown flushes the Serilog async queues.
 		using var app = builder.Build();
-		// #2509: build the adapter table once at startup, so a duplicate network fails
-		// here instead of on the first publish.
-		app.Services.GetRequiredService<ISocialAdapterRegistry>();
 
 		// C1-bis: refuse to boot if SOCIAL_ACCOUNTS_MASTER_KEY is missing, wrong-size, or
 		// wrong-VALUE (Epic C §4). The canary (review r3) decrypts a sentinel persisted

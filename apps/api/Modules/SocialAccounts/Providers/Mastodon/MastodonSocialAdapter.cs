@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -29,11 +30,11 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 /// (honoring <c>Retry-After</c>). Tokens live only in the Authorization header.
 /// </summary>
 public sealed partial class MastodonSocialAdapter
-	: ISocialPublisher, ISocialConnector, IMastodonClient {
+	: ISocialPublisher, IMastodonClient {
 	private static readonly JsonSerializerOptions _Json = new(JsonSerializerDefaults.Web);
 
-	private static readonly IReadOnlySet<SocialProvider> _Networks =
-		new HashSet<SocialProvider> { SocialProvider.Mastodon, SocialProvider.Pixelfed };
+	private static readonly FrozenSet<SocialProvider> _Networks =
+		new[] { SocialProvider.Mastodon, SocialProvider.Pixelfed }.ToFrozenSet();
 
 	private readonly IHttpClientFactory _HttpClientFactory;
 	private readonly TimeSpan _PollInterval;
@@ -51,26 +52,6 @@ public sealed partial class MastodonSocialAdapter
 
 	public IReadOnlySet<SocialProvider> Networks {
 		get { return MastodonSocialAdapter._Networks; }
-	}
-
-	public async Task<SocialSessionResult> ConnectAsync(
-		SocialConnectRequest request,
-		CancellationToken cancellationToken
-	) {
-		var verified = await this.VerifyCredentialsAsync(
-			request.Host, request.Credential, cancellationToken
-		);
-		return verified switch {
-			MastodonResult<MastodonAccountInfo>.Ok ok => new SocialSessionResult.Opened(new SocialSession(
-				Did: ok.Value.Id,
-				Handle: ok.Value.Acct,
-				AccessJwt: request.Credential,
-				PdsHost: $"https://{request.Host}"
-			)),
-			MastodonResult<MastodonAccountInfo>.Refused refused =>
-				new SocialSessionResult.AccountFailure(refused.Reason),
-			_ => new SocialSessionResult.Transient("mastodon unreachable"),
-		};
 	}
 
 	/// <summary>The instance dedupe key of one segment: position 0 keeps the bare key.</summary>
@@ -415,64 +396,89 @@ public sealed partial class MastodonSocialAdapter
 		}
 
 		for (var index = 0; index < mediaList.Count; index++) {
-			var number = index + 1;
-			var media = mediaList[index];
-			if (!limits.AcceptedImageContentTypes.Contains(media.ContentType)) {
-				return new Uploaded(ids, new PublishResult.ContentFailure(
-					$"image {number} is {media.ContentType}, which this instance does not accept"
-				));
-			}
-
-			var fitted = ImageDerivative.Fit(
-				media.Content, media.ContentType, media.WidthPx, media.HeightPx, limits.MaxImageBytes
+			var failure = await this._UploadImageAsync(
+				client, request, mediaList[index], index + 1, limits, ids, cancellationToken
 			);
-			if (fitted is ImageDerivative.CannotFit cannotFit) {
-				return new Uploaded(ids, new PublishResult.ContentFailure(
-					$"image {number} cannot be published: {cannotFit.Reason}"
-				));
+			if (failure is not null) {
+				return new Uploaded(ids, failure);
 			}
-
-			var derivative = (ImageDerivative.Fitted)fitted;
-			using var form = new MultipartFormDataContent();
-			var file = new ByteArrayContent(derivative.Content);
-			file.Headers.ContentType = new MediaTypeHeaderValue(derivative.ContentType);
-			form.Add(file, "file", $"image-{number}");
-			if (!string.IsNullOrWhiteSpace(media.AltText)) {
-				form.Add(new StringContent(media.AltText), "description");
-			}
-
-			using var upload = MastodonSocialAdapter._Request(
-				HttpMethod.Post, request, request.Provider == SocialProvider.Pixelfed ? "/api/v1/media" : "/api/v2/media"
-			);
-			upload.Content = form;
-			using var response = await client.SendAsync(upload, cancellationToken);
-			if (!response.IsSuccessStatusCode) {
-				return new Uploaded(ids, await MastodonSocialAdapter._ClassifyAsync(
-					response, $"uploading image {number}", MastodonSocialAdapter._Network(request), cancellationToken
-				));
-			}
-
-			var body = await MastodonSocialAdapter._ReadJsonAsync(response, cancellationToken);
-			var id = body.GetStringPropertyOrNull("id");
-			if (id is null) {
-				return new Uploaded(ids, new PublishResult.TransientFailure(
-					$"{MastodonSocialAdapter._Network(request)} accepted image {number} but returned no media id"
-				));
-			}
-
-			// 200 = ready; 202 = still processing: poll until the media carries a url.
-			if (response.StatusCode == HttpStatusCode.Accepted
-				|| body.GetStringPropertyOrNull("url") is null) {
-				var pollFailure = await this._WaitForMediaAsync(client, request, id, number, cancellationToken);
-				if (pollFailure is not null) {
-					return new Uploaded(ids, pollFailure);
-				}
-			}
-
-			ids.Add(id);
 		}
 
 		return new Uploaded(ids, null);
+	}
+
+	/// <summary>
+	/// Uploads one image and returns its failure, or null once its id is in
+	/// <paramref name="ids"/>. The 202 polling stays here so each image owns its wait.
+	/// </summary>
+	private async Task<PublishResult?> _UploadImageAsync(
+		HttpClient client,
+		PublishRequest request,
+		PublishMedia media,
+		int number,
+		ProviderCapability limits,
+		List<string> ids,
+		CancellationToken cancellationToken
+	) {
+		if (!limits.AcceptedImageContentTypes.Contains(media.ContentType)) {
+			return new PublishResult.ContentFailure(
+				$"image {number} is {media.ContentType}, which this instance does not accept"
+			);
+		}
+
+		var fitted = ImageDerivative.Fit(
+			media.Content, media.ContentType, media.WidthPx, media.HeightPx, limits.MaxImageBytes
+		);
+		if (fitted is ImageDerivative.CannotFit cannotFit) {
+			return new PublishResult.ContentFailure(
+				$"image {number} cannot be published: {cannotFit.Reason}"
+			);
+		}
+
+		var derivative = (ImageDerivative.Fitted)fitted;
+		using var form = new MultipartFormDataContent();
+		var file = new ByteArrayContent(derivative.Content);
+		file.Headers.ContentType = new MediaTypeHeaderValue(derivative.ContentType);
+		form.Add(file, "file", $"image-{number}");
+		if (!string.IsNullOrWhiteSpace(media.AltText)) {
+			form.Add(new StringContent(media.AltText), "description");
+		}
+
+		using var upload = MastodonSocialAdapter._Request(
+			HttpMethod.Post,
+			request,
+			request.Provider == SocialProvider.Pixelfed ? "/api/v1/media" : "/api/v2/media"
+		);
+		upload.Content = form;
+		using var response = await client.SendAsync(upload, cancellationToken);
+		if (!response.IsSuccessStatusCode) {
+			return await MastodonSocialAdapter._ClassifyAsync(
+				response,
+				$"uploading image {number}",
+				MastodonSocialAdapter._Network(request),
+				cancellationToken
+			);
+		}
+
+		var body = await MastodonSocialAdapter._ReadJsonAsync(response, cancellationToken);
+		var id = body.GetStringPropertyOrNull("id");
+		if (id is null) {
+			return new PublishResult.TransientFailure(
+				$"{MastodonSocialAdapter._Network(request)} accepted image {number} but returned no media id"
+			);
+		}
+
+		// 200 = ready; 202 = still processing: poll until the media carries a url.
+		if (response.StatusCode == HttpStatusCode.Accepted
+			|| body.GetStringPropertyOrNull("url") is null) {
+			var pollFailure = await this._WaitForMediaAsync(client, request, id, number, cancellationToken);
+			if (pollFailure is not null) {
+				return pollFailure;
+			}
+		}
+
+		ids.Add(id);
+		return null;
 	}
 
 	private async Task<PublishResult?> _WaitForMediaAsync(

@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -29,8 +30,8 @@ public sealed class DiscordWebhookSocialAdapter : ISocialPublisher {
 
 	private static readonly JsonSerializerOptions _Json = new(JsonSerializerDefaults.Web);
 
-	private static readonly IReadOnlySet<SocialProvider> _Networks =
-		new HashSet<SocialProvider> { SocialProvider.DiscordWebhook };
+	private static readonly FrozenSet<SocialProvider> _Networks =
+		new[] { SocialProvider.DiscordWebhook }.ToFrozenSet();
 
 	private readonly IHttpClientFactory _HttpClientFactory;
 

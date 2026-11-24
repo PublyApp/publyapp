@@ -295,10 +295,18 @@ public static class ServiceRegistration {
 		// Register RequestAuthContext (unified auth + tenant context)
 		builder.Services.AddScoped<IRequestAuthContext, RequestAuthContext>();
 
-		// Social adapters (#2509): one class per network merges connect and publish.
-		// The adapters only hold IHttpClientFactory/ILogger, both singletons, so the
-		// singleton registrations keep the lifetimes the publish providers already had.
+		// Social adapters (#2509): one publisher per network. The adapters only hold
+		// IHttpClientFactory/ILogger, both singletons, so the singleton registrations
+		// keep the lifetimes the publish providers already had.
 		BlueskySocialAdapter.RegisterHttpClient(builder.Services);
+		// The publish half of Bluesky keeps its own named client (#2509 review): the
+		// PDS session client above pins a base address and no timeout, the publish
+		// client deliberately has neither. The timeout is HttpClient's default made
+		// explicit, so the registration is real for a future handler/proxy.
+		builder.Services.AddHttpClient(
+			BlueskySocialAdapter.HttpClientName,
+			client => client.Timeout = TimeSpan.FromSeconds(100)
+		);
 		// Mastodon talks to user-entered hosts: every connection goes through the
 		// SSRF-guarded handler (public addresses only, no redirects).
 		builder.Services
@@ -321,6 +329,7 @@ public static class ServiceRegistration {
 		builder.Services.AddSocialAdapter<BlueskySocialAdapter>();
 		builder.Services.AddSocialAdapter<DiscordWebhookSocialAdapter>();
 		builder.Services.AddSingleton<ISocialAdapterRegistry, SocialAdapterRegistry>();
+		builder.Services.AddHostedService<SocialAdapterRegistryStartup>();
 		builder.Services.AddSingleton<IPublishProvider, RoutingPublishProvider>();
 
 		// E2E publish-now seam (plan D2 reconciliation 4, round-2 blocker fix): ONLY

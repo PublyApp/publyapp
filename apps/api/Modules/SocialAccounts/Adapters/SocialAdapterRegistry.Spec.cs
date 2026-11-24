@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 using FluentAssertions;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -5,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using PublyApp.Api.Modules.Publishing.Providers;
 using PublyApp.Api.Modules.SocialAccounts.Entities;
 using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
-using PublyApp.Api.Modules.SocialAccounts.Services;
 
 using Xunit;
 
@@ -15,22 +16,19 @@ public sealed class SocialAdapterRegistrySpec {
 	[Fact]
 	public void ItShouldMapPixelfedToTheMastodonAdapter() {
 		var mastodon = new StubPublisher(SocialProvider.Mastodon, SocialProvider.Pixelfed);
-		var registry = new SocialAdapterRegistry([mastodon], []);
+		var registry = new SocialAdapterRegistry([mastodon]);
 
 		registry.Publisher(SocialProvider.Pixelfed).Should().BeSameAs(mastodon);
 	}
 
 	[Fact]
-	public void ItShouldNotServeDiscordAsAConnector() {
-		var registry = new SocialAdapterRegistry(
-			[],
-			[new StubConnector(SocialProvider.Mastodon, SocialProvider.Pixelfed)]
-		);
+	public void ItShouldRejectANetworkNoAdapterPublishes() {
+		var registry = new SocialAdapterRegistry([new StubPublisher(SocialProvider.Mastodon)]);
 
-		var act = () => registry.Connector(SocialProvider.DiscordWebhook);
+		var act = () => registry.Publisher(SocialProvider.Bluesky);
 
 		act.Should().Throw<UnsupportedNetworkException>()
-			.Which.Network.Should().Be(SocialProvider.DiscordWebhook);
+			.Which.Network.Should().Be(SocialProvider.Bluesky);
 	}
 
 	[Fact]
@@ -38,7 +36,7 @@ public sealed class SocialAdapterRegistrySpec {
 		var first = new StubPublisher(SocialProvider.Mastodon);
 		var second = new StubPublisher(SocialProvider.Mastodon);
 
-		var act = () => new SocialAdapterRegistry([first, second], []);
+		var act = () => new SocialAdapterRegistry([first, second]);
 
 		act.Should().Throw<ArgumentException>();
 	}
@@ -57,21 +55,20 @@ public sealed class SocialAdapterRegistrySpec {
 	}
 
 	[Fact]
-	public void ItShouldResolveOneAdapterAsBothPublisherAndConnector() {
+	public void ItShouldResolveTheAdapterThroughItsPublisherPort() {
 		var services = new ServiceCollection();
 		services.AddSingleton<IHttpClientFactory>(new StubHttpClientFactory());
 		services.AddSocialAdapter<MastodonSocialAdapter>();
 		using var provider = services.BuildServiceProvider();
 
 		var publisher = provider.GetRequiredService<ISocialPublisher>();
-		var connector = provider.GetRequiredService<ISocialConnector>();
 
-		publisher.Should().BeSameAs(connector);
 		publisher.Should().BeOfType<MastodonSocialAdapter>();
+		provider.GetRequiredService<IMastodonClient>().Should().BeSameAs(publisher);
 	}
 
 	private class StubPublisher(params SocialProvider[] networks) : ISocialPublisher {
-		public IReadOnlySet<SocialProvider> Networks { get; } = networks.ToHashSet();
+		public IReadOnlySet<SocialProvider> Networks { get; } = networks.ToFrozenSet();
 
 		public Task<PublishResult> PublishAsync(
 			PublishRequest request,
@@ -79,18 +76,12 @@ public sealed class SocialAdapterRegistrySpec {
 		) {
 			return Task.FromResult<PublishResult>(new PublishResult.Published("id", "url"));
 		}
-	}
 
-	private sealed class StubConnector(params SocialProvider[] networks) : ISocialConnector {
-		public IReadOnlySet<SocialProvider> Networks { get; } = networks.ToHashSet();
-
-		public Task<SocialSessionResult> ConnectAsync(
-			SocialConnectRequest request,
+		public Task<ReconcileResult> ReconcileAsync(
+			ReconcileRequest request,
 			CancellationToken cancellationToken
 		) {
-			return Task.FromResult<SocialSessionResult>(
-				new SocialSessionResult.AccountFailure("stub")
-			);
+			return Task.FromResult<ReconcileResult>(new ReconcileResult.NeedsReview("stub"));
 		}
 	}
 
