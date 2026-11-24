@@ -8,7 +8,7 @@ import {
 	useSuspendStaffUserMutation,
 } from '~/lib/query/staff-users';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 /** Runs a mutation; on failure flags a logout when needed and returns false.
@@ -63,7 +63,9 @@ export const useStaffLifecycleAction = ({
 		try {
 			await invalidateStaffUsers(queryClient);
 		} catch (error) {
-			logger.warn('Staff user lifecycle invalidation failed', error);
+			logger.warn('Staff user lifecycle invalidation failed', {
+				error: toLogError(error),
+			});
 		}
 	};
 

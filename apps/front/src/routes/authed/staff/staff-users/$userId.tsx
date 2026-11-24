@@ -16,7 +16,7 @@ import {
 	useStaffUserRolesQuery,
 } from '~/lib/query/staff-users';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 import { staffUserCrumbsBase } from './$userId/_crumbs';
@@ -77,7 +77,9 @@ const StaffUserDetailsPage = () => {
 			await navigate({ to: '/staff/staff-users' });
 		} catch (error) {
 			// navigation rejection after a successful delete — don't reuse the failure message
-			logger.warn('Staff user delete navigation failed', error);
+			logger.warn('Staff user delete navigation failed', {
+				error: toLogError(error),
+			});
 		}
 	};
 	const lifecycle = useStaffLifecycleAction({

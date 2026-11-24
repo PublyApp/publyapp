@@ -17,7 +17,7 @@ import {
 	getFailureMessage,
 	toApiFailure,
 } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 import { shouldLogoutForFailure } from '@org/shared-ts/lib/should-logout-for-failure';
 
 type IdentityFormValues = { firstName: string; lastName: string };
@@ -117,7 +117,9 @@ export const useIdentitySubmit = (methods: Methods, userId: string) => {
 		try {
 			await invalidateGlobalTenantUsers(queryClient);
 		} catch (invalidationError) {
-			logger.warn('Global tenant-user invalidation failed', invalidationError);
+			logger.warn('Global tenant-user invalidation failed', {
+				error: toLogError(invalidationError),
+			});
 		}
 
 		toastLocalMutationResult.success(t('tenant-user-updated-success'));
