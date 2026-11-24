@@ -208,7 +208,7 @@ Every side effect or I/O (logs, e-mail, analytics, external APIs, storage, brows
 [ports and adapters rule](https://github.com/radandevist/conventions/blob/main/rules/architecture/ports-and-adapters.md).
 In short:
 
-- Business code calls the **service** only (`logger`, `EmailService`, `PublishService`). The service does the
+- Business code calls the **service** only (for example `logger`, `EmailService`). The service does the
   shared work once (level, redaction, consent, journal), then calls a port.
 - A **port** is a small interface for one need (`ILogger.write`, `IEmailSender.SendAsync`, `ISocialPublisher`).
   One adapter per library or API; it may implement several ports.

@@ -613,6 +613,7 @@ Task<bool> DeleteAsync(
 
 - **Namespace**: Place concrete class under `PublyApp.Api.Modules.<Domain>.Services`
 - **Primary interface**: Define `I{ClassName}` interface (e.g., `UserService` → `IUserService`)
+  - This DI interface is not a port. A port (ports and adapters rule) is named `I` + the role an adapter plays (`IEmailSender`), and the service does not implement it — see [`ports-and-adapters.md`](ports-and-adapters.md).
 - **Explicit lifetime**: Specify `ServiceLifetime` explicitly (Scoped, Transient, or Singleton)
 - **One unkeyed default**: Exactly one unkeyed registration per service type is allowed
 - **Key governance**: If multiple implementations exist, additional ones must be keyed using constants (never inline strings)
