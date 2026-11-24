@@ -212,6 +212,115 @@ test('fails closed on a malformed primitive step record', () => {
 	assert.ok(failures.some((failure) => /malformed/i.test(failure)));
 });
 
+const e2eBuildExpectedSteps = [
+	'e2e-build.checkout',
+	'e2e-build.plan_install_pnpm',
+	'e2e-build.plan_setup_node',
+	'e2e-build.plan_install_deps',
+	'e2e-build.plan',
+	'e2e-build.plan_upload',
+	'e2e-build.image_tag',
+	'e2e-build.image_root',
+	'e2e-build.image_fork',
+	'e2e-build.setup_buildx',
+	'e2e-build.setup_runtime',
+	'e2e-build.login',
+	'e2e-build.image_reuse',
+	'e2e-build.images',
+	'e2e-build.runtime_guard',
+	'e2e-build.upload_images',
+	'e2e-build.not-applicable',
+];
+
+const skippedPlanStepIds = new Set([
+	'e2e-build.plan_install_deps',
+	'e2e-build.plan',
+	'e2e-build.plan_upload',
+]);
+
+/**
+ * Reproduces the failing CI shape: on a non-merge-queue event ci.yml skips the
+ * three shard-plan steps, so the lane reports them `skipped`. The transport
+ * profile keeps `login` executed and `upload_images` skipped.
+ */
+const aggregateSkippedPlanE2eBuild = (eventName: string | undefined) => {
+	const record = createCiLaneResult({
+		jobKey: 'e2e-build',
+		lane: 'e2e',
+		expectedSteps: e2eBuildExpectedSteps,
+		mode: 'relevant',
+		runId: 42,
+		runAttempt: 1,
+		eventSha: 'sha',
+		workflowEvent: eventName,
+		stepResults: Object.fromEntries(
+			e2eBuildExpectedSteps.map((id) => [
+				id,
+				{
+					outcome:
+						skippedPlanStepIds.has(id) || id === 'e2e-build.upload_images'
+							? 'skipped'
+							: 'success',
+				},
+			]),
+		),
+	});
+	return aggregateCiGate({
+		run_id: 42,
+		run_attempt: 1,
+		event_name: eventName,
+		classifier: {
+			result: 'success',
+			outputs: {
+				quality: 'false',
+				front: 'false',
+				api: 'false',
+				e2e: 'true',
+				docs: 'false',
+				react: 'false',
+			},
+		},
+		records: [record],
+	});
+};
+
+const planStepFailures = (failures: string[]): string[] =>
+	failures.filter((failure) =>
+		/e2e-build\/e2e: relevant step e2e-build\.(plan|plan_install_deps|plan_upload) did not succeed/.test(
+			failure,
+		),
+	);
+
+// The plan steps are gated to merge_group, so a pull_request lane that reports
+// them skipped must not fail the final aggregator (the red run 45473993639).
+test('accepts skipped shard-plan steps on a pull_request e2e-build lane', () => {
+	const result = aggregateSkippedPlanE2eBuild('pull_request');
+
+	assert.equal(result.ok, false); // the other 25 artifacts are absent here
+	assert.deepEqual(planStepFailures(result.failures), []);
+});
+
+test('requires executed shard-plan steps on a merge_group e2e-build lane', () => {
+	const result = aggregateSkippedPlanE2eBuild('merge_group');
+
+	assert.deepEqual(planStepFailures(result.failures).sort(), [
+		'e2e-build/e2e: relevant step e2e-build.plan did not succeed',
+		'e2e-build/e2e: relevant step e2e-build.plan_install_deps did not succeed',
+		'e2e-build/e2e: relevant step e2e-build.plan_upload did not succeed',
+	]);
+});
+
+test('fails closed on a missing or empty event with skipped shard-plan steps', () => {
+	for (const eventName of [undefined, '']) {
+		const result = aggregateSkippedPlanE2eBuild(eventName);
+		assert.equal(
+			planStepFailures(result.failures).length,
+			3,
+			String(eventName),
+		);
+	}
+});
+
 test('the central gate invokes the aggregation script and has the only gate topology', () => {
 	const document = parse(
 		readFileSync(path.join(workflowsDirectory, 'ci.yml'), 'utf8'),

@@ -194,7 +194,7 @@ const isExecutedSuccess = (step: StepEvidence): boolean =>
 	step.execution === 'executed' && step.outcome === 'success';
 
 /** The shard-plan steps only run on a merge_queue entry; ci.yml gates them. */
-const isMergeQueueOnlyPlanStep = (id: string): boolean =>
+export const isMergeQueueOnlyPlanStep = (id: string): boolean =>
 	/\.(plan|plan_install_deps|plan_upload)$/.test(id);
 
 /**

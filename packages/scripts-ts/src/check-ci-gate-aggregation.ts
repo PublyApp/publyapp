@@ -5,6 +5,8 @@ import process from 'node:process';
 import {
 	hasE2eTransportContract,
 	isE2eTransportStep,
+	isMergeQueueOnlyPlanStep,
+	isNonMergeQueueEvent,
 	isValidE2eTransportProfile,
 } from './ci-lane-result.ts';
 import type { LaneResultMode } from './ci-lane-result.ts';
@@ -1130,11 +1132,26 @@ const expectedClassifierMode = (
 	return output === 'true' ? 'relevant' : 'not_applicable';
 };
 
+/**
+ * The shard-plan steps are gated to `merge_group`, so a pull_request lane may
+ * report them skipped. An unknown or empty event fails closed and requires
+ * them, like a merge_queue entry. Mirrors `ci-lane-result.ts`.
+ */
+const isSkippedPlanStepOnNonMergeQueueEvent = (
+	step: StepEvidence,
+	eventName: string | undefined,
+): boolean =>
+	isMergeQueueOnlyPlanStep(step.id) &&
+	isNonMergeQueueEvent(eventName) &&
+	step.execution === 'skipped' &&
+	step.outcome === 'skipped';
+
 const validateLaneMode = (
 	jobKey: string,
 	laneName: string,
 	lane: LaneEvidence,
 	contractForLane: JobContract,
+	eventName: string | undefined,
 	failures: string[],
 ): void => {
 	if (!['relevant', 'not_applicable'].includes(lane.mode)) {
@@ -1224,6 +1241,9 @@ const validateLaneMode = (
 					`${jobKey}/${laneName}: failure-only diagnostic did not complete successfully`,
 				);
 			}
+			continue;
+		}
+		if (isSkippedPlanStepOnNonMergeQueueEvent(step, eventName)) {
 			continue;
 		}
 		if (step.execution !== 'executed' || step.outcome !== 'success') {
@@ -1511,7 +1531,14 @@ export const aggregateCiGate = (input: AggregateInput): AggregateResult => {
 				push(failures, `${key}: missing lane ${laneContract.lane}`);
 				continue;
 			}
-			validateLaneMode(key, laneContract.lane, lane, laneContract, failures);
+			validateLaneMode(
+				key,
+				laneContract.lane,
+				lane,
+				laneContract,
+				input.event_name,
+				failures,
+			);
 			const expectedMode = expectedClassifierMode(
 				laneContract,
 				input.classifier.outputs,
