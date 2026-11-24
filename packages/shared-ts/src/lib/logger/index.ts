@@ -2,20 +2,20 @@ import { isServer } from '../constants';
 import { BrowserConsoleLoggerAdapter } from './adapters/browser-console-logger-adapter';
 import { JsonLoggerAdapter } from './adapters/json-logger-adapter';
 import { MemoryLoggerAdapter } from './adapters/memory-logger-adapter';
-import {
-	createBrowserWinstonAdapter,
-	createServerWinstonAdapter,
-} from './adapters/winston-logger-adapter';
-import { type LogEnv, parseLevel, readEnv, resolveLevel } from './log-level';
-import { Logger } from './logger';
+import { createServerWinstonAdapter } from './adapters/winston-logger-adapter';
+import { createLogger } from './create-logger';
+import { type LogEnv, parseLevel, readEnv } from './log-level';
 import type { ILogger } from './logger.types';
 
 export * from './logger.types';
 export { Logger } from './logger';
 export { MemoryLoggerAdapter } from './adapters/memory-logger-adapter';
 
+/** Development server only; the browser entry never reaches this module. */
 const winstonAdapter = (server: boolean): ILogger =>
-	server ? createServerWinstonAdapter() : createBrowserWinstonAdapter();
+	server
+		? createServerWinstonAdapter()
+		: new BrowserConsoleLoggerAdapter({ pretty: true });
 
 const autoAdapter = (env: LogEnv, server: boolean): ILogger => {
 	if (env.NODE_ENV === 'test') {
@@ -26,9 +26,6 @@ const autoAdapter = (env: LogEnv, server: boolean): ILogger => {
 	}
 	return winstonAdapter(server);
 };
-
-const isKnownAdapter = (name: string): name is 'winston' | 'json' =>
-	name === 'winston' || name === 'json';
 
 /** `LOG_ADAPTER=winston|json` forces an adapter; anything else is automatic. */
 export const resolveAdapter = (
@@ -44,8 +41,11 @@ export const resolveAdapter = (
 	return autoAdapter(env, server);
 };
 
+const isKnownAdapter = (name: string): name is 'winston' | 'json' =>
+	name === 'winston' || name === 'json';
+
 const env = readEnv();
-export const logger = new Logger(resolveAdapter(env), resolveLevel(env));
+export const logger = createLogger(env, resolveAdapter(env));
 
 if (env.LOG_ADAPTER && !isKnownAdapter(env.LOG_ADAPTER)) {
 	logger.warn('Invalid LOG_ADAPTER, using automatic selection', {

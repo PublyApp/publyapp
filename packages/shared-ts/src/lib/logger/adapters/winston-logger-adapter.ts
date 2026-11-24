@@ -1,6 +1,5 @@
 import winston from 'winston';
 import { consoleFormat } from 'winston-console-format';
-import BrowserConsole from 'winston-transport-browserconsole';
 
 import type { ILogger, LogEntry, LogValue } from '../logger.types';
 
@@ -8,7 +7,7 @@ type WinstonLike = {
 	log(entry: Record<string, LogValue>): void;
 };
 
-/** Development, server and browser: the level is already filtered upstream. */
+/** Development: the level is already filtered upstream. */
 export class WinstonLoggerAdapter implements ILogger {
 	readonly #winston: WinstonLike;
 
@@ -42,20 +41,6 @@ export const createServerWinstonAdapter = (): WinstonLoggerAdapter =>
 						metaStrip: ['timestamp'],
 						inspectOptions: { depth: null, colors: true, breakLength: 120 },
 					}),
-				),
-			}),
-		]),
-	);
-
-/** Browser development: Winston's console transport for the same rendering. */
-export const createBrowserWinstonAdapter = (): WinstonLoggerAdapter =>
-	new WinstonLoggerAdapter(
-		createWinston([
-			new BrowserConsole({
-				format: winston.format.combine(
-					winston.format.colorize({ all: true }),
-					winston.format.padLevels(),
-					winston.format.simple(),
 				),
 			}),
 		]),
