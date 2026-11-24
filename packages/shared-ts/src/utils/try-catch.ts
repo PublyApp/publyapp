@@ -1,4 +1,5 @@
-import { logger, toLogError } from '../lib/logger/index.ts';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
+
 import { isAsyncFunction, isPromise } from './any.utils.ts';
 import { getErrorMessage } from './error.utils.ts';
 

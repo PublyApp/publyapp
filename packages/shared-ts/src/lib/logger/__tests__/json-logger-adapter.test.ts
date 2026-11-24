@@ -39,10 +39,10 @@ describe('JsonLoggerAdapter', () => {
 		});
 	});
 
-	it('writes each line before write returns: no buffer survives a SIGTERM', () => {
+	it('writes each line before write returns: nothing is buffered when the caller continues', () => {
 		// SIGTERM is not an `exit` event, so anything still buffered when the
 		// process is stopped is lost. The line must be out by the time the
-		// caller continues.
+		// caller continues. (Process-level SIGTERM proof: fix2516-proof/busy-parent.cjs.)
 		const { out, adapter } = make();
 		for (let i = 0; i < 1000; i++) {
 			adapter.write(entry({ message: `m${i}` }));

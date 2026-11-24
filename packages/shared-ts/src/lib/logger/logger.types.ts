@@ -25,6 +25,8 @@ export interface ILogger {
 	write(entry: LogEntry): void;
 }
 
-/** `catch (error)` sites: `meta` accepts typed values only. */
-export const toLogError = (error: unknown): Error =>
-	error instanceof Error ? error : new Error(String(error));
+/** `catch (error)` sites: a plain-object throw keeps its fields instead of `[object Object]`. */
+export const toLogError = (error: unknown): LogValue =>
+	typeof error === 'object' && error !== null
+		? (error as LogValue)
+		: new Error(String(error));

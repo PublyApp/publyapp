@@ -6,7 +6,14 @@ import type { LogEntry, LogMeta, LogValue } from './logger.types';
 // keys are masked by name too, which the C# sink does through its destructuring.
 const SENSITIVE_KEY =
 	/password|passwd|passphrase|secret|token|authorization|cookie|api[-_]?key|credential|email|phone|iban|card(number)?|ssn/i;
-const SAFE_KEYS = new Set(['emailhash', 'tokentype', 'tokencount']);
+// Correlation data: masked by name nowhere and kept token-shaped on purpose.
+const SAFE_KEYS = new Set([
+	'emailhash',
+	'requestid',
+	'tokentype',
+	'tokencount',
+]);
+const TOKEN_PATTERN = /[A-Za-z0-9_\-+=]{24,}/g; // no '/': paths stay readable
 
 const TEXT_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
 	[/[\x00-\x1F]+/g, ' '],
@@ -15,7 +22,6 @@ const TEXT_PATTERNS: ReadonlyArray<readonly [RegExp, string]> = [
 	[/\bBearer\s+\S+/gi, 'Bearer [REDACTED]'],
 	[/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '[redacted-email]'],
 	[/\+\d[\d\s().-]{7,}\d|\b0\d([\s.-]?\d{2}){4}\b/g, '[redacted-phone]'],
-	[/[A-Za-z0-9_\-+=]{24,}/g, '[redacted-token]'], // no '/': paths stay readable
 ];
 
 // Same bound and sentinel as SanitizingLogEventSink._MaxPropertyDepth and
@@ -26,10 +32,13 @@ const MAX_LENGTH = 2048;
 const DEPTH_EXCEEDED = '[redacted-depth-exceeded]';
 const TRUNCATED = '[Truncated]';
 
-export const redactText = (text: string): string => {
+export const redactText = (text: string, keepTokens = false): string => {
 	let result = text;
 	for (const [pattern, replacement] of TEXT_PATTERNS) {
 		result = result.replace(pattern, replacement);
+	}
+	if (!keepTokens) {
+		result = result.replace(TOKEN_PATTERN, '[redacted-token]');
 	}
 	if (result.length <= MAX_LENGTH) {
 		return result;
@@ -58,21 +67,41 @@ const redactError = (error: Error, seen: Seen, depth: number): LogValue => {
 	};
 };
 
+// Mirrors SanitizingLogEventSink._SanitizeDictionaryKey: render the key through
+// the text sanitizer, then suffix collisions so no property is silently lost.
+const sanitizeKey = (key: string, used: Set<string>): string => {
+	const redacted = redactText(key);
+	let candidate = redacted;
+	// ponytail: restart the suffix scan; MAX_ITEMS is 100, a map buys nothing.
+	for (let suffix = 2; used.has(candidate); suffix++) {
+		candidate = `${redacted} #${suffix}`;
+	}
+	used.add(candidate);
+	return candidate;
+};
+
 const redactEntries = (
 	object: LogObject,
 	seen: Seen,
 	depth: number,
-): LogValue =>
-	Object.fromEntries(
+): LogValue => {
+	const usedKeys = new Set<string>();
+	return Object.fromEntries(
 		Object.entries(object)
 			.slice(0, MAX_ITEMS)
 			.map(([key, value]) => [
-				key,
+				sanitizeKey(key, usedKeys),
 				isSensitiveKey(key)
 					? '[REDACTED]'
-					: redactValue(value, seen, depth + 1),
+					: redactValue(
+							value,
+							seen,
+							depth + 1,
+							SAFE_KEYS.has(key.toLowerCase()),
+						),
 			]),
 	);
+};
 
 const redactArray = (
 	items: readonly LogValue[],
@@ -100,9 +129,14 @@ const redactObject = (
 	return redactEntries(value, path, depth);
 };
 
-const redactValue = (value: LogValue, seen: Seen, depth: number): LogValue => {
+const redactValue = (
+	value: LogValue,
+	seen: Seen,
+	depth: number,
+	keepTokens = false,
+): LogValue => {
 	if (typeof value === 'string') {
-		return redactText(value);
+		return redactText(value, keepTokens);
 	}
 	if (typeof value !== 'object' || value === null) {
 		return value;

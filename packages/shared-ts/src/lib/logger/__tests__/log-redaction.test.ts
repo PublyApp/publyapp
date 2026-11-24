@@ -63,6 +63,30 @@ describe('redactMeta', () => {
 		});
 	});
 
+	it('keeps realistic correlation values under safe keys', () => {
+		const emailHash = 'a'.repeat(64);
+		const requestId = '550e8400-e29b-41d4-a716-446655440000';
+		expect(redactMeta({ emailHash, requestId, tokenType: 'refresh' })).toEqual({
+			emailHash,
+			requestId,
+			tokenType: 'refresh',
+		});
+	});
+
+	it('redacts object keys like the C# dictionary-key sanitizer', () => {
+		expect(redactMeta({ 'a@b.com': true, path: '/ok' })).toEqual({
+			'[redacted-email]': true,
+			path: '/ok',
+		});
+	});
+
+	it('suffixes keys that collapse to the same redacted name', () => {
+		expect(redactMeta({ 'a@b.com': 1, 'c@d.com': 2 })).toEqual({
+			'[redacted-email]': 1,
+			'[redacted-email] #2': 2,
+		});
+	});
+
 	it('redacts text values', () => {
 		expect(redactMeta({ note: 'x@y.io' })).toEqual({
 			note: '[redacted-email]',
