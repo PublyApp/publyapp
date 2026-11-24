@@ -18,7 +18,7 @@ public sealed class StaffInvitationEmailJobHandler
 	: EmailJobHandlerBase<StaffInvitationEmailPayload> {
 	public StaffInvitationEmailJobHandler(
 		AppDbContext db,
-		EmailService emailService,
+		IEmailService emailService,
 		IEmailLogWriter logWriter,
 		JobsMetrics metrics
 	) : base(db, emailService, logWriter, metrics) {

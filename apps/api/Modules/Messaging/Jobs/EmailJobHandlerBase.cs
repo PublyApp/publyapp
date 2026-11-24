@@ -76,13 +76,13 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 	private static readonly JsonSerializerOptions _EnvelopeJson = new(JsonSerializerDefaults.Web);
 
 	protected AppDbContext Db { get; }
-	protected EmailService EmailService { get; }
+	protected IEmailService EmailService { get; }
 	private readonly IEmailLogWriter _LogWriter;
 	private readonly JobsMetrics _Metrics;
 
 	protected EmailJobHandlerBase(
 		AppDbContext db,
-		EmailService emailService,
+		IEmailService emailService,
 		IEmailLogWriter logWriter,
 		JobsMetrics metrics
 	) {

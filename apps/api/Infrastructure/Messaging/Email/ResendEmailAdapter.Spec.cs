@@ -30,6 +30,29 @@ public sealed class ResendEmailAdapterSpec {
 	}
 
 	[Fact]
+	public async Task ItShouldSendWithoutIdempotencyKeyThroughTheNonIdempotentOverload() {
+		// Every inline send (welcome, verification, password reset) has no key and takes
+		// this branch. Sending a null key through the keyed overload would either break
+		// the provider contract or dedupe unrelated mail; pin the overload explicitly.
+		var messageId = Guid.NewGuid();
+		var fake = new FakeResendClient {
+			EmailSendResponse = new ResendResponse<Guid>(messageId, new ResendRateLimit())
+		};
+		var adapter = new ResendEmailAdapter(fake.AsResend());
+		var request = ResendEmailAdapterSpec._Request();
+
+		var receipt = await adapter.SendAsync(request);
+
+		receipt.ProviderMessageId.Should().Be(messageId.ToString());
+		fake.LastEmailMessage.Should().NotBeNull();
+		fake.LastEmailMessage?.To.Should().ContainSingle(address => address.Email == request.To);
+		fake.LastCallUsedIdempotentOverload.Should().BeFalse(
+			"a send without an idempotency key must use the non-idempotent SDK overload"
+		);
+		fake.ProviderCallCount.Should().Be(1);
+	}
+
+	[Fact]
 	public async Task ItShouldClassifyThrownValidationErrorAsPermanent() {
 		var providerError = new ResendException(
 			HttpStatusCode.UnprocessableEntity,
@@ -136,6 +159,54 @@ public sealed class ResendEmailAdapterSpec {
 
 		var thrown = await act.Should().ThrowAsync<EmailProviderTransientException>();
 		thrown.Which.Code.Should().Be("provider_timeout");
+	}
+
+	[Fact]
+	public async Task ItShouldPropagateCallerCancellationToTheSdkWithoutIdempotencyKey() {
+		// Host shutdown or a cancelled job must cancel the in-flight provider call. A
+		// linked token that forgot the caller's token would instead wait out the 30 s
+		// bound and classify the send as a transient provider timeout (and retry it).
+		var fake = new FakeResendClient { Delay = TimeSpan.FromSeconds(30) };
+		var adapter = new ResendEmailAdapter(fake.AsResend(), TimeSpan.FromMilliseconds(50));
+		using var cancellation = new CancellationTokenSource();
+		cancellation.Cancel();
+
+		var act = async () =>
+			await adapter.SendAsync(
+				ResendEmailAdapterSpec._Request(),
+				cancellationToken: cancellation.Token
+			);
+
+		var thrown = await act.Should().ThrowAsync<OperationCanceledException>();
+		thrown.Which.Should().NotBeOfType<EmailProviderTransientException>(
+			"caller cancellation is not a provider timeout"
+		);
+		fake.LastCallObservedCancelledToken.Should().BeTrue(
+			"the caller's cancelled token must reach the SDK, not a fresh unlinked bound"
+		);
+	}
+
+	[Fact]
+	public async Task ItShouldPropagateCallerCancellationToTheSdkWithIdempotencyKey() {
+		var fake = new FakeResendClient { Delay = TimeSpan.FromSeconds(30) };
+		var adapter = new ResendEmailAdapter(fake.AsResend(), TimeSpan.FromMilliseconds(50));
+		using var cancellation = new CancellationTokenSource();
+		cancellation.Cancel();
+
+		var act = async () =>
+			await adapter.SendAsync(
+				ResendEmailAdapterSpec._Request(),
+				"idem-key",
+				cancellation.Token
+			);
+
+		var thrown = await act.Should().ThrowAsync<OperationCanceledException>();
+		thrown.Which.Should().NotBeOfType<EmailProviderTransientException>(
+			"caller cancellation is not a provider timeout"
+		);
+		fake.LastCallObservedCancelledToken.Should().BeTrue(
+			"the caller's cancelled token must reach the SDK, not a fresh unlinked bound"
+		);
 	}
 
 	[Fact]

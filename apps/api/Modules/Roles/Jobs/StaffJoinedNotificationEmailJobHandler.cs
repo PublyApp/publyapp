@@ -22,7 +22,7 @@ public sealed class StaffJoinedNotificationEmailJobHandler
 	: EmailJobHandlerBase<StaffJoinedNotificationEmailPayload> {
 	public StaffJoinedNotificationEmailJobHandler(
 		AppDbContext db,
-		EmailService emailService,
+		IEmailService emailService,
 		IEmailLogWriter logWriter,
 		JobsMetrics metrics
 	) : base(db, emailService, logWriter, metrics) {

@@ -3,6 +3,16 @@ using PublyApp.Api.Modules.Auth.Utils;
 namespace PublyApp.Api.Infrastructure.Messaging.Email;
 
 public interface IEmailService {
+	Task<EmailSendReceipt> SendAsync(
+		EmailRequest request,
+		string? idempotencyKey = null,
+		CancellationToken cancellationToken = default
+	);
+	EmailRequest RenderEmailVerification(string email, string token, bool isWelcome);
+	EmailRequest RenderPasswordReset(string email, string token);
+	EmailRequest RenderStaffInvitation(string email, string token);
+	EmailRequest RenderTenantInvitation(string email, string tenantName, string token);
+	EmailRequest RenderStaffJoinedNotification(string email);
 	Task<EmailSendReceipt> SendWelComeEmailAsync(string email, string token);
 	Task<EmailSendReceipt> SendEmailVerificationRequestAsync(string email, string token);
 	Task<EmailSendReceipt> SendEmailVerifiedNotificationAsync(string email);

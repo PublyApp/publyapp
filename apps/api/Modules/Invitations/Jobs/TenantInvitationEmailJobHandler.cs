@@ -19,7 +19,7 @@ public sealed class TenantInvitationEmailJobHandler
 	: EmailJobHandlerBase<TenantInvitationEmailPayload> {
 	public TenantInvitationEmailJobHandler(
 		AppDbContext db,
-		EmailService emailService,
+		IEmailService emailService,
 		IEmailLogWriter logWriter,
 		JobsMetrics metrics
 	) : base(db, emailService, logWriter, metrics) {

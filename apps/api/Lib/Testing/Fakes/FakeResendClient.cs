@@ -51,6 +51,20 @@ public sealed class FakeResendClient {
 	public EmailMessage? LastEmailMessage { get; private set; }
 
 	/// <summary>
+	/// Whether the observed token was already cancelled when the provider call started,
+	/// proving the caller's cancellation reached the SDK. Snapshotted because the linked
+	/// timeout may cancel the same token later.
+	/// </summary>
+	public bool LastCallObservedCancelledToken { get; private set; }
+
+	/// <summary>
+	/// Whether the last call went through the idempotent (keyed) SDK overload. Both
+	/// overloads otherwise share one implementation, so this distinguishes them for the
+	/// non-idempotent-overload contract.
+	/// </summary>
+	public bool LastCallUsedIdempotentOverload { get; private set; }
+
+	/// <summary>
 	/// Idempotency keys already seen by the provider, each with the payload signature
 	/// it was first used with. A key seen again with the SAME payload is deduplicated
 	/// (no provider call); a key reused with a DIFFERENT payload is rejected with
@@ -63,13 +77,17 @@ public sealed class FakeResendClient {
 		mock
 			.Setup(client => client.EmailSendAsync(
 				It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
-			.Returns((EmailMessage email, CancellationToken cancellationToken) =>
-				this.EmailSendAsync(email, cancellationToken));
+			.Returns((EmailMessage email, CancellationToken cancellationToken) => {
+				this.LastCallUsedIdempotentOverload = false;
+				return this.EmailSendAsync(email, cancellationToken);
+			});
 		mock
 			.Setup(client => client.EmailSendAsync(
 				It.IsAny<string>(), It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
-			.Returns((string key, EmailMessage email, CancellationToken cancellationToken) =>
-				this.EmailSendAsync(key, email, cancellationToken));
+			.Returns((string key, EmailMessage email, CancellationToken cancellationToken) => {
+				this.LastCallUsedIdempotentOverload = true;
+				return this.EmailSendAsync(key, email, cancellationToken);
+			});
 		return mock.Object;
 	}
 
@@ -78,6 +96,7 @@ public sealed class FakeResendClient {
 		CancellationToken cancellationToken = default
 	) {
 		this.LastEmailMessage = email;
+		this.LastCallObservedCancelledToken = cancellationToken.IsCancellationRequested;
 
 		if (this.Delay > TimeSpan.Zero) {
 			await Task.Delay(this.Delay, cancellationToken);

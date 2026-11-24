@@ -19,7 +19,7 @@ public sealed class PasswordResetEmailJobHandler
 	: EmailJobHandlerBase<PasswordResetEmailPayload> {
 	public PasswordResetEmailJobHandler(
 		AppDbContext db,
-		EmailService emailService,
+		IEmailService emailService,
 		IEmailLogWriter logWriter,
 		JobsMetrics metrics
 	) : base(db, emailService, logWriter, metrics) {

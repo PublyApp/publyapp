@@ -225,12 +225,8 @@ public static class ServiceRegistration {
 		builder.Services.AddScoped<IAggregatorAdapter, ZernioAdapter>();
 		builder.Services.AddScoped<AggregatorConnectionService>();
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
-		// One concrete service instance behind both the class (email job handlers call
-		// its render/send members) and IEmailService (the rest of the business code).
-		builder.Services.AddSingleton<EmailService>();
-		builder.Services.AddSingleton<IEmailService>(
-			serviceProvider => serviceProvider.GetRequiredService<EmailService>()
-		);
+		// Business code and the email job handlers both depend on the interface only.
+		builder.Services.AddSingleton<IEmailService, EmailService>();
 		builder.Services.AddSingleton<IFileStorage>(
 			_ => new LocalDiskFileStorage(AppEnvironment.Instance.FILE_STORAGE_ROOT)
 		);

@@ -260,6 +260,34 @@ public sealed class InvitationEmailOutboxDispatcherSpec : IClassFixture<ApiFixtu
 			return Task.FromResult(new EmailSendReceipt(Guid.NewGuid().ToString()));
 		}
 
+		public Task<EmailSendReceipt> SendAsync(
+			EmailRequest request,
+			string? idempotencyKey = null,
+			CancellationToken cancellationToken = default
+		) {
+			throw new NotImplementedException();
+		}
+
+		public EmailRequest RenderEmailVerification(string email, string token, bool isWelcome) {
+			throw new NotImplementedException();
+		}
+
+		public EmailRequest RenderPasswordReset(string email, string token) {
+			throw new NotImplementedException();
+		}
+
+		public EmailRequest RenderStaffInvitation(string email, string token) {
+			throw new NotImplementedException();
+		}
+
+		public EmailRequest RenderTenantInvitation(string email, string tenantName, string token) {
+			throw new NotImplementedException();
+		}
+
+		public EmailRequest RenderStaffJoinedNotification(string email) {
+			throw new NotImplementedException();
+		}
+
 		public Task<EmailSendReceipt> SendWelComeEmailAsync(string email, string token) {
 			throw new NotImplementedException();
 		}

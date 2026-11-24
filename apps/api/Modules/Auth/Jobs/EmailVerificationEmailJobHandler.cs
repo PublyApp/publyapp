@@ -13,7 +13,7 @@ public sealed class EmailVerificationEmailJobHandler
 	: EmailJobHandlerBase<VerifyEmailPayload> {
 	public EmailVerificationEmailJobHandler(
 		AppDbContext db,
-		EmailService emailService,
+		IEmailService emailService,
 		IEmailLogWriter logWriter,
 		JobsMetrics metrics
 	) : base(db, emailService, logWriter, metrics) {
