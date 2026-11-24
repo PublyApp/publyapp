@@ -71,9 +71,9 @@ export type IsolationGroup = {
  *
  * - `route-tree`: rewrites the tracked `src/routeTree.gen.ts` before restoring
  *   it, so it runs alone before any other command can read a partial file.
- * - `zindex-temp`: the test sweeps every `/tmp/publy-zindex-guard-*` directory
- *   while `check:zindex` creates one under that same prefix; the two must be
- *   serialised against each other (but may run next to unrelated commands).
+ * - `zindex-temp`: the guard test sweeps every `/tmp/publy-zindex-guard-*`
+ *   directory, so it stays keyed while any other z-index command is added
+ *   back; today it is the only command in the manifest that uses that prefix.
  */
 const ISOLATION_GROUPS: readonly IsolationGroup[] = [
 	{
@@ -85,7 +85,7 @@ const ISOLATION_GROUPS: readonly IsolationGroup[] = [
 	{
 		key: 'zindex-temp',
 		exclusive: false,
-		scripts: ['test:zindex-guard', 'check:zindex'],
+		scripts: ['test:zindex-guard'],
 		files: ['check-zindex-guard'],
 	},
 ];

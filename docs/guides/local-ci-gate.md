@@ -7,7 +7,7 @@ a green run locally is a strong prediction that CI would be green too.
 
 `.github/workflows/ci.yml` is the additive central workflow for pull requests,
 merge groups, and pushes to `develop`. It creates the stable 23 visible checks:
-one classifier (`CI classifier`), six parallel verification jobs, two audit jobs,
+one classifier (`CI classifier`), seven parallel verification jobs, two audit jobs,
 four API suite shards, four front Vitest shards, one e2e image build, one E2E
 smoke lane (every pull request, one stack), two E2E full shards (merge queue only),
 cleanup, and one artifact-backed `ci-final-gate` (or `ci-push-check` on
@@ -17,9 +17,10 @@ event-scoped on top of the classifier: a lane that does not belong to the curren
 reports `not_applicable` through the same sentinel, so the aggregate gate sees one
 consistent shape on `pull_request`, `merge_group` and `push`.
 
-The single serial `verification` job was split into six parallel jobs so no job sits
+The single serial `verification` job was split into seven parallel jobs so no job sits
 behind a meta-check it does not need: `CI quality (JS)`, `CI quality (.NET)`, `CI
-guard battery`, `CI docs and React Doctor`, `CI front build`, and `CI front checks`.
+guard battery`, `CI docs and React Doctor`, `CI front build`, `CI front guards`, and
+`CI front checks`.
 Every check that ran before still runs, in the job whose classifier lane gates it;
 the split only moved job boundaries and gives each job its own `ci-lane-result`
 artifact.

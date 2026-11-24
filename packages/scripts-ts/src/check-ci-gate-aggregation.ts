@@ -36,6 +36,7 @@ export const EXPECTED_VERIFICATION_JOB_KEYS = [
 	'guards',
 	'docs-react',
 	'front-build',
+	'front-guards',
 	'front-quality',
 ] as const;
 
@@ -44,7 +45,7 @@ export const EXPECTED_VERIFICATION_JOB_KEYS = [
  * only job that runs `run-non-vitest-report-all.ts`, and the aggregate gate
  * requires the report on exactly this job's `front` lane.
  */
-export const FRONT_REPORT_JOB_ID = 'front-build';
+export const FRONT_REPORT_JOB_ID = 'front-guards';
 
 export const EXPECTED_UPSTREAM_JOB_KEYS = [
 	'classify',
@@ -370,9 +371,27 @@ const baseJobLaneContracts = {
 				'front-build.front_font',
 				'front-build.front_smoke',
 				'front-build.front_react_compiler',
-				'front-build.front',
 				'front-build.front.not-applicable',
 			],
+			'front',
+		),
+	],
+	'front-guards': [
+		contract('front-guards', 'setup', [
+			'front-guards.checkout',
+			'front-guards.install_pnpm',
+			'front-guards.setup_node',
+			'front-guards.setup_dotnet',
+			'front-guards.setup_just',
+			'front-guards.install_workspace',
+			'front-guards.trusted_postinstall',
+			'front-guards.prepare_hooks',
+			'front-guards.materialize_env',
+		]),
+		contract(
+			'front-guards',
+			'front',
+			['front-guards.front', 'front-guards.front.not-applicable'],
 			'front',
 		),
 	],
@@ -614,9 +633,9 @@ export const getExpectedJobLanes = (
 ): JobContract[] | undefined =>
 	EXPECTED_JOB_LANES[jobKey as keyof typeof EXPECTED_JOB_LANES];
 
-// 12 central jobs with a fixed contract + four api shards + four front-vitest
-// shards + six full-e2e shards (the smoke lane is one of the twelve).
-const expectedJobLaneContractCount = 12 + 4 + 4 + 6;
+// 13 central jobs with a fixed contract + four api shards + four front-vitest
+// shards + six full-e2e shards (the smoke lane is one of the thirteen).
+const expectedJobLaneContractCount = 13 + 4 + 4 + 6;
 if (Object.keys(EXPECTED_JOB_LANES).length !== expectedJobLaneContractCount) {
 	throw new Error('CI job lane contract table has an unexpected job count');
 }

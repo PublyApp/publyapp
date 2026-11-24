@@ -188,6 +188,7 @@ const completeAggregateInput = (eventName: string = context.eventName) => {
 				'guards',
 				'docs-react',
 				'front-build',
+				'front-guards',
 				'front-quality',
 				'audit-development',
 				'audit-production',
@@ -273,7 +274,7 @@ test.each([
 	[
 		'nested report on a job without the report lane',
 		(record: MutableObject) => (mutableObject(record.job).report = {}),
-		/only allowed on front-build/,
+		/only allowed on front-guards/,
 	],
 	[
 		'unknown lane mode',

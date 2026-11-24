@@ -1385,6 +1385,7 @@ test('central workflow rejects the complete ratified topology mutation matrix', 
 			'guards',
 			'docs-react',
 			'front-build',
+			'front-guards',
 			'front-quality',
 			'audit-development',
 			'audit-production',
@@ -1660,6 +1661,7 @@ test('central workflow owns the predecessor evidence as unconditional, named che
 		'guards',
 		'docs-react',
 		'front-build',
+		'front-guards',
 		'front-quality',
 	];
 	const verification = split.flatMap(
@@ -2150,7 +2152,7 @@ const deriveManifestEvidence = (
 	};
 };
 
-test('central manifest derives honest evidence for every one of its 263 entries', async () => {
+test('central manifest derives honest evidence for every one of its 275 entries', async () => {
 	const manifest = JSON.parse(
 		await readFile(
 			path.join(repoRoot, 'packages/scripts-ts/src/ci-gate-manifest.json'),
@@ -2163,7 +2165,7 @@ test('central manifest derives honest evidence for every one of its 263 entries'
 	const central = Object.entries(manifest.steps).filter(([id]) =>
 		id.startsWith('ci.yml::'),
 	);
-	assert.equal(central.length, 263);
+	assert.equal(central.length, 275);
 	const justDump = JSON.parse(
 		execFileSync('just', ['--dump', '--dump-format', 'json'], {
 			cwd: repoRoot,
@@ -2189,7 +2191,7 @@ test('central manifest derives honest evidence for every one of its 263 entries'
 			`${id} evidence must be derived from its exact step kind and command graph`,
 		);
 	}
-	assert.equal(decisions.size, 263);
+	assert.equal(decisions.size, 275);
 	assert.equal(
 		manifest.steps['ci.yml::quality-js::Install pnpm']?.mirror,
 		null,

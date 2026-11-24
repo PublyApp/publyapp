@@ -149,10 +149,6 @@
 		],
 		[
 			"pnpm",
-			"check:zindex"
-		],
-		[
-			"pnpm",
 			"check:react-compiler"
 		],
 		[

@@ -1369,6 +1369,11 @@
 			"step_id": "e2e-prune.yml::prune::Prune tree images older than 7 days",
 			"reason": "D2: pruning now runs on every develop push inside ci.yml::e2e-cleanup with the same 7-day cutoff, so the scheduled workflow step is redundant. The age bound and the package-admin deletes are unchanged.",
 			"removed_at": "2026-11-22"
+		},
+		{
+			"step_id": "ci.yml::front-build::Test front (non-vitest report-all)",
+			"reason": "The non-Vitest report-all step moves unchanged into the new parallel front-guards job (#ci-front-split): same command, working directory, guard timeout, and per-step continue-on-error, so the same 32 checks still run exactly once per PR and merge-queue run. Only the job boundary and its ci-lane-result artifact changed; the replacement step is reconciled as a new manifest entry in the same commit.",
+			"removed_at": "2026-11-24"
 		}
 	]
 }

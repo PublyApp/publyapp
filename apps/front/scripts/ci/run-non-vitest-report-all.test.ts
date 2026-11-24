@@ -14,7 +14,7 @@ import {
 	validateNonVitestManifest,
 } from './run-non-vitest-report-all.ts';
 
-test('keeps the exact ordered 33-command manifest', () => {
+test('keeps the exact ordered 32-command manifest', () => {
 	const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 	const expected = [
 		['pnpm', 'check:guard-coverage'],
@@ -43,7 +43,6 @@ test('keeps the exact ordered 33-command manifest', () => {
 		['pnpm', 'test:font-bundle'],
 		['pnpm', 'test:shared-ts-node-resolution'],
 		['pnpm', 'check:design-system'],
-		['pnpm', 'check:zindex'],
 		['pnpm', 'check:react-compiler'],
 		['pnpm', 'check:shared-ts-import-paths'],
 		['pnpm', 'check:shared-ts-node-resolution'],
@@ -65,7 +64,7 @@ test('keeps the exact ordered 33-command manifest', () => {
 test('rejects a removed command from the report-all manifest', () => {
 	assert.throws(
 		() => validateNonVitestManifest(NON_VITEST_COMMANDS.slice(0, -1)),
-		/exactly 33/,
+		/exactly 32/,
 	);
 });
 
@@ -85,8 +84,8 @@ test('reports every command after the first command fails', async () => {
 	});
 
 	assert.equal(result.exit_code, 1);
-	assert.equal(result.records.length, 33);
-	assert.equal(calls.length, 33);
+	assert.equal(result.records.length, 32);
+	assert.equal(calls.length, 32);
 	assert.equal(result.records[0].exit_code, 7);
 	assert.equal(result.records[1].outcome, 'success');
 });
@@ -114,21 +113,24 @@ test('lists every failure with its captured output', async () => {
 		concurrency: 2,
 		log: (text) => logs.push(text),
 		spawn: async (argv) =>
-			argv.includes('check:zindex')
+			argv.includes('check:react-compiler')
 				? {
 						execution: 'executed',
 						outcome: 'failure',
 						exit_code: 3,
-						output: 'zindex boom',
+						output: 'react compiler boom',
 					}
 				: { execution: 'executed', outcome: 'success', exit_code: 0 },
 	});
 
 	const output = logs.join('');
 	assert.equal(result.exit_code, 1);
-	assert.match(output, /\[non-vitest 22\/33 failure \d+ms\] pnpm check:zindex/);
-	assert.match(output, /zindex boom/);
-	assert.match(output, /failed: 22 pnpm check:zindex/);
+	assert.match(
+		output,
+		/\[non-vitest 22\/32 failure \d+ms\] pnpm check:react-compiler/,
+	);
+	assert.match(output, /react compiler boom/);
+	assert.match(output, /failed: 22 pnpm check:react-compiler/);
 });
 
 test('bounds concurrency at the pool size and isolates route-tree writes', async () => {
@@ -152,7 +154,7 @@ test('bounds concurrency at the pool size and isolates route-tree writes', async
 		},
 	});
 
-	assert.equal(result.records.length, 33);
+	assert.equal(result.records.length, 32);
 	assert.ok(maxInFlight > 1);
 	assert.ok(maxInFlight <= 3);
 	assert.equal(routeTreeMaxInFlight, 1);
@@ -162,11 +164,10 @@ test('detects the isolated commands whatever the invocation shape', () => {
 	const isolated = NON_VITEST_COMMANDS.filter(isIsolated).map(
 		(command) => command.id,
 	);
-	assert.deepEqual(isolated, [4, 11, 22]);
+	assert.deepEqual(isolated, [4, 11]);
 	for (const argv of [
 		['pnpm', 'test:zindex-guard'],
 		['pnpm', 'run', 'test:zindex-guard'],
-		['pnpm', 'run', 'check:zindex'],
 		[
 			'node',
 			'scripts/run-guarded.ts',
@@ -182,39 +183,6 @@ test('detects the isolated commands whatever the invocation shape', () => {
 		isIsolated({ id: 0, argv: ['pnpm', 'check:react-compiler'] }),
 		false,
 	);
-});
-
-test('serialises the two commands that share the zindex temp prefix', async () => {
-	let inFlight = 0;
-	let maxInFlight = 0;
-	let zindexInFlight = 0;
-	let maxZindexInFlight = 0;
-	const result = await runNonVitestReportAll({
-		cwd: '/fixture/apps/front',
-		outputPath: null,
-		concurrency: 4,
-		log: () => {},
-		spawn: async (argv) => {
-			const isZindex =
-				argv.includes('test:zindex-guard') || argv.includes('check:zindex');
-			inFlight += 1;
-			maxInFlight = Math.max(maxInFlight, inFlight);
-			if (isZindex) {
-				zindexInFlight += 1;
-				maxZindexInFlight = Math.max(maxZindexInFlight, zindexInFlight);
-			}
-			await new Promise((resolve) => setTimeout(resolve, 5));
-			if (isZindex) {
-				zindexInFlight -= 1;
-			}
-			inFlight -= 1;
-			return { execution: 'executed', outcome: 'success', exit_code: 0 };
-		},
-	});
-
-	assert.equal(result.records.length, 33);
-	assert.ok(maxInFlight > 1);
-	assert.equal(maxZindexInFlight, 1);
 });
 
 test('never strands commands on a NaN or zero concurrency', async () => {
@@ -234,8 +202,8 @@ test('never strands commands on a NaN or zero concurrency', async () => {
 				exit_code: 0,
 			}),
 		});
-		assert.equal(result.records.length, 33);
-		assert.equal(result.records.filter(Boolean).length, 33);
+		assert.equal(result.records.length, 32);
+		assert.equal(result.records.filter(Boolean).length, 32);
 	}
 });
 
@@ -271,15 +239,15 @@ test('streams each command as it ends and persists one log file per command', as
 		await new Promise((resolve) => setTimeout(resolve, 100));
 		assert.match(
 			logs.join(''),
-			/\[non-vitest 1\/33 ok \d+ms\] pnpm check:guard-coverage/,
+			/\[non-vitest 1\/32 ok \d+ms\] pnpm check:guard-coverage/,
 		);
-		assert.doesNotMatch(logs.join(''), /\[non-vitest\] \d+\/33 passed/);
+		assert.doesNotMatch(logs.join(''), /\[non-vitest\] \d+\/32 passed/);
 		releaseBlocked();
 		const result = await run;
 		assert.equal(result.exit_code, 0);
 		const logDirectory = path.join(root, 'test-results', 'non-vitest-logs');
 		const files = await readdir(logDirectory);
-		assert.equal(files.length, 33);
+		assert.equal(files.length, 32);
 		const first = await readFile(
 			path.join(logDirectory, '01-check-guard-coverage.log'),
 			'utf8',

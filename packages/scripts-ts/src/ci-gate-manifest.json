@@ -621,7 +621,7 @@
 			"reason": "No exact local command match for run step \"CI lane not applicable (front)\"; normalized workflow command(s): [\"echo 'front verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::front-build::Collect ci-lane-result": {
-			"hash": "70e51be1dcd012ed",
+			"hash": "6c45b9ef85aac430",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
@@ -670,11 +670,6 @@
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Smoke front production server\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-front-smoke.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
-		"ci.yml::front-build::Test front (non-vitest report-all)": {
-			"hash": "0e2ba3e770c22a4a",
-			"mirror": null,
-			"reason": "No exact local command match for run step \"Test front (non-vitest report-all)\"; normalized workflow command(s): [\"node scripts/run-guarded.ts scripts/ci/run-non-vitest-report-all.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
-		},
 		"ci.yml::front-build::Upload ci-lane-result": {
 			"hash": "31113095fedf93a8",
 			"mirror": null,
@@ -689,6 +684,71 @@
 			"hash": "bf40171182d21158",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Verify front font bundle\"; normalized workflow command(s): [\"node apps/front/scripts/run-guarded.ts apps/front/scripts/guards/verify-font-bundle.ts --dist apps/front/dist --locales-dir apps/front/src/i18n/locales\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-guards::Checkout": {
+			"hash": "f6bbd86f711cad8c",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Checkout\" uses actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1; exact hosted fields: {\"if\":null,\"with\":{\"fetch-depth\":0},\"env\":null}."
+		},
+		"ci.yml::front-guards::Install pnpm": {
+			"hash": "fe22da5e51d30f96",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Install pnpm\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":null,\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+		},
+		"ci.yml::front-guards::Setup Node": {
+			"hash": "27fc627190540df5",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup Node\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":null,\"with\":{\"node-version\":24},\"env\":null}."
+		},
+		"ci.yml::front-guards::Setup .NET": {
+			"hash": "5475ce7713504202",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup .NET\" uses actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68; exact hosted fields: {\"if\":null,\"with\":{\"dotnet-version\":\"10.0.102\"},\"env\":null}."
+		},
+		"ci.yml::front-guards::Setup just": {
+			"hash": "17b73e0220816c76",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Setup just\" uses extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3; exact hosted fields: {\"if\":null,\"with\":null,\"env\":null}."
+		},
+		"ci.yml::front-guards::Install workspace dependencies": {
+			"hash": "0f6bb0ee355abb6a",
+			"mirror": "just ci-install",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm install --frozen-lockfile --ignore-scripts\"]."
+		},
+		"ci.yml::front-guards::Run trusted first-party postinstall": {
+			"hash": "0ff3f6744ab67c09",
+			"mirror": "just ci-install",
+			"reason": "Local mirror just ci-install is derived from exact normalized workflow command match(es): [\"pnpm --filter @org/shared-ts run postinstall\"]."
+		},
+		"ci.yml::front-guards::Install Git hooks": {
+			"hash": "738bc5b430f8034e",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Install Git hooks\"; normalized workflow command(s): [\"pnpm run prepare\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-guards::Materialize .env.development": {
+			"hash": "4b70dd3afc7ce47b",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Materialize .env.development\"; normalized workflow command(s): [\"cp .env.example .env.development\",\"sed -i 's/^APP_ROLE=.*/APP_ROLE=\\\"api\\\"/' .env.development\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-guards::Test front (non-vitest report-all)": {
+			"hash": "0e2ba3e770c22a4a",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Test front (non-vitest report-all)\"; normalized workflow command(s): [\"node scripts/run-guarded.ts scripts/ci/run-non-vitest-report-all.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-guards::CI lane not applicable (front)": {
+			"hash": "4906b2eafb519eec",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"CI lane not applicable (front)\"; normalized workflow command(s): [\"echo 'front verification is not applicable'\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-guards::Collect ci-lane-result": {
+			"hash": "b60e6d985fddcd0d",
+			"mirror": null,
+			"reason": "No exact local command match for run step \"Collect ci-lane-result\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-lane-result.ts\"]. The recursive just call graph was checked without inferring a broader local boundary."
+		},
+		"ci.yml::front-guards::Upload ci-lane-result": {
+			"hash": "fb4487bebf42ed11",
+			"mirror": null,
+			"reason": "Hosted-only action step \"Upload ci-lane-result\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always()\",\"with\":{\"name\":\"ci-lane-result-${{ github.run_id }}-${{ github.run_attempt }}-front-guards\",\"path\":\"ci-results/front-guards.json\",\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::front-quality::Check front column-type imports": {
 			"hash": "3b868ea1d3970b82",
@@ -841,7 +901,7 @@
 			"reason": "Hosted-only action step \"Upload Vitest report\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && (steps.vitest.outcome == 'failure' || steps.vitest.outcome == 'cancelled')\",\"with\":{\"name\":\"front-ci-vitest-report-${{ matrix.shard }}-of-4\",\"path\":\"apps/front/test-results\",\"if-no-files-found\":\"ignore\"},\"env\":null}."
 		},
 		"ci.yml::gate::Aggregate upstream artifacts": {
-			"hash": "bd9726d18d2734dd",
+			"hash": "73b53f698d8b788f",
 			"mirror": null,
 			"reason": "No exact local command match for run step \"Aggregate upstream artifacts\"; normalized workflow command(s): [\"node packages/scripts-ts/src/check-ci-gate-aggregation.ts ci-results\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
