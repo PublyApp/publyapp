@@ -81,9 +81,9 @@ public sealed class SocialAdapterStartupSpec {
 					"Host=architecture-guard-stub;Database=stub;Username=stub;Password=stub"
 				));
 				services.RemoveAll<IEmailSender>();
-				services.AddSingleton<FakeEmailSender>();
+				services.AddSingleton<MemoryEmailAdapter>();
 				services.AddSingleton<IEmailSender>(provider =>
-					provider.GetRequiredService<FakeEmailSender>()
+					provider.GetRequiredService<MemoryEmailAdapter>()
 				);
 				ApiFactory.RemoveWorkerHostedServices(services);
 			});

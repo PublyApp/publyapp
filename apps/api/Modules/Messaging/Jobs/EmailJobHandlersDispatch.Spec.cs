@@ -20,9 +20,9 @@ namespace PublyApp.Api.Modules.Messaging.Jobs;
 // Processor-dispatch sibling of EmailJobHandlersSpec: these two tests drive the
 // production JobHandlerRegistry, which resolves IEmailSender through DI rather than
 // taking a locally constructed ControllableSender — so they must observe the
-// DI-registered FakeEmailSender. xUnit instantiates a test class fresh per test method;
+// DI-registered MemoryEmailAdapter. xUnit instantiates a test class fresh per test method;
 // because this class owns its ApiFixture directly (constructed here, not injected via
-// IClassFixture), each method gets its own DI container and its own FakeEmailSender.
+// IClassFixture), each method gets its own DI container and its own MemoryEmailAdapter.
 // Neither test needs to Clear() it, and neither depends on the other having run first
 // or not at all. See docs/guides/api-integration-tests.md ("Fixture Lifecycle and
 // Mutable Test State").
@@ -41,7 +41,7 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 	public async Task ItShouldDispatchSubmittedEmailThroughTheRegisteredProcessor() {
 		var (invitationId, _) = await this._SeedStaffInvitationAsync();
 		var jobId = await this._SeedQueuedStaffInvitationAsync(invitationId);
-		var sender = this._Fixture.GetFakeEmailSender();
+		var sender = this._Fixture.GetMemoryEmailAdapter();
 
 		var result = await this._CreateProcessor().ProcessBatchAsync(CancellationToken.None);
 
@@ -64,7 +64,7 @@ public sealed class EmailJobHandlersDispatchSpec : IAsyncLifetime {
 	public async Task ItShouldDispatchPermanentEmailFailureThroughTheRegisteredProcessor() {
 		var (invitationId, _) = await this._SeedStaffInvitationAsync();
 		var jobId = await this._SeedQueuedStaffInvitationAsync(invitationId);
-		var sender = this._Fixture.GetFakeEmailSender();
+		var sender = this._Fixture.GetMemoryEmailAdapter();
 		sender.FailWith = _ => new EmailProviderPermanentException("provider_rejected:422");
 
 		var result = await this._CreateProcessor().ProcessBatchAsync(CancellationToken.None);

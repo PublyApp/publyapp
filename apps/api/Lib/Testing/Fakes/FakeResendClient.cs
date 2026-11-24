@@ -2,21 +2,22 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-using PublyApp.Api.Infrastructure.Messaging.Email;
+using Moq;
 
 using Resend;
 
 namespace PublyApp.Api.Lib.Testing.Fakes;
 
 /// <summary>
-/// Test double for the repository-owned <see cref="IResendEmailClient"/> port. Only the
-/// two <c>EmailSendAsync</c> overloads are functional: they drive a fabricated
+/// Test double for the third-party <see cref="IResend"/> client. Only the two
+/// <c>EmailSendAsync</c> overloads are functional: they drive a fabricated
 /// <see cref="ResendResponse{T}"/> (the F3 non-throwing unsuccessful-response shape,
 /// design §5.4) and the 30 s provider-timeout classification (§5.4 step 4) without a
-/// real network call. Implementing the repo port (not the third-party <see cref="IResend"/>)
-/// means SDK upgrades cannot break this file.
+/// real network call. <see cref="AsResend"/> exposes the narrow <see cref="IResend"/>
+/// surface the real adapter consumes, so specs never stub the client's 100+ unrelated
+/// API methods.
 /// </summary>
-public sealed class FakeResendClient : IResendEmailClient {
+public sealed class FakeResendClient {
 	/// <summary>
 	/// What <c>EmailSendAsync</c> returns once <see cref="Delay"/> elapses. Defaults to a
 	/// successful send carrying a random message id; set an exception-carrying response to
@@ -56,6 +57,21 @@ public sealed class FakeResendClient : IResendEmailClient {
 	/// 409 invalid_idempotent_request, matching Resend's documented contract (§4.5).
 	/// </summary>
 	private readonly Dictionary<string, JsonNode> _SeenPayloadSignatures = new();
+
+	public IResend AsResend() {
+		var mock = new Mock<IResend>();
+		mock
+			.Setup(client => client.EmailSendAsync(
+				It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
+			.Returns((EmailMessage email, CancellationToken cancellationToken) =>
+				this.EmailSendAsync(email, cancellationToken));
+		mock
+			.Setup(client => client.EmailSendAsync(
+				It.IsAny<string>(), It.IsAny<EmailMessage>(), It.IsAny<CancellationToken>()))
+			.Returns((string key, EmailMessage email, CancellationToken cancellationToken) =>
+				this.EmailSendAsync(key, email, cancellationToken));
+		return mock.Object;
+	}
 
 	public async Task<ResendResponse<Guid>> EmailSendAsync(
 		EmailMessage email,

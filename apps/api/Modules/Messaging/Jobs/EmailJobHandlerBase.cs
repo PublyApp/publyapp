@@ -76,18 +76,18 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 	private static readonly JsonSerializerOptions _EnvelopeJson = new(JsonSerializerDefaults.Web);
 
 	protected AppDbContext Db { get; }
-	private readonly IEmailSender _Sender;
+	protected EmailService EmailService { get; }
 	private readonly IEmailLogWriter _LogWriter;
 	private readonly JobsMetrics _Metrics;
 
 	protected EmailJobHandlerBase(
 		AppDbContext db,
-		IEmailSender sender,
+		EmailService emailService,
 		IEmailLogWriter logWriter,
 		JobsMetrics metrics
 	) {
 		this.Db = db;
-		this._Sender = sender;
+		this.EmailService = emailService;
 		this._LogWriter = logWriter;
 		this._Metrics = metrics;
 	}
@@ -189,7 +189,7 @@ public abstract class EmailJobHandlerBase<TPayload> : IJobHandler {
 				return JobOutcome.Succeeded;
 			}
 
-			receipt = await this._Sender.SendAsync(request, prepared.ProviderIdempotencyKey, cancellationToken);
+			receipt = await this.EmailService.SendAsync(request, prepared.ProviderIdempotencyKey, cancellationToken);
 		} catch (EmailProviderTransientException ex) {
 			this._Metrics.EmailSubmitFailure(this.Kind.ToString(), "transient");
 			// Persist the frozen envelope so the next attempt resends identical bytes.

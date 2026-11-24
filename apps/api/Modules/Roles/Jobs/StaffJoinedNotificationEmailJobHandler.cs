@@ -22,10 +22,10 @@ public sealed class StaffJoinedNotificationEmailJobHandler
 	: EmailJobHandlerBase<StaffJoinedNotificationEmailPayload> {
 	public StaffJoinedNotificationEmailJobHandler(
 		AppDbContext db,
-		IEmailSender sender,
+		EmailService emailService,
 		IEmailLogWriter logWriter,
 		JobsMetrics metrics
-	) : base(db, sender, logWriter, metrics) {
+	) : base(db, emailService, logWriter, metrics) {
 	}
 
 	public override string JobType {
@@ -60,7 +60,7 @@ public sealed class StaffJoinedNotificationEmailJobHandler
 			);
 		}
 
-		var envelope = EmailTemplates.StaffJoinedNotification(user.Email);
+		var envelope = this.EmailService.RenderStaffJoinedNotification(user.Email);
 
 		return new EmailJobPreparation.Ready(envelope, user.Email, null, payload.UserId);
 	}

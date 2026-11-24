@@ -28,7 +28,7 @@ namespace PublyApp.Api.Modules.Messaging.Jobs;
 // barriers and failures. The processor-dispatch specs that need the production registry
 // and per-job DI scope to prove enqueue -> claim -> handler -> terminal persistence end to
 // end live in the sibling EmailJobHandlersDispatchSpec: they observe the DI-registered
-// FakeEmailSender, so each needs its own exclusive ApiFixture rather than the one shared
+// MemoryEmailAdapter, so each needs its own exclusive ApiFixture rather than the one shared
 // across this class's methods.
 public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
@@ -249,7 +249,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			&& e.Outcome == EmailLogOutcome.Submitted)).Should().BeFalse();
 	}
 
-	// Processor-dispatch coverage that observes the DI-registered FakeEmailSender (rather
+	// Processor-dispatch coverage that observes the DI-registered MemoryEmailAdapter (rather
 	// than a locally constructed ControllableSender) lives in the sibling
 	// EmailJobHandlersDispatchSpec, which owns an exclusive ApiFixture per test method —
 	// see that file's header comment for why.
@@ -510,7 +510,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 
 		await using var db = SpecDbHelper.CreateDbContext(this._Fixture);
 		var handler = new PasswordResetEmailJobHandler(
-			db, sender, new EmailLogWriter(db), EmailJobHandlersSpec._Metrics()
+			db, new EmailService(sender), new EmailLogWriter(db), EmailJobHandlersSpec._Metrics()
 		);
 		var context = new JobContext {
 			JobId = jobId,
@@ -635,14 +635,14 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 	// --- construction helpers -----------------------------------------------------
 
 	private static StaffInvitationEmailJobHandler _StaffHandler(AppDbContext db, IEmailSender sender) {
-		return new StaffInvitationEmailJobHandler(db, sender, new EmailLogWriter(db), EmailJobHandlersSpec._Metrics());
+		return new StaffInvitationEmailJobHandler(db, new EmailService(sender), new EmailLogWriter(db), EmailJobHandlersSpec._Metrics());
 	}
 
 	private static StaffJoinedNotificationEmailJobHandler _JoinedStaffHandler(
 		AppDbContext db,
 		IEmailSender sender
 	) {
-		return new StaffJoinedNotificationEmailJobHandler(db, sender, new EmailLogWriter(db), EmailJobHandlersSpec._Metrics());
+		return new StaffJoinedNotificationEmailJobHandler(db, new EmailService(sender), new EmailLogWriter(db), EmailJobHandlersSpec._Metrics());
 	}
 
 	private static JobsMetrics _Metrics() {
@@ -776,7 +776,7 @@ public sealed class EmailJobHandlersSpec : IClassFixture<ApiFixture> {
 			IEmailLogWriter logWriter,
 			JobsMetrics metrics,
 			Func<Task> injectConcurrentSubmittedAsync
-		) : base(db, sender, logWriter, metrics) {
+		) : base(db, new EmailService(sender), logWriter, metrics) {
 			this._InjectConcurrentSubmittedAsync = injectConcurrentSubmittedAsync;
 		}
 

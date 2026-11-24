@@ -22,7 +22,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(messageId, new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		var receipt = await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
@@ -37,7 +37,7 @@ public sealed class ResendEmailAdapterSpec {
 			"recipient rejected"
 		);
 		var fake = new FakeResendClient { ExceptionToThrow = providerError };
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		var act = async () => await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
@@ -59,7 +59,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(providerError, new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		var act = async () => await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
@@ -79,7 +79,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(providerError, new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		var act = async () => await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
@@ -105,7 +105,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(providerError, limits)
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		var act = async () => await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
@@ -130,7 +130,7 @@ public sealed class ResendEmailAdapterSpec {
 		// engine reschedules rather than dead-lettering a merely-slow provider. Driven with
 		// a 50 ms bound + a 30 s fake latency so the classification is proven instantly.
 		var fake = new FakeResendClient { Delay = TimeSpan.FromSeconds(30) };
-		var adapter = new ResendEmailAdapter(fake, TimeSpan.FromMilliseconds(50));
+		var adapter = new ResendEmailAdapter(fake.AsResend(), TimeSpan.FromMilliseconds(50));
 
 		var act = async () => await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
@@ -147,7 +147,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);
@@ -170,7 +170,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(messageId, new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		// First send with idempotency key
 		await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "same-idem-key");
@@ -195,7 +195,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);
@@ -224,7 +224,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "idem-key");
 
@@ -260,7 +260,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);
@@ -283,7 +283,7 @@ public sealed class ResendEmailAdapterSpec {
 		var fake = new FakeResendClient {
 			EmailSendResponse = new ResendResponse<Guid>(Guid.NewGuid(), new ResendRateLimit())
 		};
-		var adapter = new ResendEmailAdapter(fake);
+		var adapter = new ResendEmailAdapter(fake.AsResend());
 
 		await adapter.SendAsync(ResendEmailAdapterSpec._Request(), "same-idem-key");
 		fake.ProviderCallCount.Should().Be(1);

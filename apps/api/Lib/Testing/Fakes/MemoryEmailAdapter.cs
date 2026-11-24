@@ -4,7 +4,7 @@ using PublyApp.Api.Infrastructure.Messaging.Email;
 
 namespace PublyApp.Api.Lib.Testing.Fakes {
 	/// <summary>
-	/// Fake email sender for tests, on the corrected F3 contract: SendAsync RETURNS an
+	/// In-memory e-mail adapter for tests, on the corrected F3 contract: SendAsync RETURNS an
 	/// <see cref="EmailSendReceipt"/> and can THROW a classified
 	/// <see cref="EmailProviderException"/> (via <see cref="FailWith"/>) so email-job
 	/// handler specs can drive the transient/permanent outcome mapping. It records each
@@ -13,10 +13,10 @@ namespace PublyApp.Api.Lib.Testing.Fakes {
 	///
 	/// IMPORTANT: registered as a singleton per ApiFixture. Emails persist across every
 	/// test method that shares the same ApiFixture instance. Email-observing specs should
-	/// not share an ApiFixture across test methods (see ApiFixture.GetFakeEmailSender) —
+	/// not share an ApiFixture across test methods (see ApiFixture.GetMemoryEmailAdapter) —
 	/// own it exclusively per test method instead of resetting a shared one with Clear().
 	/// </summary>
-	public sealed class FakeEmailSender : IEmailSender {
+	public sealed class MemoryEmailAdapter : IEmailSender {
 		public sealed record SentEmail(EmailRequest Request, string? IdempotencyKey, string MessageId);
 
 		private readonly ConcurrentQueue<SentEmail> _Sent = new();
