@@ -279,7 +279,7 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 		MastodonCredentials.Unprotect(h.Protector, account.ProtectedCredentials, SocialProvider.Pixelfed)
 			.Should().Be(new MastodonCredentials(host, "access-token-1"));
 		MastodonCredentials.Unprotect(h.Protector, account.ProtectedCredentials).Should().BeNull();
-		var session = await new MastodonSessionProvider(h.Db, h.Protector).OpenSessionAsync(account.GetRequiredId(), default);
+		var session = await new MastodonSessionAdapter(h.Db, h.Protector).OpenSessionAsync(account.GetRequiredId(), default);
 		session.Should().BeOfType<SocialSessionResult.Opened>().Which.Session.AccessJwt.Should().Be("access-token-1");
 		(await h.Service.PrepareRevocationAsync(account.GetRequiredId(), default)).Should().NotBeNull();
 	}
@@ -721,7 +721,7 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 		var (h, scope) = await this._NewAsync();
 		await using var _ = scope;
 		var connected = await MastodonOAuthServiceSpec._ConnectAsync(h, "session.example");
-		var provider = new MastodonSessionProvider(h.Db, h.Protector);
+		var provider = new MastodonSessionAdapter(h.Db, h.Protector);
 
 		var result = await provider.OpenSessionAsync(connected.Account.GetRequiredId(), default);
 
@@ -740,7 +740,7 @@ public sealed class MastodonOAuthServiceSpec : IClassFixture<ApiFixture> {
 		connected.Account.ProtectedCredentials = "garbage";
 		await h.Db.SaveChangesAsync();
 
-		var result = await new MastodonSessionProvider(h.Db, h.Protector)
+		var result = await new MastodonSessionAdapter(h.Db, h.Protector)
 			.OpenSessionAsync(connected.Account.GetRequiredId(), default);
 
 		result.Should().BeOfType<SocialSessionResult.AccountFailure>();

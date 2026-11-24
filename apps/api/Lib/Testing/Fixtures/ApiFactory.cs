@@ -86,7 +86,7 @@ public sealed class ApiFactory
 
 			services.RemoveAll<IFileStorage>();
 			services.AddSingleton<IFileStorage>(
-				_ => new LocalDiskFileStorage(this._StorageRoot)
+				_ => new LocalDiskFileStorageAdapter(this._StorageRoot)
 			);
 			if (this._UploadAdmissionService is not null) {
 				services.RemoveAll<IUploadAdmissionService>();
@@ -115,7 +115,7 @@ public sealed class ApiFactory
 			//     real aggregator.
 			services.AddSingleton<FakeAggregatorServer>();
 			services
-				.AddHttpClient(ZernioAdapter.HttpClientName)
+				.AddHttpClient(ZernioAggregatorAdapter.HttpClientName)
 				.ConfigurePrimaryHttpMessageHandler(
 					sp => sp.GetRequiredService<FakeAggregatorServer>()
 				);

@@ -31,7 +31,7 @@ before any request or job is served:
 2. **Canary round-trip** (real boot only): on first boot the witness encrypts a known
    sentinel under the current key and persists it beside the Data Protection key ring
    (`data_protection_keys`, row `social-accounts-master-key-canary`, via
-   `PostgresKeyRingCanaryStore`). Every later boot decrypts that persisted blob.
+   `PostgresKeyRingCanaryAdapter`). Every later boot decrypts that persisted blob.
    - Same key value → decrypt succeeds → boot proceeds.
    - Right size but wrong value → AES-GCM authentication fails → the process refuses to
      start with a plain-words cause explaining the mismatch and the recovery options

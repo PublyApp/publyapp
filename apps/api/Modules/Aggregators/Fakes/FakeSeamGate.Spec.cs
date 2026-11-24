@@ -62,7 +62,7 @@ public sealed class FakeSeamGateSpec {
 			var protector = app.Services.GetRequiredService<ICredentialProtector>();
 			var chain = app.Services
 				.GetRequiredService<IHttpMessageHandlerFactory>()
-				.CreateHandler(ZernioAdapter.HttpClientName);
+				.CreateHandler(ZernioAggregatorAdapter.HttpClientName);
 			while (chain is DelegatingHandler { InnerHandler: { } inner }) {
 				chain = inner;
 			}

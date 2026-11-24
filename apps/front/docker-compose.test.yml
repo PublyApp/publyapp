@@ -22,7 +22,7 @@ x-api-test-environment: &api-test-environment
   # Required by AppEnvironment.Initialize() since #1239 (ParseMasterKey:
   # base64, exactly 32 bytes). Since #1294 the witness refuses the committed
   # all-zero build placeholder at any REAL boot, and these containers boot
-  # with a live PostgresKeyRingCanaryStore — so they carry a committed,
+  # with a live PostgresKeyRingCanaryAdapter — so they carry a committed,
   # deterministic throwaway value instead (derived from a public string,
   # protects nothing, never a production secret; distinct from every build
   # surface so a placeholder regression cannot silently match here).

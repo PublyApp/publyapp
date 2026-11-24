@@ -102,7 +102,7 @@ public static class JobsServiceRegistration {
 		// rebase onto each other this branch legitimately carries none, so register a
 		// fail-fast placeholder ONLY when the interface is still unregistered: the
 		// LAST registration wins in Microsoft.Extensions.DependencyInjection, so once
-		// wt-641's AddAppServices registers BlueskySessionProvider AFTER this block,
+		// wt-641's AddAppServices registers BlueskySessionAdapter AFTER this block,
 		// its real implementation silently replaces the placeholder — no code change
 		// needed at the convergence rebase. The placeholder must stay RESOLVABLE:
 		// JobHandlerRegistry._ValidateRegistrationConsistency composes every handler
@@ -110,7 +110,7 @@ public static class JobsServiceRegistration {
 		// Instead it throws on first USE — a publish job that actually runs without
 		// a real seam dies loudly instead of publishing with a fake session.
 		builder.Services.TryAddScoped<ISocialSessionProvider>(_ => {
-			return new UnimplementedSocialSessionProvider();
+			return new UnimplementedSocialSessionAdapter();
 		});
 
 		JobsServiceRegistration._AddEmailJobHandlers(builder);
@@ -236,7 +236,7 @@ public static class JobsServiceRegistration {
 /// a fake session. Deleted naturally at the convergence rebase, where wt-641's
 /// last-wins registration replaces this placeholder entirely.
 /// </summary>
-public sealed class UnimplementedSocialSessionProvider : ISocialSessionProvider {
+public sealed class UnimplementedSocialSessionAdapter : ISocialSessionProvider {
 	public Task<SocialSessionResult> OpenSessionAsync(
 		Guid socialAccountId,
 		CancellationToken cancellationToken

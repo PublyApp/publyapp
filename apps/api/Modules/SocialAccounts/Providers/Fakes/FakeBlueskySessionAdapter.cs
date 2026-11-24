@@ -7,7 +7,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Fakes;
 /// E2E session seam (plan D2 reconciliation 4, round-2 blocker fix): resolves any
 /// stored demo account to an OPENED session WITHOUT contacting Bluesky — including
 /// rows seeded with the <see cref="SocialAccountSeeder.PlaceholderCredentialBlob"/>,
-/// which the production <see cref="PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky.BlueskySessionProvider"/> would rightly refuse as
+/// which the production <see cref="PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky.BlueskySessionAdapter"/> would rightly refuse as
 /// "no usable stored credential".
 ///
 /// Registered ONLY when PUBLISHING_FAKE_PROVIDER=true on a Development/Testing host
@@ -16,7 +16,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Fakes;
 /// derived deterministically from the account id so distinct accounts keep distinct
 /// identities in history links.
 /// </summary>
-public sealed class FakeBlueskySessionProvider : ISocialSessionProvider {
+public sealed class FakeBlueskySessionAdapter : ISocialSessionProvider {
 	public Task<SocialSessionResult> OpenSessionAsync(
 		Guid socialAccountId,
 		CancellationToken cancellationToken

@@ -95,7 +95,7 @@ public sealed class DiscordWebhookConnectServiceSpec : IClassFixture<ApiFixture>
 		var json = JsonSerializer.Serialize(SocialAccountService.ToListItem(account));
 		json.Should().NotContain(DiscordWebhookConnectServiceSpec._Token).And.NotContain("webhooks/");
 		json.Should().NotContain(account.ProtectedCredentials);
-		var session = await new DiscordWebhookSessionProvider(h.Db, h.Protector).OpenSessionAsync(account.GetRequiredId(), default);
+		var session = await new DiscordWebhookSessionAdapter(h.Db, h.Protector).OpenSessionAsync(account.GetRequiredId(), default);
 		var opened = session.Should().BeOfType<SocialSessionResult.Opened>().Subject.Session;
 		opened.PdsHost.Should().Be("https://discord.com/channels/777");
 		opened.ToString().Should().NotContain(DiscordWebhookConnectServiceSpec._Token);

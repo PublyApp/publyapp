@@ -455,7 +455,7 @@ public class AppDbContext : Microsoft.EntityFrameworkCore.DbContext, IDataProtec
 		// #1416: exactly ONE master-key canary row may exist. Concurrent first boots
 		// used to mint duplicates (every boot read null, every boot inserted), which
 		// crash-looped every later boot on SingleOrDefault. The partial unique index
-		// constrains ONLY the canary row name (PostgresKeyRingCanaryStore.RowName);
+		// constrains ONLY the canary row name (PostgresKeyRingCanaryAdapter.RowName);
 		// Data Protection key-ring rows keep their own names untouched.
 		modelBuilder.Entity<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey>()
 			.HasIndex(key => key.FriendlyName)

@@ -100,7 +100,7 @@ public static class SocialAccountsMasterKeyWitness {
 
 				if (string.IsNullOrEmpty(stored)) {
 					throw new InvalidOperationException(
-						"The master-key canary row (" + PostgresKeyRingCanaryStore.RowName
+						"The master-key canary row (" + PostgresKeyRingCanaryAdapter.RowName
 							+ " in data_protection_keys) is missing immediately after minting it: "
 							+ "another process removed or replaced it mid-boot. Restart this "
 							+ "service; if it recurs, verify every service (api, worker, migrate) "
@@ -216,7 +216,7 @@ public static class SocialAccountsMasterKeyWitness {
 				+ "will not start. Restore the original SOCIAL_ACCOUNTS_MASTER_KEY value for "
 				+ "ALL services (api, worker, migrate), or deliberately rotate: export the old "
 				+ "key, re-protect stored credentials, delete the stale canary row "
-				+ "(" + PostgresKeyRingCanaryStore.RowName + ") and reboot.",
+				+ "(" + PostgresKeyRingCanaryAdapter.RowName + ") and reboot.",
 			cause
 		);
 	}

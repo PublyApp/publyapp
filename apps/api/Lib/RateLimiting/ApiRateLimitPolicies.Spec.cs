@@ -42,7 +42,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 	public async Task ItShouldKeepAuthenticatedSessionPartitionsIndependent() {
 		await using var store = new ApiRateLimiterStore(
 			ApiRateLimitPoliciesSpec._CreateSettings(authenticatedPermitLimit: 1),
-			new MemoryRateLimitCounterStore()
+			new MemoryRateLimitCounterAdapter()
 		);
 
 		using var firstSession = store.CreateSingle(
@@ -70,7 +70,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 				authenticatedPermitLimit: 1,
 				authenticatedWindowSeconds: 1
 			),
-			new MemoryRateLimitCounterStore()
+			new MemoryRateLimitCounterAdapter()
 		);
 		using var limiter = store.CreateSingle(
 			ApiRateLimitPolicies.AuthenticatedDefault,
@@ -100,7 +100,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 				bulkPermitLimit: 10,
 				tenantBulkPermitLimit: 2
 			),
-			new MemoryRateLimitCounterStore()
+			new MemoryRateLimitCounterAdapter()
 		);
 
 		using var firstSession = store.CreateTenantChained(
@@ -146,7 +146,7 @@ public sealed class ApiRateLimitPoliciesSpec {
 		);
 		await using var store = new ApiRateLimiterStore(
 			settings,
-			new MemoryRateLimitCounterStore()
+			new MemoryRateLimitCounterAdapter()
 		);
 		var firstContext = ApiRateLimitPoliciesSpec._CreateIpContext(
 			"203.0.113.50",

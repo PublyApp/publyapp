@@ -17,14 +17,14 @@ namespace PublyApp.Api.Lib.RateLimiting;
 // borrowing connections from scoped AppDbContexts, atomic over-admission-proof
 // accounting, PII-free hashed partitions, and the outage contract (breaker +
 // fail CLOSED for anonymous-auth/email policies, fail OPEN elsewhere).
-public sealed class PostgresRateLimitCounterStoreSpec
+public sealed class PostgresRateLimitCounterAdapterSpec
 	: IClassFixture<ApiFixture> {
 	private static readonly DateTimeOffset _BaseTime =
 		new(2026, 8, 26, 12, 0, 0, TimeSpan.Zero);
 
 	private readonly ApiFixture _Fixture;
 
-	public PostgresRateLimitCounterStoreSpec(ApiFixture fixture) {
+	public PostgresRateLimitCounterAdapterSpec(ApiFixture fixture) {
 		this._Fixture = fixture;
 	}
 
@@ -42,36 +42,36 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	public void ItShouldAlignWindowsToWholeWindowMultiplesAcrossReplicas() {
 		var window = TimeSpan.FromSeconds(60);
 
-		PostgresRateLimitCounterStore
-			.GetWindowStart(PostgresRateLimitCounterStoreSpec._BaseTime, window)
-			.Should().Be(PostgresRateLimitCounterStoreSpec._BaseTime);
-		PostgresRateLimitCounterStore
+		PostgresRateLimitCounterAdapter
+			.GetWindowStart(PostgresRateLimitCounterAdapterSpec._BaseTime, window)
+			.Should().Be(PostgresRateLimitCounterAdapterSpec._BaseTime);
+		PostgresRateLimitCounterAdapter
 			.GetWindowStart(
-				PostgresRateLimitCounterStoreSpec._BaseTime.AddSeconds(59.9),
+				PostgresRateLimitCounterAdapterSpec._BaseTime.AddSeconds(59.9),
 				window
 			)
-			.Should().Be(PostgresRateLimitCounterStoreSpec._BaseTime);
-		PostgresRateLimitCounterStore
+			.Should().Be(PostgresRateLimitCounterAdapterSpec._BaseTime);
+		PostgresRateLimitCounterAdapter
 			.GetWindowStart(
-				PostgresRateLimitCounterStoreSpec._BaseTime.AddSeconds(60),
+				PostgresRateLimitCounterAdapterSpec._BaseTime.AddSeconds(60),
 				window
 			)
-			.Should().Be(PostgresRateLimitCounterStoreSpec._BaseTime.AddSeconds(60));
-		PostgresRateLimitCounterStore
+			.Should().Be(PostgresRateLimitCounterAdapterSpec._BaseTime.AddSeconds(60));
+		PostgresRateLimitCounterAdapter
 			.GetWindowStart(
-				PostgresRateLimitCounterStoreSpec._BaseTime.AddDays(3).AddSeconds(-1),
+				PostgresRateLimitCounterAdapterSpec._BaseTime.AddDays(3).AddSeconds(-1),
 				window
 			)
-			.Should().Be(PostgresRateLimitCounterStoreSpec._BaseTime.AddDays(3).AddMinutes(-1));
+			.Should().Be(PostgresRateLimitCounterAdapterSpec._BaseTime.AddDays(3).AddMinutes(-1));
 	}
 
 	[Fact]
 	public void ItShouldHashPartitionKeysDeterministicallyWithoutRawValues() {
-		var first = PostgresRateLimitCounterStore
+		var first = PostgresRateLimitCounterAdapter
 			.HashPartitionKey("attacker@example.com");
-		var second = PostgresRateLimitCounterStore
+		var second = PostgresRateLimitCounterAdapter
 			.HashPartitionKey("attacker@example.com");
-		var other = PostgresRateLimitCounterStore
+		var other = PostgresRateLimitCounterAdapter
 			.HashPartitionKey("victim@example.com");
 
 		first.Should().Be(second);
@@ -110,7 +110,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 		var secondLease = await secondStore.AcquireAsync(
 			policyName,
@@ -118,7 +118,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 		var thirdLease = await secondStore.AcquireAsync(
 			policyName,
@@ -126,7 +126,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 		var fourthLease = await firstStore.AcquireAsync(
 			policyName,
@@ -134,7 +134,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 
 		firstLease.Acquired.Should().BeTrue();
@@ -178,8 +178,8 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 		// Replica 1's app clock says 12:00:30; replica 2's says 12:01:31
 		// (61 s apart — a full window boundary in between under the old code).
-		var replicaOneUtcNow = PostgresRateLimitCounterStoreSpec._BaseTime.AddSeconds(30);
-		var replicaTwoUtcNow = PostgresRateLimitCounterStoreSpec._BaseTime.AddSeconds(91);
+		var replicaOneUtcNow = PostgresRateLimitCounterAdapterSpec._BaseTime.AddSeconds(30);
+		var replicaTwoUtcNow = PostgresRateLimitCounterAdapterSpec._BaseTime.AddSeconds(91);
 
 		// Three acquires at the limit from replica one (drains its view of the
 		// budget in the window that starts at ~12:00:00).
@@ -281,7 +281,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 					permitLimit,
 					window,
 					1,
-					PostgresRateLimitCounterStoreSpec._BaseTime
+					PostgresRateLimitCounterAdapterSpec._BaseTime
 				))
 		);
 
@@ -329,7 +329,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		// independent WebApplicationFactory against the same database.
 		var firstHostStore = this._CreateStoreFromHost();
 		await using var secondHost = this._Fixture.CreateSecondHost();
-		var secondHostStore = PostgresRateLimitCounterStoreSpec._CreateStoreFrom(secondHost);
+		var secondHostStore = PostgresRateLimitCounterAdapterSpec._CreateStoreFrom(secondHost);
 
 		var leases = await Task.WhenAll(
 			Enumerable
@@ -343,7 +343,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 					permitLimit,
 					window,
 					1,
-					PostgresRateLimitCounterStoreSpec._BaseTime
+					PostgresRateLimitCounterAdapterSpec._BaseTime
 				))
 		);
 
@@ -375,12 +375,12 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	[Fact]
 	public async Task ItShouldFailClosedForAbusePoliciesWhileTheirPolicyBreakerIsOpen() {
 		var timeProvider = new ManualTimeProvider {
-			UtcNowValue = PostgresRateLimitCounterStoreSpec._BaseTime,
+			UtcNowValue = PostgresRateLimitCounterAdapterSpec._BaseTime,
 		};
 		var throwingFactory = new ThrowingScopeFactory();
-		await using var store = new PostgresRateLimitCounterStore(
+		await using var store = new PostgresRateLimitCounterAdapter(
 			throwingFactory,
-			NullLogger<PostgresRateLimitCounterStore>.Instance,
+			NullLogger<PostgresRateLimitCounterAdapter>.Instance,
 			this._GetHostSettings<ApiRateLimitSettings>(),
 			this._GetHostSettings<AnonymousAuthRateLimitSettings>(),
 			timeProvider
@@ -436,12 +436,12 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	[Fact]
 	public async Task ItShouldIsolateBreakerStateAcrossUnrelatedPolicies() {
 		var timeProvider = new ManualTimeProvider {
-			UtcNowValue = PostgresRateLimitCounterStoreSpec._BaseTime,
+			UtcNowValue = PostgresRateLimitCounterAdapterSpec._BaseTime,
 		};
 		var throwingFactory = new ThrowingScopeFactory();
-		await using var store = new PostgresRateLimitCounterStore(
+		await using var store = new PostgresRateLimitCounterAdapter(
 			throwingFactory,
-			NullLogger<PostgresRateLimitCounterStore>.Instance,
+			NullLogger<PostgresRateLimitCounterAdapter>.Instance,
 			this._GetHostSettings<ApiRateLimitSettings>(),
 			this._GetHostSettings<AnonymousAuthRateLimitSettings>(),
 			timeProvider
@@ -449,7 +449,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 		for (
 			var attempt = 0;
-			attempt < PostgresRateLimitCounterStore.BreakerFailureThreshold;
+			attempt < PostgresRateLimitCounterAdapter.BreakerFailureThreshold;
 			attempt++
 		) {
 			var failed = await store.AcquireAsync(
@@ -465,7 +465,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		}
 
 		throwingFactory.DialAttempts.Should()
-			.Be(PostgresRateLimitCounterStore.BreakerFailureThreshold);
+			.Be(PostgresRateLimitCounterAdapter.BreakerFailureThreshold);
 
 		var unrelatedPolicyResult = await store.AcquireAsync(
 			AnonymousAuthRateLimitPolicies.PerIp,
@@ -477,7 +477,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		);
 
 		throwingFactory.DialAttempts.Should().Be(
-			PostgresRateLimitCounterStore.BreakerFailureThreshold + 1,
+			PostgresRateLimitCounterAdapter.BreakerFailureThreshold + 1,
 			"a failure in one policy must not suppress an unrelated policy's database attempt"
 		);
 		unrelatedPolicyResult.Acquired.Should().BeFalse();
@@ -489,12 +489,12 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	[Fact]
 	public async Task ItShouldShareBreakerStateAcrossPartitionsWithinOnePolicy() {
 		var timeProvider = new ManualTimeProvider {
-			UtcNowValue = PostgresRateLimitCounterStoreSpec._BaseTime,
+			UtcNowValue = PostgresRateLimitCounterAdapterSpec._BaseTime,
 		};
 		var throwingFactory = new ThrowingScopeFactory();
-		await using var store = new PostgresRateLimitCounterStore(
+		await using var store = new PostgresRateLimitCounterAdapter(
 			throwingFactory,
-			NullLogger<PostgresRateLimitCounterStore>.Instance,
+			NullLogger<PostgresRateLimitCounterAdapter>.Instance,
 			this._GetHostSettings<ApiRateLimitSettings>(),
 			this._GetHostSettings<AnonymousAuthRateLimitSettings>(),
 			timeProvider
@@ -502,7 +502,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 		for (
 			var attempt = 0;
-			attempt < PostgresRateLimitCounterStore.BreakerFailureThreshold;
+			attempt < PostgresRateLimitCounterAdapter.BreakerFailureThreshold;
 			attempt++
 		) {
 			await store.AcquireAsync(
@@ -525,7 +525,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		);
 
 		throwingFactory.DialAttempts.Should().Be(
-			PostgresRateLimitCounterStore.BreakerFailureThreshold,
+			PostgresRateLimitCounterAdapter.BreakerFailureThreshold,
 			"partitions of one policy share a bounded dependency breaker"
 		);
 		anotherPartitionResult.StoreFailure.Should().BeTrue();
@@ -563,7 +563,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			window,
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 		var secondScope = await store.AcquireAsync(
 			policyName,
@@ -571,7 +571,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			window,
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 		var rejected = await store.AcquireAsync(
 			policyName,
@@ -579,7 +579,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			window,
 			2,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 		// Roll over on the DB clock's next boundary — the same aligned window the
 		// store computes — rather than on a blind sleep.
@@ -590,7 +590,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			permitLimit,
 			window,
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 
 		firstScope.Acquired.Should().BeTrue();
@@ -623,7 +623,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			10,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 
 		var storedHashes = await dbContext.Database
@@ -638,7 +638,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 		storedHashes.Should().ContainSingle();
 		storedHashes.Single().Should()
-			.Be(PostgresRateLimitCounterStore.HashPartitionKey(emailKey));
+			.Be(PostgresRateLimitCounterAdapter.HashPartitionKey(emailKey));
 		storedHashes.Single().Should().NotContain("@");
 	}
 
@@ -652,7 +652,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			5,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 		var passwordResetResult = await store.AcquireAsync(
 			AnonymousAuthRateLimitPolicies.PasswordResetPerEmail,
@@ -660,7 +660,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			5,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 		var emailResult = await store.AcquireAsync(
 			ApiRateLimitPolicies.EmailOperation,
@@ -668,7 +668,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			5,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 
 		perIpResult.StoreFailure.Should().BeFalse();
@@ -691,7 +691,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			100,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 		var bulkResult = await store.AcquireAsync(
 			ApiRateLimitPolicies.BulkOperation,
@@ -699,7 +699,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			100,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 
 		authenticatedResult.Acquired.Should().BeFalse();
@@ -713,12 +713,12 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	[Fact]
 	public async Task ItShouldOpenTheBreakerStopDiallingThenProbeAfterCooldown() {
 		var timeProvider = new ManualTimeProvider {
-			UtcNowValue = PostgresRateLimitCounterStoreSpec._BaseTime,
+			UtcNowValue = PostgresRateLimitCounterAdapterSpec._BaseTime,
 		};
 		var throwingFactory = new ThrowingScopeFactory();
-		await using var store = new PostgresRateLimitCounterStore(
+		await using var store = new PostgresRateLimitCounterAdapter(
 			throwingFactory,
-			NullLogger<PostgresRateLimitCounterStore>.Instance,
+			NullLogger<PostgresRateLimitCounterAdapter>.Instance,
 			this._GetHostSettings<ApiRateLimitSettings>(),
 			this._GetHostSettings<AnonymousAuthRateLimitSettings>(),
 			timeProvider
@@ -764,7 +764,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			"while the breaker is open acquisitions must not dial Postgres at all"
 		);
 
-		timeProvider.UtcNowValue = PostgresRateLimitCounterStoreSpec._BaseTime.AddSeconds(31);
+		timeProvider.UtcNowValue = PostgresRateLimitCounterAdapterSpec._BaseTime.AddSeconds(31);
 		await store.AcquireAsync(
 			ApiRateLimitPolicies.AuthenticatedDefault,
 			"breaker-key",
@@ -779,7 +779,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			"after the cooldown exactly one half-open probe may dial"
 		);
 
-		timeProvider.UtcNowValue = PostgresRateLimitCounterStoreSpec._BaseTime.AddSeconds(32);
+		timeProvider.UtcNowValue = PostgresRateLimitCounterAdapterSpec._BaseTime.AddSeconds(32);
 		await store.AcquireAsync(
 			ApiRateLimitPolicies.AuthenticatedDefault,
 			"breaker-key",
@@ -797,7 +797,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 
 	[Fact]
 	public async Task ItShouldMirrorPre953FixedWindowSemanticsInTheMemoryStore() {
-		await using var store = new MemoryRateLimitCounterStore();
+		await using var store = new MemoryRateLimitCounterAdapter();
 
 		var first = await store.AcquireAsync(
 			"memory-spec-policy",
@@ -805,7 +805,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			1,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 		var rejected = await store.AcquireAsync(
 			"memory-spec-policy",
@@ -813,7 +813,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			1,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 		var otherPartition = await store.AcquireAsync(
 			"memory-spec-policy",
@@ -821,7 +821,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			1,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime
+			PostgresRateLimitCounterAdapterSpec._BaseTime
 		);
 		var rolledOver = await store.AcquireAsync(
 			"memory-spec-policy",
@@ -829,7 +829,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 			1,
 			TimeSpan.FromSeconds(60),
 			1,
-			PostgresRateLimitCounterStoreSpec._BaseTime.AddSeconds(61)
+			PostgresRateLimitCounterAdapterSpec._BaseTime.AddSeconds(61)
 		);
 
 		first.Acquired.Should().BeTrue();
@@ -838,32 +838,32 @@ public sealed class PostgresRateLimitCounterStoreSpec
 		rolledOver.Acquired.Should().BeTrue();
 	}
 
-	private PostgresRateLimitCounterStore
+	private PostgresRateLimitCounterAdapter
 		_CreateStoreFromHost() {
-		return PostgresRateLimitCounterStoreSpec._CreateStoreFrom(this._Fixture.Factory);
+		return PostgresRateLimitCounterAdapterSpec._CreateStoreFrom(this._Fixture.Factory);
 	}
 
-	private static PostgresRateLimitCounterStore
+	private static PostgresRateLimitCounterAdapter
 		_CreateStoreFrom(ApiFactory factory) {
-		return new PostgresRateLimitCounterStore(
+		return new PostgresRateLimitCounterAdapter(
 			factory.Services
 				.GetRequiredService<IServiceScopeFactory>(),
 			factory.Services.GetRequiredService<
-				ILogger<PostgresRateLimitCounterStore>>(),
+				ILogger<PostgresRateLimitCounterAdapter>>(),
 			factory.Services.GetRequiredService<ApiRateLimitSettings>(),
 			factory.Services.GetRequiredService<
 				AnonymousAuthRateLimitSettings>()
 		);
 	}
 
-	private PostgresRateLimitCounterStore
+	private PostgresRateLimitCounterAdapter
 		_CreateStoreWithBrokenDatabase() {
-		return new PostgresRateLimitCounterStore(
+		return new PostgresRateLimitCounterAdapter(
 			new ThrowingScopeFactory(),
-			NullLogger<PostgresRateLimitCounterStore>.Instance,
+			NullLogger<PostgresRateLimitCounterAdapter>.Instance,
 			this._GetHostSettings<ApiRateLimitSettings>(),
 			this._GetHostSettings<AnonymousAuthRateLimitSettings>(),
-			new ManualTimeProvider { UtcNowValue = PostgresRateLimitCounterStoreSpec._BaseTime }
+			new ManualTimeProvider { UtcNowValue = PostgresRateLimitCounterAdapterSpec._BaseTime }
 		);
 	}
 
@@ -893,7 +893,7 @@ public sealed class PostgresRateLimitCounterStoreSpec
 	}
 }
 
-internal static class PostgresRateLimitCounterStoreSpecQueries {
+internal static class PostgresRateLimitCounterAdapterSpecQueries {
 	// Widen the reset helper onto DbContext so each fact starts from an empty
 	// counters table without depending on evaluation order.
 	public static async Task ClearCounterRowsAsync(

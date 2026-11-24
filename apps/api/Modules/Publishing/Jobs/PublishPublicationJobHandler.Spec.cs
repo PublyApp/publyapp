@@ -120,8 +120,8 @@ public sealed class PublishPublicationJobHandlerSpec : IClassFixture<ApiFixture>
 		};
 	}
 
-	private static LocalDiskFileStorage _NewStorage() {
-		return new LocalDiskFileStorage(
+	private static LocalDiskFileStorageAdapter _NewStorage() {
+		return new LocalDiskFileStorageAdapter(
 			Path.Combine(Path.GetTempPath(), $"publish-job-spec-{Guid.NewGuid():N}")
 		);
 	}

@@ -28,7 +28,7 @@ public sealed class CanaryAwareKeyRingRepository : IXmlRepository {
 
 		return dbContext.DataProtectionKeys
 			.AsNoTracking()
-			.Where(k => k.FriendlyName == null || k.FriendlyName != PostgresKeyRingCanaryStore.RowName)
+			.Where(k => k.FriendlyName == null || k.FriendlyName != PostgresKeyRingCanaryAdapter.RowName)
 			.Select(k => k.Xml)
 			.ToList()
 			.OfType<string>()

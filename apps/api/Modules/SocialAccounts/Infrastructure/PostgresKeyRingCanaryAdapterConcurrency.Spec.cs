@@ -27,7 +27,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 /// "Sequence contains more than one element" and crash-loops forever.
 /// <para>
 /// This spec reproduces that race DETERMINISTICALLY against real infrastructure: N
-/// concurrent first boots run the REAL <see cref="PostgresKeyRingCanaryStore"/> plus the
+/// concurrent first boots run the REAL <see cref="PostgresKeyRingCanaryAdapter"/> plus the
 /// REAL <see cref="SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable"/> against a
 /// template-cloned Postgres database, held on a barrier so every Read() observes the
 /// empty canary before any Write() fires — the exact production shape, minus the timing
@@ -35,7 +35,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 /// </para>
 /// </summary>
 [Collection("WitnessBootChildProcess")]
-public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
+public sealed class PostgresKeyRingCanaryAdapterConcurrencySpec {
 	private const int _RacerCount = 6;
 
 	private sealed record BootOutcome(bool Passed, string? Error);
@@ -52,11 +52,11 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 		// Production reality: api, worker, and migrate all receive the SAME
 		// SOCIAL_ACCOUNTS_MASTER_KEY value (runbook requirement), so every racer here
 		// shares one honestly generated test-only key.
-		var sharedKey = PostgresKeyRingCanaryStoreConcurrencySpec._NewTestKey();
-		var startingGate = new Barrier(PostgresKeyRingCanaryStoreConcurrencySpec._RacerCount);
+		var sharedKey = PostgresKeyRingCanaryAdapterConcurrencySpec._NewTestKey();
+		var startingGate = new Barrier(PostgresKeyRingCanaryAdapterConcurrencySpec._RacerCount);
 		var outcomes = new ConcurrentBag<BootOutcome>();
 
-		var racers = Enumerable.Range(0, PostgresKeyRingCanaryStoreConcurrencySpec._RacerCount).Select(_ => Task.Run(() => {
+		var racers = Enumerable.Range(0, PostgresKeyRingCanaryAdapterConcurrencySpec._RacerCount).Select(_ => Task.Run(() => {
 			// Hold every boot at the gate until all six are parked past their Read()
 			// decision point, then release them together: under the pre-fix code every
 			// Read() returns null, every Write() inserts, and the duplicate is certain —
@@ -66,7 +66,7 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 				return;
 			}
 
-			var store = new PostgresKeyRingCanaryStore(scopeFactory);
+			var store = new PostgresKeyRingCanaryAdapter(scopeFactory);
 			try {
 				SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(sharedKey, store);
 				outcomes.Add(new BootOutcome(true, null));
@@ -85,7 +85,7 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 		await using var scope = scopeFactory.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var canaryRowCount = await dbContext.DataProtectionKeys.AsNoTracking().CountAsync(
-			key => key.FriendlyName == PostgresKeyRingCanaryStore.RowName);
+			key => key.FriendlyName == PostgresKeyRingCanaryAdapter.RowName);
 
 		canaryRowCount.Should().Be(
 			1,
@@ -107,18 +107,18 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 		services.AddDbContext<AppDbContext>(options => options.UseNpgsql(db.ConnectionString));
 		await using var provider = services.BuildServiceProvider();
 		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
-		var sharedKey = PostgresKeyRingCanaryStoreConcurrencySpec._NewTestKey();
+		var sharedKey = PostgresKeyRingCanaryAdapterConcurrencySpec._NewTestKey();
 
 		// Boot 1 wins cleanly: mints the canary.
-		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(sharedKey, new PostgresKeyRingCanaryStore(scopeFactory));
-		var winnerBlob = await PostgresKeyRingCanaryStoreConcurrencySpec._CanaryBlobOf(scopeFactory);
+		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(sharedKey, new PostgresKeyRingCanaryAdapter(scopeFactory));
+		var winnerBlob = await PostgresKeyRingCanaryAdapterConcurrencySpec._CanaryBlobOf(scopeFactory);
 		winnerBlob.Should().NotBeNull("boot 1 must have minted exactly one canary row");
 
 		// Boot 2 starts from a deliberately STALE read (empty) even though the row now
 		// exists: exactly the state a loser discovers behind the barrier in production.
 		var losingBoot = () => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
 			sharedKey,
-			new FrozenEmptyCanaryStore(new PostgresKeyRingCanaryStore(scopeFactory))
+			new FrozenEmptyCanaryStore(new PostgresKeyRingCanaryAdapter(scopeFactory))
 		);
 
 		losingBoot.Should().NotThrow(
@@ -127,7 +127,7 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 		await using var scope = scopeFactory.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var rows = await dbContext.DataProtectionKeys.AsNoTracking()
-			.Where(key => key.FriendlyName == PostgresKeyRingCanaryStore.RowName)
+			.Where(key => key.FriendlyName == PostgresKeyRingCanaryAdapter.RowName)
 			.ToListAsync();
 
 		rows.Should().ContainSingle("the loser must not insert a second row");
@@ -172,7 +172,7 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 			""",
 			(NpgsqlConnection)dbContext.Database.GetDbConnection()
 		);
-		insertFirst.Parameters.AddWithValue("canary", PostgresKeyRingCanaryStore.RowName);
+		insertFirst.Parameters.AddWithValue("canary", PostgresKeyRingCanaryAdapter.RowName);
 		await insertFirst.ExecuteNonQueryAsync();
 
 		await using var insertSecond = new NpgsqlCommand(
@@ -183,10 +183,10 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 			""",
 			(NpgsqlConnection)dbContext.Database.GetDbConnection()
 		);
-		insertSecond.Parameters.AddWithValue("canary", PostgresKeyRingCanaryStore.RowName);
+		insertSecond.Parameters.AddWithValue("canary", PostgresKeyRingCanaryAdapter.RowName);
 		await insertSecond.ExecuteNonQueryAsync();
 
-		var store = new PostgresKeyRingCanaryStore(scopeFactory);
+		var store = new PostgresKeyRingCanaryAdapter(scopeFactory);
 		var act = () => store.Read();
 
 		act.Should().Throw<InvalidOperationException>()
@@ -199,7 +199,7 @@ public sealed class PostgresKeyRingCanaryStoreConcurrencySpec {
 		await using var scope = scopeFactory.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		return await dbContext.DataProtectionKeys.AsNoTracking()
-			.Where(key => key.FriendlyName == PostgresKeyRingCanaryStore.RowName)
+			.Where(key => key.FriendlyName == PostgresKeyRingCanaryAdapter.RowName)
 			.Select(key => key.Xml)
 			.SingleOrDefaultAsync();
 	}

@@ -98,7 +98,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 				conn
 			);
 			insertWinner.Parameters.AddWithValue("winner", winnerId);
-			insertWinner.Parameters.AddWithValue("canary", PostgresKeyRingCanaryStore.RowName);
+			insertWinner.Parameters.AddWithValue("canary", PostgresKeyRingCanaryAdapter.RowName);
 			await insertWinner.ExecuteNonQueryAsync();
 
 			await using var insertLoser = new NpgsqlCommand(
@@ -110,7 +110,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 				conn
 			);
 			insertLoser.Parameters.AddWithValue("loser", loserId);
-			insertLoser.Parameters.AddWithValue("canary", PostgresKeyRingCanaryStore.RowName);
+			insertLoser.Parameters.AddWithValue("canary", PostgresKeyRingCanaryAdapter.RowName);
 			await insertLoser.ExecuteNonQueryAsync();
 
 			await using var insertKeyRingRow = new NpgsqlCommand(
@@ -145,7 +145,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 				""",
 				conn
 			);
-			survivors.Parameters.AddWithValue("canary", PostgresKeyRingCanaryStore.RowName);
+			survivors.Parameters.AddWithValue("canary", PostgresKeyRingCanaryAdapter.RowName);
 			await using var reader = await survivors.ExecuteReaderAsync();
 			var rows = new List<(int Id, string Xml)>();
 			while (await reader.ReadAsync()) {
@@ -181,7 +181,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 				""",
 				conn
 			);
-			duplicateCanary.Parameters.AddWithValue("canary", PostgresKeyRingCanaryStore.RowName);
+			duplicateCanary.Parameters.AddWithValue("canary", PostgresKeyRingCanaryAdapter.RowName);
 			var insertDuplicate = async () => await duplicateCanary.ExecuteNonQueryAsync();
 			await insertDuplicate.Should().ThrowAsync<PostgresException>()
 				.Where(ex => ex.SqlState == PostgresErrorCodes.UniqueViolation,
@@ -265,7 +265,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 		// Schema as of the migration immediately BEFORE the unique index; no canary row
 		// seeded: the fresh-install shape.
 		await migrator.MigrateAsync(AddCanaryFriendlyNameUniqueIndexSpec._PreviousMigrationId(dbContext));
-		(await this._CountRowsAsync(PostgresKeyRingCanaryStore.RowName)).Should().Be(0);
+		(await this._CountRowsAsync(PostgresKeyRingCanaryAdapter.RowName)).Should().Be(0);
 
 		var applyRemaining = async () => await migrator.MigrateAsync();
 		await applyRemaining.Should().NotThrowAsync(
@@ -301,7 +301,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 				conn
 			);
 			insertSingle.Parameters.AddWithValue("id", survivorId);
-			insertSingle.Parameters.AddWithValue("canary", PostgresKeyRingCanaryStore.RowName);
+			insertSingle.Parameters.AddWithValue("canary", PostgresKeyRingCanaryAdapter.RowName);
 			await insertSingle.ExecuteNonQueryAsync();
 
 			await using var insertKeyRingRow = new NpgsqlCommand(
@@ -329,7 +329,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 				""",
 				conn
 			);
-			read.Parameters.AddWithValue("canary", PostgresKeyRingCanaryStore.RowName);
+			read.Parameters.AddWithValue("canary", PostgresKeyRingCanaryAdapter.RowName);
 			await using var reader = await read.ExecuteReaderAsync();
 			var rows = new List<(int Id, string Xml)>();
 			while (await reader.ReadAsync()) {
@@ -352,7 +352,7 @@ public sealed class AddCanaryFriendlyNameUniqueIndexSpec : IAsyncLifetime {
 		await reapply.Should().NotThrowAsync("the migration is idempotent on re-run");
 
 		// And the enforcement still holds after everything: duplicates stay uninsertable.
-		(await this._CountRowsAsync(PostgresKeyRingCanaryStore.RowName)).Should().Be(1);
+		(await this._CountRowsAsync(PostgresKeyRingCanaryAdapter.RowName)).Should().Be(1);
 	}
 
 	private AppDbContext _NewMigratorDbContext() {

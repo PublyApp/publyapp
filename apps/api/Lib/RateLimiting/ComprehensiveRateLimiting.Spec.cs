@@ -875,7 +875,7 @@ public sealed class ComprehensiveRateLimitingSpec
 					// these tests are never shared with other hosts
 					// (pre-#953 semantics).
 					services.AddSingleton<IRateLimitCounterStore>(
-						new MemoryRateLimitCounterStore()
+						new MemoryRateLimitCounterAdapter()
 					);
 					if (sessionService is not null) {
 						services.RemoveAll<ISessionService>();
