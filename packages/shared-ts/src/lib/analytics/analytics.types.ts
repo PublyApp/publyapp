@@ -1,11 +1,6 @@
 import type { JsonObject } from '../../types/json.types';
 
 /**
- * Unified analytics interface with consistent API across server and browser environments.
- * Implementations translate these standard parameters to their respective PostHog library requirements.
- */
-
-/**
  * An analytics call's properties/metadata. PostHog serialises these to JSON and
  * sends them as the event payload, so the boundary type is the JSON object —
  * not an open dictionary of `unknown` that would accept a `Date` or a class
@@ -13,46 +8,43 @@ import type { JsonObject } from '../../types/json.types';
  */
 export type AnalyticsProperties = JsonObject;
 
-export interface CaptureEventParams {
-	/** Unique identifier for the user/session */
+type CaptureEvent = {
+	/** The user/session the event belongs to. */
 	distinctId: string;
-	/** Name of the event being captured */
+	/** Name of the event being captured. */
 	event: string;
-	/** Optional properties/metadata for the event */
+	/** Optional properties/metadata for the event. */
 	properties?: AnalyticsProperties;
-}
+};
 
-export interface IdentifyUserParams {
-	/** Unique identifier for the user */
+type IdentifyEvent = {
+	/** The user being identified. */
 	distinctId: string;
-	/** Properties to set on the user role */
+	/** Properties to set on the user. */
 	properties?: AnalyticsProperties;
-	/** Properties to set only once (won't overwrite existing values) */
+	/** Properties to set only once (won't overwrite existing values). */
 	propertiesSetOnce?: AnalyticsProperties;
-}
+};
 
-export interface CaptureExceptionParams {
-	/** The error/exception to capture */
+type ExceptionEvent = {
+	/** The error/exception to capture. */
 	error: unknown;
-	/** Unique identifier for the user/session */
+	/** The user/session the exception belongs to. */
 	distinctId?: string;
-	/** Additional properties/context for the exception */
+	/** Additional properties/context for the exception. */
 	additionalProperties?: AnalyticsProperties;
-}
+};
 
+/** One event shape for every analytics call; the adapter translates it. */
+export type AnalyticsEvent =
+	| ({ type: 'capture' } & CaptureEvent)
+	| ({ type: 'identify' } & IdentifyEvent)
+	| ({ type: 'exception' } & ExceptionEvent);
+
+/** The adapter port: one method, no consent check and no masking. */
 export interface IAnalytics {
-	/**
-	 * Capture an analytics event
-	 */
-	capture(params: CaptureEventParams): void;
-
-	/**
-	 * Identify a user with their properties
-	 */
-	identify(params: IdentifyUserParams): void;
-
-	/**
-	 * Capture an exception/error
-	 */
-	captureException(params: CaptureExceptionParams): void;
+	send(event: AnalyticsEvent): Promise<void> | void;
 }
+
+/** The service consults this before doing any work; adapters never do. */
+export type AnalyticsConsent = () => boolean;

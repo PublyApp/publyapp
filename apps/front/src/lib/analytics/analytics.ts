@@ -2,10 +2,10 @@ import { createHash, randomUUID } from 'node:crypto';
 import { isIP } from 'node:net';
 
 import type { AnalyticsProperties } from '@org/shared-ts/lib/analytics/analytics.types';
-import { IsoAnalytics } from '@org/shared-ts/lib/analytics/iso-analytics';
 import { logger } from '@org/shared-ts/lib/logger/iso-logger';
 
-import { getPublicEnv, isProductionRuntime } from '../env';
+import { isProductionRuntime } from '../env';
+import { getAnalytics } from './analytics-instance';
 
 type AddressHeader =
 	| 'cf-connecting-ip'
@@ -89,27 +89,6 @@ export const classifyBadResponse = (status: number): BadResponseDisposition => {
 	return 'debug';
 };
 
-let analyticsClient: IsoAnalytics | undefined;
-let analyticsInit: Promise<void> | undefined;
-
-const initializeAnalytics = async (): Promise<IsoAnalytics> => {
-	if (!analyticsClient) {
-		const token = getPublicEnv().posthogProjectToken;
-		analyticsClient = new IsoAnalytics(token ?? '');
-		if (!token) {
-			analyticsClient.logOnly = true;
-		}
-	}
-
-	if (analyticsClient.logOnly) {
-		return analyticsClient;
-	}
-
-	analyticsInit ??= analyticsClient.init();
-	await analyticsInit;
-	return analyticsClient;
-};
-
 export const captureBadRequest = async (
 	input: BadResponseCaptureArgs,
 ): Promise<void> => {
@@ -122,7 +101,7 @@ export const captureBadRequest = async (
 		return;
 	}
 
-	const client = await initializeAnalytics();
+	const client = getAnalytics();
 
 	const properties = buildBadResponseProperties({
 		...input,
@@ -133,11 +112,17 @@ export const captureBadRequest = async (
 		logger.debug('bad-request analytics has no client IP for hashing');
 	}
 
-	client.capture({
+	const sent = await client.send({
+		type: 'capture',
 		distinctId: distinctId || randomUUID(),
 		event: 'bad_request',
 		properties,
 	});
+
+	// The service already logged the failure; never log a success line after it.
+	if (!sent) {
+		return;
+	}
 
 	const logContext = { path: input.path, status: input.status };
 	if (disposition === 'error') {
