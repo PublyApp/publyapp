@@ -13,6 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
+import { isNonMergeQueueEvent } from './ci-lane-result.ts';
 import type { JsonValue } from './json-value.ts';
 
 // Time-balanced Playwright shards planned ONCE per queue entry.
@@ -367,10 +368,6 @@ export const downloadPlan = () => {
 	throw new Error(`no plan artifact found for run ${runId}`);
 };
 const artifactsDir = (): string => process.env.E2E_ARTIFACTS ?? 'e2e-artifacts';
-const isNonMergeQueueEvent = (): boolean => {
-	const event = process.env.GITHUB_EVENT_NAME;
-	return event !== undefined && event !== '' && event !== 'merge_group';
-};
 const REPORT_ARTIFACT = /^e2e-shard-report-(\d+)-(\d+)$/;
 /** One report per shard: the highest attempt wins when a shard was re-run. */
 export const latestShardReports = (names: string[]): string[] => {
@@ -410,7 +407,7 @@ const flattenDownloadedArtifacts = (dir: string) => {
 };
 /** Downloads every shard report of this run, keeping the latest per shard. */
 export const downloadShards = () => {
-	if (isNonMergeQueueEvent()) {
+	if (isNonMergeQueueEvent(process.env.GITHUB_EVENT_NAME)) {
 		console.log('not a merge_queue entry: no shard reports to download');
 		return;
 	}
@@ -430,7 +427,7 @@ export const downloadShards = () => {
 	downloadPlan();
 };
 const verify = () => {
-	if (isNonMergeQueueEvent()) {
+	if (isNonMergeQueueEvent(process.env.GITHUB_EVENT_NAME)) {
 		console.log('not a merge_queue entry: no coverage proof to run');
 		return;
 	}
@@ -478,7 +475,7 @@ const verify = () => {
 	console.log('coverage: every expected test ran exactly once');
 };
 const record = () => {
-	if (isNonMergeQueueEvent()) {
+	if (isNonMergeQueueEvent(process.env.GITHUB_EVENT_NAME)) {
 		console.log('not a merge_queue entry: no durations to record');
 		return;
 	}

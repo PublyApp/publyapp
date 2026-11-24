@@ -1347,12 +1347,12 @@
 			"reason": "Local mirror just ci-quality-ratchet is derived from exact normalized workflow command match(es): [\"pnpm --filter scripts-ts exec vitest run src/check-quality-ratchet.test.ts\"]."
 		},
 		"ci.yml::e2e-build::Install pnpm for the shard plan": {
-			"reason_hash": "b923d5b51ec8e25a",
-			"reason": "Hosted-only action step \"Install pnpm for the shard plan\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && github.event_name == 'merge_group'\",\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
+			"reason_hash": "0626ceb5f0a066dd",
+			"reason": "Hosted-only action step \"Install pnpm for the shard plan\" uses pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":{\"version\":\"10.13.1\"},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Setup Node for the shard plan": {
-			"reason_hash": "9ca003b422af68e4",
-			"reason": "Hosted-only action step \"Setup Node for the shard plan\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && github.event_name == 'merge_group'\",\"with\":{\"node-version\":24},\"env\":null}."
+			"reason_hash": "1552e94c99cc394a",
+			"reason": "Hosted-only action step \"Setup Node for the shard plan\" uses actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'\",\"with\":{\"node-version\":24},\"env\":null}."
 		},
 		"ci.yml::e2e-build::Install workspace dependencies for the shard plan": {
 			"reason_hash": "e1ece79f66c50373",
@@ -1363,8 +1363,8 @@
 			"reason": "No exact local command match for run step \"Plan the Playwright shards\"; normalized workflow command(s): [\"node packages/scripts-ts/src/ci-e2e-shard.ts plan\"]. The recursive just call graph was checked without inferring a broader local boundary."
 		},
 		"ci.yml::e2e-build::Upload the shard plan": {
-			"reason_hash": "0e0cb5acba8ada9c",
-			"reason": "Hosted-only action step \"Upload the shard plan\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && github.event_name == 'merge_group'\",\"with\":{\"name\":\"e2e-shard-plan-${{ github.run_attempt }}\",\"path\":\"apps/front/e2e-artifacts/e2e-shard-plan.json\",\"retention-days\":7,\"if-no-files-found\":\"${{ github.event_name == 'merge_group' && 'error' || 'ignore' }}\"},\"env\":null}."
+			"reason_hash": "9fec23b548df7045",
+			"reason": "Hosted-only action step \"Upload the shard plan\" uses actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9; exact hosted fields: {\"if\":\"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true' && github.event_name == 'merge_group'\",\"with\":{\"name\":\"e2e-shard-plan-${{ github.run_attempt }}\",\"path\":\"apps/front/e2e-artifacts/e2e-shard-plan.json\",\"retention-days\":7,\"if-no-files-found\":\"error\"},\"env\":null}."
 		},
 		"ci.yml::e2e-cleanup::Download shard coverage reports": {
 			"reason_hash": "7a52bbf4a265a9b0",

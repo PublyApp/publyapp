@@ -1456,6 +1456,37 @@ test('central workflow pins the artifact contract and report-all working directo
 	}
 });
 
+test('every shard-plan step is gated to a merge_queue entry', async () => {
+	const workflow = await readFile(workflowPath, 'utf8');
+	const condition =
+		"always() && needs.classify.result == 'success' && needs.classify.outputs.e2e == 'true'";
+	const rootDir = await mkdtemp(
+		path.join(os.tmpdir(), 'publyapp-central-plan-gate-'),
+	);
+	await cp(path.join(repoRoot, '.github'), path.join(rootDir, '.github'), {
+		recursive: true,
+	});
+	try {
+		for (const stepId of ['plan-install-deps', 'plan', 'plan-upload']) {
+			const mutation = workflow.replace(
+				`id: ${stepId}\n        if: ${condition} && github.event_name == 'merge_group'`,
+				`id: ${stepId}\n        if: ${condition}`,
+			);
+			assert.notEqual(mutation, workflow, `${stepId} must carry the gate`);
+			await writeFile(path.join(rootDir, '.github/workflows/ci.yml'), mutation);
+			const findings = await findCentralCiStructureProblems({ rootDir });
+			assert.ok(
+				findings.some((finding) =>
+					finding.includes(`shard-plan step ${stepId}`),
+				),
+				`${stepId} without the gate should fail: ${findings.join('; ')}`,
+			);
+		}
+	} finally {
+		await rm(rootDir, { recursive: true, force: true });
+	}
+});
+
 test('central structure rejects independent-check and artifact mutations', async () => {
 	const rootDir = await mkdtemp(
 		path.join(os.tmpdir(), 'publyapp-central-mutations-'),
@@ -2391,11 +2422,10 @@ test('e2e evidence artifacts are attempt-scoped and the plan install is not mask
 	);
 	assert.equal(
 		planUpload.with?.['if-no-files-found'],
-		"${{ github.event_name == 'merge_group' && 'error' || 'ignore' }}",
-		// The plan step only writes on merge_group; on a pull_request this
-		// upload is the documented no-op. On merge_group a missing plan is a
-		// hard upload failure, so the artifact the shards need cannot vanish.
-		'a missing plan must fail the merge_queue upload and stay a pull_request no-op',
+		'error',
+		// The upload step is gated to merge_group, so a missing plan file can
+		// only be a hard failure: the artifact the shards need cannot vanish.
+		'a missing plan must fail the merge_queue upload',
 	);
 	const planInstall = step('e2e-build', 'plan-install-deps');
 	assert.equal(
