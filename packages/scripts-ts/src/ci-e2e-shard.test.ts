@@ -17,7 +17,12 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 
-import { buildPlan, flattenTests, partition } from './ci-e2e-shard.ts';
+import {
+	buildPlan,
+	downloadPlan,
+	flattenTests,
+	partition,
+} from './ci-e2e-shard.ts';
 
 const report = {
 	suites: [
@@ -420,9 +425,9 @@ test('the merge_queue step sequence uploads the plan under the name the shards d
 			planStep?.run?.trim(),
 			'node packages/scripts-ts/src/ci-e2e-shard.ts plan',
 		);
-		assert.match(
+		assert.equal(
 			String(upload?.with?.['if-no-files-found']),
-			/merge_group.*'error'/,
+			"${{ github.event_name == 'merge_group' && 'error' || 'ignore' }}",
 			'a merge_queue upload must fail when the plan file is missing',
 		);
 		const uploadName = String(upload?.with?.name).replace(
@@ -678,5 +683,45 @@ test('record is a no-op outside the merge queue instead of reading a missing dir
 		assert.match(run.stdout, /no durations to record/);
 	} finally {
 		rmSync(sandbox.root, { recursive: true, force: true });
+	}
+});
+
+test('downloadPlan reports a missing gh binary without throwing TypeError', () => {
+	const root = mkdtempSync(path.join(os.tmpdir(), 'publyapp-e2e-no-gh-'));
+	const cwd = process.cwd();
+	const prevPath = process.env.PATH;
+	const prevRunId = process.env.GITHUB_RUN_ID;
+	const prevEvent = process.env.GITHUB_EVENT_NAME;
+	const prevAttempt = process.env.GITHUB_RUN_ATTEMPT;
+	try {
+		process.chdir(root);
+		process.env.PATH = root;
+		process.env.GITHUB_RUN_ID = '123';
+		process.env.GITHUB_EVENT_NAME = 'merge_group';
+		delete process.env.GITHUB_RUN_ATTEMPT;
+		assert.throws(
+			() => downloadPlan(),
+			/no plan artifact found for run 123/,
+			'a missing gh binary must surface as the plan error, not a TypeError',
+		);
+	} finally {
+		process.env.PATH = prevPath;
+		if (prevRunId === undefined) {
+			delete process.env.GITHUB_RUN_ID;
+		} else {
+			process.env.GITHUB_RUN_ID = prevRunId;
+		}
+		if (prevEvent === undefined) {
+			delete process.env.GITHUB_EVENT_NAME;
+		} else {
+			process.env.GITHUB_EVENT_NAME = prevEvent;
+		}
+		if (prevAttempt === undefined) {
+			delete process.env.GITHUB_RUN_ATTEMPT;
+		} else {
+			process.env.GITHUB_RUN_ATTEMPT = prevAttempt;
+		}
+		process.chdir(cwd);
+		rmSync(root, { recursive: true, force: true });
 	}
 });

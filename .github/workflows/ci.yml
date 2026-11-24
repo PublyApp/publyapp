@@ -1263,7 +1263,6 @@ jobs:
       root: ${{ steps.image-root.outputs.root }}
       fork: ${{ steps.image-fork.outputs.fork }}
       digests: ${{ steps.images.outputs.digests || steps.image-reuse.outputs.digests }}
-      plan: ${{ steps.plan.outputs.plan }}
     steps:
       - name: Checkout
         id: checkout

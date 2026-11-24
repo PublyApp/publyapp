@@ -1,4 +1,20 @@
 {
+	"$comment": [
+		"Reconciliation manifest for the local CI gate. Read by packages/scripts-ts/src/check-ci-drift.ts.",
+		"",
+		"One entry per step in .github/workflows, keyed by '<workflow>::<job>::<step name>'.",
+		"  hash   - content hash of the step (run/uses + with + env + if) when it was last",
+		"           reconciled. The guard recomputes it; a mismatch fails the gate.",
+		"  mirror - the local command asserted to cover this step, or null when exempt.",
+		"  reason - why the mirror covers it, or why it cannot run locally. Required.",
+		"",
+		"IMPORTANT: `mirror` is a HUMAN ASSERTION, not something the guard verifies. The",
+		"guard's job is to make sure that assertion is re-made whenever the CI step changes,",
+		"so the local gate cannot drift out of sync in silence. When a hash mismatch sends",
+		"you here, actually re-read the workflow step before bumping the hash.",
+		"",
+		"See docs/guides/local-ci-gate.md."
+	],
 	"steps": {
 		"ci.yml::api::Build API and OpenAPI document": {
 			"hash": "fb833bdcf95c6304",
