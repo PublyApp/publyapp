@@ -1,5 +1,3 @@
-import { EventEmitter } from 'node:events';
-
 import { describe, expect, it, vi } from 'vitest';
 
 import { JsonLoggerAdapter } from '../adapters/json-logger-adapter';
@@ -14,15 +12,13 @@ const entry = (over: Partial<LogEntry> = {}): LogEntry => ({
 
 const make = () => {
 	const out = vi.fn<(chunk: string) => void>();
-	const hooks = new EventEmitter();
-	return { out, hooks, adapter: new JsonLoggerAdapter(out, hooks) };
+	return { out, adapter: new JsonLoggerAdapter(out) };
 };
 
 describe('JsonLoggerAdapter', () => {
-	it('writes one parseable JSON line with time, level, message, meta', async () => {
+	it('writes one parseable JSON line with time, level, message, meta', () => {
 		const { out, adapter } = make();
 		adapter.write(entry({ level: 'warn', meta: { a: 1 } }));
-		await Promise.resolve();
 		const line = out.mock.calls[0]?.[0] as string;
 		expect(line.endsWith('\n')).toBe(true);
 		expect(line).not.toContain('\u001B');
@@ -34,46 +30,37 @@ describe('JsonLoggerAdapter', () => {
 		});
 	});
 
-	it('keeps time, level and message authoritative over meta', async () => {
+	it('keeps time, level and message authoritative over meta', () => {
 		const { out, adapter } = make();
 		adapter.write(entry({ meta: { level: 'x', message: 'y' } }));
-		await Promise.resolve();
 		expect(JSON.parse(out.mock.calls[0]?.[0] as string)).toMatchObject({
 			level: 'info',
 			message: 'm',
 		});
 	});
 
-	it('does not block: a burst is written as one batch after the caller yields', async () => {
+	it('writes each line before write returns: no buffer survives a SIGTERM', () => {
+		// SIGTERM is not an `exit` event, so anything still buffered when the
+		// process is stopped is lost. The line must be out by the time the
+		// caller continues.
 		const { out, adapter } = make();
 		for (let i = 0; i < 1000; i++) {
 			adapter.write(entry({ message: `m${i}` }));
+			expect(out).toHaveBeenCalledTimes(i + 1);
 		}
-		expect(out).not.toHaveBeenCalled();
-		await Promise.resolve();
-		expect(out).toHaveBeenCalledTimes(1);
-		expect((out.mock.calls[0]?.[0] as string).trim().split('\n')).toHaveLength(
-			1000,
-		);
-	});
-
-	it('flushes everything synchronously on error', () => {
-		const { out, adapter } = make();
-		adapter.write(entry());
-		adapter.write(entry({ level: 'error', meta: { err: { stack: 'trace' } } }));
-		expect(out).toHaveBeenCalledTimes(1);
-		const lines = (out.mock.calls[0]?.[0] as string).trim().split('\n');
-		expect(lines).toHaveLength(2);
-		expect(JSON.parse(lines[1] as string)).toMatchObject({
-			level: 'error',
-			err: { stack: 'trace' },
+		expect(JSON.parse(out.mock.calls[999]?.[0] as string)).toMatchObject({
+			message: 'm999',
 		});
 	});
 
-	it.each(['beforeExit', 'exit'])('flushes on %s', (event) => {
-		const { out, hooks, adapter } = make();
+	it('writes the earlier lines before an error line', () => {
+		const { out, adapter } = make();
 		adapter.write(entry());
-		hooks.emit(event);
-		expect(out).toHaveBeenCalledTimes(1);
+		adapter.write(entry({ level: 'error', meta: { err: { stack: 'trace' } } }));
+		expect(out).toHaveBeenCalledTimes(2);
+		expect(JSON.parse(out.mock.calls[1]?.[0] as string)).toMatchObject({
+			level: 'error',
+			err: { stack: 'trace' },
+		});
 	});
 });

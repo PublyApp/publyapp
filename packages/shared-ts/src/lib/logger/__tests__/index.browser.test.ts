@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { BrowserConsoleLoggerAdapter } from '../adapters/browser-console-logger-adapter';
-import { JsonLoggerAdapter } from '../adapters/json-logger-adapter';
 import { MemoryLoggerAdapter } from '../adapters/memory-logger-adapter';
 import { resolveAdapter } from '../index.browser';
 
@@ -50,12 +49,29 @@ describe('browser entry resolveAdapter', () => {
 		expect(groupEnd).toHaveBeenCalledOnce();
 	});
 
-	it('keeps JSON forcing and falls back from winston to the console', () => {
+	it('never selects the JSON stdout adapter: json and winston stay on the console', () => {
 		expect(
-			resolveAdapter({ NODE_ENV: 'test', LOG_ADAPTER: 'json' }),
-		).toBeInstanceOf(JsonLoggerAdapter);
+			resolveAdapter({ NODE_ENV: 'production', LOG_ADAPTER: 'json' }),
+		).toBeInstanceOf(BrowserConsoleLoggerAdapter);
 		expect(
 			resolveAdapter({ NODE_ENV: 'development', LOG_ADAPTER: 'winston' }),
 		).toBeInstanceOf(BrowserConsoleLoggerAdapter);
+	});
+
+	it('keeps a forced-json line when the browser has no stdout', () => {
+		const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+		const adapter = resolveAdapter({
+			NODE_ENV: 'production',
+			LOG_ADAPTER: 'json',
+		});
+
+		adapter.write({
+			level: 'info',
+			message: 'not lost',
+			meta: { a: 1 },
+			time: new Date(),
+		});
+
+		expect(info).toHaveBeenCalledWith('not lost', { a: 1 });
 	});
 });

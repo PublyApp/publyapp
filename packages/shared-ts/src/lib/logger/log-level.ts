@@ -9,7 +9,6 @@ export type LogEnv = {
 type NodeProcess = {
 	env: Record<string, string | undefined>;
 	stdout: { write(chunk: string): boolean };
-	on(event: 'beforeExit' | 'exit', listener: () => void): NodeProcess;
 };
 
 /** Undefined in browsers. Typed here so shared-ts needs no Node typings. */

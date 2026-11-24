@@ -10,6 +10,18 @@ type ErrorOut = {
 	cause: { message: string };
 };
 
+/** `children` nested objects under a root meta object. */
+const chain = (children: number): LogMeta => {
+	const root: LogMeta = { leaf: true };
+	let cursor = root;
+	for (let i = 0; i < children; i++) {
+		const child: LogMeta = { leaf: true };
+		cursor.child = child;
+		cursor = child;
+	}
+	return root;
+};
+
 describe('redactText', () => {
 	it.each([
 		['mail me at jane.doe@example.com', 'mail me at [redacted-email]'],
@@ -57,23 +69,37 @@ describe('redactMeta', () => {
 		});
 	});
 
-	it('serialises errors with cause, redacted', () => {
-		const err = new Error('bad a@b.com', { cause: new Error('inner c@d.com') });
-		const out = redactMeta({ err }) as { err: ErrorOut };
+	it('serialises errors with cause and code, redacted', () => {
+		const err = Object.assign(
+			new Error('bad a@b.com', { cause: new Error('inner c@d.com') }),
+			{ code: 'provider said a@b.com' },
+		);
+		const out = redactMeta({ err }) as { err: ErrorOut & { code: string } };
 		expect(out.err.name).toBe('Error');
 		expect(out.err.message).toBe('bad [redacted-email]');
+		expect(out.err.code).toBe('provider said [redacted-email]');
 		expect(out.err.stack).not.toContain('a@b.com');
 		expect(out.err.cause.message).toBe('inner [redacted-email]');
 	});
 
-	it('survives cycles and truncates depth and long arrays', () => {
+	it('survives cycles', () => {
 		const loop: LogMeta = { name: 'n' };
 		loop.self = loop;
 		expect(redactMeta({ loop })).toEqual({
 			loop: { name: 'n', self: '[Circular]' },
 		});
-		const deep = { a: { b: { c: { d: { e: { f: { g: { h: 1 } } } } } } } };
-		expect(JSON.stringify(redactMeta(deep))).toContain('[Truncated]');
+	});
+
+	it('bounds depth at 20 and uses the C# sink sentinel', () => {
+		expect(JSON.stringify(redactMeta(chain(20)))).not.toContain(
+			'[redacted-depth-exceeded]',
+		);
+		expect(JSON.stringify(redactMeta(chain(21)))).toContain(
+			'[redacted-depth-exceeded]',
+		);
+	});
+
+	it('truncates long arrays', () => {
 		const arr = redactMeta({ a: Array.from({ length: 150 }, (_, i) => i) }) as {
 			a: unknown[];
 		};

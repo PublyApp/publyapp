@@ -1,5 +1,4 @@
 import { BrowserConsoleLoggerAdapter } from './adapters/browser-console-logger-adapter';
-import { JsonLoggerAdapter } from './adapters/json-logger-adapter';
 import { MemoryLoggerAdapter } from './adapters/memory-logger-adapter';
 import { createLogger } from './create-logger';
 import { type LogEnv, parseLevel, readEnv } from './log-level';
@@ -9,7 +8,7 @@ export * from './logger.types';
 export { Logger } from './logger';
 export { MemoryLoggerAdapter } from './adapters/memory-logger-adapter';
 
-/** Winston is server-only: a forced winston falls back to the console here. */
+/** Winston and JSON-on-stdout are server-only: the browser always logs to its console. */
 const autoAdapter = (env: LogEnv): ILogger => {
 	if (env.NODE_ENV === 'test') {
 		return new MemoryLoggerAdapter();
@@ -19,15 +18,16 @@ const autoAdapter = (env: LogEnv): ILogger => {
 	});
 };
 
-/** Browser bundle: never imports the Winston adapter. */
+/** Browser bundle: never imports the Winston or JSON adapter. */
 export const resolveAdapter = (env: LogEnv = readEnv()): ILogger =>
-	env.LOG_ADAPTER === 'json' ? new JsonLoggerAdapter() : autoAdapter(env);
+	autoAdapter(env);
 
 const env = readEnv();
 export const logger = createLogger(env, resolveAdapter(env));
 
-// `LOG_ADAPTER=winston` is accepted on every platform and degrades to the
-// console here, so only the level needs validating in this entry.
+// `LOG_ADAPTER` is server-only (`winston`, `json`): a browser has no stdout, so
+// every value resolves to the console rather than dropping lines. Only the
+// level needs validating in this entry.
 if (env.LOG_LEVEL && !parseLevel(env.LOG_LEVEL)) {
 	logger.warn('Invalid LOG_LEVEL, using the default', { value: env.LOG_LEVEL });
 }
