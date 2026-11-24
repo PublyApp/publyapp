@@ -201,6 +201,23 @@ For when a change needs an end-to-end test (the five criteria) and the tag vocab
 
 ## Architecture
 
+### Ports and adapters (HARD, owner decision 2026-11-24, TypeScript and .NET)
+
+Every side effect or I/O (logs, e-mail, analytics, external APIs, storage, browser storage) goes
+**service → small port → adapter**. Defined once in the shared conventions and linked here, never copied:
+[ports and adapters rule](https://github.com/radandevist/conventions/blob/main/rules/architecture/ports-and-adapters.md).
+In short:
+
+- Business code calls the **service** only (`logger`, `EmailService`, `PublishService`). The service does the
+  shared work once (level, redaction, consent, journal), then calls a port.
+- A **port** is a small interface for one need (`ILogger.write`, `IEmailSender.SendAsync`, `ISocialPublisher`).
+  One adapter per library or API; it may implement several ports.
+- **Adapter name = library + function + `Adapter`**: `WinstonLoggerAdapter`, `ResendEmailAdapter`,
+  `MastodonSocialAdapter`. TS files in kebab-case under `adapters/`; C# files PascalCase, named like the type.
+- Only the wiring and tests import adapters. Tests use a `Memory…Adapter`, never a `console` spy.
+
+PublyApp's map (existing ports, what still has to move): [`docs/guides/ports-and-adapters.md`](docs/guides/ports-and-adapters.md).
+
 ### Monorepo Structure
 
 ```
