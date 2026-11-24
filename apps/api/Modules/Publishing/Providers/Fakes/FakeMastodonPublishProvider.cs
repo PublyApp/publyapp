@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 using PublyApp.Api.Modules.SocialAccounts.Entities;
+using PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 using PublyApp.Api.Modules.SocialAccounts.Services;
 
 namespace PublyApp.Api.Modules.Publishing.Providers.Fakes;
@@ -10,7 +11,7 @@ namespace PublyApp.Api.Modules.Publishing.Providers.Fakes;
 /// Test-only Mastodon / Pixelfed delivery (#2186), the sibling of
 /// <see cref="FakeBlueskyPublishProvider"/>: answers every publish with success and a
 /// DETERMINISTIC status identity derived from the per-segment idempotency key (the same
-/// <see cref="MastodonPublishProvider.SegmentKey"/> contract production sends to the
+/// <see cref="MastodonSocialAdapter.SegmentKey"/> contract production sends to the
 /// instance), so a retried job recomputes the same status instead of minting a second one.
 /// It records what the real provider would have put on the wire (visibility, images,
 /// segment texts) so an e2e or spec can assert on it. Selected by
@@ -72,7 +73,7 @@ public sealed class FakeMastodonPublishProvider : IPublishProvider {
 		PublishResult rootResult = new PublishResult.ContentFailure("no root segment");
 		for (var position = 0; position < texts.Count; position++) {
 			var id = FakeMastodonPublishProvider._StatusId(
-				MastodonPublishProvider.SegmentKey(request.IdempotencyKey, position)
+				MastodonSocialAdapter.SegmentKey(request.IdempotencyKey, position)
 			);
 			var url = $"{FakeMastodonPublishProvider._Host}/@e2e/{id}";
 			if (position == 0) {
@@ -124,7 +125,7 @@ public sealed class FakeRoutingPublishProvider : IPublishProvider {
 		CancellationToken cancellationToken
 	) {
 		return request.Provider is SocialProvider.Mastodon or SocialProvider.Pixelfed
-			? Task.FromResult(MastodonPublishProvider.Reconcile(request))
+			? Task.FromResult(MastodonSocialAdapter.Reconcile(request))
 			: ((IPublishProvider)this._Bluesky).ReconcileAsync(request, cancellationToken);
 	}
 }

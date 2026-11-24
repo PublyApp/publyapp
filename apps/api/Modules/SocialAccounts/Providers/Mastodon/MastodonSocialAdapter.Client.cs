@@ -11,29 +11,23 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 /// named client (<see cref="MastodonHostGuard.HttpClientName"/>). Every URL is
 /// built as <c>https://{normalized host}/...</c>.
 /// </summary>
-public sealed class MastodonClient : IMastodonClient {
+public sealed partial class MastodonSocialAdapter {
 	private const string _ClientName = "PublyApp";
 	private const string _Website = "https://publyapp.com";
-
-	private readonly IHttpClientFactory _HttpClientFactory;
-
-	public MastodonClient(IHttpClientFactory httpClientFactory) {
-		this._HttpClientFactory = httpClientFactory;
-	}
 
 	public async Task<MastodonResult<MastodonApp>> RegisterAppAsync(
 		string host, string redirectUri, string scopes, CancellationToken cancellationToken
 	) {
 		var body = new Dictionary<string, string> {
-			["client_name"] = MastodonClient._ClientName,
+			["client_name"] = MastodonSocialAdapter._ClientName,
 			["redirect_uris"] = redirectUri,
 			["scopes"] = scopes,
-			["website"] = MastodonClient._Website,
+			["website"] = MastodonSocialAdapter._Website,
 		};
 		var response = await this._SendAsync(
 			HttpMethod.Post, host, "/api/v1/apps", new FormUrlEncodedContent(body), null, cancellationToken
 		);
-		return MastodonClient._Parse(response, payload => {
+		return MastodonSocialAdapter._Parse(response, payload => {
 			var id = payload.GetStringPropertyOrNull("client_id");
 			var secret = payload.GetStringPropertyOrNull("client_secret");
 			return id is null || secret is null ? null : new MastodonApp(id, secret);
@@ -73,7 +67,7 @@ public sealed class MastodonClient : IMastodonClient {
 		var response = await this._SendAsync(
 			HttpMethod.Post, host, "/oauth/token", new FormUrlEncodedContent(body), null, cancellationToken
 		);
-		return MastodonClient._Parse(response, payload => payload.GetStringPropertyOrNull("access_token"));
+		return MastodonSocialAdapter._Parse(response, payload => payload.GetStringPropertyOrNull("access_token"));
 	}
 
 	public async Task<MastodonResult<MastodonAccountInfo>> VerifyCredentialsAsync(
@@ -82,7 +76,7 @@ public sealed class MastodonClient : IMastodonClient {
 		var response = await this._SendAsync(
 			HttpMethod.Get, host, "/api/v1/accounts/verify_credentials", null, accessToken, cancellationToken
 		);
-		return MastodonClient._Parse(response, payload => {
+		return MastodonSocialAdapter._Parse(response, payload => {
 			var id = payload.GetStringPropertyOrNull("id");
 			var acct = payload.GetStringPropertyOrNull("acct");
 			return id is null || acct is null ? null : new MastodonAccountInfo(id, acct);
@@ -102,8 +96,8 @@ public sealed class MastodonClient : IMastodonClient {
 				continue;
 			}
 
-			var statuses = MastodonClient._Object(MastodonClient._Object(payload, "configuration"), "statuses");
-			var media = MastodonClient._Object(MastodonClient._Object(payload, "configuration"), "media_attachments");
+			var statuses = MastodonSocialAdapter._Object(MastodonSocialAdapter._Object(payload, "configuration"), "statuses");
+			var media = MastodonSocialAdapter._Object(MastodonSocialAdapter._Object(payload, "configuration"), "media_attachments");
 			var types = media is { } mediaObject
 				&& mediaObject.TryGetProperty("supported_mime_types", out var list)
 				&& list.ValueKind == JsonValueKind.Array
@@ -113,10 +107,10 @@ public sealed class MastodonClient : IMastodonClient {
 						.ToList()
 					: null;
 			return new MastodonInstanceLimits(
-				MastodonClient._Long(statuses, "max_characters") ?? MastodonClient._Long(payload, "max_toot_chars"),
-				MastodonClient._Long(statuses, "max_media_attachments"),
-				MastodonClient._Long(statuses, "characters_reserved_per_url"),
-				MastodonClient._Long(media, "image_size_limit"),
+				MastodonSocialAdapter._Long(statuses, "max_characters") ?? MastodonSocialAdapter._Long(payload, "max_toot_chars"),
+				MastodonSocialAdapter._Long(statuses, "max_media_attachments"),
+				MastodonSocialAdapter._Long(statuses, "characters_reserved_per_url"),
+				MastodonSocialAdapter._Long(media, "image_size_limit"),
 				types
 			);
 		}

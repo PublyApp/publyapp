@@ -19,7 +19,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 /// The app password exists only inside the outgoing request body. It is never logged,
 /// never echoed into a failure reason, and never included in any returned value.
 /// </summary>
-public sealed class BlueskyClient : IBlueskyClient {
+public sealed partial class BlueskySocialAdapter {
 	private const string _CreateSessionPath = "xrpc/com.atproto.server.createSession";
 
 	// Fixed handle for the shared PDS entrypoint; per-PDS discovery is OAuth-era work.
@@ -27,23 +27,14 @@ public sealed class BlueskyClient : IBlueskyClient {
 
 	private static readonly TimeSpan _RequestTimeout = TimeSpan.FromSeconds(10);
 
-	private readonly IHttpClientFactory _HttpClientFactory;
-	private readonly ILogger<BlueskyClient> _Logger;
-
-	public BlueskyClient(
-		IHttpClientFactory httpClientFactory,
-		ILogger<BlueskyClient> logger
-	) {
-		this._HttpClientFactory = httpClientFactory;
-		this._Logger = logger;
-	}
-
 	public async Task<BlueskySessionResult> CreateSessionAsync(
 		BlueskyCredentials credentials,
 		CancellationToken cancellationToken = default
 	) {
-		var client = this._HttpClientFactory.CreateClient(BlueskyClient.WellKnownClientName);
-		using var request = new HttpRequestMessage(HttpMethod.Post, BlueskyClient._CreateSessionPath) {
+		var client = this._HttpClientFactory.CreateClient(BlueskySocialAdapter.WellKnownClientName);
+		using var request = new HttpRequestMessage(
+			HttpMethod.Post, BlueskySocialAdapter._CreateSessionPath
+		) {
 			Content = JsonContent.Create(new CreateSessionBody(
 				identifier: credentials.Identifier,
 				password: credentials.AppPassword
@@ -51,7 +42,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 		};
 
 		using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-		timeoutCts.CancelAfter(BlueskyClient._RequestTimeout);
+		timeoutCts.CancelAfter(BlueskySocialAdapter._RequestTimeout);
 
 		HttpResponseMessage response;
 		try {
@@ -74,7 +65,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 
 			// 4xx from the PDS: 401 invalid credentials, 400 unknown identifier /
 			// malformed request — both are account-caused refusals.
-			return BlueskyClient._ClassifyAccountFailure(response.StatusCode);
+			return BlueskySocialAdapter._ClassifyAccountFailure(response.StatusCode);
 		}
 	}
 
@@ -118,7 +109,7 @@ public sealed class BlueskyClient : IBlueskyClient {
 		return new BlueskySessionResult.Success(
 			new BlueskyIdentity(payload.Did, handle),
 			AccessJwt: payload.AccessJwt,
-			PdsHost: BlueskyClient._DefaultPdsBaseAddress.TrimEnd('/')
+			PdsHost: BlueskySocialAdapter._DefaultPdsBaseAddress.TrimEnd('/')
 		);
 	}
 
@@ -128,8 +119,8 @@ public sealed class BlueskyClient : IBlueskyClient {
 	public static void RegisterHttpClient(
 		Microsoft.Extensions.DependencyInjection.IServiceCollection services
 	) {
-		services.AddHttpClient(BlueskyClient.WellKnownClientName, client => {
-			client.BaseAddress = new Uri(BlueskyClient._DefaultPdsBaseAddress);
+		services.AddHttpClient(BlueskySocialAdapter.WellKnownClientName, client => {
+			client.BaseAddress = new Uri(BlueskySocialAdapter._DefaultPdsBaseAddress);
 			client.Timeout = Timeout.InfiniteTimeSpan; // per-request timeout above
 		});
 	}

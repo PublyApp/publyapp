@@ -1,3 +1,5 @@
+using PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
+
 namespace PublyApp.Api.Modules.Publishing.Providers.Fakes;
 
 /// <summary>
@@ -57,7 +59,7 @@ public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 		var completed = request.CompletedSegments.Select(segment => segment.Position).ToHashSet();
 		PublishResult rootResult = new PublishResult.ContentFailure("no root segment");
 		for (var position = 0; position < segmentCount; position++) {
-			var rkey = BlueskyPublishProvider.RecordKey(request.IdempotencyKey, position);
+			var rkey = BlueskySocialAdapter.RecordKey(request.IdempotencyKey, position);
 			var recordId = $"at://{did}/{FakeBlueskyPublishProvider._Collection}/{rkey}";
 			var url = $"https://bsky.app/role/{did}/post/{rkey}";
 			if (position == 0) {
