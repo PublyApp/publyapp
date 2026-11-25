@@ -22,9 +22,10 @@ const autoAdapter = (env: LogEnv, server: boolean): ILogger => {
 		return new MemoryLoggerAdapter();
 	}
 	if (env.NODE_ENV === 'production') {
-		return server
-			? new StdoutJsonLoggerAdapter()
-			: new BrowserConsoleLoggerAdapter();
+		if (server) {
+			return new StdoutJsonLoggerAdapter();
+		}
+		return new BrowserConsoleLoggerAdapter();
 	}
 	return winstonAdapter(server);
 };

@@ -9,6 +9,11 @@ export type LogEnv = {
 type NodeProcess = {
 	env: Record<string, string | undefined>;
 	stdout: { write(chunk: string): boolean };
+	pid: number;
+	on(event: string, listener: () => void): void;
+	once(event: string, listener: () => void): void;
+	listenerCount(event: string): number;
+	kill(pid: number, signal: string): boolean;
 };
 
 /** Undefined in browsers. Typed here so shared-ts needs no Node typings. */
