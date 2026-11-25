@@ -1,3 +1,5 @@
+<!-- Verbatim copy of radandevist/conventions rules/architecture/solid.md at 412e0c2. Do not edit here: change the rule in radandevist/conventions, then copy it again. This copy is replaced by the installed @radandevist/conventions package once PublyApp depends on it. -->
+
 # SOLID
 
 Rules for every personal project (PublyApp, ShopKartOS, radan-ui, future ones), in TypeScript and in
@@ -58,14 +60,14 @@ checking which implementation it got or catching a surprise refusal.
 `if (x is ConcreteA)`; an override narrows accepted input or skips a documented side effect.
 
 **Example from PublyApp.** `ISocialPublisher` contains only what every publisher can honor. A network that
-cannot publish does not implement the port; `SocialAdapterRegistry.Publisher` refuses an unknown network
-at lookup instead of returning an object whose method throws.
+cannot publish does not implement the port; an unknown network fails at lookup (a wiring error), before
+any publisher is returned. A publisher that cannot confirm an earlier write says so instead of throwing:
 
 ```csharp
-public ISocialPublisher Publisher(SocialProvider network) =>
-	this._Publishers.TryGetValue(network, out var publisher)
-		? publisher
-		: throw new UnsupportedNetworkException(network, "publisher");
+public Task<ReconcileResult> ReconcileAsync(ReconcileRequest request, CancellationToken ct) {
+	return Task.FromResult<ReconcileResult>(new ReconcileResult.NeedsReview(
+		"Discord cannot confirm whether the message was posted; check the channel"));
+}
 ```
 
 **Why.** A lying subtype turns a compile-time promise into a runtime branch in every caller, and the
@@ -98,8 +100,8 @@ the test cares about. See [ports and adapters](ports-and-adapters.md) for the fu
 **Sign.** A handler calls `new ResendEmailAdapter()`; a service imports the vendor SDK; an `if (isServer)`
 or an environment check sits in business code; the test needs a live API key.
 
-**Example from PublyApp.** `EmailService` holds `IEmailSender`; `ServiceRegistration` is the only production place
-that names `ResendEmailAdapter`. Tests swap in `MemoryEmailAdapter` and assert on what it received.
+**Example from PublyApp.** `EmailService` holds `IEmailSender`; `ServiceRegistration` is the only production
+place that names `ResendEmailAdapter`. Tests swap in `MemoryEmailAdapter` and assert on what it received.
 
 ```csharp
 public EmailService(IEmailSender emailSender) { ... }              // policy
