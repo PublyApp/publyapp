@@ -10,8 +10,9 @@ type NodeProcess = {
 	env: Record<string, string | undefined>;
 	stdout: { write(chunk: string): boolean };
 	pid: number;
-	on(event: string, listener: () => void): void;
 	once(event: string, listener: () => void): void;
+	prependListener(event: string, listener: () => void): void;
+	off(event: string, listener: () => void): void;
 	listenerCount(event: string): number;
 	kill(pid: number, signal: string): boolean;
 };

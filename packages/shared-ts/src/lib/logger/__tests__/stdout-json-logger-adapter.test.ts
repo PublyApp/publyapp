@@ -138,4 +138,36 @@ describe('StdoutJsonLoggerAdapter', () => {
 		expect(out).toHaveBeenCalledTimes(1);
 		expect(secondOut).toHaveBeenCalledTimes(1);
 	});
+
+	it('leaves termination to an application `once` listener registered before the adapter', () => {
+		const out = vi.fn<(chunk: string) => void>();
+		const kill = vi.fn<(pid: number, signal: Signal) => void>();
+		const hooks: LoggerHooks & EventEmitter = Object.assign(
+			new EventEmitter(),
+			{
+				pid: 4242,
+				kill,
+			},
+		);
+		const gracefulShutdown = vi.fn();
+		hooks.once('SIGTERM', gracefulShutdown);
+		const adapter = new StdoutJsonLoggerAdapter(out, hooks);
+		adapter.write(entry());
+
+		hooks.emit('SIGTERM');
+
+		expect(out).toHaveBeenCalledTimes(1);
+		expect(gracefulShutdown).toHaveBeenCalledTimes(1);
+		expect(kill).not.toHaveBeenCalled();
+	});
+
+	it('registers the exit hooks once per target, whatever the number of adapters', () => {
+		const { hooks } = make();
+		for (let index = 0; index < 15; index += 1) {
+			new StdoutJsonLoggerAdapter(vi.fn(), hooks);
+		}
+		expect(hooks.listenerCount('beforeExit')).toBe(1);
+		expect(hooks.listenerCount('exit')).toBe(1);
+		expect(hooks.listenerCount('SIGTERM')).toBe(1);
+	});
 });

@@ -5,40 +5,52 @@ export type Signal = 'SIGTERM' | 'SIGINT';
 
 /** The process members the adapter needs; injected so tests never signal themselves. */
 export type LoggerHooks = {
-	on(event: 'beforeExit' | 'exit', listener: () => void): void;
-	once(event: Signal, listener: () => void): void;
+	once(event: 'beforeExit' | 'exit', listener: () => void): void;
+	prependListener(event: Signal, listener: () => void): void;
+	off(event: Signal, listener: () => void): void;
 	listenerCount(event: Signal): number;
 	kill(pid: number, signal: Signal): void;
 	pid: number;
 };
 
-/** One signal handler per target; it flushes every adapter created on that target. */
-const adaptersByTarget = new WeakMap<object, Set<{ flush(): void }>>();
+type Flushable = { flush(): void };
 
-const stopAll = (
-	hooks: LoggerHooks,
-	adapters: Set<{ flush(): void }>,
-	signal: Signal,
-): void => {
+/** One set of hooks per process target, flushing every adapter created on it. */
+const adaptersByTarget = new WeakMap<object, Set<Flushable>>();
+
+const flushAll = (adapters: Set<Flushable>): void => {
 	for (const adapter of adapters) {
 		adapter.flush();
 	}
-	// No application handler: keep Node's default termination, exactly as without us.
-	if (hooks.listenerCount(signal) === 0) {
-		hooks.kill(hooks.pid, signal);
-	}
 };
 
-const trackForSignals = (
+const onSignal = (
 	hooks: LoggerHooks,
-	adapter: { flush(): void },
+	adapters: Set<Flushable>,
+	signal: Signal,
 ): void => {
+	const handler = (): void => {
+		flushAll(adapters);
+		// Prepended, so every application listener is still registered here, even a
+		// `once` one. Only us left: step aside and re-raise, so Node terminates exactly
+		// as it would without the logger. Otherwise the application owns the shutdown.
+		if (hooks.listenerCount(signal) === 1) {
+			hooks.off(signal, handler);
+			hooks.kill(hooks.pid, signal);
+		}
+	};
+	hooks.prependListener(signal, handler);
+};
+
+const track = (hooks: LoggerHooks, adapter: Flushable): void => {
 	let adapters = adaptersByTarget.get(hooks);
 	if (!adapters) {
-		const created = new Set<{ flush(): void }>();
+		const created = new Set<Flushable>();
 		adaptersByTarget.set(hooks, created);
-		hooks.once('SIGTERM', () => stopAll(hooks, created, 'SIGTERM'));
-		hooks.once('SIGINT', () => stopAll(hooks, created, 'SIGINT'));
+		hooks.once('beforeExit', () => flushAll(created));
+		hooks.once('exit', () => flushAll(created));
+		onSignal(hooks, created, 'SIGTERM');
+		onSignal(hooks, created, 'SIGINT');
 		adapters = created;
 	}
 	adapters.add(adapter);
@@ -65,10 +77,9 @@ export class StdoutJsonLoggerAdapter implements ILogger {
 		hooks: LoggerHooks | null | undefined = nodeProcess,
 	) {
 		this.#out = out;
-		hooks?.on('beforeExit', () => this.flush());
-		hooks?.on('exit', () => this.flush());
+		// ponytail: adapters stay referenced for the process life (one logger per process).
 		if (hooks) {
-			trackForSignals(hooks, this);
+			track(hooks, this);
 		}
 	}
 
