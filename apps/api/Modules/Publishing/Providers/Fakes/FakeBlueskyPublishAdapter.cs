@@ -12,7 +12,7 @@ namespace PublyApp.Api.Modules.Publishing.Providers.Fakes;
 /// <see cref="FakePublishingProviderEnabled.IsEnabled"/>). Never ships fixture data,
 /// never contacts a PDS.
 /// </summary>
-public sealed class FakeBlueskyPublishProvider : IPublishProvider {
+public sealed class FakeBlueskyPublishAdapter : IPublishProvider {
 	// Same collection constant the real provider writes; kept literal here so the
 	// fake has no dependency on the real client's HTTP surface.
 	private const string _Collection = "app.bsky.feed.post";
@@ -21,11 +21,11 @@ public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 
 	/// <summary>Every publish the fake received, oldest first (images in order).</summary>
 	public static IReadOnlyList<RecordedPublish> Recorded {
-		get { return FakeBlueskyPublishProvider._Recorded.ToArray(); }
+		get { return FakeBlueskyPublishAdapter._Recorded.ToArray(); }
 	}
 
 	public static void ClearRecorded() {
-		FakeBlueskyPublishProvider._Recorded.Clear();
+		FakeBlueskyPublishAdapter._Recorded.Clear();
 	}
 
 	public sealed record RecordedImage(string ContentType, string? AltText, int SizeBytes);
@@ -41,7 +41,7 @@ public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 		PublishRequest request,
 		CancellationToken cancellationToken
 	) {
-		FakeBlueskyPublishProvider._Recorded.Enqueue(
+		FakeBlueskyPublishAdapter._Recorded.Enqueue(
 			new RecordedPublish(
 				request.IdempotencyKey,
 				request.Media
@@ -60,7 +60,7 @@ public sealed class FakeBlueskyPublishProvider : IPublishProvider {
 		PublishResult rootResult = new PublishResult.ContentFailure("no root segment");
 		for (var position = 0; position < segmentCount; position++) {
 			var rkey = BlueskySocialAdapter.RecordKey(request.IdempotencyKey, position);
-			var recordId = $"at://{did}/{FakeBlueskyPublishProvider._Collection}/{rkey}";
+			var recordId = $"at://{did}/{FakeBlueskyPublishAdapter._Collection}/{rkey}";
 			var url = $"https://bsky.app/role/{did}/post/{rkey}";
 			if (position == 0) {
 				rootResult = new PublishResult.Published(recordId, url);

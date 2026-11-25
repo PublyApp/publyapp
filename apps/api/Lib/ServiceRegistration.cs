@@ -328,7 +328,7 @@ public static class ServiceRegistration {
 		builder.Services.AddSocialAdapter<DiscordWebhookSocialAdapter>();
 		builder.Services.AddSingleton<ISocialAdapterRegistry, SocialAdapterRegistry>();
 		builder.Services.AddHostedService<SocialAdapterRegistryStartup>();
-		builder.Services.AddSingleton<IPublishProvider, RoutingPublishProvider>();
+		builder.Services.AddSingleton<IPublishProvider, RoutingPublishAdapter>();
 
 		// E2E publish-now seam (plan D2 reconciliation 4, round-2 blocker fix): ONLY
 		// when PUBLISHING_FAKE_PROVIDER=true on a Development/Testing host do BOTH
@@ -341,7 +341,7 @@ public static class ServiceRegistration {
 		) {
 			// Bluesky and Mastodon/Pixelfed each get their own deterministic fake (#2186).
 			builder.Services.AddSingleton<IPublishProvider>(
-				new Modules.Publishing.Providers.Fakes.FakeRoutingPublishProvider()
+				new Modules.Publishing.Providers.Fakes.FakeRoutingPublishAdapter()
 			);
 			builder.Services.AddScoped<ISocialSessionProvider>(
 				_ => new Modules.SocialAccounts.Providers.Fakes.FakeBlueskySessionAdapter()

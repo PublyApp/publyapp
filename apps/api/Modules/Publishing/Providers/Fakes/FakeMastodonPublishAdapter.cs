@@ -9,28 +9,28 @@ namespace PublyApp.Api.Modules.Publishing.Providers.Fakes;
 
 /// <summary>
 /// Test-only Mastodon / Pixelfed delivery (#2186), the sibling of
-/// <see cref="FakeBlueskyPublishProvider"/>: answers every publish with success and a
+/// <see cref="FakeBlueskyPublishAdapter"/>: answers every publish with success and a
 /// DETERMINISTIC status identity derived from the per-segment idempotency key (the same
 /// <see cref="MastodonSocialAdapter.SegmentKey"/> contract production sends to the
 /// instance), so a retried job recomputes the same status instead of minting a second one.
 /// It records what the real provider would have put on the wire (visibility, images,
 /// segment texts) so an e2e or spec can assert on it. Selected by
-/// <see cref="FakeRoutingPublishProvider"/> under the same
+/// <see cref="FakeRoutingPublishAdapter"/> under the same
 /// <c>PUBLISHING_FAKE_PROVIDER=true</c> gate as the Bluesky fake (Development/Testing hosts
 /// only); never contacts an instance.
 /// </summary>
-public sealed class FakeMastodonPublishProvider : IPublishProvider {
+public sealed class FakeMastodonPublishAdapter : IPublishProvider {
 	private const string _Host = "https://mastodon.fake.test";
 
 	private static readonly System.Collections.Concurrent.ConcurrentQueue<RecordedPublish> _Recorded = new();
 
 	/// <summary>Every publish the fake received, oldest first.</summary>
 	public static IReadOnlyList<RecordedPublish> Recorded {
-		get { return FakeMastodonPublishProvider._Recorded.ToArray(); }
+		get { return FakeMastodonPublishAdapter._Recorded.ToArray(); }
 	}
 
 	public static void ClearRecorded() {
-		FakeMastodonPublishProvider._Recorded.Clear();
+		FakeMastodonPublishAdapter._Recorded.Clear();
 	}
 
 	public sealed record RecordedImage(string ContentType, string? AltText, int SizeBytes);
@@ -57,7 +57,7 @@ public sealed class FakeMastodonPublishProvider : IPublishProvider {
 
 		var texts = new List<string>(request.FollowUpSegments.Count + 1) { request.PostBody };
 		texts.AddRange(request.FollowUpSegments);
-		FakeMastodonPublishProvider._Recorded.Enqueue(
+		FakeMastodonPublishAdapter._Recorded.Enqueue(
 			new RecordedPublish(
 				request.IdempotencyKey,
 				request.Provider,
@@ -72,10 +72,10 @@ public sealed class FakeMastodonPublishProvider : IPublishProvider {
 		var completed = request.CompletedSegments.Select(segment => segment.Position).ToHashSet();
 		PublishResult rootResult = new PublishResult.ContentFailure("no root segment");
 		for (var position = 0; position < texts.Count; position++) {
-			var id = FakeMastodonPublishProvider._StatusId(
+			var id = FakeMastodonPublishAdapter._StatusId(
 				MastodonSocialAdapter.SegmentKey(request.IdempotencyKey, position)
 			);
-			var url = $"{FakeMastodonPublishProvider._Host}/@e2e/{id}";
+			var url = $"{FakeMastodonPublishAdapter._Host}/@e2e/{id}";
 			if (position == 0) {
 				rootResult = new PublishResult.Published(id, url);
 			}
@@ -104,13 +104,13 @@ public sealed class FakeMastodonPublishProvider : IPublishProvider {
 
 /// <summary>
 /// The delivery registered when <c>PUBLISHING_FAKE_PROVIDER=true</c>: a Mastodon or Pixelfed
-/// target goes to <see cref="FakeMastodonPublishProvider"/>, everything else keeps going
-/// to <see cref="FakeBlueskyPublishProvider"/> exactly as before (#2186). Same gate, same
+/// target goes to <see cref="FakeMastodonPublishAdapter"/>, everything else keeps going
+/// to <see cref="FakeBlueskyPublishAdapter"/> exactly as before (#2186). Same gate, same
 /// fail-closed rule: <see cref="FakePublishingProviderEnabled.IsEnabled"/>.
 /// </summary>
-public sealed class FakeRoutingPublishProvider : IPublishProvider {
-	private readonly FakeBlueskyPublishProvider _Bluesky = new();
-	private readonly FakeMastodonPublishProvider _Mastodon = new();
+public sealed class FakeRoutingPublishAdapter : IPublishProvider {
+	private readonly FakeBlueskyPublishAdapter _Bluesky = new();
+	private readonly FakeMastodonPublishAdapter _Mastodon = new();
 
 	public Task<PublishResult> PublishAsync(PublishRequest request, CancellationToken cancellationToken) {
 		return request.Provider is SocialProvider.Mastodon or SocialProvider.Pixelfed

@@ -154,7 +154,7 @@ instance host (only its SHA-256 is stored, in `oauth_states`).
   never from the instance. The journal, not the key, is what prevents a late duplicate; the
   window is pinned by `MastodonPublishProviderSpec`.
 - **E2E fake.** With `PUBLISHING_FAKE_PROVIDER=true` (Development/Testing hosts only, same gate
-  as the Bluesky fake) Mastodon and Pixelfed targets go to `FakeMastodonPublishProvider`
+  as the Bluesky fake) Mastodon and Pixelfed targets go to `FakeMastodonPublishAdapter`
   (deterministic status ids, records visibility, texts and images); everything else keeps the
   Bluesky fake.
 

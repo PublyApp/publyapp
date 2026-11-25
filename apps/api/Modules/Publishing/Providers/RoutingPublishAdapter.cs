@@ -6,10 +6,10 @@ namespace PublyApp.Api.Modules.Publishing.Providers;
 /// The registered <see cref="IPublishProvider"/>: picks the one adapter the registry
 /// holds for the request's network (#2509), so no network name is hard-coded here.
 /// </summary>
-public sealed class RoutingPublishProvider : IPublishProvider {
+public sealed class RoutingPublishAdapter : IPublishProvider {
 	private readonly ISocialAdapterRegistry _Adapters;
 
-	public RoutingPublishProvider(ISocialAdapterRegistry adapters) {
+	public RoutingPublishAdapter(ISocialAdapterRegistry adapters) {
 		this._Adapters = adapters;
 	}
 
