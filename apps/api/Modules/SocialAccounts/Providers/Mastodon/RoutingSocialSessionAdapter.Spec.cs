@@ -19,10 +19,10 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Mastodon;
 /// branch, and it must be an AccountFailure that names the network. The case goes through
 /// the public OpenSessionAsync with a real row, not through a test-only helper.
 /// </summary>
-public sealed class RoutingSocialSessionProviderSpec : IClassFixture<ApiFixture> {
+public sealed class RoutingSocialSessionAdapterSpec : IClassFixture<ApiFixture> {
 	private readonly ApiFixture _Fixture;
 
-	public RoutingSocialSessionProviderSpec(ApiFixture fixture) {
+	public RoutingSocialSessionAdapterSpec(ApiFixture fixture) {
 		this._Fixture = fixture;
 	}
 
@@ -35,7 +35,7 @@ public sealed class RoutingSocialSessionProviderSpec : IClassFixture<ApiFixture>
 		// A provider value outside the four known networks is what a corrupted row looks
 		// like; the database stores the enum as an int, so it can exist.
 		var account = new SocialAccount {
-			TenantId = await RoutingSocialSessionProviderSpec._SeedTenantAsync(db),
+			TenantId = await RoutingSocialSessionAdapterSpec._SeedTenantAsync(db),
 			Provider = (SocialProvider)99,
 			ExternalAccountId = $"did:plc:{Guid.NewGuid():N}",
 			DisplayHandle = "@corrupt.example",
@@ -44,7 +44,7 @@ public sealed class RoutingSocialSessionProviderSpec : IClassFixture<ApiFixture>
 		db.SocialAccount.Add(account);
 		await db.SaveChangesAsync();
 
-		var router = ActivatorUtilities.CreateInstance<RoutingSocialSessionProvider>(services);
+		var router = ActivatorUtilities.CreateInstance<RoutingSocialSessionAdapter>(services);
 
 		var result = await router.OpenSessionAsync(account.GetRequiredId(), CancellationToken.None);
 

@@ -15,7 +15,7 @@ namespace PublyApp.Api.Infrastructure.Storage;
 /// outside the storage root, guarding the read/exists/delete paths against
 /// traversal even if ever called with unexpected input.
 /// </summary>
-public sealed partial class LocalDiskFileStorage : IFileStorage {
+public sealed partial class LocalDiskFileStorageAdapter : IFileStorage {
 	// Lowercase letters/digits only, 1-8 chars after the leading dot — rejects path
 	// separators, traversal segments, and embedded NUL bytes in a caller-supplied extension.
 	[GeneratedRegex(@"^\.[a-z0-9]{1,8}$")]
@@ -29,7 +29,7 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 		}
 	}
 
-	public LocalDiskFileStorage(string rootPath) {
+	public LocalDiskFileStorageAdapter(string rootPath) {
 		this._RootPath = Path.GetFullPath(rootPath);
 		Directory.CreateDirectory(this._RootPath);
 	}
@@ -39,7 +39,7 @@ public sealed partial class LocalDiskFileStorage : IFileStorage {
 		string extension,
 		CancellationToken cancellationToken = default
 	) {
-		if (string.IsNullOrWhiteSpace(extension) || !LocalDiskFileStorage._ExtensionPattern().IsMatch(extension)) {
+		if (string.IsNullOrWhiteSpace(extension) || !LocalDiskFileStorageAdapter._ExtensionPattern().IsMatch(extension)) {
 			throw new ArgumentException(
 				"Extension must match ^\\.[a-z0-9]{1,8}$",
 				nameof(extension)

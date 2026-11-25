@@ -45,7 +45,7 @@ public sealed class CanaryBeforeFirstKeyCredentialProtectionSpec : IClassFixture
 	public async Task ItShouldProtectACredentialWhenTheCanaryRowAlreadyExists() {
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
 			AppEnvironment.Instance.SocialAccountsMasterKey,
-			new PostgresKeyRingCanaryStore(this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>())
+			new PostgresKeyRingCanaryAdapter(this._Fixture.Factory.Services.GetRequiredService<IServiceScopeFactory>())
 		);
 
 		// The first host already built its key ring before the canary existed; a second,

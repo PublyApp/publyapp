@@ -446,7 +446,7 @@ public sealed class AnonymousAuthRateLimitingSpec
 				// Fresh per-process counters so the long-window budgets in these
 				// tests are never shared with other hosts (pre-#953 semantics).
 				services.AddSingleton<IRateLimitCounterStore>(
-					new MemoryRateLimitCounterStore()
+					new MemoryRateLimitCounterAdapter()
 				);
 			});
 		});

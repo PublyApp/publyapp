@@ -6,13 +6,13 @@ using Xunit;
 
 namespace PublyApp.Api.Modules.Publishing.Providers.Fakes;
 
-public sealed class FakeBlueskyPublishProviderSpec {
+public sealed class FakeBlueskyPublishAdapterSpec {
 	[Fact]
 	public async Task ItShouldRecordTheImagesOfEachPublishInOrderWithTheirAlt() {
-		FakeBlueskyPublishProvider.ClearRecorded();
+		FakeBlueskyPublishAdapter.ClearRecorded();
 		var key = $"fake-spec-{Guid.NewGuid():N}";
 
-		var result = await new FakeBlueskyPublishProvider().PublishAsync(
+		var result = await new FakeBlueskyPublishAdapter().PublishAsync(
 			new PublishRequest {
 				PublicationId = Guid.NewGuid(),
 				IdempotencyKey = key,
@@ -28,7 +28,7 @@ public sealed class FakeBlueskyPublishProviderSpec {
 		);
 
 		result.Should().BeOfType<PublishResult.Published>();
-		var recorded = FakeBlueskyPublishProvider.Recorded.Single(r => r.IdempotencyKey == key);
+		var recorded = FakeBlueskyPublishAdapter.Recorded.Single(r => r.IdempotencyKey == key);
 		recorded.Images.Select(i => (i.ContentType, i.AltText, i.SizeBytes))
 			.Should().Equal(("image/png", "one", 3), ("image/jpeg", null, 2));
 	}

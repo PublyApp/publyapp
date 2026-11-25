@@ -8,7 +8,7 @@ namespace PublyApp.Api.Lib.RateLimiting;
 /// (the documented incident lever); never fails the store, so every acquisition
 /// reflects a real local decision regardless of fail modes.
 /// </summary>
-internal sealed class MemoryRateLimitCounterStore
+internal sealed class MemoryRateLimitCounterAdapter
 	: IRateLimitCounterStore {
 	private readonly ConcurrentDictionary<
 		string,
@@ -24,7 +24,7 @@ internal sealed class MemoryRateLimitCounterStore
 		DateTimeOffset utcNow
 	) {
 		var windowStartedAt =
-			PostgresRateLimitCounterStore.GetWindowStart(
+			PostgresRateLimitCounterAdapter.GetWindowStart(
 				utcNow,
 				window
 			);

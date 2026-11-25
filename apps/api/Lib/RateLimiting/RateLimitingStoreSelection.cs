@@ -57,14 +57,14 @@ internal static class RateLimitCounterStoreRegistration {
 			case RateLimitCounterStoreKind.Memory:
 				services.AddSingleton<
 					IRateLimitCounterStore,
-					MemoryRateLimitCounterStore
+					MemoryRateLimitCounterAdapter
 				>();
 				break;
 			case RateLimitCounterStoreKind.Postgres:
 			default:
 				services.AddSingleton<
 					IRateLimitCounterStore,
-					PostgresRateLimitCounterStore
+					PostgresRateLimitCounterAdapter
 				>();
 				break;
 		}

@@ -13,11 +13,11 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Discord;
 /// as <c>PdsHost</c>, the message-link prefix <c>https://discord.com/channels/{guild}</c>
 /// (empty when Discord reported no server, which means no link).
 /// </summary>
-public sealed class DiscordWebhookSessionProvider : ISocialSessionProvider {
+public sealed class DiscordWebhookSessionAdapter : ISocialSessionProvider {
 	private readonly AppDbContext _Db;
 	private readonly ICredentialProtector _Protector;
 
-	public DiscordWebhookSessionProvider(AppDbContext db, ICredentialProtector protector) {
+	public DiscordWebhookSessionAdapter(AppDbContext db, ICredentialProtector protector) {
 		this._Db = db;
 		this._Protector = protector;
 	}

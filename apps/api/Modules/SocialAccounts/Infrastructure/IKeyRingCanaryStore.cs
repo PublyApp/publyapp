@@ -5,7 +5,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 /// protected under SOCIAL_ACCOUNTS_MASTER_KEY, stored beside the key ring. The witness
 /// reads it at boot; a key with the right SIZE but wrong VALUE fails to decrypt it and
 /// the process refuses to start. The production store is
-/// <see cref="PostgresKeyRingCanaryStore"/>; tests substitute an in-memory fake.
+/// <see cref="PostgresKeyRingCanaryAdapter"/>; tests substitute an in-memory fake.
 /// </summary>
 public interface IKeyRingCanaryStore {
 	/// <summary>Returns the stored canary blob, or null when none exists yet.</summary>

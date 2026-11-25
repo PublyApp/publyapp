@@ -31,7 +31,7 @@ before any request or job is served:
 2. **Canary round-trip** (real boot only): on first boot the witness encrypts a known
    sentinel under the current key and persists it beside the Data Protection key ring
    (`data_protection_keys`, row `social-accounts-master-key-canary`, via
-   `PostgresKeyRingCanaryStore`). Every later boot decrypts that persisted blob.
+   `PostgresKeyRingCanaryAdapter`). Every later boot decrypts that persisted blob.
    - Same key value → decrypt succeeds → boot proceeds.
    - Right size but wrong value → AES-GCM authentication fails → the process refuses to
      start with a plain-words cause explaining the mismatch and the recovery options
@@ -154,7 +154,7 @@ instance host (only its SHA-256 is stored, in `oauth_states`).
   never from the instance. The journal, not the key, is what prevents a late duplicate; the
   window is pinned by `MastodonPublishProviderSpec`.
 - **E2E fake.** With `PUBLISHING_FAKE_PROVIDER=true` (Development/Testing hosts only, same gate
-  as the Bluesky fake) Mastodon and Pixelfed targets go to `FakeMastodonPublishProvider`
+  as the Bluesky fake) Mastodon and Pixelfed targets go to `FakeMastodonPublishAdapter`
   (deterministic status ids, records visibility, texts and images); everything else keeps the
   Bluesky fake.
 

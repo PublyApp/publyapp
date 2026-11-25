@@ -18,7 +18,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 /// <summary>
 /// #1424 (follow-up to #1416/#1420, adversarial review round 1): the divergent-key
 /// lost-race path was pinned only through the in-memory ScriptedCanaryStore. These specs
-/// drive it through the REAL <see cref="PostgresKeyRingCanaryStore"/> on real Postgres:
+/// drive it through the REAL <see cref="PostgresKeyRingCanaryAdapter"/> on real Postgres:
 /// two concurrent FIRST boots mint under DIFFERENT <c>SOCIAL_ACCOUNTS_MASTER_KEY</c>
 /// values — the api/worker divergence the canary exists to catch. The unique partial
 /// index leaves exactly one row; the loser cannot verify the winner's blob and must
@@ -26,7 +26,7 @@ namespace PublyApp.Api.Modules.SocialAccounts.Infrastructure;
 /// never adopt it silently. The winner's row survives byte-identical.
 /// </summary>
 [Collection("WitnessBootChildProcess")]
-public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
+public sealed class PostgresKeyRingCanaryAdapterDivergentKeyRaceSpec {
 	[Fact]
 	public async Task ItShouldRefuseExactlyOneBootWithTheWrongKeyCauseWhenTwoFirstBootsMintUnderDifferentKeys() {
 		await using var db = await WitnessTestDatabase.CreateAsync();
@@ -37,8 +37,8 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
 		// Two honestly generated test-only keys: the divergent api/worker configuration.
-		var keyA = PostgresKeyRingCanaryStoreDivergentKeyRaceSpec._NewTestKey();
-		var keyB = PostgresKeyRingCanaryStoreDivergentKeyRaceSpec._NewTestKey();
+		var keyA = PostgresKeyRingCanaryAdapterDivergentKeyRaceSpec._NewTestKey();
+		var keyB = PostgresKeyRingCanaryAdapterDivergentKeyRaceSpec._NewTestKey();
 
 		// Both boots observe the empty canary before either mints, so the race is
 		// deterministic: both arrive at Write() together and the index decides the winner.
@@ -51,7 +51,7 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 				return;
 			}
 
-			var store = new PostgresKeyRingCanaryStore(scopeFactory);
+			var store = new PostgresKeyRingCanaryAdapter(scopeFactory);
 			try {
 				SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(key, store);
 				outcomes.Add(new BootOutcome(true, null));
@@ -67,7 +67,7 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 			1,
 			"with DIFFERENT keys the loser cannot verify the winner's canary and must "
 				+ "refuse to start; outcomes were: "
-				+ string.Join(" | ", outcomes.Select(PostgresKeyRingCanaryStoreDivergentKeyRaceSpec._Describe)));
+				+ string.Join(" | ", outcomes.Select(PostgresKeyRingCanaryAdapterDivergentKeyRaceSpec._Describe)));
 
 		var loserError = outcomes.Single(outcome => !outcome.Passed).Error;
 		loserError.Should().Contain(
@@ -77,13 +77,13 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 			"Restore the original SOCIAL_ACCOUNTS_MASTER_KEY",
 			"the WrongKey cause must name the operator ACTION");
 		loserError.Should().Contain(
-			PostgresKeyRingCanaryStore.RowName,
+			PostgresKeyRingCanaryAdapter.RowName,
 			"the rotation path must name the stale canary row");
 
 		await using var scope = scopeFactory.CreateAsyncScope();
 		var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var rows = await dbContext.DataProtectionKeys.AsNoTracking()
-			.Where(k => k.FriendlyName == PostgresKeyRingCanaryStore.RowName)
+			.Where(k => k.FriendlyName == PostgresKeyRingCanaryAdapter.RowName)
 			.ToListAsync();
 
 		rows.Should().ContainSingle(
@@ -99,8 +99,8 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 		await using var provider = services.BuildServiceProvider();
 		var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
 
-		var keyA = PostgresKeyRingCanaryStoreDivergentKeyRaceSpec._NewTestKey();
-		var keyB = PostgresKeyRingCanaryStoreDivergentKeyRaceSpec._NewTestKey();
+		var keyA = PostgresKeyRingCanaryAdapterDivergentKeyRaceSpec._NewTestKey();
+		var keyB = PostgresKeyRingCanaryAdapterDivergentKeyRaceSpec._NewTestKey();
 
 		// Deterministic sequencing of the same race: boot A wins the mint cleanly; boot B
 		// holds the stale empty view (FrozenEmptyCanaryStore), collides on insert (23505
@@ -109,18 +109,18 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 		// racer the index picks behind the barrier above.
 		SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
 			keyA,
-			new PostgresKeyRingCanaryStore(scopeFactory));
+			new PostgresKeyRingCanaryAdapter(scopeFactory));
 
 		await using var readScope = scopeFactory.CreateAsyncScope();
 		var readContext = readScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var winnerBlobBefore = await readContext.DataProtectionKeys.AsNoTracking()
-			.Where(k => k.FriendlyName == PostgresKeyRingCanaryStore.RowName)
+			.Where(k => k.FriendlyName == PostgresKeyRingCanaryAdapter.RowName)
 			.Select(k => k.Xml)
 			.SingleAsync();
 
 		var losingBoot = () => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
 			keyB,
-			new FrozenEmptyCanaryStore(new PostgresKeyRingCanaryStore(scopeFactory)));
+			new FrozenEmptyCanaryStore(new PostgresKeyRingCanaryAdapter(scopeFactory)));
 
 		losingBoot.Should().Throw<InvalidOperationException>()
 			.Which.Message.Should().Contain(
@@ -131,7 +131,7 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 		await using var verifyScope = scopeFactory.CreateAsyncScope();
 		var verifyContext = verifyScope.ServiceProvider.GetRequiredService<AppDbContext>();
 		var rowsAfter = await verifyContext.DataProtectionKeys.AsNoTracking()
-			.Where(k => k.FriendlyName == PostgresKeyRingCanaryStore.RowName)
+			.Where(k => k.FriendlyName == PostgresKeyRingCanaryAdapter.RowName)
 			.ToListAsync();
 
 		rowsAfter.Should().ContainSingle("the loser's insert is refused by the index");
@@ -142,7 +142,7 @@ public sealed class PostgresKeyRingCanaryStoreDivergentKeyRaceSpec {
 		// And the winner still boots: its own blob verifies under keyA.
 		var winnerStillBoots = () => SocialAccountsMasterKeyWitness.EnsureMasterKeyUsable(
 			keyA,
-			new PostgresKeyRingCanaryStore(scopeFactory));
+			new PostgresKeyRingCanaryAdapter(scopeFactory));
 		winnerStillBoots.Should().NotThrow("the winner's boot contract is unchanged");
 	}
 

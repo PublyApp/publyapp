@@ -198,17 +198,17 @@ public static class ServiceRegistration {
 		});
 		// #2174: one session provider per network behind a routing seam, so the
 		// publish job stays provider-blind.
-		builder.Services.AddScoped<BlueskySessionProvider>();
-		builder.Services.AddScoped<MastodonSessionProvider>();
-		builder.Services.AddScoped<ISocialSessionProvider, RoutingSocialSessionProvider>();
+		builder.Services.AddScoped<BlueskySessionAdapter>();
+		builder.Services.AddScoped<MastodonSessionAdapter>();
+		builder.Services.AddScoped<ISocialSessionProvider, RoutingSocialSessionAdapter>();
 		builder.Services.AddScoped<MastodonOAuthService>();
-		builder.Services.AddScoped<DiscordWebhookSessionProvider>();
+		builder.Services.AddScoped<DiscordWebhookSessionAdapter>();
 		builder.Services.AddScoped<DiscordWebhookClient>();
 		builder.Services.AddScoped<DiscordWebhookConnectService>();
 		// Aggregators (#2343): fixed host from code; the key rides in a header, so no
 		// request/response log lines for this client.
 		var aggregatorHttp = builder.Services
-			.AddHttpClient(ZernioAdapter.HttpClientName, client => {
+			.AddHttpClient(ZernioAggregatorAdapter.HttpClientName, client => {
 				client.Timeout = TimeSpan.FromSeconds(30);
 				client.MaxResponseContentBufferSize = 1024 * 1024;
 			})
@@ -222,13 +222,13 @@ public static class ServiceRegistration {
 				return fake;
 			});
 		}
-		builder.Services.AddScoped<IAggregatorAdapter, ZernioAdapter>();
+		builder.Services.AddScoped<IAggregatorAdapter, ZernioAggregatorAdapter>();
 		builder.Services.AddScoped<AggregatorConnectionService>();
 		builder.Services.AddSingleton<IEmailSender, ResendEmailAdapter>();
 		// Business code and the email job handlers both depend on the interface only.
 		builder.Services.AddSingleton<IEmailService, EmailService>();
 		builder.Services.AddSingleton<IFileStorage>(
-			_ => new LocalDiskFileStorage(AppEnvironment.Instance.FILE_STORAGE_ROOT)
+			_ => new LocalDiskFileStorageAdapter(AppEnvironment.Instance.FILE_STORAGE_ROOT)
 		);
 		// Durable upload admission control (#807): SCOPED because it owns the
 		// per-request AppDbContext transaction the reservation runs on. Budget
@@ -328,7 +328,7 @@ public static class ServiceRegistration {
 		builder.Services.AddSocialAdapter<DiscordWebhookSocialAdapter>();
 		builder.Services.AddSingleton<ISocialAdapterRegistry, SocialAdapterRegistry>();
 		builder.Services.AddHostedService<SocialAdapterRegistryStartup>();
-		builder.Services.AddSingleton<IPublishProvider, RoutingPublishProvider>();
+		builder.Services.AddSingleton<IPublishProvider, RoutingPublishAdapter>();
 
 		// E2E publish-now seam (plan D2 reconciliation 4, round-2 blocker fix): ONLY
 		// when PUBLISHING_FAKE_PROVIDER=true on a Development/Testing host do BOTH
@@ -341,10 +341,10 @@ public static class ServiceRegistration {
 		) {
 			// Bluesky and Mastodon/Pixelfed each get their own deterministic fake (#2186).
 			builder.Services.AddSingleton<IPublishProvider>(
-				new Modules.Publishing.Providers.Fakes.FakeRoutingPublishProvider()
+				new Modules.Publishing.Providers.Fakes.FakeRoutingPublishAdapter()
 			);
 			builder.Services.AddScoped<ISocialSessionProvider>(
-				_ => new Modules.SocialAccounts.Providers.Fakes.FakeBlueskySessionProvider()
+				_ => new Modules.SocialAccounts.Providers.Fakes.FakeBlueskySessionAdapter()
 			);
 		}
 

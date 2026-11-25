@@ -5,7 +5,7 @@ namespace PublyApp.Api.Lib.Testing.Fixtures;
 /// <summary>
 /// Per-test template-cloned Postgres database for the witness boot integration specs
 /// (#1309): the child process boots the REAL Program.Main against it, so the canary row is
-/// genuinely minted/verified through PostgresKeyRingCanaryStore on the data_protection_keys
+/// genuinely minted/verified through PostgresKeyRingCanaryAdapter on the data_protection_keys
 /// table created by the SocialAccountsModule migration baked into the template DB.
 /// Dropped on dispose.
 /// <para>

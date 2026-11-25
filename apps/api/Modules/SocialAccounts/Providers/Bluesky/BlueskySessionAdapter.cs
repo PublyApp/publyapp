@@ -24,17 +24,17 @@ namespace PublyApp.Api.Modules.SocialAccounts.Providers.Bluesky;
 /// I{ClassName} interface, and this adapter's contract is the cross-epic seam
 /// ISocialSessionProvider by name.
 /// </summary>
-public sealed class BlueskySessionProvider : ISocialSessionProvider {
+public sealed class BlueskySessionAdapter : ISocialSessionProvider {
 	private readonly AppDbContext _Db;
 	private readonly ICredentialProtector _Protector;
 	private readonly IBlueskyClient _Bluesky;
-	private readonly ILogger<BlueskySessionProvider> _Logger;
+	private readonly ILogger<BlueskySessionAdapter> _Logger;
 
-	public BlueskySessionProvider(
+	public BlueskySessionAdapter(
 		AppDbContext db,
 		ICredentialProtector protector,
 		IBlueskyClient bluesky,
-		ILogger<BlueskySessionProvider> logger
+		ILogger<BlueskySessionAdapter> logger
 	) {
 		this._Db = db;
 		this._Protector = protector;

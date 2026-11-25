@@ -19,8 +19,8 @@ namespace PublyApp.Api.Modules.SocialAccounts.Seeders;
 /// The stored credential blob is <see cref="PlaceholderCredentialBlob"/> — a
 /// placeholder that satisfies the schema, NOT a working secret. It is never sent
 /// anywhere: only the PUBLISHING_FAKE_PROVIDER=true session seam
-/// (<c>FakeBlueskySessionProvider</c>) ever resolves these rows, and the production
-/// <c>BlueskySessionProvider</c> refuses the placeholder as "no usable stored
+/// (<c>FakeBlueskySessionAdapter</c>) ever resolves these rows, and the production
+/// <c>BlueskySessionAdapter</c> refuses the placeholder as "no usable stored
 /// credential". Re-seeds are idempotent: the DID derives deterministically from the
 /// display handle, and inserts tolerate a concurrent-seeder unique violation.
 /// </summary>

@@ -5,13 +5,13 @@ using Xunit;
 
 namespace PublyApp.Api.Infrastructure.Storage;
 
-public sealed class LocalDiskFileStorageSpec : IDisposable {
+public sealed class LocalDiskFileStorageAdapterSpec : IDisposable {
 	private readonly string _Root;
-	private readonly LocalDiskFileStorage _Storage;
+	private readonly LocalDiskFileStorageAdapter _Storage;
 
-	public LocalDiskFileStorageSpec() {
+	public LocalDiskFileStorageAdapterSpec() {
 		this._Root = Path.Combine(Path.GetTempPath(), $"publyapp-storage-test-{Guid.NewGuid():N}");
-		this._Storage = new LocalDiskFileStorage(this._Root);
+		this._Storage = new LocalDiskFileStorageAdapter(this._Root);
 	}
 
 	public void Dispose() {

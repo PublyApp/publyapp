@@ -113,7 +113,7 @@ public class Program {
 					AppEnvironment.Instance.SocialAccountsMasterKey,
 					Program.IsOpenApiGenerationProcess
 						? null // doc-gen process: no DB, key checks only
-						: new Modules.SocialAccounts.Infrastructure.PostgresKeyRingCanaryStore(
+						: new Modules.SocialAccounts.Infrastructure.PostgresKeyRingCanaryAdapter(
 							workerHost.Services.GetRequiredService<IServiceScopeFactory>()
 						),
 					// #1284: one structured Information line when the canary round-trip PASSES,
@@ -145,7 +145,7 @@ public class Program {
 				AppEnvironment.Instance.SocialAccountsMasterKey,
 				Program.IsOpenApiGenerationProcess
 					? null // doc-gen process: no DB, key checks only
-					: new Modules.SocialAccounts.Infrastructure.PostgresKeyRingCanaryStore(
+					: new Modules.SocialAccounts.Infrastructure.PostgresKeyRingCanaryAdapter(
 						app.Services.GetRequiredService<IServiceScopeFactory>()
 					),
 				// #1284: one structured Information line when the canary round-trip PASSES,
@@ -271,7 +271,7 @@ public class Program {
 		// unreachable through `/files/...` — which is exactly what #286's
 		// user-data exports must rely on.
 		var fileStorage = app.Services.GetRequiredService<IFileStorage>();
-		// The storage root exists (LocalDiskFileStorage creates it), but the
+		// The storage root exists (LocalDiskFileStorageAdapter creates it), but the
 		// `uploads/` sub-tree is only materialized on the first save. The static
 		// mount needs the directory present, so create it deterministically.
 		var uploadsRoot = Path.Combine(fileStorage.RootPath, "uploads");
@@ -288,7 +288,7 @@ public class Program {
 			RequestPath = "/files/uploads",
 			ServeUnknownFileTypes = false,
 			// Safe precisely because paths are server-generated UUID v7 file names
-			// (see LocalDiskFileStorage.SaveAsync): a replaced logo gets a new UUID,
+			// (see LocalDiskFileStorageAdapter.SaveAsync): a replaced logo gets a new UUID,
 			// never a new body at the same URL, so the client can cache forever
 			// instead of round-tripping an If-None-Match revalidation per paint.
 			OnPrepareResponse = ctx => {
