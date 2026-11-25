@@ -273,57 +273,53 @@ const moduleFileExists = (candidate: string): boolean => {
 	return exists;
 };
 
+const MODULE_SUFFIXES = ['.ts', '.tsx', '/index.ts', '/index.tsx'];
+
+const findModuleFile = (base: string): string | null =>
+	MODULE_SUFFIXES.map((suffix) => base + suffix).find(moduleFileExists) ?? null;
+
+const toSrcModulePath = (absolutePath: string): string =>
+	path
+		.relative(srcDir, absolutePath)
+		.split(path.sep)
+		.join('/')
+		.replace(/\.tsx?$/, '')
+		.replace(/\/index$/, '');
+
+const resolveFrom = (
+	base: string,
+	toModulePath: (absolutePath: string) => string,
+): ResolvedModule | null => {
+	const absolutePath = findModuleFile(base);
+	if (!absolutePath) {
+		return null;
+	}
+	return { absolutePath, modulePath: toModulePath(absolutePath) };
+};
+
 export const resolveModuleFile = (
 	importerAbsolutePath: string,
 	specifier: string,
 ): ResolvedModule | null => {
 	const normalized = normalizeSpecifier(specifier);
-
+	const keepSpecifier = (): string => normalized;
+	// Directory entries (`@org/shared-ts/lib/logger`) resolve to the package
+	// export map's `types`/`default` target: `src/lib/logger/index.ts`.
 	if (normalized.startsWith('@org/shared-ts/')) {
-		const base = path.join(
-			sharedTsSrc,
-			normalized.slice('@org/shared-ts/'.length),
+		return resolveFrom(
+			path.join(sharedTsSrc, normalized.slice('@org/shared-ts/'.length)),
+			keepSpecifier,
 		);
-		// Directory entries (`./lib/logger`) are the package export map's
-		// `types`/`default` target: `src/lib/logger/index.ts`.
-		for (const extension of ['.ts', '.tsx', '/index.ts', '/index.tsx']) {
-			const candidate = base + extension;
-			if (moduleFileExists(candidate)) {
-				return { absolutePath: candidate, modulePath: normalized };
-			}
-		}
-		return null;
 	}
-
 	if (normalized.startsWith('./') || normalized.startsWith('../')) {
-		const base = path.resolve(path.dirname(importerAbsolutePath), normalized);
-		for (const suffix of ['.ts', '.tsx', '/index.ts', '/index.tsx']) {
-			const candidate = base + suffix;
-			if (moduleFileExists(candidate)) {
-				return {
-					absolutePath: candidate,
-					modulePath: path
-						.relative(srcDir, candidate)
-						.split(path.sep)
-						.join('/')
-						.replace(/\.tsx?$/, '')
-						.replace(/\/index$/, ''),
-				};
-			}
-		}
-		return null;
+		return resolveFrom(
+			path.resolve(path.dirname(importerAbsolutePath), normalized),
+			toSrcModulePath,
+		);
 	}
-
 	if (normalized.startsWith('lib/')) {
-		const base = path.join(srcDir, normalized);
-		for (const suffix of ['.ts', '.tsx', '/index.ts', '/index.tsx']) {
-			const candidate = base + suffix;
-			if (moduleFileExists(candidate)) {
-				return { absolutePath: candidate, modulePath: normalized };
-			}
-		}
+		return resolveFrom(path.join(srcDir, normalized), keepSpecifier);
 	}
-
 	return null;
 };
 
