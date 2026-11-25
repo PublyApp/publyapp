@@ -224,7 +224,7 @@ PublyApp's map (existing ports, what still has to move): [`docs/guides/ports-and
 SOLID and the 23 Gang of Four patterns, written problem → pattern. Full rules:
 [`docs/conventions/solid.md`](docs/conventions/solid.md) and
 [`docs/conventions/design-patterns.md`](docs/conventions/design-patterns.md), verbatim local copies of the
-shared rules (radandevist/conventions). Never edit a copy: change the shared rule, then copy it again.
+shared rules (radandevist/conventions); they are replaced by the installed `@radandevist/conventions` package once PublyApp depends on it. Never edit a copy: change the shared rule, then copy it again.
 A pattern answers a problem: no problem, no pattern (YAGNI). Singleton is a DI lifetime (`AddSingleton`,
 one module-level instance), never a class with a static `Instance`.
 PublyApp's map (what already follows, verified candidates): [`docs/guides/design-patterns.md`](docs/guides/design-patterns.md).

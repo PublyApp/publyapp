@@ -1,4 +1,4 @@
-<!-- Verbatim copy of radandevist/conventions rules/architecture/solid.md at 412e0c2. Do not edit here: change the rule in radandevist/conventions, then copy it again. This copy is replaced by the installed @radandevist/conventions package once PublyApp depends on it. -->
+<!-- Verbatim copy of radandevist/conventions rules/architecture/solid.md at 7dba8d2. Do not edit here: change the rule in radandevist/conventions, then copy it again. This copy is replaced by the installed @radandevist/conventions package once PublyApp depends on it. -->
 
 # SOLID
 
@@ -38,7 +38,7 @@ and is touched on every release; a caller knows every concrete implementation.
 
 **Example from PublyApp.** A network that can publish implements `ISocialPublisher`; `SocialAdapterRegistry`
 builds the lookup once, and `RoutingPublishAdapter` routes by `request.Provider`. Adding a network does not
-edit the publish job.
+edit the job's routing (the display-label `switch` still needs a case: a known gap).
 
 ```csharp
 public interface ISocialPublisher {
