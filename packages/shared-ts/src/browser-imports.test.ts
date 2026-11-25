@@ -24,7 +24,9 @@ const browserBundle = async (): Promise<string> => {
 				rolldownOptions: {
 					preserveEntrySignatures: 'strict',
 					input: [
-						'src/lib/analytics/iso-analytics.ts',
+						'src/lib/analytics/analytics.ts',
+						'src/lib/analytics/adapters/posthog-browser-analytics-adapter.ts',
+						'src/lib/analytics/adapters/posthog-node-analytics-adapter.ts',
 						'src/utils/try-catch.ts',
 					],
 				},
@@ -43,10 +45,11 @@ const browserBundle = async (): Promise<string> => {
 };
 
 describe('browser logger entry', () => {
-	it('iso-analytics and try-catch resolve it, never Winston', async () => {
+	it('the analytics service and try-catch resolve it, never Winston', async () => {
 		const code = await browserBundle();
-		// both entry modules are really in the bundle
-		expect(code).toContain('Analytics.capture');
+		// every entry module is really in the bundle (not an empty chunk)
+		expect(code).toContain('Analytics send failed');
+		expect(code).toContain('[REDACTED]');
 		expect(code).toContain('You may want to define a custom error handler');
 		expect(code).not.toMatch(/winston|logform|triple-beam/);
 	}, 30_000);

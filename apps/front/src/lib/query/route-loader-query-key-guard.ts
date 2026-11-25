@@ -273,7 +273,7 @@ const moduleFileExists = (candidate: string): boolean => {
 	return exists;
 };
 
-const resolveModuleFile = (
+export const resolveModuleFile = (
 	importerAbsolutePath: string,
 	specifier: string,
 ): ResolvedModule | null => {
@@ -284,7 +284,9 @@ const resolveModuleFile = (
 			sharedTsSrc,
 			normalized.slice('@org/shared-ts/'.length),
 		);
-		for (const extension of ['.ts', '.tsx']) {
+		// Directory entries (`./lib/logger`) are the package export map's
+		// `types`/`default` target: `src/lib/logger/index.ts`.
+		for (const extension of ['.ts', '.tsx', '/index.ts', '/index.tsx']) {
 			const candidate = base + extension;
 			if (moduleFileExists(candidate)) {
 				return { absolutePath: candidate, modulePath: normalized };

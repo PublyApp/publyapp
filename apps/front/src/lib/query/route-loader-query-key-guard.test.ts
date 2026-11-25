@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,6 +10,7 @@ import {
 	createParsedSourceFile,
 	extractIdentity,
 	identityKey,
+	resolveModuleFile,
 	scanRoutes,
 } from './route-loader-query-key-guard';
 import type { ParsedFile } from './route-loader-query-key-guard';
@@ -83,6 +85,35 @@ describe('route-loader <-> page query guard', () => {
 		// The route-keyed closed-drawer skips are a second exemption surface:
 		// pinned here too, so adding one is a conscious edit of this list.
 		expect(closedDrawer).toEqual(EXPECTED_CLOSED_DRAWER);
+	});
+
+	describe('package subpath resolution (export conditions)', () => {
+		const sharedTsSrc = path.resolve(
+			fileURLToPath(new URL('../../..', import.meta.url)),
+			'../../packages/shared-ts/src',
+		);
+		const importer = fileURLToPath(import.meta.url);
+
+		test('a directory entry exported by the package resolves to its types entry', () => {
+			const resolved = resolveModuleFile(importer, '@org/shared-ts/lib/logger');
+			expect(resolved?.absolutePath).toBe(
+				realpathSync(path.join(sharedTsSrc, 'lib/logger/index.ts')),
+			);
+			expect(resolved?.modulePath).toBe('@org/shared-ts/lib/logger');
+		});
+
+		test('a wildcard export still resolves a plain subpath', () => {
+			expect(
+				resolveModuleFile(importer, '@org/shared-ts/utils/string.utils')
+					?.absolutePath,
+			).toBe(realpathSync(path.join(sharedTsSrc, 'utils/string.utils.ts')));
+		});
+
+		test('a subpath the package does not export stays unresolved, never a guessed directory', () => {
+			expect(
+				resolveModuleFile(importer, '@org/shared-ts/lib/logger/adapters'),
+			).toBeNull();
+		});
 	});
 
 	describe('fixtures (red/green proof)', () => {
