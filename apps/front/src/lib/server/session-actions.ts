@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 import { SESSION_TOKEN_COOKIE_KEY } from '@org/shared-ts/lib/constants';
 import { REDIRECT_CODE } from '@org/shared-ts/lib/constants';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 import {
 	selectToken,
 	formatSessionCookie,
@@ -241,7 +241,7 @@ const revokePresentedSessions = async (): Promise<void> => {
 			} catch (error) {
 				logger.warn(
 					'logout: session revocation failed; clearing the cookie anyway',
-					error,
+					{ error: toLogError(error) },
 				);
 			}
 		}),

@@ -15,8 +15,10 @@ vi.mock('~/lib/mutation-feedback/mutation-toast', () => ({
 	displayMutationFeedback: mocks.displayMutationFeedback,
 }));
 
-vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
+vi.mock('@org/shared-ts/lib/logger', () => ({
 	logger: { error: mocks.loggerError },
+	toLogError: (error: unknown) =>
+		error instanceof Error ? error : new Error(String(error)),
 }));
 
 import {

@@ -6,7 +6,7 @@ import type {
 	QueryMeta,
 } from '@tanstack/react-query';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 
 /** A `lib/query/*` factory (`buildStaffQueryOptions` shape): key builder + fetcher.
  *
@@ -91,7 +91,9 @@ export const preloadRouteQueries = (
 ): void => {
 	const meta: QueryMeta = { routePreload: true };
 	const logFailure = (error: unknown): void => {
-		logger.warn('[route preload] query preload failed', { error });
+		logger.warn('[route preload] query preload failed', {
+			error: toLogError(error),
+		});
 	};
 
 	for (const entry of Object.values(spec)) {

@@ -483,9 +483,6 @@ importers:
       winston-console-format:
         specifier: ^1.0.8
         version: 1.0.8
-      winston-transport-browserconsole:
-        specifier: ^1.0.5
-        version: 1.0.5
       zod:
         specifier: 'catalog:'
         version: 4.6.7
@@ -6353,9 +6350,6 @@ packages:
 
   winston-console-format@1.0.8:
     resolution: {integrity: sha512-dq7t/E0D0QRi4XIOwu6HM1+5e//WPqylH88GVjKEhQVrzGFg34MCz+G7pMJcXFBen9C0kBsu5GYgbYsE2LDwKw==}
-
-  winston-transport-browserconsole@1.0.5:
-    resolution: {integrity: sha512-BFZDvknATAmsqaRY3WatB2S0eEb0ziwqBYIv+H0Fnu9oe7GnPUVQzEJC1frmLdNsfEkfnyR1PCNDBAFtZE3SuQ==}
 
   winston-transport@4.9.0:
     resolution: {integrity: sha512-8drMJ4rkgaPo1Me4zD/3WLfI/zPdA9o2IipKODunnGDcuqbHwjsbB79ylv04LCGGzU0xQ6vTznOMpQGaLhhm6A==}
@@ -12257,11 +12251,6 @@ snapshots:
       colors: 1.4.0
       logform: 2.7.0
       triple-beam: 1.4.1
-
-  winston-transport-browserconsole@1.0.5:
-    dependencies:
-      winston: 3.19.0
-      winston-transport: 4.9.0
 
   winston-transport@4.9.0:
     dependencies:

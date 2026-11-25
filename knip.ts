@@ -48,12 +48,6 @@ const config: KnipConfig = {
 			// locally), not an npm package: ci.yml's
 			// `pnpm exec just test-analyzers` legitimately resolves it from PATH.
 			ignoreBinaries: ['just', 'dockerd'],
-			// `winston-transport-browserconsole` is declared in
-			// packages/shared-ts/package.json but never imported directly:
-			// winston resolves it at runtime as an optional browser transport,
-			// so knip cannot trace the import. It matches develop's declared
-			// dependency set (kept deliberately), so it is ignored here rather
-			// than removed from the manifest.
 			// `lint-staged` is invoked by the versioned .husky/pre-commit hook
 			// (`pnpm exec lint-staged`, issue #1852). knip only scanned that
 			// hook while the `husky` package was a dependency (its husky plugin
@@ -61,7 +55,7 @@ const config: KnipConfig = {
 			// dependency tracing, so the real usage is declared here. The
 			// lint-staged plugin still resolves oxfmt/dotnet from
 			// .lintstagedrc.ts, so those stay covered.
-			ignoreDependencies: ['winston-transport-browserconsole', 'lint-staged'],
+			ignoreDependencies: ['lint-staged'],
 		},
 		'apps/front': {
 			// Required peer of @tanstack/router-ssr-query-core (dependency of @tanstack/react-router-ssr-query), declared because peers are not auto-installed (#2445).

@@ -9,7 +9,7 @@ import {
 	postBroadcast,
 } from '~/lib/tab-sync/broadcast-sync';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 import { buildLoginRedirectSearch } from '@org/shared-ts/lib/login-redirect-search';
 import { resolveRouteRedirect } from '@org/shared-ts/lib/safe-redirect-path';
 
@@ -152,7 +152,9 @@ export const useLogout = () => {
 					// still there, so the auth-page guard would immediately
 					// bounce the user back to their workspace, making "Log out"
 					// look like it silently did nothing.
-					logger.error('logout: failed to clear the server session', error);
+					logger.error('logout: failed to clear the server session', {
+						error: toLogError(error),
+					});
 					setIsLoggingOut(false);
 				})
 				.finally(() => {

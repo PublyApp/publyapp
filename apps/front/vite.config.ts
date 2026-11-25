@@ -51,8 +51,10 @@ export default defineConfig(({ mode }) => {
 				// `winston` is deliberately NOT listed here: it is a CJS module
 				// that Vite's SSR module runner cannot transform when forced
 				// into the bundle (`require is not defined` at winston's entry).
-				// It is pulled in transitively by `@org/shared-ts`
-				// (`iso-logger` does `await import('winston')`), and because
+				// `@org/shared-ts` reaches it from its server-only logger entry
+				// (`src/lib/logger/index.ts` imports the Winston adapter
+				// statically; the package's `browser` condition selects
+				// `index.browser.ts`, which never imports it), and because
 				// `@org/shared-ts` itself is bundled above, winston is reached as
 				// an *external* `require` at runtime — which resolves correctly
 				// in dev, in the e2e Vite SSR runner, and in the deployed image

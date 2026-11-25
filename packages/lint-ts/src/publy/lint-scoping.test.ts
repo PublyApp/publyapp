@@ -75,7 +75,7 @@ const RULE_SCOPING_CASES = [
 				filename: 'apps/front/src/routes/users/page.tsx',
 				errors: [{ messageId: 'unexpected' }],
 				output:
-					"import { logger } from '@org/shared-ts/lib/logger/iso-logger';\n" +
+					"import { logger } from '@org/shared-ts/lib/logger';\n" +
 					"logger.log('front should be linted');",
 			},
 		],

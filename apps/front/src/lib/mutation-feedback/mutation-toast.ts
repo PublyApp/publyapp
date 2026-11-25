@@ -1,7 +1,7 @@
 import type { i18n as I18nInstance, Namespace } from 'i18next';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 import { resolveMutationFailureIntent } from '@org/shared-ts/lib/mutation-feedback/policy';
 import type { MutationFeedbackIntent } from '@org/shared-ts/lib/mutation-feedback/types';
 
@@ -38,7 +38,7 @@ const loadSonner = async (): Promise<typeof import('sonner') | undefined> => {
 		return await sonnerModulePromise;
 	} catch (error) {
 		sonnerModulePromise = null;
-		logger.error('[Mutation Toast Error]', { error });
+		logger.error('[Mutation Toast Error]', { error: toLogError(error) });
 		return undefined;
 	}
 };
@@ -129,7 +129,7 @@ const displayToast = async (
 			sonner.toast[method](message, options);
 		}
 	} catch (error) {
-		logger.error('[Mutation Toast Error]', { error });
+		logger.error('[Mutation Toast Error]', { error: toLogError(error) });
 	}
 };
 

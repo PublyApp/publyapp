@@ -6,7 +6,7 @@ import { displayMutationFeedback } from '~/lib/mutation-feedback/mutation-toast'
 import { triggerSessionInvalidated } from '~/lib/session/session-invalidation-channel';
 
 import { toApiFailure } from '@org/shared-ts/lib/api-failure/to-api-failure';
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 import {
 	resolveMutationFailureIntent,
 	resolveMutationSuccessIntent,
@@ -88,7 +88,9 @@ const displayNonSilentMutationIntent = (
 	}
 
 	void displayMutationFeedback(intent).catch((error: unknown) => {
-		logger.error('[Mutation Toast Handler Error]', { error });
+		logger.error('[Mutation Toast Handler Error]', {
+			error: toLogError(error),
+		});
 	});
 };
 

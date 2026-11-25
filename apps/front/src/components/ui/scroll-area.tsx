@@ -2,7 +2,7 @@ import * as React from 'react';
 import SimpleBarCore from 'simplebar-core';
 import { cn } from '~/lib/utils';
 
-import { logger } from '@org/shared-ts/lib/logger/iso-logger';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
 
 /**
  * SSR-safe shared scroll area primitive (#840).
@@ -92,7 +92,9 @@ const ScrollArea = React.forwardRef<HTMLDivElement, ScrollAreaProps>(
 					classNames: CLASS_NAMES,
 				});
 			} catch (error) {
-				logger.error('ScrollArea failed to initialize', { error });
+				logger.error('ScrollArea failed to initialize', {
+					error: toLogError(error),
+				});
 			}
 			return () => instance?.unMount();
 		}, []);

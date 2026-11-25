@@ -1,4 +1,5 @@
-import { logger } from '../lib/logger/iso-logger.ts';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
+
 import { isAsyncFunction, isPromise } from './any.utils.ts';
 import { getErrorMessage } from './error.utils.ts';
 
@@ -26,7 +27,7 @@ type ErrorHandler<T extends GenericFunction = () => void> =
 
 const defaultErrorHandler: ErrorHandler = (error) => {
 	logger.warn('You may want to define a custom error handler');
-	logger.error(getErrorMessage(error), { error });
+	logger.error(getErrorMessage(error), { error: toLogError(error) });
 };
 
 /**

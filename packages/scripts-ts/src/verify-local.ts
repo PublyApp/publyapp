@@ -24,7 +24,7 @@ const TRIGGER_ROWS = [
 	String.raw`ci;;^(\.github\/(workflows|actions)\/|\.github\/CODEOWNERS$|justfile$|\.gitignore$|\.dockerignore$|dokploy\.yml$)|(^|\/)(docker-)?compose[^/]*\.ya?ml$;;justfile;;all`,
 	String.raw`dotnet;;^(Directory\.Build\.(props|targets)|Directory\.Packages\.props|global\.json|PublyApp\.slnx|\.config\/dotnet-tools\.json)$|(^|\/)[^/]+\.csproj$;;Directory.Build.props;;all`,
 	String.raw`api-shared;;^apps\/api\/(Lib|Data|Infrastructure|Migrations|Tests)\/|^apps\/apphost\/;;apps/api/Lib/AppEnvironment.cs;;api`,
-	String.raw`front-inputs;;^(packages\/shared-ts\/|apps\/front\/scripts\/ci\/|apps\/front\/src\/routeTree\.gen\.ts$);;packages/shared-ts/src/lib/logger/iso-logger.ts;;front`,
+	String.raw`front-inputs;;^(packages\/shared-ts\/|apps\/front\/scripts\/ci\/|apps\/front\/src\/routeTree\.gen\.ts$);;packages/shared-ts/src/lib/logger/index.ts;;front`,
 	String.raw`generated-client;;^(packages\/client-ts\/|apps\/api\/openapi\.json$);;packages/client-ts/src/index.ts;;all`,
 	String.raw`lint-packages;;^packages\/(lint-ts|lint-cs)\/;;packages/lint-ts/src/index.ts;;all`,
 	String.raw`scripts-ts;;^packages\/scripts-ts\/;;packages/scripts-ts/src/ci-changed-paths.ts;;tooling`,
