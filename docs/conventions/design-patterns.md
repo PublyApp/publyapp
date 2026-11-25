@@ -1,4 +1,4 @@
-<!-- Verbatim copy of radandevist/conventions rules/architecture/design-patterns.md at 7dba8d2. Do not edit here: change the rule in radandevist/conventions, then copy it again. This copy is replaced by the installed @radandevist/conventions package once PublyApp depends on it. -->
+<!-- Verbatim copy of radandevist/conventions rules/architecture/design-patterns.md at 2468971. Do not edit here: change the rule in radandevist/conventions, then copy it again. This copy is replaced by the installed @radandevist/conventions package once PublyApp depends on it. -->
 
 # Design patterns
 
