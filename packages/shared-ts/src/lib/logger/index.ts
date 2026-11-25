@@ -1,7 +1,7 @@
 import { isServer } from '../constants';
 import { BrowserConsoleLoggerAdapter } from './adapters/browser-console-logger-adapter';
-import { JsonLoggerAdapter } from './adapters/json-logger-adapter';
 import { MemoryLoggerAdapter } from './adapters/memory-logger-adapter';
+import { StdoutJsonLoggerAdapter } from './adapters/stdout-json-logger-adapter';
 import { createServerWinstonAdapter } from './adapters/winston-logger-adapter';
 import { createLogger } from './create-logger';
 import { type LogEnv, parseLevel, readEnv } from './log-level';
@@ -22,7 +22,9 @@ const autoAdapter = (env: LogEnv, server: boolean): ILogger => {
 		return new MemoryLoggerAdapter();
 	}
 	if (env.NODE_ENV === 'production') {
-		return server ? new JsonLoggerAdapter() : new BrowserConsoleLoggerAdapter();
+		return server
+			? new StdoutJsonLoggerAdapter()
+			: new BrowserConsoleLoggerAdapter();
 	}
 	return winstonAdapter(server);
 };
@@ -36,7 +38,7 @@ export const resolveAdapter = (
 		return winstonAdapter(server);
 	}
 	if (env.LOG_ADAPTER === 'json') {
-		return new JsonLoggerAdapter();
+		return new StdoutJsonLoggerAdapter();
 	}
 	return autoAdapter(env, server);
 };

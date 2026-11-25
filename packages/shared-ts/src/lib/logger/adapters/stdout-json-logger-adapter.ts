@@ -11,7 +11,7 @@ const defaultOut = (chunk: string): void => {
  * when the process is stopped by SIGTERM, which Node does not turn into an
  * `exit` event.
  */
-export class JsonLoggerAdapter implements ILogger {
+export class StdoutJsonLoggerAdapter implements ILogger {
 	readonly #out: (chunk: string) => void;
 
 	constructor(out: (chunk: string) => void = defaultOut) {

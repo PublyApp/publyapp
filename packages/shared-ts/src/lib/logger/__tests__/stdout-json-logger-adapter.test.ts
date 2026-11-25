@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { JsonLoggerAdapter } from '../adapters/json-logger-adapter';
+import { StdoutJsonLoggerAdapter } from '../adapters/stdout-json-logger-adapter';
 import type { LogEntry } from '../logger.types';
 
 const entry = (over: Partial<LogEntry> = {}): LogEntry => ({
@@ -12,10 +12,10 @@ const entry = (over: Partial<LogEntry> = {}): LogEntry => ({
 
 const make = () => {
 	const out = vi.fn<(chunk: string) => void>();
-	return { out, adapter: new JsonLoggerAdapter(out) };
+	return { out, adapter: new StdoutJsonLoggerAdapter(out) };
 };
 
-describe('JsonLoggerAdapter', () => {
+describe('StdoutJsonLoggerAdapter', () => {
 	it('writes one parseable JSON line with time, level, message, meta', () => {
 		const { out, adapter } = make();
 		adapter.write(entry({ level: 'warn', meta: { a: 1 } }));
