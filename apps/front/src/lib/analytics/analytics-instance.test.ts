@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 	token: { value: 'browser-token' as string | undefined },
 }));
 
-vi.mock('@org/shared-ts/lib/logger/iso-logger', () => ({
+vi.mock('@org/shared-ts/lib/logger', () => ({
 	logger: {
 		debug: vi.fn(),
 		error: mocks.error,

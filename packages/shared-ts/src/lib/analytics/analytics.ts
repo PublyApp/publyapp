@@ -1,4 +1,5 @@
-import { logger } from '../logger/iso-logger';
+import { logger, toLogError } from '@org/shared-ts/lib/logger';
+
 import { maskAnalyticsEvent } from './analytics-masking';
 import type {
 	AnalyticsConsent,
@@ -37,7 +38,12 @@ export class Analytics {
 
 			const masked = maskAnalyticsEvent(event);
 			if (this.logOnly) {
-				logger.info(`Analytics.${event.type}`, masked);
+				logger.info(
+					`Analytics.${event.type}`,
+					'error' in masked
+						? { ...masked, error: toLogError(masked.error) }
+						: masked,
+				);
 				return true;
 			}
 			await this.#adapter.send(masked);
